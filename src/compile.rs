@@ -95,16 +95,48 @@ fn static_error(n: Node<'_, '_>, code: &str, message: impl Into<String>) -> Diag
 fn component_name(n: Node<'_, '_>, text: &str) -> Result<String, Diagnostic> {
     // Unlike XPath's built-in function/type prefixes, component prefixes must
     // actually be declared in the stylesheet.
-    let bindings = n
+    let mut bindings: BTreeMap<String, String> = n
         .namespaces()
         .filter_map(|ns| ns.name().map(|p| (p.into(), ns.uri().into())))
         .collect();
+    bindings.insert("xml".into(), "http://www.w3.org/XML/1998/namespace".into());
     crate::qname::resolve(text.trim(), &bindings, "XTSE0020").map_err(|mut e| {
         let pos = n.document().text_pos_at(n.range().start);
         e.line = pos.row;
         e.column = pos.col;
         e
     })
+}
+fn check_component_namespace(
+    n: Node<'_, '_>,
+    name: &str,
+    initial_template: bool,
+) -> Result<(), Diagnostic> {
+    let (uri, local) = crate::qname::parts(name);
+    if initial_template && uri == Some(XSL) && local == "initial-template" {
+        return Ok(());
+    }
+    if matches!(
+        uri,
+        Some(
+            XSL | "http://www.w3.org/2005/xpath-functions"
+                | "http://www.w3.org/2005/xpath-functions/math"
+                | "http://www.w3.org/2005/xpath-functions/map"
+                | "http://www.w3.org/2005/xpath-functions/array"
+                | "http://www.w3.org/XML/1998/namespace"
+                | "http://www.w3.org/2001/XMLSchema"
+                | "http://www.w3.org/2001/XMLSchema-instance"
+                | "http://www.w3.org/2005/xqt-errors"
+                | "http://www.w3.org/2000/xmlns/"
+        )
+    ) {
+        return Err(static_error(
+            n,
+            "XTSE0080",
+            format!("reserved component namespace: {name}"),
+        ));
+    }
+    Ok(())
 }
 fn required<'a>(n: Node<'a, '_>, a: &str) -> Result<&'a str, Diagnostic> {
     n.attribute(a)
@@ -115,6 +147,7 @@ fn namespaces(n: Node<'_, '_>) -> BTreeMap<String, String> {
         .namespaces()
         .filter_map(|ns| ns.name().map(|prefix| (prefix.into(), ns.uri().into())))
         .collect();
+    namespaces.insert("xml".into(), "http://www.w3.org/XML/1998/namespace".into());
     namespaces
         .entry("xs".into())
         .or_insert_with(|| "http://www.w3.org/2001/XMLSchema".into());
@@ -208,6 +241,7 @@ fn binding(n: Node<'_, '_>, parameter: bool, depth: usize) -> Result<Binding, Di
         n.attribute("name")
             .ok_or_else(|| static_error(n, "XTSE0010", "binding requires a name"))?,
     )?;
+    check_component_namespace(n, &id, false)?;
     let value = if let Some(s) = n.attribute("select") {
         empty(n)?;
         BindingValue::Select(expr(n, s)?)
@@ -742,7 +776,9 @@ fn mode(n: Node<'_, '_>, value: &str, current: bool) -> Result<String, Diagnosti
     if current && value == "#current" {
         return Ok(value.into());
     }
-    component_name(n, value)
+    let name = component_name(n, value)?;
+    check_component_namespace(n, &name, false)?;
+    Ok(name)
 }
 pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
     let doc = crate::parse(source, "compile")?;
@@ -809,6 +845,9 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
                     .attribute("name")
                     .map(|s| component_name(n, s))
                     .transpose()?;
+                if let Some(id) = &id {
+                    check_component_namespace(n, id, true)?;
+                }
                 if p.is_none() && id.is_none() {
                     return Err(error(n, "template requires match or name"));
                 }

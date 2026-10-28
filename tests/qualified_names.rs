@@ -206,3 +206,55 @@ fn uriqualified_alias_duplicates_are_rejected() {
         .is_err()
     );
 }
+
+#[test]
+fn reserved_namespaces_are_rejected_for_component_declarations() {
+    for uri in [
+        "http://www.w3.org/1999/XSL/Transform",
+        "http://www.w3.org/2005/xpath-functions",
+        "http://www.w3.org/2005/xpath-functions/math",
+        "http://www.w3.org/2005/xpath-functions/map",
+        "http://www.w3.org/2005/xpath-functions/array",
+        "http://www.w3.org/XML/1998/namespace",
+        "http://www.w3.org/2001/XMLSchema",
+        "http://www.w3.org/2001/XMLSchema-instance",
+        "http://www.w3.org/2005/xqt-errors",
+        "http://www.w3.org/2000/xmlns/",
+    ] {
+        for body in [
+            format!(r##"<xsl:variable name="Q{{{uri}}}v"/>"##),
+            format!(r##"<xsl:template name="Q{{{uri}}}t"/>"##),
+            format!(r##"<xsl:template match="/" mode="Q{{{uri}}}m"/>"##),
+            format!(r##"<xsl:template name="t"><xsl:param name="Q{{{uri}}}p"/></xsl:template>"##),
+        ] {
+            assert_eq!(
+                Stylesheet::compile(&sheet(&body)).unwrap_err().code,
+                "XTSE0080",
+                "{body}"
+            );
+        }
+    }
+    assert_eq!(
+        Stylesheet::compile(&sheet(r##"<xsl:variable name="xml:v"/>"##))
+            .unwrap_err()
+            .code,
+        "XTSE0080"
+    );
+}
+#[test]
+fn initial_template_name_is_the_reserved_namespace_exception() {
+    let s = Stylesheet::compile(&sheet(r##"<xsl:template xmlns:t="http://www.w3.org/1999/XSL/Transform" name="t:initial-template">entry</xsl:template>"##)).unwrap();
+    let opts = TransformOptions {
+        initial_template: Some("Q{http://www.w3.org/1999/XSL/Transform}initial-template".into()),
+        ..Default::default()
+    };
+    assert_eq!(s.transform_with_options("", &opts).unwrap(), "entry");
+}
+#[test]
+fn reserved_namespaces_remain_available_for_source_name_tests() {
+    let s = Stylesheet::compile(&sheet(
+        r##"<xsl:template match="/"><xsl:value-of select="r/@xml:lang"/></xsl:template>"##,
+    ))
+    .unwrap();
+    assert_eq!(s.transform("<r xml:lang='fi'/>").unwrap(), "fi");
+}

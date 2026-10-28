@@ -232,5 +232,15 @@ conformance claims. Smaller tested increments are committed independently.
   reachable assertion lacks harness support; all 245 previous passes remain.
   Gate expanded to 262.
 
-Next: reserved component namespaces, initial-entry parameters, implicit required
-parameters, and further practical XSLT 1.0 dispatch behavior.
+## Increment 20: reserved component namespaces
+
+- Declared templates, modes, variables and parameters reject reserved namespaces
+  with XTSE0080, while xsl:initial-template retains its standard exception.
+- The implicit xml prefix resolves for stylesheet component checks and XPath
+  source-name tests without an explicit xmlns:xml declaration.
+- 157 Rust integration tests and Clippy/format pass. W3C: 263 pass / 205 engine
+  failures / 111 harness errors / 46 exclusions; all 262 prior passes remain.
+  Gate expanded to 263.
+
+Next: initial-entry parameters, implicit required parameters, and further
+practical XSLT 1.0 dispatch behavior.
