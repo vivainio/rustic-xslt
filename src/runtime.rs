@@ -108,8 +108,34 @@ pub(crate) fn transform(
 ) -> Result<String, Diagnostic> {
     let doc = crate::parse(source, "parse")?;
     let root = node_focus(XNode::Tree(doc.root()));
+    let mut budget = Budget::new(options.limits);
+    execute(sheet, root, options, &mut budget, true)
+}
+
+pub(crate) fn transform_record(
+    sheet: &Stylesheet,
+    source: &str,
+    options: &TransformOptions,
+    budget: &mut Budget,
+    position: usize,
+) -> Result<String, Diagnostic> {
+    let doc = crate::parse(source, "parse")?;
+    let root = Focus {
+        item: Item::Node(XNode::Tree(doc.root_element())),
+        position,
+        size: 1,
+    };
+    execute(sheet, root, options, budget, false)
+}
+
+fn execute<'a>(
+    sheet: &'a Stylesheet,
+    root: Focus<'a>,
+    options: &TransformOptions,
+    budget: &mut Budget,
+    declaration: bool,
+) -> Result<String, Diagnostic> {
     let limits = options.limits;
-    let mut budget = Budget::new(limits);
     let mut globals = Variables::new();
     let mut pending: Vec<_> = sheet.globals.iter().collect();
     while !pending.is_empty() {
@@ -121,7 +147,7 @@ pub(crate) fn transform(
                 globals.insert(b.name.clone(), vec![Item::String(s.clone())]);
                 continue;
             }
-            match xpath::eval(&b.value, &root, &globals, &mut budget, 0, sheet.backwards) {
+            match xpath::eval(&b.value, &root, &globals, budget, 0, sheet.backwards) {
                 Ok(v) => {
                     globals.insert(b.name.clone(), v);
                 }
@@ -144,7 +170,7 @@ pub(crate) fn transform(
         max: limits.max_output_bytes,
         text: sheet.text_output,
     };
-    if !sheet.text_output && !sheet.omit_declaration {
+    if declaration && !sheet.text_output && !sheet.omit_declaration {
         output.push("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")?;
     }
     let mut tasks = if let Some(name) = &options.initial_template {
@@ -175,7 +201,7 @@ pub(crate) fn transform(
                     let v = if let Some(v) = params.remove(&p.name) {
                         v
                     } else {
-                        xpath::eval(&p.value, &focus, &env, &mut budget, 0, sheet.backwards)?
+                        xpath::eval(&p.value, &focus, &env, budget, 0, sheet.backwards)?
                     };
                     env.insert(p.name.clone(), v);
                 }
@@ -226,8 +252,7 @@ pub(crate) fn transform(
                     continue;
                 };
                 if let Instruction::Bind(b) = instruction {
-                    let value =
-                        xpath::eval(&b.value, &focus, &env, &mut budget, 0, sheet.backwards)?;
+                    let value = xpath::eval(&b.value, &focus, &env, budget, 0, sheet.backwards)?;
                     Rc::make_mut(&mut env).insert(b.name.clone(), value);
                     tasks.push(Task::Body(body, i + 1, focus, env, depth));
                     continue;
@@ -237,7 +262,7 @@ pub(crate) fn transform(
                     Instruction::Bind(_) => unreachable!(),
                     Instruction::Text(t) => output.text(t)?,
                     Instruction::Value(e) => {
-                        let mut v = xpath::eval(e, &focus, &env, &mut budget, 0, sheet.backwards)?;
+                        let mut v = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
                         if sheet.backwards {
                             v.truncate(1);
                         }
@@ -250,13 +275,13 @@ pub(crate) fn transform(
                         }
                     }
                     Instruction::Apply(e) => {
-                        let value = xpath::eval(e, &focus, &env, &mut budget, 0, sheet.backwards)?;
+                        let value = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
                         for f in focus_sequence(value).into_iter().rev() {
                             tasks.push(Task::Apply(f, depth + 1));
                         }
                     }
                     Instruction::ForEach(e, body) => {
-                        let value = xpath::eval(e, &focus, &env, &mut budget, 0, sheet.backwards)?;
+                        let value = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
                         for f in focus_sequence(value).into_iter().rev() {
                             tasks.push(Task::Body(body, 0, f, env.clone(), depth + 1));
                         }
@@ -266,7 +291,7 @@ pub(crate) fn transform(
                             e,
                             &focus,
                             &env,
-                            &mut budget,
+                            budget,
                             0,
                             sheet.backwards,
                         )?)? {
@@ -278,7 +303,7 @@ pub(crate) fn transform(
                             if test
                                 .as_ref()
                                 .map(|e| {
-                                    xpath::eval(e, &focus, &env, &mut budget, 0, sheet.backwards)
+                                    xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)
                                         .and_then(|v| xpath::boolean(&v))
                                 })
                                 .transpose()?
@@ -305,14 +330,7 @@ pub(crate) fn transform(
                         for p in params {
                             bindings.insert(
                                 p.name.clone(),
-                                xpath::eval(
-                                    &p.value,
-                                    &focus,
-                                    &env,
-                                    &mut budget,
-                                    0,
-                                    sheet.backwards,
-                                )?,
+                                xpath::eval(&p.value, &focus, &env, budget, 0, sheet.backwards)?,
                             );
                         }
                         tasks.push(Task::Enter(t, focus, bindings, depth + 1));
@@ -334,7 +352,7 @@ pub(crate) fn transform(
                                         part,
                                         &focus,
                                         &env,
-                                        &mut budget,
+                                        budget,
                                         0,
                                         sheet.backwards,
                                     )?;
@@ -351,14 +369,7 @@ pub(crate) fn transform(
                             // Attribute expressions are still evaluated for their dynamic errors.
                             for (_, parts) in attributes {
                                 for part in parts {
-                                    xpath::eval(
-                                        part,
-                                        &focus,
-                                        &env,
-                                        &mut budget,
-                                        0,
-                                        sheet.backwards,
-                                    )?;
+                                    xpath::eval(part, &focus, &env, budget, 0, sheet.backwards)?;
                                 }
                             }
                         }

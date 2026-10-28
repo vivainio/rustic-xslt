@@ -1,7 +1,9 @@
 //! An early, deliberately limited XSLT engine. See README.md for supported syntax.
 mod compile;
 mod runtime;
+mod stream;
 mod xpath;
+pub use stream::{StreamOptions, StreamStats};
 
 use std::fmt;
 
@@ -76,6 +78,17 @@ impl Stylesheet {
     }
     pub fn transform(&self, source: &str) -> Result<String, Diagnostic> {
         self.transform_with_limits(source, Limits::default())
+    }
+    /// Transform a stream of fixed-depth XML records using a named template.
+    /// Unsupported nonlocal expressions are rejected before input is consumed.
+    /// Output is incremental and may be partial on failure.
+    pub fn stream_records<R: std::io::BufRead, W: std::io::Write>(
+        &self,
+        input: R,
+        output: &mut W,
+        options: &StreamOptions,
+    ) -> Result<StreamStats, Diagnostic> {
+        stream::transform(self, input, output, options)
     }
     pub fn transform_with_options(
         &self,

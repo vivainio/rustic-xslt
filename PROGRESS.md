@@ -20,5 +20,18 @@ conformance claims. Smaller tested increments are committed independently.
 - 23 integration tests pass, including adapted Go fixtures and scope/focus tests.
 - Format and Clippy checks pass. No full suite or Go differential run yet.
 
-Next: bring a constrained record-streaming path forward before extending the
-remaining tree-based XSLT features. Keep capability claims explicit.
+## Increment 3: early record streaming
+
+- Added quick-xml pull events and a public fixed-depth record-streaming API.
+- Named templates run against one grounded record at a time using the ordinary
+  evaluator; inherited namespaces survive detachment and output is incremental.
+- Static safety checks include called templates and globals; there is no hidden
+  whole-document fallback. Full XSLT streamability is not yet implemented.
+- Event/record/depth limits, shared run budgets, ignored-content validation,
+  I/O failure handling and observable buffering statistics.
+- 34 integration tests pass. Generated 100/10,000-record checks report constant
+  peak buffering and output before EOF. No process RSS measurement yet.
+- Format and Clippy pass; reference Go execution remains unavailable.
+
+Next: template patterns/modes and identity transforms, while keeping streaming
+restrictions synchronized with every new instruction and XPath feature.

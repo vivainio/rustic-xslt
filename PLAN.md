@@ -179,7 +179,15 @@ Exit: pinned basic XSLT 3.0 suite run; every failure/unsupported dependency
 named and explained, strict expected error codes, and no regression in the
 passing set. Concurrency and nested-budget tests pass.
 
-### 6. Streaming
+### Early streaming increment (brought forward)
+
+Establish an explicit record-streaming API alongside the initial tree runtime,
+using fixed-depth selection and one grounded subtree at a time, as in Go's
+record dispatcher. Reject nonlocal expressions and keep shared budgets.
+Measure buffering on generated input before broadening the language surface.
+See PROGRESS.md for delivered scope; this does not satisfy milestone 6.
+
+### 6. Full XSLT streaming
 
 Port streamability analysis alongside the event executor, then streamed
 accumulators, grouping, fork and merge behavior. Integrate incremental output

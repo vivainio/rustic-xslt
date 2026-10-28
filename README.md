@@ -46,8 +46,8 @@ Match patterns currently support unprefixed element-name paths and `/` only.
 Unsupported constructs are rejected rather than ignored. Implementation gaps
 use `RUST_XSLT_UNSUPPORTED`; syntax/name/function errors use XPath error codes.
 Variable references and named-template calls are checked even in dead branches.
-No imports, copy instructions, result namespace fixup, streaming, schema
-awareness, resource loading, or cancellation yet. Empty result elements use
+No imports, copy instructions, result namespace fixup, schema awareness,
+resource loading, or cancellation yet. Record streaming is described below. Empty result elements use
 explicit start/end tags. Unused namespace declarations are omitted.
 
 Parsing uses `roxmltree` with DTD processing disabled and a one-million-node
@@ -61,6 +61,56 @@ instruction bodies and XPath parsing, and caps expression token counts.
 Run `cargo test --offline` and `cargo clippy --offline --all-targets -- -D warnings`.
 The lockfile pins the dependency set. Adapted Go fixtures retain attribution in
 LICENSE and NOTICE. See [PROGRESS.md](PROGRESS.md) for delivered increments.
+
+## Early record streaming
+
+`Stylesheet::stream_records(input, &mut output, &StreamOptions)` incrementally
+reads a UTF-8 XML 1.0 document, selects a fixed-depth path such as
+`/catalog/book`, and invokes a named template with each book as context.
+This follows the reference engine's grounded-record approach: hold one complete
+record subtree, reuse the ordinary evaluator, write the result, then discard it.
+
+```rust
+use rust_xslt::{Stylesheet, StreamOptions};
+use std::io::Cursor;
+let sheet = Stylesheet::compile(r#"
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="3.0">
+  <xsl:output method="text"/>
+  <xsl:template name="record"><xsl:value-of select="title"/><xsl:text>;</xsl:text></xsl:template>
+</xsl:stylesheet>"#)?;
+let options = StreamOptions { record_path: "/catalog/book".into(), ..Default::default() };
+let mut output = Vec::new();
+let stats = sheet.stream_records(Cursor::new("<catalog><book><title>Rust</title></book></catalog>"), &mut output, &options)?;
+assert_eq!(output, b"Rust;");
+assert_eq!(stats.records, 1);
+# Ok::<(), rust_xslt::Diagnostic>(())
+```
+
+This is an explicit record API, **not yet the XSLT `streamable` feature**.
+It emits a sequence of record results (XML fragments for XML output); it adds
+no outer wrapper. The XML declaration, when enabled, is written once. Use
+`StreamOptions::namespaces` for prefixed record paths. Inherited input namespace
+bindings are preserved when a record is detached.
+
+Static checks reject absolute paths, parent navigation, `last()`, source-dependent
+globals and apply-templates in the reachable record-template call graph, before
+reading input or writing output. Rejection is conservative, including `last()`
+in grounded inner loops. `position()` is the selected record's one-based index.
+There is no silent fallback to whole-document buffering.
+
+The stream has explicit event-byte, record-byte and input-depth limits, plus
+one execution/output budget across all records. Malformed ignored content is
+still checked. The library retains the ancestor namespace/name stack, one XML
+event, one record and one record's result; it does not accumulate prior records
+or results. XML events use `quick-xml` 0.38.4; grounded records use `roxmltree`.
+Output may be partial on parse, execution or I/O failure. Caller-owned input
+and output buffers are outside the library's buffering limits.
+
+An integration test generates 100 and 10,000 records without holding the input
+or output, checks that reported peak record/event buffering stays constant,
+and verifies that output begins before input is exhausted. These counters are
+not a measurement of process RSS. General XSLT streamability analysis,
+streamable modes/accumulators and automatic plan selection remain ahead.
 
 ## Go reference driver (development only)
 
