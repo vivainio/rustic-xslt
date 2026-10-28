@@ -511,6 +511,26 @@ fn execute<'a>(
                 sheet.default_mode.clone()
             }
         });
+    if options.initial_template.is_none()
+        && options.initial_mode.is_some()
+        && !initial_mode.is_empty()
+        && initial_mode != sheet.default_mode
+    {
+        let declared = sheet.modes.get(&initial_mode);
+        let implicit = sheet
+            .templates
+            .iter()
+            .any(|t| t.pattern.is_some() && t.modes.contains(&initial_mode));
+        if declared.is_none() && !implicit
+            || declared.is_some_and(|m| m.visibility == Some(crate::mode::Visibility::Private))
+        {
+            return Err(Diagnostic::new(
+                "XTDE0045",
+                format!("ineligible initial mode: {initial_mode}"),
+                "run",
+            ));
+        }
+    }
     let tasks = if let Some(name) = &options.initial_template {
         let name = crate::qname::external(name)?;
         let t = sheet

@@ -318,5 +318,17 @@ conformance claims. Smaller tested increments are committed independently.
   failures / 133 harness errors / 46 exclusions. All 316 previous passes remain;
   gate expands to 327.
 
-Next: declared-mode enforcement and initial-mode eligibility, followed by
-next-match and template result types.
+## Increment 27: initial-mode eligibility and visibility
+
+- Initial named modes must exist as explicit declarations or template rule modes;
+  #all does not create arbitrary eligible initial names. Checks use expanded names.
+- Public/private/final visibility merges with mode declarations. Named private
+  modes remain callable internally but are ineligible entries, with the standard
+  exceptions for default and unnamed modes. Invalid unnamed visibility is static.
+- Package declared-mode enforcement and abstract mode components remain deferred
+  with package support rather than being applied to ordinary stylesheet modules.
+- 195 Rust integration tests and Clippy/format pass. W3C: 330 pass / 174 engine
+  failures / 133 harness errors / 46 exclusions. All 327 previous passes remain;
+  gate expands to 330.
+
+Next: next-match and template result types.

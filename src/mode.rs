@@ -8,10 +8,17 @@ pub(crate) enum OnNoMatch {
     DeepSkip,
     Fail,
 }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Visibility {
+    Public,
+    Private,
+    Final,
+}
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct Mode {
     pub on_no_match: Option<OnNoMatch>,
     pub fail_on_multiple: Option<bool>,
+    pub visibility: Option<Visibility>,
 }
 impl Mode {
     pub fn policy(self) -> OnNoMatch {

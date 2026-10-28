@@ -899,6 +899,7 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
                         "on-multiple-match",
                         "streamable",
                         "use-accumulators",
+                        "visibility",
                     ],
                 )?;
                 empty(n)?;
@@ -948,16 +949,39 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
                         )),
                     })
                     .transpose()?;
+                let visibility = n
+                    .attribute("visibility")
+                    .map(|s| match s.trim() {
+                        "public" => Ok(crate::mode::Visibility::Public),
+                        "private" => Ok(crate::mode::Visibility::Private),
+                        "final" => Ok(crate::mode::Visibility::Final),
+                        "abstract" => Err(error(n, "abstract modes require package support")),
+                        _ => Err(static_error(n, "XTSE0020", "invalid mode visibility")),
+                    })
+                    .transpose()?;
+                if name.is_empty()
+                    && visibility.is_some_and(|v| v != crate::mode::Visibility::Private)
+                {
+                    return Err(static_error(
+                        n,
+                        "XTSE0020",
+                        "the unnamed mode must be private",
+                    ));
+                }
                 let entry = sheet.modes.entry(name).or_default();
                 if policy.zip(entry.on_no_match).is_some_and(|(a, b)| a != b)
                     || multiple
                         .zip(entry.fail_on_multiple)
+                        .is_some_and(|(a, b)| a != b)
+                    || visibility
+                        .zip(entry.visibility)
                         .is_some_and(|(a, b)| a != b)
                 {
                     return Err(static_error(n, "XTSE0545", "conflicting mode declarations"));
                 }
                 entry.on_no_match = policy.or(entry.on_no_match);
                 entry.fail_on_multiple = multiple.or(entry.fail_on_multiple);
+                entry.visibility = visibility.or(entry.visibility);
             }
             "strip-space" | "preserve-space" => {
                 let rules = space_rules(n, n.tag_name().name() == "strip-space")?;

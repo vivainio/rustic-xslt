@@ -56,3 +56,58 @@ fn current_mode_is_distinct_from_a_locally_changed_default() {
     let s = Stylesheet::compile(&source(r##"<xsl:template match="/"><xsl:apply-templates default-mode="#unnamed" mode="#current"/></xsl:template><xsl:template match="r">current</xsl:template><xsl:template match="r" mode="#unnamed">wrong</xsl:template>"##)).unwrap();
     assert_eq!(s.transform("<r/>").unwrap(), "current");
 }
+
+#[test]
+fn all_mode_templates_do_not_declare_arbitrary_initial_modes() {
+    let s = Stylesheet::compile(&source(
+        r##"<xsl:template match="/" mode="#all">wrong</xsl:template>"##,
+    ))
+    .unwrap();
+    let opts = TransformOptions {
+        initial_mode: Some("Q{urn:unknown}m".into()),
+        ..Default::default()
+    };
+    assert_eq!(
+        s.transform_with_options("<r/>", &opts).unwrap_err().code,
+        "XTDE0045"
+    );
+}
+#[test]
+fn explicit_and_implicit_named_modes_are_eligible_by_expanded_name() {
+    let s = Stylesheet::compile(&source(r##"<xsl:mode name="p:explicit"/><xsl:template match="/" mode="q:implicit">implicit</xsl:template>"##)).unwrap();
+    for name in ["Q{urn:p}explicit", "Q{urn:p}implicit"] {
+        let opts = TransformOptions {
+            initial_mode: Some(name.into()),
+            ..Default::default()
+        };
+        assert!(s.transform_with_options("<r/>", &opts).is_ok());
+    }
+}
+#[test]
+fn named_private_modes_are_internal_but_default_modes_remain_eligible() {
+    let s = Stylesheet::compile(&source(r##"<xsl:mode name="p:private" visibility="private"/><xsl:mode name="p:m" visibility="private"/><xsl:template match="/"><xsl:apply-templates select="r" mode="q:private"/></xsl:template><xsl:template match="r" mode="q:private">internal</xsl:template>"##)).unwrap();
+    assert_eq!(s.transform("<r/>").unwrap(), "internal");
+    let opts = TransformOptions {
+        initial_mode: Some("Q{urn:p}private".into()),
+        ..Default::default()
+    };
+    assert_eq!(
+        s.transform_with_options("<r/>", &opts).unwrap_err().code,
+        "XTDE0045"
+    );
+    let opts = TransformOptions {
+        initial_mode: Some("Q{urn:p}m".into()),
+        ..Default::default()
+    };
+    assert_eq!(s.transform_with_options("<r/>", &opts).unwrap(), "internal");
+}
+#[test]
+fn mode_visibility_conflicts_and_invalid_unnamed_visibility_are_static() {
+    assert_eq!(Stylesheet::compile(&source(r##"<xsl:mode name="p:m" visibility="public"/><xsl:mode name="q:m" visibility="private"/>"##)).unwrap_err().code, "XTSE0545");
+    assert_eq!(
+        Stylesheet::compile(&source(r##"<xsl:mode visibility="public"/>"##))
+            .unwrap_err()
+            .code,
+        "XTSE0020"
+    );
+}

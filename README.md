@@ -81,7 +81,10 @@ predicates, `/` and union. Descendant patterns remain ahead.
 
 Mode declarations support node-based text-only-copy, shallow/deep-copy,
 shallow/deep-skip and fail policies. Compatible declarations merge; conflicting
-settings fail statically. Full streamability and atomic-item patterns remain ahead.
+settings fail statically. Named private modes are internal entry points; unknown
+initial modes fail with XTDE0045. Default and unnamed modes remain eligible.
+Public/private/final mode visibility is supported; abstract modes and package
+declared-mode enforcement remain ahead. Full streamability and atomic-item patterns remain ahead.
 
 Unsupported constructs are rejected rather than ignored. Implementation gaps
 use `RUST_XSLT_UNSUPPORTED`; syntax/name/function errors use XPath error codes.
@@ -177,7 +180,7 @@ streamable modes/accumulators and automatic plan selection remain ahead.
 
 ## W3C development checks
 
-A pinned, partial catalog runner and a 327-case passing regression gate are in
+A pinned, partial catalog runner and a 330-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. The example JSON-lines driver
