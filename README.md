@@ -29,7 +29,8 @@ untyped atomic values, booleans, exact integer/decimal lexical values, floats,
 doubles and the empty sequence. The same parameter fields are available for
 streamed record entry. Supplying aliased duplicate names is an API error. API component
 names use a local name or `Q{uri}local` (also for `StreamOptions::template` and
-parameter keys); lexical prefixes require a stylesheet namespace scope and are
+parameter keys); `initial_mode: Some("#unnamed".into())` selects the unnamed mode
+when a stylesheet default is declared. Lexical prefixes require a stylesheet namespace scope and are
 rejected at API boundaries. Stylesheet component names and XPath variable
 references accept `Q{uri}local` and resolve prefixes at their declaring element; unprefixed names have
 no namespace, regardless of the default XML namespace. Component names currently
@@ -37,7 +38,8 @@ use the documented ASCII name-character subset.
 
 Supported so far:
 
-- match templates, named templates, modes/current-mode, explicit/default priority,
+- match templates, named templates, modes/current-mode, scoped default-mode,
+  explicit/default priority,
   global/template parameters and local variables, with namespace-qualified names;
 - lexical scope, forward global references, circular-global detection;
 - child/attribute/self/parent/descendant/ancestor/sibling/following/preceding
@@ -170,7 +172,7 @@ streamable modes/accumulators and automatic plan selection remain ahead.
 
 ## W3C development checks
 
-A pinned, partial catalog runner and a 296-case passing regression gate are in
+A pinned, partial catalog runner and a 316-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. The example JSON-lines driver

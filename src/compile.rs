@@ -173,6 +173,10 @@ fn attrs(n: Node<'_, '_>, allowed: &[&str]) -> Result<(), Diagnostic> {
         if a.namespace() == Some("http://www.w3.org/XML/1998/namespace") && a.name() == "space" {
             continue;
         }
+        if a.namespace().is_none() && a.name() == "default-mode" {
+            default_mode(n)?;
+            continue;
+        }
         if a.namespace().is_none() && a.name() == "exclude-result-prefixes" {
             continue;
         }
@@ -774,10 +778,19 @@ fn body(
                     }
                 }
             } else {
+                if n.attribute((XSL, "default-mode")).is_some() {
+                    default_mode(n)?;
+                }
                 let mut attributes = vec![];
                 for a in n.attributes() {
                     if a.namespace() == Some(XSL) {
-                        if ["exclude-result-prefixes", "inherit-namespaces"].contains(&a.name()) {
+                        if [
+                            "exclude-result-prefixes",
+                            "inherit-namespaces",
+                            "default-mode",
+                        ]
+                        .contains(&a.name())
+                        {
                             continue;
                         }
                         return Err(error(n, "unsupported XSLT attribute on literal result"));
@@ -804,9 +817,30 @@ fn body(
     }
     Ok(out)
 }
+fn default_mode(n: Node<'_, '_>) -> Result<String, Diagnostic> {
+    for ancestor in n.ancestors().filter(|n| n.is_element()) {
+        let value = if ancestor.tag_name().namespace() == Some(XSL) {
+            ancestor.attribute("default-mode")
+        } else {
+            ancestor.attribute((XSL, "default-mode"))
+        };
+        if let Some(value) = value {
+            if value.trim() == "#unnamed" {
+                return Ok(String::new());
+            }
+            let name = component_name(ancestor, value)?;
+            check_component_namespace(ancestor, &name, false)?;
+            return Ok(name);
+        }
+    }
+    Ok(String::new())
+}
 fn mode(n: Node<'_, '_>, value: &str, current: bool) -> Result<String, Diagnostic> {
     let value = value.trim();
     if value == "#default" {
+        return default_mode(n);
+    }
+    if value == "#unnamed" {
         return Ok(String::new());
     }
     if current && value == "#current" {
@@ -832,6 +866,7 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
         templates: vec![],
         globals: vec![],
         space_rules: vec![],
+        default_mode: default_mode(root)?,
         omit_declaration: false,
         text_output: false,
         backwards: root.attribute("version") == Some("1.0"),
@@ -922,17 +957,24 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
                         content = true;
                     }
                 }
-                let modes = if n.attribute("mode") == Some("#all") {
+                let modes = if n.attribute("mode").map(str::trim) == Some("#all") {
                     vec!["#all".into()]
                 } else {
                     n.attribute("mode")
                         .unwrap_or("#default")
                         .split_whitespace()
-                        .map(|m| mode(n, m, false))
+                        .map(|m| {
+                            mode(n, m, false).map_err(|mut e| {
+                                if e.code == "XTSE0020" {
+                                    e.code = "XTSE0550".into();
+                                }
+                                e
+                            })
+                        })
                         .collect::<Result<Vec<_>, _>>()?
                 };
-                if modes.is_empty() {
-                    return Err(error(n, "empty mode list"));
+                if modes.is_empty() || modes.iter().collect::<BTreeSet<_>>().len() != modes.len() {
+                    return Err(static_error(n, "XTSE0550", "empty or duplicate mode list"));
                 }
                 let priority = n
                     .attribute("priority")

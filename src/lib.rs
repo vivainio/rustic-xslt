@@ -127,6 +127,7 @@ pub struct Stylesheet {
     text_output: bool,
     backwards: bool,
     version: u8,
+    default_mode: String,
     globals: Vec<compile::Binding>,
     space_rules: Vec<whitespace::Rule>,
 }

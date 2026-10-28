@@ -496,9 +496,21 @@ fn execute<'a>(
     let initial_mode = options
         .initial_mode
         .as_deref()
-        .map(crate::qname::external)
+        .map(|name| {
+            if name == "#unnamed" {
+                Ok(String::new())
+            } else {
+                crate::qname::external(name)
+            }
+        })
         .transpose()?
-        .unwrap_or_default();
+        .unwrap_or_else(|| {
+            if options.initial_template.is_some() {
+                String::new()
+            } else {
+                sheet.default_mode.clone()
+            }
+        });
     let tasks = if let Some(name) = &options.initial_template {
         let name = crate::qname::external(name)?;
         let t = sheet

@@ -292,5 +292,17 @@ conformance claims. Smaller tested increments are committed independently.
   failures / 132 harness errors / 46 exclusions. All 295 previous passes remain;
   gate expands to 296.
 
-Next: default modes and further practical XSLT 1.0 dispatch behavior; template
-result types and next-match remain ahead.
+## Increment 25: scoped default modes
+
+- Standard default-mode attributes resolve at their own declaring element and
+  apply to template/apply-templates defaults, including literal result scopes.
+- The principal default controls initial match dispatch; #unnamed explicitly
+  selects the unnamed mode in stylesheets and the API. #current remains dynamic.
+- Empty/duplicate expanded-name mode lists and invalid special tokens are checked
+  statically, preserving unbound-prefix diagnostics.
+- 184 Rust integration tests and Clippy/format pass. W3C: 316 pass / 189 engine
+  failures / 132 harness errors / 46 exclusions. All 296 previous passes remain;
+  gate expands to 316.
+
+Next: mode declarations and built-in-rule policies, followed by template result
+types and next-match.
