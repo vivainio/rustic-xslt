@@ -1,0 +1,106 @@
+//! An early, deliberately limited XSLT engine. See README.md for supported syntax.
+mod compile;
+mod runtime;
+
+use std::fmt;
+
+/// A structured engine failure. Positions are one-based where available.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Diagnostic {
+    pub code: String,
+    pub message: String,
+    pub phase: &'static str,
+    pub line: u32,
+    pub column: u32,
+}
+impl Diagnostic {
+    pub(crate) fn new(code: &str, message: impl Into<String>, phase: &'static str) -> Self {
+        Self {
+            code: code.into(),
+            message: message.into(),
+            phase,
+            line: 0,
+            column: 0,
+        }
+    }
+}
+impl fmt::Display for Diagnostic {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} ({}:{}): {}",
+            self.code, self.line, self.column, self.message
+        )
+    }
+}
+impl std::error::Error for Diagnostic {}
+
+/// Execution limits. Zero means no work/output is permitted, rather than unlimited.
+#[derive(Debug, Clone, Copy)]
+pub struct Limits {
+    pub max_steps: u64,
+    pub max_depth: usize,
+    pub max_output_bytes: usize,
+}
+impl Default for Limits {
+    fn default() -> Self {
+        Self {
+            max_steps: 20_000_000,
+            max_depth: 128,
+            max_output_bytes: 16 * 1024 * 1024,
+        }
+    }
+}
+
+/// Immutable compiled instructions, reusable across threads and transformations.
+#[derive(Debug)]
+pub struct Stylesheet {
+    templates: Vec<compile::Template>,
+    omit_declaration: bool,
+    text_output: bool,
+}
+impl Stylesheet {
+    pub fn compile(source: &str) -> Result<Self, Diagnostic> {
+        compile::compile(source)
+    }
+    pub fn transform(&self, source: &str) -> Result<String, Diagnostic> {
+        self.transform_with_limits(source, Limits::default())
+    }
+    pub fn transform_with_limits(
+        &self,
+        source: &str,
+        limits: Limits,
+    ) -> Result<String, Diagnostic> {
+        runtime::transform(self, source, limits)
+    }
+}
+
+pub fn transform(stylesheet: &str, source: &str) -> Result<String, Diagnostic> {
+    Stylesheet::compile(stylesheet)?.transform(source)
+}
+
+pub(crate) fn parse<'a>(
+    source: &'a str,
+    phase: &'static str,
+) -> Result<roxmltree::Document<'a>, Diagnostic> {
+    roxmltree::Document::parse_with_options(
+        source,
+        roxmltree::ParsingOptions {
+            allow_dtd: false,
+            nodes_limit: 1_000_000,
+            entity_resolver: None,
+        },
+    )
+    .map_err(|e| Diagnostic {
+        code: if phase == "compile" {
+            "XTSE0165"
+        } else {
+            "FODC0006"
+        }
+        .into(),
+        message: e.to_string(),
+        phase,
+        line: e.pos().row,
+        column: e.pos().col,
+    })
+}

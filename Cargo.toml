@@ -1,0 +1,9 @@
+[package]
+name = "rust-xslt"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Native Rust XSLT engine, ported from go-xslt (early implementation)"
+
+[dependencies]
+roxmltree = "=0.21.1"

@@ -1,0 +1,10 @@
+rust-xslt
+
+This project is based on the go-xslt engine:
+go-xslt
+Copyright 2026 Tim Riep
+Apache License, Version 2.0
+Reference commit: 1dd67a33e3a1db1e43251378ef0deccf9a4a7f39
+
+The source checkout was clean when the baseline was recorded.
+Tests adapted from internal/xslt/transform_test.go retain this attribution.
