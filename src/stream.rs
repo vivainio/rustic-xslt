@@ -122,6 +122,9 @@ fn safe_expression(e: &Expr, global: bool) -> Result<(), Diagnostic> {
             }
             Expr::Sequence(es) => pending.extend(es),
             Expr::Call(name, args) => {
+                if name == "root" {
+                    return Err(unsupported("root() can escape the streamed record focus"));
+                }
                 if name == "last" {
                     return Err(unsupported(
                         "last() is not available in the streamed record focus",

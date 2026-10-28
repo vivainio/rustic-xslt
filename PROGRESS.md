@@ -484,5 +484,19 @@ conformance claims. Smaller tested increments are committed independently.
   expands to 373 (373 pass / 160 failures / 144 harness errors / 46 exclusions).
   All 980 QT3 gate cases remain green with unchanged selected-case counts.
 
-Next: parentless constructed-node boundaries, then constructed-node collection
-and broader XPath grammar coverage.
+## Increment 39: parentless constructed-node boundaries
+
+- Typed constructed roots now have parentless XDM boundaries while retaining
+  backing-document ownership. Parent/ancestor/sibling/following axes cannot
+  expose parser wrappers or unrelated constructed roots.
+- Added root(); absolute paths require a document-rooted tree. Streamed record
+  checks reject root navigation before consuming input.
+- Parentless name/kind patterns use singleton predicate focus; document-node()
+  patterns match actual document roots without broadening node() to documents.
+- 279 Rust integration tests, 27 harness tests and Clippy/format pass. All 373
+  XSLT gate cases remain green.
+- Nineteen QT3 sets: 2,037 cases, 989 pass / 667 engine failures / 21 harness errors /
+  360 profile exclusions. All 980 previous passes remain; QT3 gate expands to 989.
+
+Next: collect constructed nodes in mixed raw sequences, then broaden attribute
+construction and XPath grammar coverage.

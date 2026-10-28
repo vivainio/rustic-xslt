@@ -52,7 +52,10 @@ impl<'a> Trees<'a> {
         let doc: &'a roxmltree::Document<'a> = self.documents.alloc(crate::parse(text, "run")?);
         let root = XNode::fragment(doc.root_element());
         if let Some(ty) = ty {
-            ty.convert(root.children().map(Item::Node).collect(), type_error)
+            ty.convert(
+                root.children().map(|n| Item::Node(n.detached())).collect(),
+                type_error,
+            )
         } else {
             Ok(vec![Item::Node(root)])
         }

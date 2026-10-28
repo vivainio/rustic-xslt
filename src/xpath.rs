@@ -962,7 +962,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         | "xs:float" | "xs:boolean" => (1, 1),
         "true" | "false" | "position" | "last" => (0, 0),
         "string" | "number" | "normalize-space" | "string-length" | "name" | "local-name"
-        | "namespace-uri" => (0, 1),
+        | "namespace-uri" | "root" => (0, 1),
         "count" | "boolean" | "not" | "exists" | "empty" | "data" | "reverse" | "head" | "tail" => {
             (1, 1)
         }
@@ -1017,7 +1017,7 @@ fn ordered<'a>(mut nodes: Vec<XNode<'a>>) -> Value<'a> {
     nodes.dedup();
     nodes.into_iter().map(Item::Node).collect()
 }
-fn filter<'a>(
+pub(crate) fn filter<'a>(
     mut value: Value<'a>,
     predicates: &[Expr],
     vars: &Variables<'a>,
@@ -1097,7 +1097,16 @@ pub(crate) fn eval<'a>(
             }
         }
         Expr::Root => match focus.item {
-            Item::Node(n) => vec![Item::Node(n.root())],
+            Item::Node(n) => {
+                let root = n.root();
+                if !root.is_document() {
+                    return Err(err(
+                        "XPDY0050",
+                        "absolute paths require a document-rooted tree",
+                    ));
+                }
+                vec![Item::Node(root)]
+            }
             Item::Absent => return Err(err("XPDY0002", "context item is absent")),
             _ => return Err(err("XPTY0020", "root requires a node context")),
         },
@@ -1213,7 +1222,7 @@ pub(crate) fn eval<'a>(
                             out
                         }
                         Axis::FollowingSibling | Axis::PrecedingSibling => {
-                            if n.is_attribute() || n.is_document() {
+                            if n.is_attribute() || n.parent().is_none() {
                                 vec![]
                             } else if matches!(step.axis, Axis::FollowingSibling) {
                                 n.raw
@@ -1543,6 +1552,13 @@ fn function<'a>(
         Ok(v.first().map_or(String::new(), Item::string))
     };
     let s = || scalar(first);
+    if name == "root" {
+        return match first.as_slice() {
+            [] => Ok(vec![]),
+            [Item::Node(n)] => Ok(vec![Item::Node(n.root())]),
+            _ => Err(err("XPTY0004", "root requires an optional singleton node")),
+        };
+    }
     if name == "data" {
         return Ok(first.iter().map(atomize).collect());
     }

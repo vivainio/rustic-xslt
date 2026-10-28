@@ -124,6 +124,9 @@ locations and full W3C error-code fidelity remain ahead. Execution defaults to
 Template execution, result-content capture and binding constructors use an
 explicit task stack. Per-run arenas own temporary documents and source strings;
 node handles preserve parent/root navigation and identity across documents.
+Typed constructed nodes are parentless, and their backing parser wrapper/siblings
+are hidden. `root()` returns the actual root; absolute paths require a document
+root. Parentless nodes and document nodes participate in supported match patterns.
 `Limits::max_temporary_bytes` caps retained serialized temporary-tree source bytes
 (default 64 MiB), with fresh arenas per streamed record. Parsed-node storage and
 other allocations are additional, so this is not a hard memory bound.
@@ -168,7 +171,7 @@ no outer wrapper. The XML declaration, when enabled, is written once. Use
 `StreamOptions::namespaces` for prefixed record paths. Inherited input namespace
 bindings are preserved when a record is detached.
 
-Static checks reject absolute paths, parent navigation, `last()`, source-dependent
+Static checks reject absolute paths, `root()`, parent navigation, `last()`, source-dependent
 globals in the reachable record-template call graph, before
 reading input or writing output. Rejection is conservative, including `last()`
 in grounded inner loops. `position()` is the selected record's one-based index.
@@ -196,7 +199,7 @@ A pinned, partial catalog runner and a 373-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. An initial internal QT3 bridge
-also gates 980 passing XPath cases at the pinned XPath suite revision.
+also gates 989 passing XPath cases at the pinned XPath suite revision.
 The example JSON-lines driver
 and its JSON dependency are development-only.
 

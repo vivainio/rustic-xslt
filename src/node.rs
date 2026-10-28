@@ -6,6 +6,7 @@ pub(crate) struct XNode<'a> {
     pub raw: Node<'a, 'a>,
     pub attribute: Option<(&'a str, Option<&'a str>)>,
     fragment: bool,
+    boundary: Option<Node<'a, 'a>>,
 }
 impl<'a> XNode<'a> {
     pub fn tree(raw: Node<'a, 'a>) -> Self {
@@ -13,6 +14,7 @@ impl<'a> XNode<'a> {
             raw,
             attribute: None,
             fragment: false,
+            boundary: None,
         }
     }
     pub fn fragment(raw: Node<'a, 'a>) -> Self {
@@ -20,6 +22,7 @@ impl<'a> XNode<'a> {
             raw,
             attribute: None,
             fragment: true,
+            boundary: None,
         }
     }
     pub fn relative(self, raw: Node<'a, 'a>) -> Self {
@@ -27,7 +30,13 @@ impl<'a> XNode<'a> {
             raw,
             attribute: None,
             fragment: self.fragment,
+            boundary: self.boundary,
         }
+    }
+    pub fn detached(mut self) -> Self {
+        self.boundary = Some(self.raw);
+        self.fragment = false;
+        self
     }
     pub fn is_attribute(self) -> bool {
         self.attribute.is_some()
@@ -79,14 +88,16 @@ impl<'a> XNode<'a> {
     pub fn parent(self) -> Option<Self> {
         if self.is_attribute() {
             Some(self.relative(self.raw))
-        } else if self.is_document() {
+        } else if self.is_document() || self.boundary == Some(self.raw) {
             None
         } else {
             self.raw.parent().map(|n| self.relative(n))
         }
     }
     pub fn root(self) -> Self {
-        self.relative(if self.fragment {
+        self.relative(if let Some(boundary) = self.boundary {
+            boundary
+        } else if self.fragment {
             self.raw.document().root_element()
         } else {
             self.raw.document().root()
@@ -123,6 +134,7 @@ impl<'a> XNode<'a> {
                 raw: self.raw,
                 attribute: Some((a.name(), a.namespace())),
                 fragment: self.fragment,
+                boundary: self.boundary,
             })
             .collect()
     }

@@ -9,6 +9,7 @@
     "fn-min",
     "fn-remove",
     "fn-reverse",
+    "fn-root",
     "fn-subsequence",
     "fn-sum",
     "fn-tail",
@@ -2092,6 +2093,42 @@
     [
       "fn-reverse",
       "cbcl-reverse-1"
+    ],
+    [
+      "fn-root",
+      "fn-root-1"
+    ],
+    [
+      "fn-root",
+      "fn-root-2"
+    ],
+    [
+      "fn-root",
+      "fn-root-2a"
+    ],
+    [
+      "fn-root",
+      "fn-root-2b"
+    ],
+    [
+      "fn-root",
+      "fn-root-3"
+    ],
+    [
+      "fn-root",
+      "fn-root-24"
+    ],
+    [
+      "fn-root",
+      "K-NodeRootFunc-1"
+    ],
+    [
+      "fn-root",
+      "K-NodeRootFunc-3"
+    ],
+    [
+      "fn-root",
+      "K-NodeRootFunc-4"
     ],
     [
       "fn-subsequence",

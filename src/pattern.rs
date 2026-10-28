@@ -87,17 +87,31 @@ fn matches_inner<'a>(
         return Ok(node.is_document());
     }
     let mut current = node;
-    for step in branch.steps.iter().rev() {
+    for (index, step) in branch.steps.iter().enumerate().rev() {
         budget.tick()?;
-        let Some(parent) = current.parent() else {
-            return Ok(false);
-        };
         if matches!(step.axis, Axis::Attribute) != current.is_attribute() {
             return Ok(false);
         }
         if !xpath::test_node(&step.test, current, step.axis) {
             return Ok(false);
         }
+        let Some(parent) = current.parent() else {
+            if index != 0
+                || branch.absolute
+                || current.is_document() && !matches!(step.test, Test::Document)
+            {
+                return Ok(false);
+            }
+            return Ok(!xpath::filter(
+                vec![Item::Node(current)],
+                &step.predicates,
+                vars,
+                budget,
+                0,
+                backwards,
+            )?
+            .is_empty());
+        };
         if !step.predicates.is_empty() {
             let e = Expr::Path(Box::new(Expr::Context), vec![step.clone()]);
             let focus = Focus {
