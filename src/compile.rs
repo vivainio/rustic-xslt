@@ -350,9 +350,15 @@ fn avt(n: Node<'_, '_>, value: &str) -> Result<Vec<Expr>, Diagnostic> {
             }
             let mut expression = String::new();
             let mut quote = None;
+            let mut uri = false;
             let mut closed = false;
             for c in chars.by_ref() {
-                if let Some(q) = quote {
+                if uri {
+                    expression.push(c);
+                    if c == '}' {
+                        uri = false;
+                    }
+                } else if let Some(q) = quote {
                     expression.push(c);
                     if c == q {
                         quote = None;
@@ -363,19 +369,26 @@ fn avt(n: Node<'_, '_>, value: &str) -> Result<Vec<Expr>, Diagnostic> {
                 } else if c == '}' {
                     closed = true;
                     break;
+                } else if c == '{' && expression.ends_with('Q') {
+                    uri = true;
+                    expression.push(c);
                 } else if c == '{' {
-                    return Err(error(n, "nested AVT braces are unsupported"));
+                    return Err(static_error(n, "XTSE0350", "unexpected opening AVT brace"));
                 } else {
                     expression.push(c);
                 }
             }
             if !closed {
-                return Err(error(n, "unclosed attribute value template"));
+                return Err(static_error(
+                    n,
+                    "XTSE0350",
+                    "unclosed attribute value template",
+                ));
             }
             parts.push(expr(n, &expression)?);
         } else if c == '}' {
             if chars.next() != Some('}') {
-                return Err(error(n, "unescaped closing AVT brace"));
+                return Err(static_error(n, "XTSE0350", "unescaped closing AVT brace"));
             }
             text.push('}');
         } else {

@@ -282,5 +282,15 @@ conformance claims. Smaller tested increments are committed independently.
 - Downloaded the complete QT3 suite at 201a6e466940cdfc727f4babfedcde5332b9f578
   for subsequent offline XPath work. Full pinned XSLT suite is also cached.
 
-Next: URIQualifiedNames inside AVTs, default modes and further practical XSLT
-1.0 dispatch behavior; template result types and next-match remain ahead.
+## Increment 24: URIQualifiedNames inside AVTs
+
+- AVT scanning recognizes braced URI literals independently of string literals,
+  so qualified variable/function references work in literal attributes, computed
+  names and separator expressions. Escaped literal braces retain their meaning.
+- Invalid or unmatched AVT delimiters now report XTSE0350.
+- 179 Rust integration tests and Clippy/format pass. W3C: 296 pass / 209 engine
+  failures / 132 harness errors / 46 exclusions. All 295 previous passes remain;
+  gate expands to 296.
+
+Next: default modes and further practical XSLT 1.0 dispatch behavior; template
+result types and next-match remain ahead.

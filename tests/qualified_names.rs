@@ -258,3 +258,38 @@ fn reserved_namespaces_remain_available_for_source_name_tests() {
     .unwrap();
     assert_eq!(s.transform("<r xml:lang='fi'/>").unwrap(), "fi");
 }
+
+#[test]
+fn uriqualified_names_work_inside_avts_and_computed_names() {
+    let source = sheet(r##"<xsl:variable name="a:v" select="'value'"/><xsl:template match="/"><out result="{$Q{urn:a}v}" literal="{{Q{{uri}}local}}"><xsl:element name="{Q{http://www.w3.org/2005/xpath-functions}concat('n', 'ode')}"><xsl:value-of select="$a:v"/></xsl:element></out></xsl:template>"##).replace("<xsl:output method=\"text\"/>", "<xsl:output omit-xml-declaration=\"yes\"/>");
+    assert_eq!(
+        Stylesheet::compile(&source)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap(),
+        "<out xmlns:a=\"urn:a\" xmlns:b=\"urn:a\" xmlns:c=\"urn:c\" result=\"value\" literal=\"{Q{uri}local}\"><node>value</node></out>"
+    );
+}
+#[test]
+fn avt_uri_literals_do_not_treat_quotes_as_string_delimiters() {
+    let source = sheet(
+        r##"<xsl:variable name="Q{urn:it's}v" select="'ok'"/><xsl:template match="/"><xsl:value-of select="('A','B')" separator="{$Q{urn:it's}v}"/></xsl:template>"##,
+    );
+    assert_eq!(
+        Stylesheet::compile(&source)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap(),
+        "AokB"
+    );
+}
+#[test]
+fn malformed_avt_braces_report_standard_errors() {
+    for value in ["{1", "1}", "{$Q{urn:a}v", "{1{2}}"] {
+        let body = format!(r##"<xsl:template match="/"><out value="{value}"/></xsl:template>"##);
+        assert_eq!(
+            Stylesheet::compile(&sheet(&body)).unwrap_err().code,
+            "XTSE0350"
+        );
+    }
+}
