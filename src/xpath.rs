@@ -1,7 +1,7 @@
 //! XPath expression machinery. The AST mirrors the reference engine's separation
 //! of literals, binary expressions, function calls and axis steps.
+pub(crate) use crate::node::XNode;
 use crate::{Diagnostic, Limits, number::Number};
-use roxmltree::Node;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -60,51 +60,6 @@ pub(crate) enum Expr {
     If(Box<Expr>, Box<Expr>, Box<Expr>),
     TypeOp(String, Box<Expr>, crate::seqtype::SequenceType),
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum XNode<'a> {
-    Tree(Node<'a, 'a>),
-    Attribute(Node<'a, 'a>, &'a str, Option<&'a str>),
-}
-impl<'a> XNode<'a> {
-    pub fn string(self) -> String {
-        match self {
-            Self::Tree(n) if n.is_element() || n.is_root() => n
-                .descendants()
-                .filter(|n| n.is_text())
-                .filter_map(|n| n.text())
-                .collect(),
-            Self::Tree(n) => n
-                .pi()
-                .and_then(|pi| pi.value)
-                .or_else(|| n.text())
-                .unwrap_or_default()
-                .into(),
-            Self::Attribute(n, local, uri) => n
-                .attributes()
-                .find(|a| a.name() == local && a.namespace() == uri)
-                .map_or("", |a| a.value())
-                .into(),
-        }
-    }
-    pub fn parent(self) -> Option<Self> {
-        match self {
-            Self::Tree(n) => n.parent().map(Self::Tree),
-            Self::Attribute(n, ..) => Some(Self::Tree(n)),
-        }
-    }
-    pub fn root(self) -> Self {
-        Self::Tree(match self {
-            Self::Tree(n) | Self::Attribute(n, ..) => n.document().root(),
-        })
-    }
-    pub fn name(self) -> (Option<&'a str>, &'a str) {
-        match self {
-            Self::Attribute(_, n, uri) => (uri, n),
-            Self::Tree(n) if n.is_element() => (n.tag_name().namespace(), n.tag_name().name()),
-            Self::Tree(n) => (None, n.pi().map_or("", |pi| pi.target)),
-        }
-    }
-}
 #[derive(Debug, Clone)]
 pub(crate) enum Item<'a> {
     Absent,
@@ -116,6 +71,13 @@ pub(crate) enum Item<'a> {
 }
 pub(crate) type Value<'a> = Vec<Item<'a>>;
 pub(crate) type Variables<'a> = BTreeMap<String, Value<'a>>;
+pub(crate) fn atomize<'a>(item: &Item<'a>) -> Item<'a> {
+    match item {
+        Item::Node(n) if n.is_comment() || n.is_pi() => Item::String(n.string()),
+        Item::Node(n) => Item::Untyped(n.string()),
+        _ => item.clone(),
+    }
+}
 impl Item<'_> {
     pub fn string(&self) -> String {
         match self {
@@ -302,7 +264,10 @@ fn tokenize(s: &str) -> Result<Vec<Token>, Diagnostic> {
             out.push(Token::Name(chars[start..i].iter().collect()));
         } else {
             let pair: String = chars[i..chars.len().min(i + 2)].iter().collect();
-            if matches!(pair.as_str(), "//" | ".." | "!=" | "<=" | ">=" | "::") {
+            if matches!(
+                pair.as_str(),
+                "//" | ".." | "!=" | "<=" | ">=" | "::" | "<<" | ">>"
+            ) {
                 out.push(Token::Symbol(pair));
                 i += 2;
             } else if "/.@[](),$+-*=<>|?".contains(c) {
@@ -455,10 +420,13 @@ impl Parser {
                 Token::Symbol(s) if s == "," => (s.clone(), 1),
                 Token::Name(s) if s == "or" => (s.clone(), 2),
                 Token::Name(s) if s == "and" => (s.clone(), 3),
+                Token::Name(s) if s == "is" => (s.clone(), 4),
                 Token::Name(s) if ["eq", "ne", "lt", "gt", "le", "ge"].contains(&s.as_str()) => {
                     (s.clone(), 4)
                 }
-                Token::Symbol(s) if ["=", "!=", "<", ">", "<=", ">="].contains(&s.as_str()) => {
+                Token::Symbol(s)
+                    if ["=", "!=", "<", ">", "<=", ">=", "<<", ">>"].contains(&s.as_str()) =>
+                {
                     (s.clone(), 4)
                 }
                 Token::Symbol(s) if s == "|" => (s.clone(), 8),
@@ -775,48 +743,42 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
     })
 }
 pub(crate) fn test_node(test: &Test, n: XNode<'_>, axis: Axis) -> bool {
+    let principal = if matches!(axis, Axis::Attribute) {
+        n.is_attribute()
+    } else {
+        n.is_element()
+    };
     match test {
         Test::Node => true,
-        Test::Any => match n {
-            XNode::Attribute(..) => matches!(axis, Axis::Attribute),
-            XNode::Tree(n) => n.is_element(),
-        },
-        Test::Name(name) => {
-            let (uri, local) = n.name();
-            let principal = match n {
-                XNode::Attribute(..) => matches!(axis, Axis::Attribute),
-                XNode::Tree(n) => n.is_element(),
-            };
-            principal && uri == name.uri.as_deref() && local == name.local
-        }
-        Test::Text => matches!(n, XNode::Tree(n) if n.is_text()),
-        Test::Comment => matches!(n, XNode::Tree(n) if n.is_comment()),
+        Test::Any => principal,
+        Test::Name(name) => principal && n.name() == (name.uri.as_deref(), name.local.as_str()),
+        Test::Text => n.is_text(),
+        Test::Comment => n.is_comment(),
         Test::Pi(target) => {
-            matches!(n, XNode::Tree(n) if n.pi().is_some_and(|pi| target.as_ref().is_none_or(|s| s == pi.target)))
+            n.is_pi()
+                && n.raw
+                    .pi()
+                    .is_some_and(|pi| target.as_ref().is_none_or(|s| s == pi.target))
         }
-        Test::Document => matches!(n, XNode::Tree(n) if n.is_root()),
+        Test::Document => n.is_document(),
         Test::Element(name) => {
-            matches!(n, XNode::Tree(node) if node.is_element())
+            n.is_element()
                 && name
                     .as_ref()
                     .is_none_or(|name| n.name() == (name.uri.as_deref(), name.local.as_str()))
         }
         Test::AttributeKind(name) => {
-            matches!(n, XNode::Attribute(..))
+            n.is_attribute()
                 && name
                     .as_ref()
                     .is_none_or(|name| n.name() == (name.uri.as_deref(), name.local.as_str()))
         }
-        Test::Namespace(uri) => test_node(&Test::Any, n, axis) && n.name().0 == Some(uri.as_str()),
-        Test::Local(local) => test_node(&Test::Any, n, axis) && n.name().1 == local,
+        Test::Namespace(uri) => principal && n.name().0 == Some(uri.as_str()),
+        Test::Local(local) => principal && n.name().1 == local,
     }
 }
-fn ordered<'a>(nodes: Vec<XNode<'a>>) -> Value<'a> {
-    let mut nodes = nodes;
-    nodes.sort_by_key(|n| match n {
-        XNode::Tree(n) => (n.id().get(), 0, ""),
-        XNode::Attribute(n, name, _) => (n.id().get(), 1, *name),
-    });
+fn ordered<'a>(mut nodes: Vec<XNode<'a>>) -> Value<'a> {
+    nodes.sort_by_key(|n| n.order());
     nodes.dedup();
     nodes.into_iter().map(Item::Node).collect()
 }
@@ -979,19 +941,10 @@ pub(crate) fn eval<'a>(
                     let candidates: Vec<_> = match step.axis {
                         Axis::SelfNode => vec![n],
                         Axis::Parent => n.parent().into_iter().collect(),
-                        Axis::Child => match n {
-                            XNode::Tree(n) => n.children().map(XNode::Tree).collect(),
-                            _ => vec![],
-                        },
-                        Axis::Attribute => match n {
-                            XNode::Tree(n) => n
-                                .attributes()
-                                .map(|a| XNode::Attribute(n, a.name(), a.namespace()))
-                                .collect(),
-                            _ => vec![],
-                        },
+                        Axis::Child => n.children().collect(),
+                        Axis::Attribute => n.attributes(),
                         Axis::Ancestor | Axis::AncestorOrSelf => {
-                            let mut ancestors = vec![];
+                            let mut out = vec![];
                             let mut current = if matches!(step.axis, Axis::AncestorOrSelf) {
                                 Some(n)
                             } else {
@@ -999,54 +952,54 @@ pub(crate) fn eval<'a>(
                             };
                             while let Some(node) = current {
                                 budget.tick()?;
-                                ancestors.push(node);
+                                out.push(node);
                                 current = node.parent();
                             }
-                            ancestors
+                            out
                         }
-                        Axis::FollowingSibling | Axis::PrecedingSibling => match n {
-                            XNode::Tree(n) => {
-                                if matches!(step.axis, Axis::FollowingSibling) {
-                                    n.next_siblings().skip(1).map(XNode::Tree).collect()
-                                } else {
-                                    n.prev_siblings().skip(1).map(XNode::Tree).collect()
-                                }
+                        Axis::FollowingSibling | Axis::PrecedingSibling => {
+                            if n.is_attribute() || n.is_document() {
+                                vec![]
+                            } else if matches!(step.axis, Axis::FollowingSibling) {
+                                n.raw
+                                    .next_siblings()
+                                    .skip(1)
+                                    .map(|raw| n.relative(raw))
+                                    .collect()
+                            } else {
+                                n.raw
+                                    .prev_siblings()
+                                    .skip(1)
+                                    .map(|raw| n.relative(raw))
+                                    .collect()
                             }
-                            _ => vec![],
-                        },
+                        }
                         Axis::Following | Axis::Preceding => {
-                            let (owner, attribute) = match n {
-                                XNode::Tree(n) => (n, false),
-                                XNode::Attribute(n, ..) => (n, true),
-                            };
-                            let mut selected = vec![];
-                            for candidate in owner.document().descendants() {
+                            let mut out = vec![];
+                            for candidate in n.root().descendants() {
                                 budget.tick()?;
                                 let keep = if matches!(step.axis, Axis::Following) {
-                                    candidate.id().get() > owner.id().get()
-                                        && (attribute || !candidate.ancestors().any(|a| a == owner))
+                                    candidate.raw.id().get() > n.raw.id().get()
+                                        && (n.is_attribute()
+                                            || !candidate.raw.ancestors().any(|a| a == n.raw))
                                 } else {
-                                    candidate.id().get() < owner.id().get()
-                                        && !owner.ancestors().any(|a| a == candidate)
+                                    candidate.raw.id().get() < n.raw.id().get()
+                                        && !n.raw.ancestors().any(|a| a == candidate.raw)
                                 };
                                 if keep {
-                                    selected.push(XNode::Tree(candidate));
+                                    out.push(candidate);
                                 }
                             }
                             if matches!(step.axis, Axis::Preceding) {
-                                selected.reverse();
+                                out.reverse();
                             }
-                            selected
+                            out
                         }
-                        Axis::Descendant | Axis::DescendantOrSelf => match n {
-                            XNode::Tree(n) => n
-                                .descendants()
-                                .skip(usize::from(matches!(step.axis, Axis::Descendant)))
-                                .map(XNode::Tree)
-                                .collect(),
-                            _ if matches!(step.axis, Axis::DescendantOrSelf) => vec![n],
-                            _ => vec![],
-                        },
+                        Axis::Descendant | Axis::DescendantOrSelf => n
+                            .descendants()
+                            .into_iter()
+                            .skip(usize::from(matches!(step.axis, Axis::Descendant)))
+                            .collect(),
                     };
                     let mut selected = vec![];
                     for n in candidates {
@@ -1099,6 +1052,19 @@ pub(crate) fn eval<'a>(
                         })
                         .collect::<Result<Vec<_>, _>>()?;
                     ordered(nodes)
+                }
+                "is" | "<<" | ">>" => {
+                    if a.is_empty() || b.is_empty() {
+                        return Ok(vec![]);
+                    }
+                    let ([Item::Node(a)], [Item::Node(b)]) = (a.as_slice(), b.as_slice()) else {
+                        return Err(err("XPTY0004", "node comparison requires singleton nodes"));
+                    };
+                    vec![Item::Boolean(match op.as_str() {
+                        "is" => a == b,
+                        "<<" => a.order() < b.order(),
+                        _ => a.order() > b.order(),
+                    })]
                 }
                 "eq" | "ne" | "lt" | "gt" | "le" | "ge" => {
                     if a.is_empty() || b.is_empty() {
@@ -1176,7 +1142,7 @@ fn numeric(v: &[Item<'_>], backwards: bool) -> Result<Number, Diagnostic> {
     }
     match v {
         [Item::Number(n)] => Ok(n.clone()),
-        [Item::Node(n)] => Number::cast("double", &n.string()),
+        [Item::Node(n)] if !n.is_comment() && !n.is_pi() => Number::cast("double", &n.string()),
         [Item::Untyped(s)] => Number::cast("double", s),
         [] => Ok(Number::Double(f64::NAN)),
         _ => Err(err(
@@ -1187,13 +1153,7 @@ fn numeric(v: &[Item<'_>], backwards: bool) -> Result<Number, Diagnostic> {
 }
 fn compare(a: &Item<'_>, b: &Item<'_>, op: &str, backwards: bool) -> Result<bool, Diagnostic> {
     use std::cmp::Ordering;
-    fn atom<'a>(i: &Item<'a>) -> Item<'a> {
-        match i {
-            Item::Node(n) => Item::Untyped(n.string()),
-            _ => i.clone(),
-        }
-    }
-    let (mut a, mut b) = (atom(a), atom(b));
+    let (mut a, mut b) = (atomize(a), atomize(b));
     let cmp = if backwards {
         if ["=", "!="].contains(&op)
             && (matches!(a, Item::Boolean(_)) || matches!(b, Item::Boolean(_)))
@@ -1267,13 +1227,7 @@ fn function<'a>(
     };
     let s = || scalar(first);
     if name == "data" {
-        return Ok(first
-            .iter()
-            .map(|i| match i {
-                Item::Node(n) => Item::Untyped(n.string()),
-                _ => i.clone(),
-            })
-            .collect());
+        return Ok(first.iter().map(atomize).collect());
     }
     if let Some(kind) = name.strip_prefix("xs:") {
         if first.is_empty() {
@@ -1358,16 +1312,13 @@ fn function<'a>(
                     } else if name == "local-name" {
                         local.into()
                     } else {
-                        match n {
-                            XNode::Tree(node) | XNode::Attribute(node, ..) => {
-                                if let Some(uri) = uri {
-                                    node.lookup_prefix(uri)
-                                        .filter(|p| !p.is_empty())
-                                        .map_or_else(|| local.into(), |p| format!("{p}:{local}"))
-                                } else {
-                                    local.into()
-                                }
-                            }
+                        let node = n.raw;
+                        if let Some(uri) = uri {
+                            node.lookup_prefix(uri)
+                                .filter(|p| !p.is_empty())
+                                .map_or_else(|| local.into(), |p| format!("{p}:{local}"))
+                        } else {
+                            local.into()
                         }
                     }
                 }

@@ -2,7 +2,7 @@
 //! approach. This is an explicit record API, not an XSLT streamability claim.
 use crate::{
     Diagnostic, Stylesheet, TransformOptions,
-    compile::{ComputedName, Content, Instruction},
+    compile::{BindingValue, ComputedName, Content, Instruction},
     runtime,
     xpath::{self, Axis, Budget, Expr, Name, Test},
 };
@@ -152,6 +152,106 @@ fn safe_content<'a>(c: &'a Content, bodies: &mut Vec<&'a [Instruction]>) -> Resu
     };
     Ok(())
 }
+fn safe_binding<'a>(
+    value: &'a BindingValue,
+    global: bool,
+    bodies: &mut Vec<&'a [Instruction]>,
+) -> Result<(), Diagnostic> {
+    match value {
+        BindingValue::Select(e) => safe_expression(e, global)?,
+        BindingValue::Body(body) => {
+            if global {
+                safe_global_body(body)?;
+            } else {
+                bodies.push(body);
+            }
+        }
+    }
+    Ok(())
+}
+fn safe_global_body(body: &[Instruction]) -> Result<(), Diagnostic> {
+    fn name(n: &ComputedName) -> Result<(), Diagnostic> {
+        for e in &n.parts {
+            safe_expression(e, true)?;
+        }
+        if let Some(es) = &n.namespace {
+            for e in es {
+                safe_expression(e, true)?;
+            }
+        }
+        Ok(())
+    }
+    fn content(c: &Content) -> Result<(), Diagnostic> {
+        match c {
+            Content::Select(e, sep) => {
+                safe_expression(e, true)?;
+                for e in sep {
+                    safe_expression(e, true)?;
+                }
+            }
+            Content::Body(body) => safe_global_body(body)?,
+        }
+        Ok(())
+    }
+    for i in body {
+        match i {
+            Instruction::Text(_) => {}
+            Instruction::Value(e, sep) => {
+                safe_expression(e, true)?;
+                if let Some(es) = sep {
+                    for e in es {
+                        safe_expression(e, true)?;
+                    }
+                }
+            }
+            Instruction::Sequence(e) | Instruction::CopyOf(e) => safe_expression(e, true)?,
+            Instruction::Bind(b) => safe_binding(&b.value, true, &mut vec![])?,
+            Instruction::Element {
+                attributes, body, ..
+            } => {
+                for (_, parts) in attributes {
+                    for e in parts {
+                        safe_expression(e, true)?;
+                    }
+                }
+                safe_global_body(body)?;
+            }
+            Instruction::ComputedElement(n, body) => {
+                name(n)?;
+                safe_global_body(body)?;
+            }
+            Instruction::Attribute(n, c) => {
+                name(n)?;
+                content(c)?;
+            }
+            Instruction::Comment(c) => content(c)?,
+            Instruction::Pi(es, c) => {
+                for e in es {
+                    safe_expression(e, true)?;
+                }
+                content(c)?;
+            }
+            Instruction::If(e, body) | Instruction::ForEach(e, _, body) => {
+                safe_expression(e, true)?;
+                safe_global_body(body)?;
+            }
+            Instruction::Choose(bs) => {
+                for (e, body) in bs {
+                    if let Some(e) = e {
+                        safe_expression(e, true)?;
+                    }
+                    safe_global_body(body)?;
+                }
+            }
+            Instruction::Apply(..) | Instruction::Call(..) | Instruction::Copy(_) => {
+                return Err(unsupported(
+                    "streamed global constructors cannot invoke templates or copy the source context",
+                ));
+            }
+        }
+    }
+    Ok(())
+}
 fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Diagnostic> {
     let path = xpath::parse(&options.record_path, options.namespaces.clone())?;
     let Expr::Path(base, steps) = path else {
@@ -180,7 +280,7 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
         .find(|t| t.name.as_ref() == Some(&options.template))
         .ok_or_else(|| unsupported("unknown record template"))?;
     for b in &sheet.globals {
-        safe_expression(&b.value, true)?;
+        safe_binding(&b.value, true, &mut vec![])?;
     }
     let mut pending = vec![template];
     let mut visited = BTreeSet::new();
@@ -188,10 +288,10 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
         if !visited.insert(std::ptr::from_ref(t)) {
             continue;
         }
-        for p in &t.params {
-            safe_expression(&p.value, false)?;
-        }
         let mut bodies = vec![t.body.as_slice()];
+        for p in &t.params {
+            safe_binding(&p.value, false, &mut bodies)?;
+        }
         while let Some(body) = bodies.pop() {
             for i in body {
                 match i {
@@ -224,9 +324,11 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                         safe_content(c, &mut bodies)?;
                     }
                     Instruction::Text(_) => {}
-                    Instruction::Value(e, _) | Instruction::CopyOf(e) => safe_expression(e, false)?,
+                    Instruction::Value(e, _)
+                    | Instruction::CopyOf(e)
+                    | Instruction::Sequence(e) => safe_expression(e, false)?,
                     Instruction::Copy(body) => bodies.push(body),
-                    Instruction::Bind(b) => safe_expression(&b.value, false)?,
+                    Instruction::Bind(b) => safe_binding(&b.value, false, &mut bodies)?,
                     Instruction::Apply(e, _, _) => {
                         safe_expression(e, false)?;
                         for template in &sheet.templates {
@@ -269,7 +371,7 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                     }
                     Instruction::Call(name, params) => {
                         for p in params {
-                            safe_expression(&p.value, false)?;
+                            safe_binding(&p.value, false, &mut bodies)?;
                         }
                         pending.push(
                             sheet

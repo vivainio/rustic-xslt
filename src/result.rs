@@ -24,6 +24,7 @@ pub(crate) struct Output {
     pub max: usize,
     pub text: bool,
     stack: Vec<Open>,
+    document: bool,
 }
 impl Output {
     pub fn new(max: usize, text: bool) -> Self {
@@ -32,7 +33,13 @@ impl Output {
             max,
             text,
             stack: vec![],
+            document: false,
         }
+    }
+    pub fn document(max: usize) -> Self {
+        let mut value = Self::new(max, false);
+        value.document = true;
+        value
     }
     pub fn push(&mut self, s: &str) -> Result<(), Diagnostic> {
         if s.len() > self.max.saturating_sub(self.value.len()) {
@@ -102,9 +109,14 @@ impl Output {
         Ok(())
     }
     pub fn attribute(&mut self, mut name: Name, value: String) -> Result<(), Diagnostic> {
+        let code = if self.stack.is_empty() && self.document {
+            "XTDE0420"
+        } else {
+            "XTDE0410"
+        };
         let Some(open) = self.stack.last_mut().filter(|o| o.pending) else {
             return Err(Diagnostic::new(
-                "XTDE0410",
+                code,
                 "attribute created without an open result start tag",
                 "run",
             ));

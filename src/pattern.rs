@@ -84,7 +84,7 @@ fn matches_inner<'a>(
     backwards: bool,
 ) -> Result<bool, Diagnostic> {
     if branch.steps.is_empty() {
-        return Ok(matches!(node, XNode::Tree(n) if n.is_root()));
+        return Ok(node.is_document());
     }
     let mut current = node;
     for step in branch.steps.iter().rev() {
@@ -92,7 +92,7 @@ fn matches_inner<'a>(
         let Some(parent) = current.parent() else {
             return Ok(false);
         };
-        if matches!(step.axis, Axis::Attribute) != matches!(current, XNode::Attribute(..)) {
+        if matches!(step.axis, Axis::Attribute) != current.is_attribute() {
             return Ok(false);
         }
         if !xpath::test_node(&step.test, current, step.axis) {
@@ -114,5 +114,5 @@ fn matches_inner<'a>(
         }
         current = parent;
     }
-    Ok(!branch.absolute || matches!(current, XNode::Tree(n) if n.is_root()))
+    Ok(!branch.absolute || current.is_document())
 }

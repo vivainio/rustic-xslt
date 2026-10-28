@@ -1,6 +1,6 @@
 use crate::{
     Diagnostic, Stylesheet, TransformOptions,
-    compile::{ComputedName, Content, Instruction, Template},
+    compile::{Binding, BindingValue, ComputedName, Content, Instruction, Template},
     result::{self, Output},
     xpath::{self, Budget, Focus, Item, Value, Variables, XNode},
 };
@@ -23,6 +23,47 @@ enum Task<'a> {
     Atomic(String),
     Close,
     FinishCapture(Capture, Output),
+    Parameters(&'a Template, usize, Variables<'a>, Frame<'a>),
+    Arguments(&'a Template, &'a [Binding], usize, Variables<'a>, Frame<'a>),
+    EvaluateBinding(&'a Binding, Frame<'a>, BindNext<'a>),
+    FinishBinding(&'a Binding, Frame<'a>, BindNext<'a>, Output),
+}
+enum BindNext<'a> {
+    Local(&'a [Instruction], usize),
+    Parameter(&'a Template, usize, Variables<'a>),
+    Argument(&'a Template, &'a [Binding], usize, Variables<'a>),
+}
+fn complete_binding<'a>(
+    binding: &Binding,
+    mut value: Value<'a>,
+    mut frame: Frame<'a>,
+    next: BindNext<'a>,
+    tasks: &mut Vec<Task<'a>>,
+) -> Result<(), Diagnostic> {
+    if let Some(ty) = &binding.ty {
+        value = ty.convert(value, "XTTE0570")?;
+    }
+    match next {
+        BindNext::Local(body, index) => {
+            Rc::make_mut(&mut frame.env).insert(binding.name.clone(), value);
+            tasks.push(Task::Body(body, index, frame));
+        }
+        BindNext::Parameter(t, index, supplied) => {
+            Rc::make_mut(&mut frame.env).insert(binding.name.clone(), value);
+            tasks.push(Task::Parameters(t, index, supplied, frame));
+        }
+        BindNext::Argument(t, params, index, mut args) => {
+            args.insert(binding.name.clone(), value);
+            tasks.push(Task::Arguments(t, params, index, args, frame));
+        }
+    }
+    Ok(())
+}
+struct Run<'a, 'r> {
+    sheet: &'a Stylesheet,
+    options: &'r TransformOptions,
+    trees: &'r crate::trees::Trees<'a>,
+    globals: Rc<Variables<'a>>,
 }
 enum Capture {
     Attribute(result::Name),
@@ -189,12 +230,22 @@ pub(crate) fn transform(
         item: if absent {
             Item::Absent
         } else {
-            Item::Node(XNode::Tree(doc.root()))
+            Item::Node(XNode::tree(doc.root()))
         },
         position: 1,
         size: 1,
     };
-    execute(sheet, root, options, &mut Budget::new(options.limits), true)
+    let sources = typed_arena::Arena::new();
+    let documents = typed_arena::Arena::new();
+    let trees = crate::trees::Trees::new(&sources, &documents, options.limits.max_temporary_bytes);
+    execute(
+        sheet,
+        root,
+        options,
+        &mut Budget::new(options.limits),
+        true,
+        &trees,
+    )
 }
 pub(crate) fn transform_record(
     sheet: &Stylesheet,
@@ -208,24 +259,27 @@ pub(crate) fn transform_record(
     let source = prepared.as_deref().unwrap_or(source);
     let doc = crate::parse(source, "parse")?;
     let root = Focus {
-        item: Item::Node(XNode::Tree(doc.root_element())),
+        item: Item::Node(XNode::tree(doc.root_element())),
         position,
         size: 1,
     };
-    execute(sheet, root, options, budget, false)
+    let sources = typed_arena::Arena::new();
+    let documents = typed_arena::Arena::new();
+    let trees = crate::trees::Trees::new(&sources, &documents, options.limits.max_temporary_bytes);
+    execute(sheet, root, options, budget, false, &trees)
 }
 fn copied_leaf(node: XNode<'_>, output: &mut Output) -> Result<(), Diagnostic> {
-    match node {
-        XNode::Attribute(n, name, uri) => {
-            output.attribute(result::attribute_name(n, name, uri), node.string())
-        }
-        XNode::Tree(n) if n.is_text() => output.text(n.text().unwrap_or_default()),
-        XNode::Tree(n) if n.is_comment() => output.comment(n.text().unwrap_or_default()),
-        XNode::Tree(n) if n.is_pi() => {
-            let pi = n.pi().unwrap();
-            output.pi(pi.target, pi.value.unwrap_or_default())
-        }
-        _ => Ok(()),
+    if let Some((name, uri)) = node.attribute {
+        output.attribute(result::attribute_name(node.raw, name, uri), node.string())
+    } else if node.is_text() {
+        output.text(&node.string())
+    } else if node.is_comment() {
+        output.comment(&node.string())
+    } else if node.is_pi() {
+        let pi = node.raw.pi().unwrap();
+        output.pi(pi.target, pi.value.unwrap_or_default())
+    } else {
+        Ok(())
     }
 }
 fn execute<'a>(
@@ -234,6 +288,7 @@ fn execute<'a>(
     options: &TransformOptions,
     budget: &mut Budget,
     declaration: bool,
+    trees: &crate::trees::Trees<'a>,
 ) -> Result<String, Diagnostic> {
     let limits = options.limits;
     let mut globals = Variables::new();
@@ -251,7 +306,34 @@ fn execute<'a>(
                 globals.insert(b.name.clone(), v);
                 continue;
             }
-            match xpath::eval(&b.value, &root, &globals, budget, 0, sheet.backwards) {
+            let evaluated = match &b.value {
+                BindingValue::Select(e) => {
+                    xpath::eval(e, &root, &globals, budget, 0, sheet.backwards)
+                }
+                BindingValue::Body(body) => {
+                    let env = Rc::new(globals.clone());
+                    let frame = Frame {
+                        focus: root.clone(),
+                        env: env.clone(),
+                        depth: 0,
+                        mode: String::new(),
+                    };
+                    let run = Run {
+                        sheet,
+                        options,
+                        trees,
+                        globals: env,
+                    };
+                    run_tasks(
+                        &run,
+                        budget,
+                        vec![Task::Body(body, 0, frame)],
+                        Output::document(limits.max_output_bytes),
+                    )
+                    .and_then(|xml| trees.construct(xml, b.ty.as_ref()))
+                }
+            };
+            match evaluated {
                 Ok(mut v) => {
                     if let Some(ty) = &b.ty {
                         v = ty.convert(v, "XTTE0570")?;
@@ -277,7 +359,7 @@ fn execute<'a>(
         output.push("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")?;
     }
     let initial_mode = options.initial_mode.clone().unwrap_or_default();
-    let mut tasks = if let Some(name) = &options.initial_template {
+    let tasks = if let Some(name) = &options.initial_template {
         let t = sheet
             .templates
             .iter()
@@ -293,36 +375,98 @@ fn execute<'a>(
     } else {
         vec![Task::Apply(root, 0, initial_mode)]
     };
+    let run = Run {
+        sheet,
+        options,
+        trees,
+        globals,
+    };
+    run_tasks(&run, budget, tasks, output)
+}
+fn run_tasks<'a>(
+    run: &Run<'a, '_>,
+    budget: &mut Budget,
+    mut tasks: Vec<Task<'a>>,
+    mut output: Output,
+) -> Result<String, Diagnostic> {
+    let sheet = run.sheet;
+    let limits = run.options.limits;
+    let globals = run.globals.clone();
+    let trees = run.trees;
     while let Some(task) = tasks.pop() {
         budget.tick()?;
         match task {
-            Task::Enter(t, focus, mut params, depth, mode) => {
+            Task::Enter(t, focus, params, depth, mode) => {
                 if depth > limits.max_depth {
                     return Err(limit());
                 }
-                let mut env = (*globals).clone();
-                for p in &t.params {
-                    let supplied = params.contains_key(&p.name);
-                    let mut v = if let Some(v) = params.remove(&p.name) {
-                        v
-                    } else {
-                        xpath::eval(&p.value, &focus, &env, budget, 0, sheet.backwards)?
-                    };
-                    if let Some(ty) = &p.ty {
-                        v = ty.convert(v, if supplied { "XTTE0590" } else { "XTTE0570" })?;
-                    }
-                    env.insert(p.name.clone(), v);
-                }
-                tasks.push(Task::Body(
-                    &t.body,
+                tasks.push(Task::Parameters(
+                    t,
                     0,
+                    params,
                     Frame {
                         focus,
-                        env: Rc::new(env),
+                        env: Rc::new((*globals).clone()),
                         depth,
                         mode,
                     },
                 ));
+            }
+            Task::Parameters(t, index, mut supplied, mut frame) => {
+                if let Some(p) = t.params.get(index) {
+                    if let Some(mut value) = supplied.remove(&p.name) {
+                        if let Some(ty) = &p.ty {
+                            value = ty.convert(value, "XTTE0590")?;
+                        }
+                        Rc::make_mut(&mut frame.env).insert(p.name.clone(), value);
+                        tasks.push(Task::Parameters(t, index + 1, supplied, frame));
+                    } else {
+                        tasks.push(Task::EvaluateBinding(
+                            p,
+                            frame,
+                            BindNext::Parameter(t, index + 1, supplied),
+                        ));
+                    }
+                } else {
+                    tasks.push(Task::Body(&t.body, 0, frame));
+                }
+            }
+            Task::Arguments(t, params, index, args, frame) => {
+                if let Some(p) = params.get(index) {
+                    tasks.push(Task::EvaluateBinding(
+                        p,
+                        frame,
+                        BindNext::Argument(t, params, index + 1, args),
+                    ));
+                } else {
+                    tasks.push(Task::Enter(
+                        t,
+                        frame.focus,
+                        args,
+                        frame.depth + 1,
+                        frame.mode,
+                    ));
+                }
+            }
+            Task::EvaluateBinding(binding, frame, next) => match &binding.value {
+                BindingValue::Select(e) => {
+                    let value =
+                        xpath::eval(e, &frame.focus, &frame.env, budget, 0, sheet.backwards)?;
+                    complete_binding(binding, value, frame, next, &mut tasks)?;
+                }
+                BindingValue::Body(body) => {
+                    let saved =
+                        std::mem::replace(&mut output, Output::document(limits.max_output_bytes));
+                    let mut constructor = frame.clone();
+                    constructor.depth += 1;
+                    tasks.push(Task::FinishBinding(binding, frame, next, saved));
+                    tasks.push(Task::Body(body, 0, constructor));
+                }
+            },
+            Task::FinishBinding(binding, frame, next, saved) => {
+                let xml = std::mem::replace(&mut output, saved).value;
+                let value = trees.construct(xml, binding.ty.as_ref())?;
+                complete_binding(binding, value, frame, next, &mut tasks)?;
             }
             Task::Apply(focus, depth, mode) => {
                 if depth > limits.max_depth {
@@ -361,23 +505,17 @@ fn execute<'a>(
                 if let Some((t, _)) = best {
                     tasks.push(Task::Enter(t, focus, Variables::new(), depth, mode));
                 } else {
-                    match node {
-                        XNode::Tree(n) if n.is_root() || n.is_element() => {
-                            let children =
-                                n.children().map(|n| Item::Node(XNode::Tree(n))).collect();
-                            for f in focus_sequence(children).into_iter().rev() {
-                                tasks.push(Task::Apply(f, depth + 1, mode.clone()));
-                            }
+                    if node.is_document() || node.is_element() {
+                        let children = node.children().map(Item::Node).collect();
+                        for f in focus_sequence(children).into_iter().rev() {
+                            tasks.push(Task::Apply(f, depth + 1, mode.clone()));
                         }
-                        XNode::Tree(n) if n.is_text() => {
-                            output.text(n.text().unwrap_or_default())?
-                        }
-                        XNode::Attribute(..) => output.text(&node.string())?,
-                        _ => {}
+                    } else if node.is_text() || node.is_attribute() {
+                        output.text(&node.string())?;
                     }
                 }
             }
-            Task::Body(body, i, mut frame) => {
+            Task::Body(body, i, frame) => {
                 if frame.depth > limits.max_depth {
                     return Err(limit());
                 }
@@ -385,19 +523,11 @@ fn execute<'a>(
                     continue;
                 };
                 if let Instruction::Bind(b) = instruction {
-                    let mut value = xpath::eval(
-                        &b.value,
-                        &frame.focus,
-                        &frame.env,
-                        budget,
-                        0,
-                        sheet.backwards,
-                    )?;
-                    if let Some(ty) = &b.ty {
-                        value = ty.convert(value, "XTTE0570")?;
-                    }
-                    Rc::make_mut(&mut frame.env).insert(b.name.clone(), value);
-                    tasks.push(Task::Body(body, i + 1, frame));
+                    tasks.push(Task::EvaluateBinding(
+                        b,
+                        frame,
+                        BindNext::Local(body, i + 1),
+                    ));
                     continue;
                 }
                 tasks.push(Task::Body(body, i + 1, frame.clone()));
@@ -513,7 +643,7 @@ fn execute<'a>(
                             tasks.push(Task::Apply(f, depth + 1, target_mode.clone()));
                         }
                     }
-                    Instruction::CopyOf(e) => {
+                    Instruction::CopyOf(e) | Instruction::Sequence(e) => {
                         let value = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
                         // Copy atomics as text with a separator only between adjacent atomics.
                         let mut operations = vec![];
@@ -543,8 +673,8 @@ fn execute<'a>(
                         }
                     }
                     Instruction::Copy(body) => match focus.item.clone() {
-                        Item::Node(XNode::Tree(n)) if n.is_element() => {
-                            output.start(result::source_element(n, false))?;
+                        Item::Node(n) if n.is_element() => {
+                            output.start(result::source_element(n.raw, false))?;
                             tasks.push(Task::Close);
                             tasks.push(Task::Body(
                                 body,
@@ -557,7 +687,7 @@ fn execute<'a>(
                                 },
                             ));
                         }
-                        Item::Node(XNode::Tree(n)) if n.is_root() => tasks.push(Task::Body(
+                        Item::Node(n) if n.is_document() => tasks.push(Task::Body(
                             body,
                             0,
                             Frame {
@@ -644,16 +774,18 @@ fn execute<'a>(
                                     "run",
                                 )
                             })?;
-                        let mut bindings = Variables::new();
-                        for p in params {
-                            let mut v =
-                                xpath::eval(&p.value, &focus, &env, budget, 0, sheet.backwards)?;
-                            if let Some(ty) = &p.ty {
-                                v = ty.convert(v, "XTTE0570")?;
-                            }
-                            bindings.insert(p.name.clone(), v);
-                        }
-                        tasks.push(Task::Enter(t, focus, bindings, depth + 1, mode));
+                        tasks.push(Task::Arguments(
+                            t,
+                            params,
+                            0,
+                            Variables::new(),
+                            Frame {
+                                focus,
+                                env,
+                                depth,
+                                mode,
+                            },
+                        ));
                     }
                     Instruction::Element {
                         element,
@@ -692,17 +824,16 @@ fn execute<'a>(
                 if depth > limits.max_depth {
                     return Err(limit());
                 }
-                match node {
-                    XNode::Tree(n) if n.is_root() || n.is_element() => {
-                        if n.is_element() {
-                            output.start(result::source_element(n, true))?;
-                            tasks.push(Task::Close);
-                        }
-                        for child in n.children().rev() {
-                            tasks.push(Task::DeepCopy(XNode::Tree(child), depth + 1));
-                        }
+                if node.is_document() || node.is_element() {
+                    if node.is_element() {
+                        output.start(result::source_element(node.raw, true))?;
+                        tasks.push(Task::Close);
                     }
-                    _ => copied_leaf(node, &mut output)?,
+                    for child in node.children().rev() {
+                        tasks.push(Task::DeepCopy(child, depth + 1));
+                    }
+                } else {
+                    copied_leaf(node, &mut output)?;
                 }
             }
             Task::Atomic(s) => output.text(&s)?,

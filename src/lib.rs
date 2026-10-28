@@ -1,5 +1,6 @@
 //! An early, deliberately limited XSLT engine. See README.md for supported syntax.
 mod compile;
+mod node;
 mod number;
 mod pattern;
 mod result;
@@ -7,6 +8,7 @@ mod runtime;
 mod seqtype;
 mod sort;
 mod stream;
+mod trees;
 mod whitespace;
 mod xpath;
 pub use stream::{StreamOptions, StreamStats};
@@ -50,6 +52,8 @@ pub struct Limits {
     pub max_steps: u64,
     pub max_depth: usize,
     pub max_output_bytes: usize,
+    /// Aggregate serialized source bytes retained for temporary trees per run.
+    pub max_temporary_bytes: usize,
 }
 impl Default for Limits {
     fn default() -> Self {
@@ -57,6 +61,7 @@ impl Default for Limits {
             max_steps: 20_000_000,
             max_depth: 128,
             max_output_bytes: 16 * 1024 * 1024,
+            max_temporary_bytes: 64 * 1024 * 1024,
         }
     }
 }

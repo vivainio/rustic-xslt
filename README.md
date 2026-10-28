@@ -54,8 +54,11 @@ Non-terminating decimal division currently uses bigdecimal’s default precision
 (100 digits). Full numeric/atomic type coverage and canonical double formatting
 remain ahead. Floats and doubles have distinct type identity and numeric-promotion rules.
 Bindings support common atomic/node sequence types and occurrence indicators,
-atomization and function conversion. Select expressions and typed text content
-work; temporary result-tree constructors remain ahead.
+atomization and function conversion. Select expressions and temporary result-tree constructor bodies work. Untyped
+constructors return document nodes; typed node constructors return their children
+and apply function conversion. A sole typed xsl:sequence retains its atomic value.
+Mixed typed top-level atomic/node constructor sequences, standalone attribute
+sequences and zero-length constructed text-node identity remain incomplete.
 Match patterns support child/attribute paths, namespaces, wildcards, node tests,
 predicates, `/` and union. Descendant patterns and qualified mode/template names
 remain ahead.
@@ -74,7 +77,12 @@ limit. No external resources are opened. Source trees and selected sequences
 are buffered; execution limits are not a hard memory limit. Runtime diagnostic
 locations and full W3C error-code fidelity remain ahead. Execution defaults to
 128 levels; XPath nesting is capped at 128 even when execution depth is raised.
-Template execution and result-content capture use an explicit task stack.
+Template execution, result-content capture and binding constructors use an
+explicit task stack. Per-run arenas own temporary documents and source strings;
+node handles preserve parent/root navigation and identity across documents.
+`Limits::max_temporary_bytes` caps retained serialized temporary-tree source bytes
+(default 64 MiB), with fresh arenas per streamed record. Parsed-node storage and
+other allocations are additional, so this is not a hard memory bound.
 Computed QName validation currently accepts letters, digits, underscore, hyphen
 and dot, rather than the full XML name-character tables. Sort settings are
 static; locale collations and sort-setting AVTs remain ahead. Compilation limits nested
@@ -138,7 +146,7 @@ streamable modes/accumulators and automatic plan selection remain ahead.
 
 ## W3C development checks
 
-A pinned, partial catalog runner and a 77-case passing regression gate are in
+A pinned, partial catalog runner and a 90-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. The example JSON-lines driver

@@ -14,6 +14,7 @@ pub(crate) enum Instruction {
     Apply(Expr, String, Vec<Sort>),
     Copy(Vec<Instruction>),
     CopyOf(Expr),
+    Sequence(Expr),
     ComputedElement(ComputedName, Vec<Instruction>),
     Attribute(ComputedName, Content),
     Comment(Content),
@@ -48,9 +49,14 @@ pub(crate) enum Content {
     Body(Vec<Instruction>),
 }
 #[derive(Debug)]
+pub(crate) enum BindingValue {
+    Select(Expr),
+    Body(Vec<Instruction>),
+}
+#[derive(Debug)]
 pub(crate) struct Binding {
     pub name: String,
-    pub value: Expr,
+    pub value: BindingValue,
     pub parameter: bool,
     pub ty: Option<crate::seqtype::SequenceType>,
 }
@@ -127,7 +133,7 @@ fn empty(n: Node<'_, '_>) -> Result<(), Diagnostic> {
     }
     Ok(())
 }
-fn binding(n: Node<'_, '_>, parameter: bool) -> Result<Binding, Diagnostic> {
+fn binding(n: Node<'_, '_>, parameter: bool, depth: usize) -> Result<Binding, Diagnostic> {
     attrs(n, &["name", "select", "as"])?;
     let ty = n
         .attribute("as")
@@ -139,31 +145,37 @@ fn binding(n: Node<'_, '_>, parameter: bool) -> Result<Binding, Diagnostic> {
     }
     let value = if let Some(s) = n.attribute("select") {
         empty(n)?;
-        expr(n, s)?
+        BindingValue::Select(expr(n, s)?)
     } else {
-        if n.children().any(|c| c.is_element()) {
-            return Err(error(
-                n,
-                "binding content currently supports text only; use select for values",
-            ));
-        }
-        let text: String = n
-            .children()
-            .filter(|c| c.is_text())
-            .filter_map(|c| c.text())
-            .collect();
-        if ty.is_some() && xml_space(&text) {
-            Expr::Sequence(vec![])
-        } else if let Some(ty) = &ty {
-            if !ty.atomic() {
+        let body = body(n, depth + 1, false)?;
+        if body.is_empty() {
+            BindingValue::Select(if ty.is_some() {
+                Expr::Sequence(vec![])
+            } else {
+                Expr::String(String::new())
+            })
+        } else if ty.is_some() && body.len() == 1 && matches!(body[0], Instruction::Sequence(_)) {
+            let Instruction::Sequence(e) = body.into_iter().next().unwrap() else {
+                unreachable!()
+            };
+            BindingValue::Select(e)
+        } else {
+            if ty
+                .as_ref()
+                .is_some_and(|ty| matches!(ty.kind, crate::seqtype::Kind::Attribute))
+            {
                 return Err(error(
                     n,
-                    "typed text-node construction requires temporary-tree support",
+                    "standalone attribute constructor sequences are not implemented yet",
                 ));
             }
-            Expr::Call("xs:untypedAtomic".into(), vec![Expr::String(text)])
-        } else {
-            Expr::String(text)
+            if ty.is_some() && top_sequence(&body) {
+                return Err(error(
+                    n,
+                    "mixed typed constructor sequences are not implemented yet",
+                ));
+            }
+            BindingValue::Body(body)
         }
     };
     Ok(Binding {
@@ -171,6 +183,19 @@ fn binding(n: Node<'_, '_>, parameter: bool) -> Result<Binding, Diagnostic> {
         value,
         parameter,
         ty,
+    })
+}
+// Typed mixed top-level atomic/node sequences need a raw XDM collector. Do not
+// silently turn those atomics into text while the collector is still pending.
+fn top_sequence(body: &[Instruction]) -> bool {
+    body.iter().any(|i| match i {
+        Instruction::Sequence(_)
+        | Instruction::Call(_, _)
+        | Instruction::CopyOf(_)
+        | Instruction::Copy(_) => true,
+        Instruction::ForEach(_, _, b) | Instruction::If(_, b) => top_sequence(b),
+        Instruction::Choose(bs) => bs.iter().any(|(_, b)| top_sequence(b)),
+        _ => false,
     })
 }
 fn avt(n: Node<'_, '_>, value: &str) -> Result<Vec<Expr>, Diagnostic> {
@@ -475,12 +500,17 @@ fn body(
                         attrs(n, &[])?;
                         out.push(Instruction::Copy(body(n, depth + 1, false)?));
                     }
+                    "sequence" => {
+                        attrs(n, &["select"])?;
+                        empty(n)?;
+                        out.push(Instruction::Sequence(expr(n, required(n, "select")?)?));
+                    }
                     "copy-of" => {
                         attrs(n, &["select"])?;
                         empty(n)?;
                         out.push(Instruction::CopyOf(expr(n, required(n, "select")?)?));
                     }
-                    "variable" => out.push(Instruction::Bind(binding(n, false)?)),
+                    "variable" => out.push(Instruction::Bind(binding(n, false, depth)?)),
                     "for-each" => {
                         attrs(n, &["select"])?;
                         out.push(Instruction::ForEach(
@@ -553,7 +583,7 @@ fn body(
                             {
                                 return Err(error(c, "expected with-param"));
                             }
-                            let b = binding(c, true)?;
+                            let b = binding(c, true, depth)?;
                             if params.iter().any(|p: &Binding| p.name == b.name) {
                                 return Err(error(c, "duplicate with-param"));
                             }
@@ -655,7 +685,7 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
                 sheet.space_rules.extend(rules);
             }
             "param" | "variable" => {
-                let b = binding(n, n.tag_name().name() == "param")?;
+                let b = binding(n, n.tag_name().name() == "param", 0)?;
                 if sheet.globals.iter().any(|g| g.name == b.name) {
                     return Err(error(n, "duplicate global binding"));
                 }
@@ -686,7 +716,7 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
                         if content {
                             return Err(error(c, "template parameters must precede the body"));
                         }
-                        let b = binding(c, true)?;
+                        let b = binding(c, true, 0)?;
                         if params.iter().any(|p: &Binding| p.name == b.name) {
                             return Err(error(c, "duplicate template parameter"));
                         }
@@ -872,11 +902,15 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     value(c, &scope, templates)?;
                 }
                 Instruction::Text(_) => {}
-                Instruction::Value(e, _) | Instruction::Apply(e, _, _) | Instruction::CopyOf(e) => {
-                    expression(e, &scope)?
-                }
+                Instruction::Value(e, _)
+                | Instruction::Apply(e, _, _)
+                | Instruction::CopyOf(e)
+                | Instruction::Sequence(e) => expression(e, &scope)?,
                 Instruction::Bind(b) => {
-                    expression(&b.value, &scope)?;
+                    match &b.value {
+                        BindingValue::Select(e) => expression(e, &scope)?,
+                        BindingValue::Body(body) => instructions(body, scope.clone(), templates)?,
+                    }
                     scope.insert(b.name.clone());
                 }
                 Instruction::Element {
@@ -911,7 +945,12 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                         ));
                     }
                     for p in params {
-                        expression(&p.value, &scope)?;
+                        match &p.value {
+                            BindingValue::Select(e) => expression(e, &scope)?,
+                            BindingValue::Body(body) => {
+                                instructions(body, scope.clone(), templates)?
+                            }
+                        }
                     }
                 }
             }
@@ -925,7 +964,10 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
         .filter_map(|t| t.name.clone())
         .collect();
     for b in &sheet.globals {
-        expression(&b.value, &globals)?;
+        match &b.value {
+            BindingValue::Select(e) => expression(e, &globals)?,
+            BindingValue::Body(body) => instructions(body, globals.clone(), &templates)?,
+        }
     }
     for t in &sheet.templates {
         if let Some(branches) = &t.pattern {
@@ -939,7 +981,10 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
         }
         let mut scope = globals.clone();
         for p in &t.params {
-            expression(&p.value, &scope)?;
+            match &p.value {
+                BindingValue::Select(e) => expression(e, &scope)?,
+                BindingValue::Body(body) => instructions(body, scope.clone(), &templates)?,
+            }
             scope.insert(p.name.clone());
         }
         instructions(&t.body, scope, &templates)?;

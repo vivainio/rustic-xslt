@@ -28,9 +28,9 @@ python3 -m unittest discover -s tools/conformance -p 'test_*.py'
 
 The gate fails for missing or regressed baseline cases. Other failures and
 harness errors are still named and counted, never reclassified as passes.
-The current gate contains 77 passing cases out of 203 selected cases: 89 engine
+The current gate contains 90 passing cases out of 203 selected cases: 76 engine
 failures, 21 harness errors, 16 optional-profile exclusions. Do not present the
-77 cases as an applicable-suite pass rate.
+90 cases as an applicable-suite pass rate.
 
 Supported setup: local stylesheet/source files or inline content, local/global
 named environments, string parameter literals, initial template/mode selection,

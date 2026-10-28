@@ -126,4 +126,20 @@ conformance claims. Smaller tested increments are committed independently.
   77 pass / 89 engine failures / 21 harness errors / 16 exclusions.
 - All 73 previous passes remain; gate expanded to 77.
 
-Next: per-run temporary document ownership, node identity and constructor bodies.
+## Increment 12: owned temporary trees and constructor bodies
+
+- Node handles preserve identity/document order across documents and expose
+  fragment wrappers as document nodes without leaking synthetic elements.
+- Per-run typed arenas own temporary XML strings/documents and drop them together;
+  max_temporary_bytes bounds retained serialized sources (not total RSS).
+- Global/local/default/argument constructor bodies execute on the task stack,
+  with lexical scope, forward globals, typed children and untyped document values.
+- xsl:sequence output and a sole typed sequence constructor preserve the supported
+  value semantics; mixed typed top-level sequences remain explicitly unsupported.
+- Node comparisons and correct string atomization of comments/PIs.
+- 104 Rust integration tests and Clippy/format pass. Streaming arenas reset each
+  record; a 1,000-record constructor test succeeds under a 100-byte source budget.
+- Selected W3C cases: 90 pass / 76 engine failures / 21 harness errors / 16 exclusions.
+  All 77 previous passes remain; gate expanded to 90.
+
+Next: document/copy instructions, namespace-copy controls and qualified entry names.

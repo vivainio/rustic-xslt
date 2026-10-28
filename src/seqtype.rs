@@ -1,7 +1,7 @@
 use crate::{
     Diagnostic,
     number::Number,
-    xpath::{Item, Value, XNode},
+    xpath::{Item, Value},
 };
 use std::collections::BTreeMap;
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -123,12 +123,12 @@ impl SequenceType {
             (Kind::Item, Item::Absent) => false,
             (Kind::Item, _) => true,
             (Kind::Node, Item::Node(_)) => true,
-            (Kind::Document, Item::Node(XNode::Tree(n))) => n.is_root(),
-            (Kind::Element, Item::Node(XNode::Tree(n))) => n.is_element(),
-            (Kind::Attribute, Item::Node(XNode::Attribute(..))) => true,
-            (Kind::Text, Item::Node(XNode::Tree(n))) => n.is_text(),
-            (Kind::Comment, Item::Node(XNode::Tree(n))) => n.is_comment(),
-            (Kind::Pi, Item::Node(XNode::Tree(n))) => n.is_pi(),
+            (Kind::Document, Item::Node(n)) => n.is_document(),
+            (Kind::Element, Item::Node(n)) => n.is_element(),
+            (Kind::Attribute, Item::Node(n)) => n.is_attribute(),
+            (Kind::Text, Item::Node(n)) => n.is_text(),
+            (Kind::Comment, Item::Node(n)) => n.is_comment(),
+            (Kind::Pi, Item::Node(n)) => n.is_pi(),
             (Kind::String, Item::String(_))
             | (Kind::Untyped, Item::Untyped(_))
             | (Kind::Boolean, Item::Boolean(_)) => true,
@@ -162,10 +162,8 @@ impl SequenceType {
         }
         let mut out = vec![];
         for mut item in value {
-            if self.atomic()
-                && let Item::Node(n) = item
-            {
-                item = Item::Untyped(n.string());
+            if self.atomic() {
+                item = crate::xpath::atomize(&item);
             }
             item = match (&self.kind, item) {
                 (Kind::String, Item::Untyped(s)) => Item::String(s),
