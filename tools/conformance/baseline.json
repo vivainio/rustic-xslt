@@ -381,6 +381,10 @@
     ],
     [
       "param",
+      "param-0104"
+    ],
+    [
+      "param",
       "param-0105"
     ],
     [
@@ -881,7 +885,15 @@
     ],
     [
       "call-template",
+      "call-template-0108"
+    ],
+    [
+      "call-template",
       "call-template-0109"
+    ],
+    [
+      "call-template",
+      "call-template-0111"
     ],
     [
       "call-template",
@@ -970,6 +982,14 @@
     [
       "choose",
       "choose-0102"
+    ],
+    [
+      "choose",
+      "choose-0103"
+    ],
+    [
+      "choose",
+      "choose-0104"
     ],
     [
       "choose",

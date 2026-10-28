@@ -470,5 +470,19 @@ conformance claims. Smaller tested increments are committed independently.
   334 profile exclusions. All 21 selected sequence-type cases pass; previous 959
   passes remain and the QT3 gate expands to 980.
 
-Next: raw sequence preservation across bindings and template calls, followed by
-constructed-node collection and broader XPath grammar coverage.
+## Increment 38: raw sequence preservation
+
+- Typed binding/template collectors retain atomic types and selected node/
+  attribute identity across sequence instructions, control flow and template calls.
+- Nested raw/serialized captures restore their output modes independently;
+  conversion runs after collection with binding/parameter/template-specific codes.
+- Raw atomics need no serialized temporary-tree bytes. Record collectors reset
+  per record, and final output still consumes the shared byte/step budgets.
+- Constructed-node and built-in node-result paths that cannot yet participate in
+  raw collection fail explicitly; they do not silently stringify their values.
+- 272 Rust integration tests, 27 harness tests and Clippy/format pass. XSLT gate
+  expands to 373 (373 pass / 160 failures / 144 harness errors / 46 exclusions).
+  All 980 QT3 gate cases remain green with unchanged selected-case counts.
+
+Next: parentless constructed-node boundaries, then constructed-node collection
+and broader XPath grammar coverage.

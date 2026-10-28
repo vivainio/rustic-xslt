@@ -82,10 +82,12 @@ and apply function conversion. A sole typed xsl:sequence retains its atomic valu
 Template result types apply function conversion with XTTE0505 diagnostics for
 sole sequence/document returns and element-only constructors (including supported
 control flow). Unconstrained item()* templates retain ordinary output behavior.
-Other constrained template bodies that require raw sequence collection are
-explicitly rejected.
-Mixed typed top-level atomic/node constructor sequences, standalone attribute
-sequences and zero-length constructed text-node identity remain incomplete.
+Sequence instructions, supported control flow and template delegation also
+retain raw values across typed bindings and returns. Constructed-node paths that
+cannot yet join these raw sequences are explicitly rejected.
+Mixing constructed nodes into raw typed sequences, standalone attribute
+constructors and zero-length constructed text-node identity remain incomplete.
+Selected node/attribute identity is preserved through raw sequence capture.
 Match patterns support child/attribute paths, namespaces, wildcards, node tests,
 predicates, `/` and union. Descendant patterns remain ahead.
 
@@ -190,7 +192,7 @@ streamable modes/accumulators and automatic plan selection remain ahead.
 
 ## W3C development checks
 
-A pinned, partial catalog runner and a 368-case passing regression gate are in
+A pinned, partial catalog runner and a 373-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. An initial internal QT3 bridge

@@ -84,7 +84,7 @@ fn unconstrained_template_sequences_keep_normal_output_semantics() {
 }
 #[test]
 fn unsupported_raw_result_shapes_are_rejected_explicitly() {
-    let body = r#"<xsl:template match="/" as="xs:string"><xsl:sequence select="'a'"/><xsl:sequence select="'b'"/></xsl:template>"#;
+    let body = r#"<xsl:template match="/" as="xs:string"><xsl:sequence select="'a'"/><out/></xsl:template>"#;
     assert_eq!(
         Stylesheet::compile(&source(body)).unwrap_err().code,
         "RUST_XSLT_UNSUPPORTED"

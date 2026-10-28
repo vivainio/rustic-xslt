@@ -59,6 +59,7 @@ pub(crate) enum Content {
 pub(crate) enum BindingValue {
     Select(Expr),
     Body(Vec<Instruction>),
+    Raw(Vec<Instruction>),
     Document(Vec<Instruction>),
 }
 #[derive(Debug)]
@@ -301,6 +302,8 @@ fn binding(n: Node<'_, '_>, parameter: bool, depth: usize) -> Result<Binding, Di
                 unreachable!()
             };
             BindingValue::Select(e)
+        } else if ty.is_some() && raw_result_body(&body) {
+            BindingValue::Raw(body)
         } else {
             if ty.as_ref().is_some_and(|ty| {
                 matches!(
@@ -348,6 +351,17 @@ fn top_sequence(body: &[Instruction]) -> bool {
         | Instruction::Document(_) => true,
         Instruction::ForEach(_, _, b) | Instruction::If(_, b) => top_sequence(b),
         Instruction::Choose(bs) => bs.iter().any(|(_, b)| top_sequence(b)),
+        _ => false,
+    })
+}
+pub(crate) fn raw_result_body(body: &[Instruction]) -> bool {
+    body.iter().all(|i| match i {
+        Instruction::Sequence(_)
+        | Instruction::Call(..)
+        | Instruction::NextMatch(_)
+        | Instruction::Bind(_) => true,
+        Instruction::ForEach(_, _, body) | Instruction::If(_, body) => raw_result_body(body),
+        Instruction::Choose(branches) => branches.iter().all(|(_, body)| raw_result_body(body)),
         _ => false,
     })
 }
@@ -1149,7 +1163,11 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
                         body.as_slice(),
                         [Instruction::Sequence(_)] | [Instruction::Document(_)]
                     );
-                    if !unconstrained && !direct && !element_result_body(&body) {
+                    if !unconstrained
+                        && !direct
+                        && !element_result_body(&body)
+                        && !raw_result_body(&body)
+                    {
                         return Err(error(
                             n,
                             "this template result constructor requires raw XDM sequence collection",
@@ -1313,9 +1331,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 for p in params {
                     match &p.value {
                         BindingValue::Select(e) => expression(e, &scope)?,
-                        BindingValue::Body(body) | BindingValue::Document(body) => {
-                            instructions(body, scope.clone(), templates)?
-                        }
+                        BindingValue::Body(body)
+                        | BindingValue::Document(body)
+                        | BindingValue::Raw(body) => instructions(body, scope.clone(), templates)?,
                     }
                 }
             }
@@ -1341,9 +1359,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 Instruction::Bind(b) => {
                     match &b.value {
                         BindingValue::Select(e) => expression(e, &scope)?,
-                        BindingValue::Body(body) | BindingValue::Document(body) => {
-                            instructions(body, scope.clone(), templates)?
-                        }
+                        BindingValue::Body(body)
+                        | BindingValue::Document(body)
+                        | BindingValue::Raw(body) => instructions(body, scope.clone(), templates)?,
                     }
                     scope.insert(b.name.clone());
                 }
@@ -1412,7 +1430,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     for p in params {
                         match &p.value {
                             BindingValue::Select(e) => expression(e, &scope)?,
-                            BindingValue::Body(body) | BindingValue::Document(body) => {
+                            BindingValue::Body(body)
+                            | BindingValue::Document(body)
+                            | BindingValue::Raw(body) => {
                                 instructions(body, scope.clone(), templates)?
                             }
                         }
@@ -1434,7 +1454,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
     for b in &sheet.globals {
         match &b.value {
             BindingValue::Select(e) => expression(e, &globals)?,
-            BindingValue::Body(body) | BindingValue::Document(body) => {
+            BindingValue::Body(body) | BindingValue::Document(body) | BindingValue::Raw(body) => {
                 instructions(body, globals.clone(), &templates)?
             }
         }
@@ -1453,9 +1473,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
         for p in &t.params {
             match &p.value {
                 BindingValue::Select(e) => expression(e, &scope)?,
-                BindingValue::Body(body) | BindingValue::Document(body) => {
-                    instructions(body, scope.clone(), &templates)?
-                }
+                BindingValue::Body(body)
+                | BindingValue::Document(body)
+                | BindingValue::Raw(body) => instructions(body, scope.clone(), &templates)?,
             }
             scope.insert(p.name.clone());
         }

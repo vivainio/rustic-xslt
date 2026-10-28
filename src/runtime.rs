@@ -73,14 +73,16 @@ enum Task<'a> {
     ),
     DeepCopy(XNode<'a>, usize, bool),
     FinishDocument(Output, usize),
-    FinishTemplate(&'a crate::seqtype::SequenceType, Output, usize, bool),
-    Atomic(String),
+    FinishTemplate(&'a crate::seqtype::SequenceType, Output, usize, bool, bool),
+    FinishRawTemplate(&'a crate::seqtype::SequenceType, Output, usize),
+    Value(Item<'a>, usize, bool),
     Close,
     FinishCapture(Capture, Output),
     Parameters(&'a Template, usize, Variables<'a>, Frame<'a>),
     Arguments(&'a Template, &'a [Binding], usize, Supplied<'a>, Frame<'a>),
     EvaluateBinding(&'a Binding, Frame<'a>, BindNext<'a>),
-    FinishBinding(&'a Binding, Frame<'a>, BindNext<'a>, Output),
+    FinishBinding(&'a Binding, Frame<'a>, BindNext<'a>, Output, bool),
+    FinishRawBinding(&'a Binding, Frame<'a>, BindNext<'a>, Output),
 }
 enum BindNext<'a> {
     Local(&'a [Instruction], usize),
@@ -138,10 +140,26 @@ fn complete_binding<'a>(
 }
 fn emit_value<'a>(value: Value<'a>, tasks: &mut Vec<Task<'a>>, depth: usize, namespaces: bool) {
     for item in value.into_iter().rev() {
-        match item {
-            Item::Node(n) => tasks.push(Task::DeepCopy(n, depth + 1, namespaces)),
-            atomic => tasks.push(Task::Atomic(atomic.string())),
-        }
+        tasks.push(Task::Value(item, depth, namespaces));
+    }
+}
+struct RawCapture<'a> {
+    items: Value<'a>,
+    active: bool,
+}
+fn raw_active(captures: &[RawCapture<'_>]) -> bool {
+    captures.last().is_some_and(|c| c.active)
+}
+fn suspend_raw(captures: &mut [RawCapture<'_>]) -> bool {
+    let active = raw_active(captures);
+    if let Some(capture) = captures.last_mut() {
+        capture.active = false;
+    }
+    active
+}
+fn restore_raw(captures: &mut [RawCapture<'_>], active: bool) {
+    if let Some(capture) = captures.last_mut() {
+        capture.active = active;
     }
 }
 struct Run<'a, 'r> {
@@ -475,7 +493,9 @@ fn execute<'a>(
                 BindingValue::Select(e) => {
                     xpath::eval(e, &root, &globals, budget, 0, sheet.backwards)
                 }
-                BindingValue::Body(body) | BindingValue::Document(body) => {
+                BindingValue::Body(body)
+                | BindingValue::Document(body)
+                | BindingValue::Raw(body) => {
                     let env = Rc::new(globals.clone());
                     let frame = Frame {
                         focus: root.clone(),
@@ -491,23 +511,36 @@ fn execute<'a>(
                         trees,
                         globals: env,
                     };
-                    run_tasks(
-                        &run,
-                        budget,
-                        vec![Task::Body(body, 0, frame)],
-                        Output::document(limits.max_output_bytes),
-                    )
-                    .and_then(|xml| {
-                        trees.construct(
-                            xml,
-                            if matches!(b.value, BindingValue::Document(_)) {
-                                None
-                            } else {
-                                b.ty.as_ref()
-                            },
-                            if b.parameter { "XTTE0600" } else { "XTTE0570" },
+                    if matches!(b.value, BindingValue::Raw(_)) {
+                        let mut captured = vec![];
+                        run_tasks(
+                            &run,
+                            budget,
+                            vec![Task::Body(body, 0, frame)],
+                            Output::document(limits.max_output_bytes),
+                            Some(&mut captured),
                         )
-                    })
+                        .map(|_| captured)
+                    } else {
+                        run_tasks(
+                            &run,
+                            budget,
+                            vec![Task::Body(body, 0, frame)],
+                            Output::document(limits.max_output_bytes),
+                            None,
+                        )
+                        .and_then(|xml| {
+                            trees.construct(
+                                xml,
+                                if matches!(b.value, BindingValue::Document(_)) {
+                                    None
+                                } else {
+                                    b.ty.as_ref()
+                                },
+                                if b.parameter { "XTTE0600" } else { "XTTE0570" },
+                            )
+                        })
+                    }
                 }
             };
             match evaluated {
@@ -609,18 +642,27 @@ fn execute<'a>(
         trees,
         globals,
     };
-    run_tasks(&run, budget, tasks, output)
+    run_tasks(&run, budget, tasks, output, None)
 }
 fn run_tasks<'a>(
     run: &Run<'a, '_>,
     budget: &mut Budget,
     mut tasks: Vec<Task<'a>>,
     mut output: Output,
+    raw_result: Option<&mut Value<'a>>,
 ) -> Result<String, Diagnostic> {
     let sheet = run.sheet;
     let limits = run.options.limits;
     let globals = run.globals.clone();
     let trees = run.trees;
+    let mut captures = if raw_result.is_some() {
+        vec![RawCapture {
+            items: vec![],
+            active: true,
+        }]
+    } else {
+        vec![]
+    };
     while let Some(task) = tasks.pop() {
         budget.tick()?;
         match task {
@@ -688,13 +730,31 @@ fn run_tasks<'a>(
                             frame.depth,
                             true,
                         );
+                    } else if crate::compile::raw_result_body(&t.body) {
+                        let saved = std::mem::replace(
+                            &mut output,
+                            Output::document(limits.max_output_bytes),
+                        );
+                        captures.push(RawCapture {
+                            items: vec![],
+                            active: true,
+                        });
+                        tasks.push(Task::FinishRawTemplate(ty, saved, frame.depth));
+                        tasks.push(Task::Body(&t.body, 0, frame));
                     } else {
                         let saved = std::mem::replace(
                             &mut output,
                             Output::document(limits.max_output_bytes),
                         );
+                        let was_raw = suspend_raw(&mut captures);
                         let document = matches!(t.body.as_slice(), [Instruction::Document(_)]);
-                        tasks.push(Task::FinishTemplate(ty, saved, frame.depth, document));
+                        tasks.push(Task::FinishTemplate(
+                            ty,
+                            saved,
+                            frame.depth,
+                            document,
+                            was_raw,
+                        ));
                         if let [Instruction::Document(body)] = t.body.as_slice() {
                             frame.depth += 1;
                             tasks.push(Task::Body(body, 0, frame));
@@ -706,7 +766,12 @@ fn run_tasks<'a>(
                     tasks.push(Task::Body(&t.body, 0, frame));
                 }
             }
-            Task::FinishTemplate(ty, saved, depth, document) => {
+            Task::FinishRawTemplate(ty, saved, depth) => {
+                output = saved;
+                let captured = captures.pop().unwrap().items;
+                emit_value(ty.convert(captured, "XTTE0505")?, &mut tasks, depth, true);
+            }
+            Task::FinishTemplate(ty, saved, depth, document, was_raw) => {
                 let xml = std::mem::replace(&mut output, saved).value;
                 let value =
                     trees.construct(xml, if document { None } else { Some(ty) }, "XTTE0505")?;
@@ -715,6 +780,7 @@ fn run_tasks<'a>(
                 } else {
                     value
                 };
+                restore_raw(&mut captures, was_raw);
                 emit_value(value, &mut tasks, depth, true);
             }
             Task::ApplyArguments(foci, mode, params, index, args, frame, before) => {
@@ -761,16 +827,34 @@ fn run_tasks<'a>(
                         xpath::eval(e, &frame.focus, &frame.env, budget, 0, sheet.backwards)?;
                     complete_binding(binding, value, frame, next, &mut tasks)?;
                 }
+                BindingValue::Raw(body) => {
+                    let saved =
+                        std::mem::replace(&mut output, Output::document(limits.max_output_bytes));
+                    captures.push(RawCapture {
+                        items: vec![],
+                        active: true,
+                    });
+                    let mut constructor = frame.clone();
+                    constructor.depth += 1;
+                    tasks.push(Task::FinishRawBinding(binding, frame, next, saved));
+                    tasks.push(Task::Body(body, 0, constructor));
+                }
                 BindingValue::Body(body) | BindingValue::Document(body) => {
+                    let was_raw = suspend_raw(&mut captures);
                     let saved =
                         std::mem::replace(&mut output, Output::document(limits.max_output_bytes));
                     let mut constructor = frame.clone();
                     constructor.depth += 1;
-                    tasks.push(Task::FinishBinding(binding, frame, next, saved));
+                    tasks.push(Task::FinishBinding(binding, frame, next, saved, was_raw));
                     tasks.push(Task::Body(body, 0, constructor));
                 }
             },
-            Task::FinishBinding(binding, frame, next, saved) => {
+            Task::FinishRawBinding(binding, frame, next, saved) => {
+                output = saved;
+                let captured = captures.pop().unwrap().items;
+                complete_binding(binding, captured, frame, next, &mut tasks)?;
+            }
+            Task::FinishBinding(binding, frame, next, saved, was_raw) => {
                 let xml = std::mem::replace(&mut output, saved).value;
                 let value = trees.construct(
                     xml,
@@ -781,6 +865,7 @@ fn run_tasks<'a>(
                     },
                     next.type_error(),
                 )?;
+                restore_raw(&mut captures, was_raw);
                 complete_binding(binding, value, frame, next, &mut tasks)?;
             }
             Task::Apply(focus, depth, mode, params, before) => {
@@ -850,6 +935,13 @@ fn run_tasks<'a>(
                         Some(rule),
                     ));
                 } else {
+                    if raw_active(&captures) {
+                        return Err(Diagnostic::new(
+                            "RUST_XSLT_UNSUPPORTED",
+                            "raw built-in node result collection is not implemented",
+                            "run",
+                        ));
+                    }
                     use crate::mode::OnNoMatch as P;
                     let policy = definition.policy();
                     if policy == P::Fail {
@@ -921,6 +1013,23 @@ fn run_tasks<'a>(
                         BindNext::Local(body, i + 1),
                     ));
                     continue;
+                }
+                if raw_active(&captures)
+                    && !matches!(
+                        instruction,
+                        Instruction::Sequence(_)
+                            | Instruction::Call(..)
+                            | Instruction::NextMatch(_)
+                            | Instruction::ForEach(..)
+                            | Instruction::If(..)
+                            | Instruction::Choose(_)
+                    )
+                {
+                    return Err(Diagnostic::new(
+                        "RUST_XSLT_UNSUPPORTED",
+                        "raw constructed-node collection is not implemented",
+                        "run",
+                    ));
                 }
                 tasks.push(Task::Body(body, i + 1, frame.clone()));
                 let Frame {
@@ -1344,13 +1453,25 @@ fn run_tasks<'a>(
                 };
                 tasks.push(Task::DeepCopy(node, depth + 1, true));
             }
-            Task::Atomic(s) => output.atomic(&s)?,
+            Task::Value(item, depth, namespaces) => {
+                if raw_active(&captures) {
+                    captures.last_mut().unwrap().items.push(item);
+                } else {
+                    match item {
+                        Item::Node(n) => tasks.push(Task::DeepCopy(n, depth + 1, namespaces)),
+                        atomic => output.atomic(&atomic.string())?,
+                    }
+                }
+            }
             Task::FinishCapture(kind, saved) => {
                 let value = std::mem::replace(&mut output, saved).finish_simple()?;
                 finish_capture(kind, value, &mut output)?;
             }
             Task::Close => output.end()?,
         }
+    }
+    if let Some(result) = raw_result {
+        *result = captures.pop().unwrap().items;
     }
     Ok(output.value)
 }

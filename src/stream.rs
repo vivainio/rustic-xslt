@@ -174,7 +174,7 @@ fn safe_binding<'a>(
 ) -> Result<(), Diagnostic> {
     match value {
         BindingValue::Select(e) => safe_expression(e, global)?,
-        BindingValue::Body(body) | BindingValue::Document(body) => {
+        BindingValue::Body(body) | BindingValue::Document(body) | BindingValue::Raw(body) => {
             if global {
                 safe_global_body(body)?;
             } else {
