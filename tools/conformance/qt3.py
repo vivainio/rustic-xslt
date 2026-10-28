@@ -8,7 +8,7 @@ from pathlib import Path
 import subprocess
 import sys
 from xml.sax.saxutils import quoteattr
-from run import Driver, HarnessError, ProfileExcluded, ROOT, parse_catalog
+from run import Driver, HarnessError, ProfileExcluded, ROOT, baseline_sets, parse_catalog
 
 NS = "{http://www.w3.org/2010/09/qt-fots-catalog}"
 PIN = "201a6e466940cdfc727f4babfedcde5332b9f578"
@@ -64,7 +64,7 @@ def environment(node, registry, seen=()):
             raise HarnessError(f"unsupported QT3 environment component: {kind}")
     return result
 
-def stylesheet(expression, bindings, assertion="count($result)", expected=None, deep=False):
+def stylesheet(expression, bindings, assertion="count($result)"):
     # The query is global; assertion-only $result cannot satisfy a free query
     # variable. Generated namespace prefixes cannot appear in the query.
     xsl, value = "_qt3_xsl", "_qt3_value"
@@ -80,20 +80,7 @@ def stylesheet(expression, bindings, assertion="count($result)", expected=None, 
              f'<{xsl}:output method="text"/>'
              f'<{xsl}:variable name="{value}:result" as="item()*" select={quoteattr(expression)}/>'
              f'<{xsl}:template name="entry"><{xsl}:variable name="result" as="item()*" select="${value}:result"/>')
-    if deep:
-        start += f'<{xsl}:variable name="expected" as="item()*" select={quoteattr(expected)}/>'
-        a, b = "$result[$i]", "$expected[$i]"
-        numeric = f"{a} instance of xs:numeric and {b} instance of xs:numeric"
-        stringlike = lambda s: f"({s} instance of xs:string or {s} instance of xs:untypedAtomic)"
-        comparable = f"({numeric}) or ({stringlike(a)} and {stringlike(b)}) or ({a} instance of xs:boolean and {b} instance of xs:boolean)"
-        equal = f"if ({comparable}) then ({a} eq {b} or ({a} ne {a} and {b} ne {b})) else false()"
-        start += (f'<{xsl}:choose><{xsl}:when test="count($result) != count($expected)">false;</{xsl}:when>'
-                  f'<{xsl}:otherwise><{xsl}:for-each select="1 to count($result)"><{xsl}:variable name="i" select="."/>'
-                  f'<{xsl}:choose><{xsl}:when test={quoteattr(f"not({a} instance of xs:anyAtomicType and {b} instance of xs:anyAtomicType)")}>unsupported-node;</{xsl}:when>'
-                  f'<{xsl}:otherwise><{xsl}:value-of select={quoteattr(equal)}/><{xsl}:text>;</{xsl}:text></{xsl}:otherwise>'
-                  f'</{xsl}:choose></{xsl}:for-each></{xsl}:otherwise></{xsl}:choose>')
-    else:
-        start += f'<{xsl}:value-of select={quoteattr(assertion)}/>'
+    start += f'<{xsl}:value-of select={quoteattr(assertion)}/>'
     return start + f'</{xsl}:template></{xsl}:stylesheet>'
 
 LEAVES = {"error", "assert", "assert-eq", "assert-deep-eq", "assert-string-value", "assert-empty", "assert-true", "assert-false", "assert-count", "assert-type"}
@@ -128,7 +115,7 @@ def assertion(a, probe, expression, env, driver):
         return False
     value = text(a)
     if kind == "assert-deep-eq":
-        style = stylesheet(expression, env["namespaces"], expected=value, deep=True)
+        style = stylesheet(expression, env["namespaces"], assertion=f"deep-equal($result, ({value}))")
     else:
         condition = {
             "assert": f"boolean(({value}))",
@@ -149,12 +136,6 @@ def assertion(a, probe, expression, env, driver):
     if response.get("diagnostics"):
         raise HarnessError("QT3 assertion evaluator: " + "; ".join(e.get("message", "") for e in response["diagnostics"]))
     output = response.get("output", "")
-    if kind == "assert-deep-eq":
-        if "unsupported-node" in output:
-            raise HarnessError("QT3 deep equality currently supports atomic values only")
-        if any(v not in {"true", "false"} for v in output.split(";") if v):
-            raise HarnessError("invalid deep equality evaluator response")
-        return "false" not in output
     if output not in {"true", "false"}:
         raise HarnessError("invalid assertion evaluator response")
     return output == "true"
@@ -182,10 +163,13 @@ def run_case(case, base, registry, driver):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("suite", type=Path)
-    parser.add_argument("--sets", default="op-to,op-bang")
+    parser.add_argument("--sets", help="exact set names; defaults to baseline sets or op-to,op-bang")
     parser.add_argument("--report", type=Path, default=Path("conformance-results/qt3.json"))
     parser.add_argument("--baseline", type=Path)
     args = parser.parse_args()
+    baseline = json.loads(args.baseline.read_text()) if args.baseline else None
+    if baseline is not None and not baseline.get("passing_cases"):
+        parser.error("QT3 baseline has no passing cases")
     if not (args.suite / "catalog.xml").is_file():
         parser.error("missing QT3 catalog")
     revision = subprocess.check_output(["git", "-C", str(args.suite), "rev-parse", "HEAD"], text=True).strip()
@@ -197,7 +181,8 @@ def main():
     registry = {e.get("name"): (e, args.suite) for e in root.findall(NS + "environment")}
     for e in root.findall(NS + "environment"):
         registry[id(e)] = e, args.suite
-    selected, found, rows = set(filter(None, args.sets.split(","))), set(), []
+    selected = set(filter(None, args.sets.split(","))) if args.sets is not None else baseline_sets(baseline) if baseline is not None else {"op-to", "op-bang"}
+    found, rows = set(), []
     driver = Driver(ROOT / "target/debug/examples/reference_driver")
     try:
         for ref in root.findall(NS + "test-set"):
@@ -230,7 +215,6 @@ def main():
     args.report.write_text(json.dumps({"suite_revision": revision, "counts": counts, "cases": rows}, indent=2) + "\n")
     print("Selected cases:", len(rows), counts, "report:", args.report)
     if args.baseline:
-        baseline = json.loads(args.baseline.read_text())
         if baseline["suite_revision"] != revision:
             parser.error("QT3 baseline revision differs")
         actual = {(c["set"], c["case"]): c["status"] for c in rows}

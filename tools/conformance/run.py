@@ -351,6 +351,10 @@ def run_case(case, base, registry, driver):
     answers = [assertion(a, response, base, driver) for a in result]
     return ("pass", "") if all(r[0] for r in answers) else ("fail", "; ".join(r[1] for r in answers if not r[0]))
 
+def baseline_sets(baseline):
+    # Keep surveyed sets that currently have no passing cases in reports too.
+    return set(baseline.get("selected_sets", [case[0] for case in baseline["passing_cases"]]))
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("suite", type=Path)
@@ -360,6 +364,9 @@ def main():
     parser.add_argument("--allow-other-revision", action="store_true")
     parser.add_argument("--baseline", type=Path, help="gate only the committed passing cases; all other statuses remain reported")
     args = parser.parse_args()
+    baseline = json.loads(args.baseline.read_text()) if args.baseline else None
+    if baseline is not None and not baseline.get("passing_cases"):
+        parser.error("baseline has no passing cases")
     catalog = args.suite / "catalog.xml"
     if not catalog.is_file():
         parser.error(f"missing catalog: {catalog}")
@@ -375,6 +382,8 @@ def main():
         registry[id(e)] = e, args.suite
     rows = []
     sets = set(filter(None, args.sets.split(",")))
+    if baseline is not None and not sets:
+        sets = baseline_sets(baseline)
     found = set()
     try:
         for ref in children(root, "test-set"):
@@ -409,7 +418,6 @@ def main():
     args.report.write_text(json.dumps({"suite_revision": revision, "counts": counts, "cases": rows}, indent=2) + "\n")
     print("Selected cases:", len(rows), counts, "report:", args.report)
     if args.baseline:
-        baseline = json.loads(args.baseline.read_text())
         if baseline["suite_revision"] != revision:
             parser.error("baseline suite revision differs")
         actual = {(r["set"], r["case"]): r["status"] for r in rows}

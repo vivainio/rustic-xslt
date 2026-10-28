@@ -428,5 +428,18 @@ conformance claims. Smaller tested increments are committed independently.
 - Sixteen QT3 sets: 1,715 cases, 857 pass / 577 engine failures / 14 harness errors /
   267 profile exclusions. All 753 previous passes remain; QT3 gate expands to 857.
 
-Next: deep sequence equality, template result types and raw XDM sequence
-collection.
+## Increment 35: deep sequence equality
+
+- Added iterative deep-equal for supported atomics/untyped nodes, including NaN,
+  expanded names, unordered attributes and ordered children. Comment/PI nodes
+  compare directly but are excluded from document/element child comparisons.
+- Node/atomic distinctions and codepoint collation validation remain explicit;
+  traversal consumes the shared execution budget without native tree recursion.
+- QT3 deep assertions now use the native function, including node sequences.
+  Baseline commands infer selected sets while retaining zero-pass survey sets.
+- 249 Rust integration tests, 27 harness tests and Clippy/format pass. XSLT gate
+  expands to 363 (363 pass / 170 failures / 144 harness errors / 46 exclusions).
+- Seventeen QT3 sets: 1,978 cases, 959 pass / 666 engine failures / 19 harness errors /
+  334 profile exclusions. All 857 previous passes remain; QT3 gate expands to 959.
+
+Next: template result types and raw XDM sequence collection.

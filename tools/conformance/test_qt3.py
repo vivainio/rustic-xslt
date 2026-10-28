@@ -30,7 +30,7 @@ class QT3Assertions(unittest.TestCase):
         with self.assertRaises(HarnessError):
             assertion(node('<root><assert>unsupported()</assert></root>'), {}, "1", {"namespaces": {}, "source": ""}, Driver())
 
-    def test_node_deep_equality_is_an_explicit_harness_gap(self):
+    def test_invalid_deep_equality_responses_are_harness_errors(self):
         class Driver:
             def call(self, request):
                 return {"output": "unsupported-node;", "diagnostics": []}

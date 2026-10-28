@@ -943,7 +943,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "avg" => (1, 1),
         "remove" => (2, 2),
         "insert-before" => (3, 3),
-        "subsequence" => (2, 3),
+        "subsequence" | "deep-equal" => (2, 3),
         "contains" | "starts-with" | "ends-with" | "substring-before" | "substring-after"
         | "string-join" => (2, 2),
         "concat" => (2, usize::MAX),
@@ -1545,6 +1545,11 @@ fn function<'a>(
                 _ => Number::cast(kind, &item.string())?,
             }),
         }]);
+    }
+    if name == "deep-equal" {
+        return Ok(vec![Item::Boolean(crate::deep_equal::evaluate(
+            args, budget,
+        )?)]);
     }
     if matches!(name, "sum" | "avg" | "min" | "max") {
         return crate::aggregate::evaluate(name, args, budget);

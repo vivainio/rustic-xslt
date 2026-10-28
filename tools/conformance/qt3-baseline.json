@@ -1,5 +1,24 @@
 {
   "suite_revision": "201a6e466940cdfc727f4babfedcde5332b9f578",
+  "selected_sets": [
+    "fn-avg",
+    "fn-deep-equal",
+    "fn-head",
+    "fn-insert-before",
+    "fn-max",
+    "fn-min",
+    "fn-remove",
+    "fn-reverse",
+    "fn-subsequence",
+    "fn-sum",
+    "fn-tail",
+    "op-bang",
+    "op-to",
+    "prod-Comment",
+    "prod-EQName",
+    "prod-ForClause",
+    "prod-LetClause"
+  ],
   "passing_cases": [
     [
       "fn-avg",
@@ -548,6 +567,370 @@
     [
       "fn-avg",
       "cbcl-avg-013"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equalintg2args-1"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equalintg2args-2"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equalintg2args-3"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equalintg2args-4"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equalintg2args-5"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equaldec2args-1"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equaldec2args-2"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equaldec2args-3"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equaldec2args-4"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equaldec2args-5"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equaldbl2args-1"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equaldbl2args-2"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equaldbl2args-3"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equaldbl2args-4"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equaldbl2args-5"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equalflt2args-1"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equalflt2args-2"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equalflt2args-3"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equalflt2args-4"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equalflt2args-5"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-001"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-002"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-003"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-004"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-005"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-006"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-007"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-008"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-009"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-010"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-013"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-014"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-015"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-016"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-017"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-018"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-019"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-020"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-021"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-022"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-023"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-024"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-025"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-026"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-027"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-1"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-2"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-3"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-4"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-5"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-6"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-7"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-8"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-9"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-10"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-11"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-12"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-13"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-14"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-15"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-19"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-20"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-25"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-26"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-27"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-28"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-29"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-30"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-31"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-36"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-37"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-38"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-39"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-40"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-41"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-42"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-43"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-44"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-45"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-46"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-47"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-48"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-49"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-50"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-51"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-52"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-53"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-54"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-55"
+    ],
+    [
+      "fn-deep-equal",
+      "K2-SeqDeepEqualFunc-8"
+    ],
+    [
+      "fn-deep-equal",
+      "K2-SeqDeepEqualFunc-9"
     ],
     [
       "fn-head",
@@ -1539,6 +1922,10 @@
     ],
     [
       "fn-remove",
+      "K-SeqRemoveFunc-16"
+    ],
+    [
+      "fn-remove",
       "K-SeqRemoveFunc-17"
     ],
     [
@@ -1667,6 +2054,18 @@
     ],
     [
       "fn-reverse",
+      "K-SeqReverseFunc-12"
+    ],
+    [
+      "fn-reverse",
+      "K-SeqReverseFunc-13"
+    ],
+    [
+      "fn-reverse",
+      "K-SeqReverseFunc-14"
+    ],
+    [
+      "fn-reverse",
       "K-SeqReverseFunc-16"
     ],
     [
@@ -1676,6 +2075,10 @@
     [
       "fn-reverse",
       "K-SeqReverseFunc-18"
+    ],
+    [
+      "fn-reverse",
+      "K-SeqReverseFunc-19"
     ],
     [
       "fn-reverse",
@@ -2619,6 +3022,18 @@
     ],
     [
       "op-to",
+      "K-RangeExpr-19"
+    ],
+    [
+      "op-to",
+      "K-RangeExpr-20"
+    ],
+    [
+      "op-to",
+      "K-RangeExpr-21"
+    ],
+    [
+      "op-to",
       "K-RangeExpr-22"
     ],
     [
@@ -3175,6 +3590,10 @@
     ],
     [
       "prod-ForClause",
+      "K-ForExprWithout-5"
+    ],
+    [
+      "prod-ForClause",
       "K-ForExprWithout-6"
     ],
     [
@@ -3188,6 +3607,14 @@
     [
       "prod-ForClause",
       "K-ForExprWithout-9"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-10"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-11"
     ],
     [
       "prod-ForClause",

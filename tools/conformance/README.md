@@ -21,16 +21,16 @@ XPath API is added to the shipped library.
 For the committed passing-case regression gate:
 
 ```sh
-python3 tools/conformance/run.py /path/to/xslt30-test --sets choose,copy,template,variable,param,mode,tunnel,call-template,apply-templates,initial-template,initial-mode,next-match \
+python3 tools/conformance/run.py /path/to/xslt30-test \
   --baseline tools/conformance/baseline.json
 python3 -m unittest discover -s tools/conformance -p 'test_*.py'
 ```
 
 The gate fails for missing or regressed baseline cases. Other failures and
 harness errors are still named and counted, never reclassified as passes.
-The current gate contains 362 passing cases out of 723 selected cases: 171 engine
+The current gate contains 363 passing cases out of 723 selected cases: 170 engine
 failures, 144 harness errors, 46 optional-profile exclusions. Do not present the
-362 cases as an applicable-suite pass rate.
+363 cases as an applicable-suite pass rate.
 
 Supported setup: local stylesheet/source files or inline content, local/global
 named environments, string/boolean/numeric/empty parameter literals, ordinary/tunnel
@@ -65,20 +65,23 @@ this adds no public XPath API. The suite must be clean at
 `201a6e466940cdfc727f4babfedcde5332b9f578`.
 
 ```sh
-python3 tools/conformance/qt3.py /path/to/qt3tests --sets op-to,op-bang,fn-reverse,fn-subsequence,fn-remove,fn-insert-before,fn-head,fn-tail,fn-sum,fn-avg,fn-min,fn-max,prod-Comment,prod-EQName,prod-ForClause,prod-LetClause \
+python3 tools/conformance/qt3.py /path/to/qt3tests \
   --baseline tools/conformance/qt3-baseline.json
 ```
 
-The current selection contains 1,715 cases: 857 pass, 577 engine failures, 14
-harness errors and 267 profile exclusions. All 857 passing cases are recorded
+The current selection contains 1,978 cases: 959 pass, 666 engine failures, 19
+harness errors and 334 profile exclusions. All 959 passing cases are recorded
 in a gate.
 Counts describe this selected development workload, not a conformance rate.
 
 The bridge supports absent/local XML context, named environment references and
 namespace declarations. It handles scalar/type/count/empty/string assertions,
-atomic deep equality, XPath assertions, exact error codes and composite assertions.
+atomic/node deep equality, XPath assertions, exact error codes and composite assertions.
 Queries bind their result outside assertion scope, so assertion `$result` cannot
-satisfy a query's undeclared variable. Unsupported assertion expressions, node deep
-equality, setup and dependencies are reported as harness errors. Schema-aware and
+satisfy a query's undeclared variable. Unsupported assertion expressions, setup and dependencies are reported as harness errors. Schema-aware and
 XQuery-only profiles are excluded explicitly. Queries are reevaluated for assertions;
 raw XDM delivery and nondeterministic functions are outside this initial bridge.
+
+When `--baseline` is supplied without `--sets`, both runners use the baseline
+selection, including surveyed sets with zero passes. Explicit set lists remain
+available for exploratory runs. Empty regression baselines are rejected.

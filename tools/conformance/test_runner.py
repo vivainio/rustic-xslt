@@ -6,6 +6,12 @@ from run import NS, HarnessError, assertion, canonical, environment, fragment, p
 def node(xml):
     return ET.fromstring(xml)
 
+class BaselineSelection(unittest.TestCase):
+    def test_surveyed_zero_pass_sets_remain_selected(self):
+        from run import baseline_sets
+        baseline = {"selected_sets": ["passing", "no-passes-yet"], "passing_cases": [["passing", "case"]]}
+        self.assertEqual(baseline_sets(baseline), {"passing", "no-passes-yet"})
+
 class Assertions(unittest.TestCase):
     def test_namespace_attributes_compare_without_python_none_ordering(self):
         a = fragment('<r xmlns:p="urn:p" id="a" p:id="b"/>')

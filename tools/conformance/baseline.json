@@ -1,5 +1,19 @@
 {
   "suite_revision": "fddf1cf920087e791f13315d68dfbe874d97dc56",
+  "selected_sets": [
+    "apply-templates",
+    "call-template",
+    "choose",
+    "copy",
+    "initial-mode",
+    "initial-template",
+    "mode",
+    "next-match",
+    "param",
+    "template",
+    "tunnel",
+    "variable"
+  ],
   "passing_cases": [
     [
       "mode",
@@ -1300,6 +1314,10 @@
     [
       "copy",
       "copy-3801"
+    ],
+    [
+      "copy",
+      "copy-3802"
     ],
     [
       "copy",
