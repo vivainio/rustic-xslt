@@ -212,8 +212,30 @@ fn tokenize(s: &str) -> Result<Vec<Token>, Diagnostic> {
     let mut out = vec![];
     while i < chars.len() {
         let c = chars[i];
-        if c.is_whitespace() {
+        if matches!(c, ' ' | '\t' | '\r' | '\n') {
             i += 1;
+            continue;
+        }
+        if c == '(' && chars.get(i + 1) == Some(&':') {
+            let mut nesting = 1usize;
+            i += 2;
+            while i < chars.len() && nesting > 0 {
+                if chars[i] == '(' && chars.get(i + 1) == Some(&':') {
+                    nesting += 1;
+                    if nesting > 128 {
+                        return Err(syntax("XPath comment nesting limit exceeded"));
+                    }
+                    i += 2;
+                } else if chars[i] == ':' && chars.get(i + 1) == Some(&')') {
+                    nesting -= 1;
+                    i += 2;
+                } else {
+                    i += 1;
+                }
+            }
+            if nesting != 0 {
+                return Err(syntax("unterminated XPath comment"));
+            }
             continue;
         }
         if c == '\'' || c == '"' {
@@ -289,7 +311,7 @@ fn tokenize(s: &str) -> Result<Vec<Token>, Diagnostic> {
             } else {
                 text.clone()
             };
-            crate::qname::external(&validation).map_err(|_| syntax("invalid URIQualifiedName"))?;
+            crate::qname::resolve(&validation, &BTreeMap::new(), "XPST0003")?;
             out.push(Token::Name(text));
         } else if c.is_alphabetic() || c == '_' {
             let start = i;
@@ -353,12 +375,28 @@ fn tokenize(s: &str) -> Result<Vec<Token>, Diagnostic> {
     Ok(out)
 }
 pub(crate) fn parse(s: &str, namespaces: BTreeMap<String, String>) -> Result<Expr, Diagnostic> {
+    parse_inner(s, namespaces, false)
+}
+pub(crate) fn parse_optional(
+    s: &str,
+    namespaces: BTreeMap<String, String>,
+) -> Result<Expr, Diagnostic> {
+    parse_inner(s, namespaces, true)
+}
+fn parse_inner(
+    s: &str,
+    namespaces: BTreeMap<String, String>,
+    optional: bool,
+) -> Result<Expr, Diagnostic> {
     let mut p = Parser {
         tokens: tokenize(s)?,
         index: 0,
         namespaces,
         depth: 0,
     };
+    if optional && p.peek() == &Token::End {
+        return Ok(Expr::String(String::new()));
+    }
     let e = p.expression(0)?;
     if p.peek() != &Token::End {
         return Err(syntax("unexpected token after expression"));
@@ -792,7 +830,7 @@ impl Parser {
                             self.expect(")")?;
                             test
                         } else if n.starts_with("Q{") && n.ends_with("}*") {
-                            Test::Namespace(n[2..n.len() - 2].into())
+                            Test::Namespace(crate::qname::normalize_uri(&n[2..n.len() - 2]))
                         } else if let Some(prefix) = n.strip_suffix(":*") {
                             Test::Namespace(self.namespaces.get(prefix).cloned().ok_or_else(
                                 || {

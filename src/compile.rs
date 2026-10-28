@@ -160,8 +160,16 @@ fn namespaces(n: Node<'_, '_>) -> BTreeMap<String, String> {
     namespaces
 }
 fn expr(n: Node<'_, '_>, s: &str) -> Result<Expr, Diagnostic> {
+    expression(n, s, false)
+}
+fn expression(n: Node<'_, '_>, s: &str, optional: bool) -> Result<Expr, Diagnostic> {
     let namespaces = namespaces(n);
-    xpath::parse(s, namespaces).map_err(|mut e| {
+    let parsed = if optional {
+        xpath::parse_optional(s, namespaces)
+    } else {
+        xpath::parse(s, namespaces)
+    };
+    parsed.map_err(|mut e| {
         let pos = n.document().text_pos_at(n.range().start);
         e.line = pos.row;
         e.column = pos.col;
@@ -357,9 +365,26 @@ fn avt(n: Node<'_, '_>, value: &str) -> Result<Vec<Expr>, Diagnostic> {
             let mut expression = String::new();
             let mut quote = None;
             let mut uri = false;
+            let mut comments = 0usize;
             let mut closed = false;
-            for c in chars.by_ref() {
-                if uri {
+            while let Some(c) = chars.next() {
+                if comments > 0 {
+                    expression.push(c);
+                    if c == '(' && chars.peek() == Some(&':') {
+                        expression.push(chars.next().unwrap());
+                        comments += 1;
+                        if comments > 128 {
+                            return Err(static_error(
+                                n,
+                                "XPST0003",
+                                "XPath comment nesting limit exceeded",
+                            ));
+                        }
+                    } else if c == ':' && chars.peek() == Some(&')') {
+                        expression.push(chars.next().unwrap());
+                        comments -= 1;
+                    }
+                } else if uri {
                     expression.push(c);
                     if c == '}' {
                         uri = false;
@@ -369,6 +394,10 @@ fn avt(n: Node<'_, '_>, value: &str) -> Result<Vec<Expr>, Diagnostic> {
                     if c == q {
                         quote = None;
                     }
+                } else if c == '(' && chars.peek() == Some(&':') {
+                    expression.push(c);
+                    expression.push(chars.next().unwrap());
+                    comments = 1;
                 } else if c == '\'' || c == '"' {
                     quote = Some(c);
                     expression.push(c);
@@ -384,6 +413,9 @@ fn avt(n: Node<'_, '_>, value: &str) -> Result<Vec<Expr>, Diagnostic> {
                     expression.push(c);
                 }
             }
+            if comments > 0 {
+                return Err(static_error(n, "XPST0003", "unterminated XPath comment"));
+            }
             if !closed {
                 return Err(static_error(
                     n,
@@ -391,7 +423,8 @@ fn avt(n: Node<'_, '_>, value: &str) -> Result<Vec<Expr>, Diagnostic> {
                     "unclosed attribute value template",
                 ));
             }
-            parts.push(expr(n, &expression)?);
+            let optional = n.document().root_element().attribute("version") == Some("3.0");
+            parts.push(self::expression(n, &expression, optional)?);
         } else if c == '}' {
             if chars.next() != Some('}') {
                 return Err(static_error(n, "XTSE0350", "unescaped closing AVT brace"));

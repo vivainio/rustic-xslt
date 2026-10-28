@@ -146,6 +146,11 @@ class ComponentNames(unittest.TestCase):
             with self.assertRaises(HarnessError):
                 component_name(entry)
 
+    def test_uriqualified_names_collapse_xml_whitespace(self):
+        from run import component_name
+        root = self.catalog('<test><param name="Q{  urn:p  }v"/></test>')
+        self.assertEqual(component_name(root[0]), "Q{urn:p}v")
+
     def test_uriqualified_names_and_empty_namespace(self):
         from run import component_name
         root = self.catalog('<test><param name="Q{urn:p}v"/><param name="Q{}v"/></test>')

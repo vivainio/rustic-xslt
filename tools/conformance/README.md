@@ -65,12 +65,12 @@ this adds no public XPath API. The suite must be clean at
 `201a6e466940cdfc727f4babfedcde5332b9f578`.
 
 ```sh
-python3 tools/conformance/qt3.py /path/to/qt3tests --sets op-to,op-bang,fn-reverse,fn-subsequence,fn-remove,fn-insert-before,fn-head,fn-tail,fn-sum,fn-avg,fn-min,fn-max \
+python3 tools/conformance/qt3.py /path/to/qt3tests --sets op-to,op-bang,fn-reverse,fn-subsequence,fn-remove,fn-insert-before,fn-head,fn-tail,fn-sum,fn-avg,fn-min,fn-max,prod-Comment,prod-EQName \
   --baseline tools/conformance/qt3-baseline.json
 ```
 
-The current selection contains 1,343 cases: 716 pass, 575 engine failures, four
-harness errors and 48 profile exclusions. All 716 passing cases are recorded
+The current selection contains 1,437 cases: 753 pass, 587 engine failures, ten
+harness errors and 87 profile exclusions. All 753 passing cases are recorded
 in a gate.
 Counts describe this selected development workload, not a conformance rate.
 

@@ -95,6 +95,7 @@ def component_name(node):
         return name
     if match := re.fullmatch(r"Q\{([^{}]*)\}(" + ncname + r")", name):
         uri, local = match.groups()
+        uri = " ".join(re.findall(r"[^ \t\r\n]+", uri))
         return f"Q{{{uri}}}{local}" if uri else local
     if match := re.fullmatch(f"({ncname}):({ncname})", name):
         prefix, local = match.groups()

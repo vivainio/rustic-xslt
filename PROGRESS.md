@@ -401,5 +401,19 @@ conformance claims. Smaller tested increments are committed independently.
 - Twelve QT3 sets: 1,343 cases, 716 pass / 575 engine failures / four harness errors /
   48 profile exclusions. All 310 previous passes remain; QT3 gate expands to 716.
 
-Next: XPath comments and QName normalization, template result types and raw XDM
-sequence collection.
+## Increment 33: XPath comments and QName normalization
+
+- Nested XPath comments are scanned iteratively with a 128-level limit, including
+  comment-aware AVT delimiters. Strings/braced URIs retain literal comment markers.
+- Version 3.0 AVTs accept empty/comment-only expressions; earlier versions keep
+  their nonempty grammar. The lexer ignores XML whitespace only.
+- Braced URI literals collapse XML whitespace in names and wildcards, including
+  external and catalog names. XPath forbids the xmlns URI with XQST0070 while
+  stylesheet declaration checks retain XTSE0080.
+- 233 Rust integration tests, 26 harness tests and Clippy/format pass. All 358
+  XSLT gate cases remain green.
+- Fourteen QT3 sets: 1,437 cases, 753 pass / 587 engine failures / ten harness errors /
+  87 profile exclusions. All 716 previous passes remain; QT3 gate expands to 753.
+
+Next: XPath for/let expressions, template result types and raw XDM sequence
+collection.

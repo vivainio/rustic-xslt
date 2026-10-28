@@ -21,7 +21,15 @@ pub(crate) fn resolve(
 ) -> Result<String, Diagnostic> {
     let invalid = || Diagnostic::new(code, format!("invalid QName: {text}"), "compile");
     if text.starts_with("Q{") {
-        return external(text).map_err(|_| invalid());
+        let name = external(text).map_err(|_| invalid())?;
+        if code == "XPST0003" && parts(&name).0 == Some("http://www.w3.org/2000/xmlns/") {
+            return Err(Diagnostic::new(
+                "XQST0070",
+                "xmlns namespace is forbidden in XPath EQNames",
+                "compile",
+            ));
+        }
+        return Ok(name);
     }
     if let Some((prefix, local)) = text.split_once(':') {
         if !ncname(prefix) || !ncname(local) {
@@ -52,7 +60,7 @@ pub(crate) fn external(text: &str) -> Result<String, Diagnostic> {
             && !uri.contains('{')
             && ncname(local)
         {
-            return Ok(expanded(uri, local));
+            return Ok(expanded(&normalize_uri(uri), local));
         }
     } else if ncname(text) {
         return Ok(text.into());
@@ -73,4 +81,12 @@ pub(crate) fn parts(name: &str) -> (Option<&str>, &str) {
     } else {
         (None, name)
     }
+}
+
+/// Braced URI literals apply XML whitespace collapsing.
+pub(crate) fn normalize_uri(uri: &str) -> String {
+    uri.split([' ', '\t', '\r', '\n'])
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
 }
