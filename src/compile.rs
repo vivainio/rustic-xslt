@@ -86,10 +86,19 @@ fn error(n: Node<'_, '_>, message: impl Into<String>) -> Diagnostic {
         column: pos.col,
     }
 }
-fn name(s: &str) -> bool {
-    let mut c = s.chars();
-    matches!(c.next(), Some('a'..='z' | 'A'..='Z' | '_'))
-        && c.all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'))
+fn component_name(n: Node<'_, '_>, text: &str) -> Result<String, Diagnostic> {
+    // Unlike XPath's built-in function/type prefixes, component prefixes must
+    // actually be declared in the stylesheet.
+    let bindings = n
+        .namespaces()
+        .filter_map(|ns| ns.name().map(|p| (p.into(), ns.uri().into())))
+        .collect();
+    crate::qname::resolve(text.trim(), &bindings, "XTSE0020").map_err(|mut e| {
+        let pos = n.document().text_pos_at(n.range().start);
+        e.line = pos.row;
+        e.column = pos.col;
+        e
+    })
 }
 fn required<'a>(n: Node<'a, '_>, a: &str) -> Result<&'a str, Diagnostic> {
     n.attribute(a)
@@ -161,10 +170,7 @@ fn binding(n: Node<'_, '_>, parameter: bool, depth: usize) -> Result<Binding, Di
         .attribute("as")
         .map(|s| crate::seqtype::SequenceType::parse(s, &namespaces(n)))
         .transpose()?;
-    let id = required(n, "name")?;
-    if !name(id) {
-        return Err(error(n, "expected an unprefixed binding name"));
-    }
+    let id = component_name(n, required(n, "name")?)?;
     let value = if let Some(s) = n.attribute("select") {
         empty(n)?;
         BindingValue::Select(expr(n, s)?)
@@ -206,7 +212,7 @@ fn binding(n: Node<'_, '_>, parameter: bool, depth: usize) -> Result<Binding, Di
         }
     };
     Ok(Binding {
-        name: id.into(),
+        name: id,
         value,
         parameter,
         ty,
@@ -610,10 +616,7 @@ fn body(
                     }
                     "call-template" => {
                         attrs(n, &["name"])?;
-                        let id = required(n, "name")?;
-                        if !name(id) {
-                            return Err(error(n, "expected unprefixed template name"));
-                        }
+                        let id = component_name(n, required(n, "name")?)?;
                         let mut params = vec![];
                         for c in n.children() {
                             if c.is_text() && !xml_space(c.text().unwrap_or_default()) {
@@ -633,7 +636,7 @@ fn body(
                             }
                             params.push(b);
                         }
-                        out.push(Instruction::Call(id.into(), params));
+                        out.push(Instruction::Call(id, params));
                     }
                     other => {
                         return Err(error(n, format!("unsupported XSLT instruction: {other}")));
@@ -677,10 +680,7 @@ fn mode(n: Node<'_, '_>, value: &str, current: bool) -> Result<String, Diagnosti
     if current && value == "#current" {
         return Ok(value.into());
     }
-    if !name(value) {
-        return Err(error(n, "expected an unprefixed mode name or #default"));
-    }
-    Ok(value.into())
+    component_name(n, value)
 }
 pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
     let doc = crate::parse(source, "compile")?;
@@ -743,12 +743,15 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
                     .attribute("match")
                     .map(|p| crate::pattern::parse(p, namespaces(n)))
                     .transpose()?;
-                let id = n.attribute("name").map(str::to_owned);
+                let id = n
+                    .attribute("name")
+                    .map(|s| component_name(n, s))
+                    .transpose()?;
                 if p.is_none() && id.is_none() {
                     return Err(error(n, "template requires match or name"));
                 }
                 if let Some(id) = &id
-                    && (!name(id) || sheet.templates.iter().any(|t| t.name.as_ref() == Some(id)))
+                    && sheet.templates.iter().any(|t| t.name.as_ref() == Some(id))
                 {
                     return Err(error(n, "invalid or duplicate named template"));
                 }

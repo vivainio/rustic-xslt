@@ -169,4 +169,16 @@ conformance claims. Smaller tested increments are committed independently.
   cases now pass: 103 pass / 61 engine failures / 23 harness errors / 16 exclusions.
 - All 101 previous passes remain; gate expanded to 103.
 
-Next: qualified template/mode/variable/parameter names and entry points.
+## Increment 15: qualified component names
+
+- Template, mode, variable and parameter names resolve prefixes in the declaring
+  element's scope; aliases share identity and rebound prefixes remain distinct.
+- XPath variable references, forward globals, lexical checks, template arguments
+  and duplicate detection use expanded names, without a default namespace.
+- Initial template/mode, external global parameters and streamed record entries
+  accept local names or `Q{uri}local`; API lexical prefixes are rejected explicitly.
+- 131 Rust integration tests, ten harness tests and Clippy/format pass. All 103
+  W3C gate cases remain green (103 pass / 61 fail / 23 harness errors / 16 exclusions).
+
+Next: namespace-aware catalog entry/parameter setup and broader QName regressions;
+then template application parameters and practical XSLT 1.0 dispatch behavior.

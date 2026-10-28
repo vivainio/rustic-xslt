@@ -4,7 +4,7 @@ use crate::{
     result::{self, Output},
     xpath::{self, Budget, Focus, Item, Value, Variables, XNode},
 };
-use std::rc::Rc;
+use std::{collections::BTreeMap, rc::Rc};
 fn limit() -> Diagnostic {
     Diagnostic::new("XPDY0130", "execution depth limit exceeded", "run")
 }
@@ -296,6 +296,11 @@ fn execute<'a>(
     declaration: bool,
     trees: &crate::trees::Trees<'a>,
 ) -> Result<String, Diagnostic> {
+    let parameters = options
+        .parameters
+        .iter()
+        .map(|(name, value)| Ok((crate::qname::external(name)?, value)))
+        .collect::<Result<BTreeMap<_, _>, Diagnostic>>()?;
     let limits = options.limits;
     let mut globals = Variables::new();
     let mut pending: Vec<_> = sheet.globals.iter().collect();
@@ -304,8 +309,8 @@ fn execute<'a>(
         let mut remaining = vec![];
         for b in pending {
             budget.tick()?;
-            if let Some(s) = options.parameters.get(&b.name).filter(|_| b.parameter) {
-                let mut v = vec![Item::String(s.clone())];
+            if let Some(s) = parameters.get(&b.name).filter(|_| b.parameter) {
+                let mut v = vec![Item::String((*s).clone())];
                 if let Some(ty) = &b.ty {
                     v = ty.convert(v, "XTTE0570")?;
                 }
@@ -373,12 +378,18 @@ fn execute<'a>(
     if declaration && !sheet.text_output && !sheet.omit_declaration {
         output.push("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")?;
     }
-    let initial_mode = options.initial_mode.clone().unwrap_or_default();
+    let initial_mode = options
+        .initial_mode
+        .as_deref()
+        .map(crate::qname::external)
+        .transpose()?
+        .unwrap_or_default();
     let tasks = if let Some(name) = &options.initial_template {
+        let name = crate::qname::external(name)?;
         let t = sheet
             .templates
             .iter()
-            .find(|t| t.name.as_ref() == Some(name))
+            .find(|t| t.name.as_ref() == Some(&name))
             .ok_or_else(|| {
                 Diagnostic::new(
                     "XTDE0040",

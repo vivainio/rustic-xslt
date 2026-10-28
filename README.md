@@ -23,12 +23,18 @@ The public surface includes `Stylesheet::compile`, `transform`,
 `transform_with_options`, `transform_with_limits`, a convenience
 `rust_xslt::transform`, and structured `Diagnostic` errors. Compiled stylesheets
 are immutable and `Send + Sync`. `TransformOptions` accepts string global
-parameters, a named initial template, and execution limits.
+parameters, a named initial template/mode, and execution limits. API component
+names use a local name or `Q{uri}local` (also for `StreamOptions::template` and
+parameter keys); lexical prefixes require a stylesheet namespace scope and are
+rejected at API boundaries. Stylesheet component names and XPath variable
+references resolve prefixes at their declaring element; unprefixed names have
+no namespace, regardless of the default XML namespace. Component names currently
+use the documented ASCII name-character subset.
 
 Supported so far:
 
 - match templates, named templates, modes/current-mode, explicit/default priority,
-  global/template parameters and local variables;
+  global/template parameters and local variables, with namespace-qualified names;
 - lexical scope, forward global references, circular-global detection;
 - child/attribute/self/parent/descendant/ancestor/sibling/following/preceding
   axes, namespace wildcards, named node-kind/PI tests, predicates, union,
@@ -61,8 +67,7 @@ and apply function conversion. A sole typed xsl:sequence retains its atomic valu
 Mixed typed top-level atomic/node constructor sequences, standalone attribute
 sequences and zero-length constructed text-node identity remain incomplete.
 Match patterns support child/attribute paths, namespaces, wildcards, node tests,
-predicates, `/` and union. Descendant patterns and qualified mode/template names
-remain ahead.
+predicates, `/` and union. Descendant patterns remain ahead.
 
 Unsupported constructs are rejected rather than ignored. Implementation gaps
 use `RUST_XSLT_UNSUPPORTED`; syntax/name/function errors use XPath error codes.

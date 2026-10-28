@@ -35,7 +35,6 @@ fn compile_rejects_unimplemented_semantics() {
     for body in [
         r#"<xsl:template match="/"><xsl:message/></xsl:template>"#,
         r#"<xsl:template match="/"><xsl:value-of select="unknown-function()"/></xsl:template>"#,
-        r#"<xsl:template match="/" mode="p:m"/>"#,
         r#"<xsl:template match="/"><out xsl:use-attribute-sets="missing"/></xsl:template>"#,
     ] {
         let err = Stylesheet::compile(&sheet(body)).unwrap_err();

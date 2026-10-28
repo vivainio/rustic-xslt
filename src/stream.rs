@@ -293,10 +293,11 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
         };
         names.push(n);
     }
+    let entry_name = crate::qname::external(&options.template)?;
     let template = sheet
         .templates
         .iter()
-        .find(|t| t.name.as_ref() == Some(&options.template))
+        .find(|t| t.name.as_ref() == Some(&entry_name))
         .ok_or_else(|| unsupported("unknown record template"))?;
     for b in &sheet.globals {
         safe_binding(&b.value, true, &mut vec![])?;

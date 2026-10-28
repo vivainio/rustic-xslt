@@ -3,6 +3,7 @@ mod compile;
 mod node;
 mod number;
 mod pattern;
+mod qname;
 mod result;
 mod runtime;
 mod seqtype;
@@ -67,6 +68,7 @@ impl Default for Limits {
 }
 
 /// Per-run string parameters, entry point and execution limits.
+/// Component names are local names or `Q{uri}local`; lexical prefixes are invalid.
 #[derive(Debug, Clone, Default)]
 pub struct TransformOptions {
     pub parameters: std::collections::BTreeMap<String, String>,

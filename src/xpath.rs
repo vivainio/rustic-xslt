@@ -506,8 +506,10 @@ impl Parser {
             }
         } else if self.eat("$") {
             match self.next() {
-                Token::Name(n) if !n.contains(':') => Expr::Variable(n),
-                _ => return Err(syntax("expected unprefixed variable name")),
+                Token::Name(n) => {
+                    Expr::Variable(crate::qname::resolve(&n, &self.namespaces, "XPST0003")?)
+                }
+                _ => return Err(syntax("expected variable QName")),
             }
         } else if self.eat("/") {
             let type_operator = matches!(self.peek(),Token::Name(n) if ["instance","treat","cast","castable"].contains(&n.as_str()))
