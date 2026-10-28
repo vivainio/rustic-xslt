@@ -65,6 +65,7 @@ pub(crate) struct Binding {
     pub name: String,
     pub value: BindingValue,
     pub parameter: bool,
+    pub required: bool,
     pub ty: Option<crate::seqtype::SequenceType>,
 }
 #[derive(Debug)]
@@ -85,6 +86,11 @@ fn error(n: Node<'_, '_>, message: impl Into<String>) -> Diagnostic {
         line: pos.row,
         column: pos.col,
     }
+}
+fn static_error(n: Node<'_, '_>, code: &str, message: impl Into<String>) -> Diagnostic {
+    let mut e = error(n, message);
+    e.code = code.into();
+    e
 }
 fn component_name(n: Node<'_, '_>, text: &str) -> Result<String, Diagnostic> {
     // Unlike XPath's built-in function/type prefixes, component prefixes must
@@ -150,7 +156,7 @@ fn empty(n: Node<'_, '_>) -> Result<(), Diagnostic> {
     Ok(())
 }
 fn boolean_value(n: Node<'_, '_>, value: Option<&str>, default: bool) -> Result<bool, Diagnostic> {
-    match value {
+    match value.map(str::trim) {
         None => Ok(default),
         Some("yes" | "true" | "1") => Ok(true),
         Some("no" | "false" | "0") => Ok(false),
@@ -165,17 +171,55 @@ fn boolean_attribute(n: Node<'_, '_>, name: &str, default: bool) -> Result<bool,
     boolean_value(n, n.attribute(name), default)
 }
 fn binding(n: Node<'_, '_>, parameter: bool, depth: usize) -> Result<Binding, Diagnostic> {
-    attrs(n, &["name", "select", "as"])?;
+    let declaration = n.tag_name().name() == "param";
+    if !declaration && n.attribute("required").is_some() {
+        return Err(static_error(
+            n,
+            "XTSE0090",
+            "required is only allowed on xsl:param",
+        ));
+    }
+    attrs(
+        n,
+        if declaration {
+            &["name", "select", "as", "required"]
+        } else {
+            &["name", "select", "as"]
+        },
+    )?;
+    let mandatory = declaration && boolean_attribute(n, "required", false)?;
+    if mandatory
+        && (n.attribute("select").is_some()
+            || n.children()
+                .any(|c| c.is_element() || c.is_text() && !xml_space(c.text().unwrap_or_default())))
+    {
+        return Err(static_error(
+            n,
+            "XTSE0010",
+            "required parameters cannot have a default value",
+        ));
+    }
     let ty = n
         .attribute("as")
         .map(|s| crate::seqtype::SequenceType::parse(s, &namespaces(n)))
         .transpose()?;
-    let id = component_name(n, required(n, "name")?)?;
+    let id = component_name(
+        n,
+        n.attribute("name")
+            .ok_or_else(|| static_error(n, "XTSE0010", "binding requires a name"))?,
+    )?;
     let value = if let Some(s) = n.attribute("select") {
         empty(n)?;
         BindingValue::Select(expr(n, s)?)
     } else {
         let body = body(n, depth + 1, false)?;
+        if mandatory && !body.is_empty() {
+            return Err(static_error(
+                n,
+                "XTSE0010",
+                "required parameters cannot have a default value",
+            ));
+        }
         if body.is_empty() {
             BindingValue::Select(if ty.is_some() {
                 Expr::Sequence(vec![])
@@ -215,6 +259,7 @@ fn binding(n: Node<'_, '_>, parameter: bool, depth: usize) -> Result<Binding, Di
         name: id,
         value,
         parameter,
+        required: mandatory,
         ty,
     })
 }
@@ -750,7 +795,7 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
             "param" | "variable" => {
                 let b = binding(n, n.tag_name().name() == "param", 0)?;
                 if sheet.globals.iter().any(|g| g.name == b.name) {
-                    return Err(error(n, "duplicate global binding"));
+                    return Err(static_error(n, "XTSE0630", "duplicate global binding"));
                 }
                 sheet.globals.push(b);
             }
@@ -770,7 +815,7 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
                 if let Some(id) = &id
                     && sheet.templates.iter().any(|t| t.name.as_ref() == Some(id))
                 {
-                    return Err(error(n, "invalid or duplicate named template"));
+                    return Err(static_error(n, "XTSE0660", "duplicate named template"));
                 }
                 let mut params = vec![];
                 let mut content = false;
@@ -784,7 +829,11 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
                         }
                         let b = binding(c, true, 0)?;
                         if params.iter().any(|p: &Binding| p.name == b.name) {
-                            return Err(error(c, "duplicate template parameter"));
+                            return Err(static_error(
+                                c,
+                                "XTSE0580",
+                                "duplicate template parameter",
+                            ));
                         }
                         params.push(b);
                     } else if c.is_element()
@@ -879,6 +928,10 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
 fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
     use std::collections::BTreeSet;
     type Scope = BTreeSet<String>;
+    struct TemplateNames<'a> {
+        named: BTreeMap<String, &'a Template>,
+        backwards: bool,
+    }
     fn expression(e: &Expr, scope: &Scope) -> Result<(), Diagnostic> {
         let mut pending = vec![e];
         while let Some(e) = pending.pop() {
@@ -919,7 +972,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
     fn instructions(
         body: &[Instruction],
         mut scope: Scope,
-        templates: &Scope,
+        templates: &TemplateNames<'_>,
     ) -> Result<(), Diagnostic> {
         fn parts(es: &[Expr], scope: &Scope) -> Result<(), Diagnostic> {
             for e in es {
@@ -934,7 +987,11 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
             }
             Ok(())
         }
-        fn value(c: &Content, scope: &Scope, templates: &Scope) -> Result<(), Diagnostic> {
+        fn value(
+            c: &Content,
+            scope: &Scope,
+            templates: &TemplateNames<'_>,
+        ) -> Result<(), Diagnostic> {
             match c {
                 Content::Select(e, sep) => {
                     expression(e, scope)?;
@@ -1024,12 +1081,32 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     }
                 }
                 Instruction::Call(name, params) => {
-                    if !templates.contains(name) {
-                        return Err(Diagnostic::new(
+                    let target = templates.named.get(name).ok_or_else(|| {
+                        Diagnostic::new(
                             "XTSE0650",
                             format!("unknown named template: {name}"),
                             "compile",
-                        ));
+                        )
+                    })?;
+                    for p in &target.params {
+                        if p.required && !params.iter().any(|a| a.name == p.name) {
+                            return Err(Diagnostic::new(
+                                "XTSE0690",
+                                format!("required parameter not supplied: {}", p.name),
+                                "compile",
+                            ));
+                        }
+                    }
+                    if !templates.backwards {
+                        for p in params {
+                            if !target.params.iter().any(|a| a.name == p.name) {
+                                return Err(Diagnostic::new(
+                                    "XTSE0680",
+                                    format!("unknown template parameter: {}", p.name),
+                                    "compile",
+                                ));
+                            }
+                        }
                     }
                     for p in params {
                         match &p.value {
@@ -1045,11 +1122,14 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
         Ok(())
     }
     let globals: Scope = sheet.globals.iter().map(|b| b.name.clone()).collect();
-    let templates: Scope = sheet
-        .templates
-        .iter()
-        .filter_map(|t| t.name.clone())
-        .collect();
+    let templates = TemplateNames {
+        named: sheet
+            .templates
+            .iter()
+            .filter_map(|t| t.name.clone().map(|n| (n, t)))
+            .collect(),
+        backwards: sheet.backwards,
+    };
     for b in &sheet.globals {
         match &b.value {
             BindingValue::Select(e) => expression(e, &globals)?,

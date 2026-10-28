@@ -111,6 +111,42 @@
     ],
     [
       "param",
+      "param-0103"
+    ],
+    [
+      "param",
+      "param-0109"
+    ],
+    [
+      "param",
+      "param-0111"
+    ],
+    [
+      "param",
+      "param-0112"
+    ],
+    [
+      "param",
+      "param-0113"
+    ],
+    [
+      "param",
+      "param-0116"
+    ],
+    [
+      "param",
+      "param-0117"
+    ],
+    [
+      "param",
+      "param-0118"
+    ],
+    [
+      "param",
+      "param-0119"
+    ],
+    [
+      "param",
       "param-0201"
     ],
     [
@@ -156,6 +192,14 @@
     [
       "variable",
       "variable-0106"
+    ],
+    [
+      "variable",
+      "variable-0111"
+    ],
+    [
+      "variable",
+      "variable-0112"
     ],
     [
       "variable",
@@ -284,6 +328,10 @@
     [
       "variable",
       "variable-2201"
+    ],
+    [
+      "variable",
+      "variable-2202"
     ],
     [
       "variable",
@@ -499,7 +547,15 @@
     ],
     [
       "call-template",
+      "call-template-0401a"
+    ],
+    [
+      "call-template",
       "call-template-0402"
+    ],
+    [
+      "call-template",
+      "call-template-0501"
     ],
     [
       "call-template",
@@ -564,6 +620,10 @@
     [
       "call-template",
       "call-template-2001"
+    ],
+    [
+      "call-template",
+      "call-template-2101"
     ],
     [
       "choose",
@@ -775,11 +835,19 @@
     ],
     [
       "copy",
+      "copy-0603"
+    ],
+    [
+      "copy",
       "copy-0604"
     ],
     [
       "copy",
       "copy-0605"
+    ],
+    [
+      "copy",
+      "copy-0606"
     ],
     [
       "copy",

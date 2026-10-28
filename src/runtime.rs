@@ -43,6 +43,15 @@ enum BindNext<'a> {
     Argument(&'a Template, &'a [Binding], usize, Variables<'a>),
     ApplyArgument(Vec<Focus<'a>>, String, &'a [Binding], usize, Variables<'a>),
 }
+impl BindNext<'_> {
+    fn type_error(&self) -> &'static str {
+        match self {
+            Self::Parameter(..) => "XTTE0600",
+            Self::Argument(..) | Self::ApplyArgument(..) => "XTTE0590",
+            Self::Local(..) => "XTTE0570",
+        }
+    }
+}
 fn complete_binding<'a>(
     binding: &Binding,
     mut value: Value<'a>,
@@ -51,7 +60,7 @@ fn complete_binding<'a>(
     tasks: &mut Vec<Task<'a>>,
 ) -> Result<(), Diagnostic> {
     if let Some(ty) = &binding.ty {
-        value = ty.convert(value, "XTTE0570")?;
+        value = ty.convert(value, next.type_error())?;
     }
     match next {
         BindNext::Local(body, index) => {
@@ -325,10 +334,17 @@ fn execute<'a>(
             if let Some(s) = parameters.get(&b.name).filter(|_| b.parameter) {
                 let mut v = vec![Item::String((*s).clone())];
                 if let Some(ty) = &b.ty {
-                    v = ty.convert(v, "XTTE0570")?;
+                    v = ty.convert(v, "XTTE0590")?;
                 }
                 globals.insert(b.name.clone(), v);
                 continue;
+            }
+            if b.required {
+                return Err(Diagnostic::new(
+                    "XTDE0050",
+                    format!("required global parameter not supplied: {}", b.name),
+                    "run",
+                ));
             }
             let evaluated = match &b.value {
                 BindingValue::Select(e) => {
@@ -362,6 +378,7 @@ fn execute<'a>(
                             } else {
                                 b.ty.as_ref()
                             },
+                            if b.parameter { "XTTE0600" } else { "XTTE0570" },
                         )
                     })
                 }
@@ -369,7 +386,7 @@ fn execute<'a>(
             match evaluated {
                 Ok(mut v) => {
                     if let Some(ty) = &b.ty {
-                        v = ty.convert(v, "XTTE0570")?;
+                        v = ty.convert(v, if b.parameter { "XTTE0600" } else { "XTTE0570" })?;
                     }
                     globals.insert(b.name.clone(), v);
                 }
@@ -465,6 +482,13 @@ fn run_tasks<'a>(
                         Rc::make_mut(&mut frame.env).insert(p.name.clone(), value);
                         tasks.push(Task::Parameters(t, index + 1, supplied, frame));
                     } else {
+                        if p.required {
+                            return Err(Diagnostic::new(
+                                "XTDE0700",
+                                format!("required template parameter not supplied: {}", p.name),
+                                "run",
+                            ));
+                        }
                         tasks.push(Task::EvaluateBinding(
                             p,
                             frame,
@@ -535,6 +559,7 @@ fn run_tasks<'a>(
                     } else {
                         binding.ty.as_ref()
                     },
+                    next.type_error(),
                 )?;
                 complete_binding(binding, value, frame, next, &mut tasks)?;
             }
@@ -988,7 +1013,7 @@ fn run_tasks<'a>(
             }
             Task::FinishDocument(saved, depth) => {
                 let xml = std::mem::replace(&mut output, saved).value;
-                let value = trees.construct(xml, None)?;
+                let value = trees.construct(xml, None, "XTTE0570")?;
                 let Item::Node(node) = value.into_iter().next().unwrap() else {
                     unreachable!()
                 };

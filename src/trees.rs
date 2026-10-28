@@ -31,6 +31,7 @@ impl<'a> Trees<'a> {
         &self,
         xml: String,
         ty: Option<&SequenceType>,
+        type_error: &str,
     ) -> Result<Value<'a>, Diagnostic> {
         let size = xml
             .len()
@@ -51,7 +52,7 @@ impl<'a> Trees<'a> {
         let doc: &'a roxmltree::Document<'a> = self.documents.alloc(crate::parse(text, "run")?);
         let root = XNode::fragment(doc.root_element());
         if let Some(ty) = ty {
-            ty.convert(root.children().map(Item::Node).collect(), "XTTE0570")
+            ty.convert(root.children().map(Item::Node).collect(), type_error)
         } else {
             Ok(vec![Item::Node(root)])
         }

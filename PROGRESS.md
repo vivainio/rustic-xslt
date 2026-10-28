@@ -218,5 +218,19 @@ conformance claims. Smaller tested increments are committed independently.
   sets: 625 cases, 245 pass / 224 engine failures / 110 harness errors / 46 exclusions.
   All 215 previous passes remain; gate expanded to 245 cases.
 
-Next: required parameters, named-template argument diagnostics, reserved component
-namespaces, and further practical XSLT 1.0 dispatch behavior.
+## Increment 19: required parameters and binding diagnostics
+
+- Explicit required global/template parameters report XTDE0050/XTDE0700 when
+  absent. Named calls missing required arguments report XTSE0690 statically,
+  including dead branches; undeclared arguments report XTSE0680 outside 1.0 mode.
+- Required parameters reject defaults and invalid booleans; boolean attributes
+  now strip surrounding whitespace. Disallowed required attributes are XTSE0090.
+- Parameter default/supplied type errors remain distinct through constructor
+  capture, with standard duplicate global/template/parameter diagnostics.
+- 154 Rust integration tests, 14 harness tests and Clippy/format pass. W3C:
+  262 pass / 206 engine failures / 111 harness errors / 46 exclusions. One newly
+  reachable assertion lacks harness support; all 245 previous passes remain.
+  Gate expanded to 262.
+
+Next: reserved component namespaces, initial-entry parameters, implicit required
+parameters, and further practical XSLT 1.0 dispatch behavior.
