@@ -1,5 +1,6 @@
 //! An early, deliberately limited XSLT engine. See README.md for supported syntax.
 mod compile;
+mod number;
 mod pattern;
 mod result;
 mod runtime;

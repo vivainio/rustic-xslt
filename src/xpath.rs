@@ -1,6 +1,6 @@
 //! XPath expression machinery. The AST mirrors the reference engine's separation
 //! of literals, binary expressions, function calls and axis steps.
-use crate::{Diagnostic, Limits};
+use crate::{Diagnostic, Limits, number::Number};
 use roxmltree::Node;
 use std::collections::BTreeMap;
 
@@ -47,7 +47,7 @@ pub(crate) struct Step {
 #[derive(Debug, Clone)]
 pub(crate) enum Expr {
     String(String),
-    Number(f64),
+    Number(Number),
     Variable(String),
     Context,
     Root,
@@ -109,7 +109,8 @@ pub(crate) enum Item<'a> {
     Absent,
     Node(XNode<'a>),
     String(String),
-    Number(f64),
+    Untyped(String),
+    Number(Number),
     Boolean(bool),
 }
 pub(crate) type Value<'a> = Vec<Item<'a>>;
@@ -119,20 +120,8 @@ impl Item<'_> {
         match self {
             Self::Absent => String::new(),
             Self::Node(n) => n.string(),
-            Self::String(s) => s.clone(),
-            Self::Number(n) => {
-                if n.is_nan() {
-                    "NaN".into()
-                } else if *n == f64::INFINITY {
-                    "INF".into()
-                } else if *n == f64::NEG_INFINITY {
-                    "-INF".into()
-                } else if *n == 0.0 {
-                    "0".into()
-                } else {
-                    n.to_string()
-                }
-            }
+            Self::String(s) | Self::Untyped(s) => s.clone(),
+            Self::Number(n) => n.string(),
             Self::Boolean(b) => b.to_string(),
         }
     }
@@ -145,7 +134,7 @@ impl Item<'_> {
                     0.0
                 }
             }
-            Self::Number(n) => *n,
+            Self::Number(n) => n.double(),
             _ => self.string().trim().parse().unwrap_or(f64::NAN),
         }
     }
@@ -183,8 +172,8 @@ pub(crate) fn boolean(value: &[Item<'_>]) -> Result<bool, Diagnostic> {
         [] => Ok(false),
         [Item::Node(_), ..] => Ok(true),
         [Item::Boolean(b)] => Ok(*b),
-        [Item::String(s)] => Ok(!s.is_empty()),
-        [Item::Number(n)] => Ok(*n != 0.0 && !n.is_nan()),
+        [Item::String(s) | Item::Untyped(s)] => Ok(!s.is_empty()),
+        [Item::Number(n)] => Ok(n.boolean()),
         _ => Err(err(
             "FORG0006",
             "effective boolean value requires a node sequence or a single atomic value",
@@ -203,7 +192,7 @@ pub(crate) fn string(value: &[Item<'_>], separator: &str) -> String {
 enum Token {
     Name(String),
     String(String),
-    Number(f64),
+    Number(Number),
     Symbol(String),
     End,
 }
@@ -267,9 +256,10 @@ fn tokenize(s: &str) -> Result<Vec<Token>, Diagnostic> {
                 }
             }
             let n: String = chars[start..i].iter().collect();
-            out.push(Token::Number(
-                n.parse().map_err(|_| syntax("invalid number"))?,
-            ));
+            out.push(Token::Number(Number::literal(&n).map_err(|mut e| {
+                e.phase = "compile";
+                e
+            })?));
         } else if c.is_alphabetic() || c == '_' {
             let start = i;
             i += 1;
@@ -407,6 +397,9 @@ impl Parser {
                 Token::Symbol(s) if s == "," => (s.clone(), 1),
                 Token::Name(s) if s == "or" => (s.clone(), 2),
                 Token::Name(s) if s == "and" => (s.clone(), 3),
+                Token::Name(s) if ["eq", "ne", "lt", "gt", "le", "ge"].contains(&s.as_str()) => {
+                    (s.clone(), 4)
+                }
                 Token::Symbol(s) if ["=", "!=", "<", ">", "<=", ">="].contains(&s.as_str()) => {
                     (s.clone(), 4)
                 }
@@ -526,22 +519,28 @@ impl Parser {
                             self.expect(",")?;
                         }
                     }
-                    let local = n.strip_prefix("fn:").unwrap_or(&n);
-                    let arity = function_arity(local)
-                        .filter(|_| {
-                            !n.contains(':')
-                                || n.starts_with("fn:")
-                                    && self.namespaces.get("fn").is_some_and(|uri| {
-                                        uri == "http://www.w3.org/2005/xpath-functions"
-                                    })
-                        })
-                        .ok_or_else(|| {
-                            Diagnostic::new(
-                                "XPST0017",
-                                format!("unknown or unsupported function: {n}"),
-                                "compile",
-                            )
-                        })?;
+                    let local = if let Some((prefix, local)) = n.split_once(':') {
+                        match self.namespaces.get(prefix).map(String::as_str) {
+                            Some("http://www.w3.org/2005/xpath-functions") => local.into(),
+                            Some("http://www.w3.org/2001/XMLSchema") => format!("xs:{local}"),
+                            _ => {
+                                return Err(Diagnostic::new(
+                                    "XPST0017",
+                                    format!("unknown function namespace: {n}"),
+                                    "compile",
+                                ));
+                            }
+                        }
+                    } else {
+                        n.clone()
+                    };
+                    let arity = function_arity(&local).ok_or_else(|| {
+                        Diagnostic::new(
+                            "XPST0017",
+                            format!("unknown or unsupported function: {n}"),
+                            "compile",
+                        )
+                    })?;
                     if args.len() < arity.0 || args.len() > arity.1 {
                         return Err(Diagnostic::new(
                             "XPST0017",
@@ -549,7 +548,7 @@ impl Parser {
                             "compile",
                         ));
                     }
-                    Expr::Call(local.into(), args)
+                    Expr::Call(local, args)
                 }
                 _ if self.step_start() => Expr::Path(Box::new(Expr::Context), vec![self.step()?]),
                 _ => return Err(syntax("expected XPath expression")),
@@ -703,10 +702,12 @@ impl Parser {
 }
 fn function_arity(name: &str) -> Option<(usize, usize)> {
     Some(match name {
+        "xs:string" | "xs:untypedAtomic" | "xs:integer" | "xs:decimal" | "xs:double"
+        | "xs:float" | "xs:boolean" => (1, 1),
         "true" | "false" | "position" | "last" => (0, 0),
         "string" | "number" | "normalize-space" | "string-length" | "name" | "local-name"
         | "namespace-uri" => (0, 1),
-        "count" | "boolean" | "not" | "sum" | "exists" | "empty" => (1, 1),
+        "count" | "boolean" | "not" | "sum" | "exists" | "empty" | "data" => (1, 1),
         "contains" | "starts-with" | "ends-with" | "substring-before" | "substring-after"
         | "string-join" => (2, 2),
         "concat" => (2, usize::MAX),
@@ -779,7 +780,9 @@ fn filter<'a>(
             };
             let v = eval(predicate, &focus, vars, budget, depth + 1, backwards)?;
             let keep = match v.as_slice() {
-                [Item::Number(n)] => *n == (i + 1) as f64,
+                [Item::Number(n)] => {
+                    n.compare(&Number::from(i + 1)) == Some(std::cmp::Ordering::Equal)
+                }
                 _ => boolean(&v)?,
             };
             if keep {
@@ -804,7 +807,7 @@ pub(crate) fn eval<'a>(
     }
     let result = match e {
         Expr::String(s) => vec![Item::String(s.clone())],
-        Expr::Number(n) => vec![Item::Number(*n)],
+        Expr::Number(n) => vec![Item::Number(n.clone())],
         Expr::Variable(n) => vars
             .get(n)
             .cloned()
@@ -949,8 +952,11 @@ pub(crate) fn eval<'a>(
         }
         Expr::Unary(plus, e) => {
             let value = eval(e, focus, vars, budget, depth + 1, backwards)?;
+            if value.is_empty() && !backwards {
+                return Ok(vec![]);
+            }
             let n = numeric(&value, backwards)?;
-            vec![Item::Number(if *plus { n } else { -n })]
+            vec![Item::Number(if *plus { n } else { n.negate() })]
         }
         Expr::Binary(op, a, b) => {
             let a = eval(a, focus, vars, budget, depth + 1, backwards)?;
@@ -977,12 +983,50 @@ pub(crate) fn eval<'a>(
                         .collect::<Result<Vec<_>, _>>()?;
                     ordered(nodes)
                 }
+                "eq" | "ne" | "lt" | "gt" | "le" | "ge" => {
+                    if a.is_empty() || b.is_empty() {
+                        return Ok(vec![]);
+                    }
+                    if a.len() != 1 || b.len() != 1 {
+                        return Err(err(
+                            "XPTY0004",
+                            "value comparison requires singleton operands",
+                        ));
+                    }
+                    let op = match op.as_str() {
+                        "eq" => "=",
+                        "ne" => "!=",
+                        "lt" => "<",
+                        "gt" => ">",
+                        "le" => "<=",
+                        _ => ">=",
+                    };
+                    let atom = |i: &Item<'a>| match i {
+                        Item::Node(n) => Item::String(n.string()),
+                        Item::Untyped(s) => Item::String(s.clone()),
+                        _ => i.clone(),
+                    };
+                    vec![Item::Boolean(compare(
+                        &atom(&a[0]),
+                        &atom(&b[0]),
+                        op,
+                        false,
+                    )?)]
+                }
                 "=" | "!=" | "<" | ">" | "<=" | ">=" => {
+                    if backwards
+                        && ["=", "!="].contains(&op.as_str())
+                        && (a.iter().any(|i| matches!(i, Item::Boolean(_)))
+                            || b.iter().any(|i| matches!(i, Item::Boolean(_))))
+                    {
+                        let equal = boolean(&a)? == boolean(&b)?;
+                        return Ok(vec![Item::Boolean(if op == "=" { equal } else { !equal })]);
+                    }
                     let mut yes = false;
                     for x in &a {
                         for y in &b {
                             budget.tick()?;
-                            if compare(x, y, op, backwards) {
+                            if compare(x, y, op, backwards)? {
                                 yes = true;
                             }
                         }
@@ -990,16 +1034,12 @@ pub(crate) fn eval<'a>(
                     vec![Item::Boolean(yes)]
                 }
                 _ => {
+                    if !backwards && (a.is_empty() || b.is_empty()) {
+                        return Ok(vec![]);
+                    }
                     let x = numeric(&a, backwards)?;
                     let y = numeric(&b, backwards)?;
-                    vec![Item::Number(match op.as_str() {
-                        "+" => x + y,
-                        "-" => x - y,
-                        "*" => x * y,
-                        "div" => x / y,
-                        "mod" => x % y,
-                        _ => unreachable!(),
-                    })]
+                    vec![Item::Number(x.arithmetic(&y, op)?)]
                 }
             }
         }
@@ -1013,27 +1053,68 @@ pub(crate) fn eval<'a>(
     };
     Ok(result)
 }
-fn numeric(v: &[Item<'_>], backwards: bool) -> Result<f64, Diagnostic> {
-    if v.len() > 1 && !backwards {
-        return Err(err("XPTY0004", "numeric operand must be a singleton"));
+fn numeric(v: &[Item<'_>], backwards: bool) -> Result<Number, Diagnostic> {
+    if backwards {
+        return Ok(Number::Double(v.first().map_or(f64::NAN, Item::number)));
     }
-    Ok(v.first().map_or(f64::NAN, Item::number))
+    match v {
+        [Item::Number(n)] => Ok(n.clone()),
+        [Item::Node(n)] => Number::cast("double", &n.string()),
+        [Item::Untyped(s)] => Number::cast("double", s),
+        [] => Ok(Number::Double(f64::NAN)),
+        _ => Err(err(
+            "XPTY0004",
+            "numeric operand must be a numeric or untyped singleton",
+        )),
+    }
 }
-fn compare(a: &Item<'_>, b: &Item<'_>, op: &str, backwards: bool) -> bool {
+fn compare(a: &Item<'_>, b: &Item<'_>, op: &str, backwards: bool) -> Result<bool, Diagnostic> {
     use std::cmp::Ordering;
-    let cmp = if backwards && (matches!(a, Item::Boolean(_)) || matches!(b, Item::Boolean(_))) {
-        boolean(std::slice::from_ref(a))
-            .unwrap_or(false)
-            .partial_cmp(&boolean(std::slice::from_ref(b)).unwrap_or(false))
-    } else if !["=", "!="].contains(&op)
-        || matches!(a, Item::Number(_))
-        || matches!(b, Item::Number(_))
-    {
-        a.number().partial_cmp(&b.number())
+    fn atom<'a>(i: &Item<'a>) -> Item<'a> {
+        match i {
+            Item::Node(n) => Item::Untyped(n.string()),
+            _ => i.clone(),
+        }
+    }
+    let (mut a, mut b) = (atom(a), atom(b));
+    let cmp = if backwards {
+        if ["=", "!="].contains(&op)
+            && (matches!(a, Item::Boolean(_)) || matches!(b, Item::Boolean(_)))
+        {
+            boolean(std::slice::from_ref(&a))?.partial_cmp(&boolean(std::slice::from_ref(&b))?)
+        } else if !["=", "!="].contains(&op)
+            || matches!(a, Item::Number(_))
+            || matches!(b, Item::Number(_))
+        {
+            a.number().partial_cmp(&b.number())
+        } else {
+            Some(a.string().cmp(&b.string()))
+        }
     } else {
-        Some(a.string().cmp(&b.string()))
+        fn convert<'a>(a: Item<'a>, other: &Item<'_>) -> Result<Item<'a>, Diagnostic> {
+            let Item::Untyped(s) = a else {
+                return Ok(a);
+            };
+            Ok(match other {
+                Item::Number(_) => Item::Number(Number::cast("double", &s)?),
+                Item::Boolean(_) => Item::Boolean(match s.trim_matches([' ', '\t', '\r', '\n']) {
+                    "true" | "1" => true,
+                    "false" | "0" => false,
+                    _ => return Err(err("FORG0001", "invalid untyped boolean")),
+                }),
+                _ => Item::String(s),
+            })
+        }
+        a = convert(a, &b)?;
+        b = convert(b, &a)?;
+        match (&a, &b) {
+            (Item::Number(a), Item::Number(b)) => a.compare(b),
+            (Item::String(a), Item::String(b)) => Some(a.cmp(b)),
+            (Item::Boolean(a), Item::Boolean(b)) => Some(a.cmp(b)),
+            _ => return Err(err("XPTY0004", "incomparable atomic types")),
+        }
     };
-    match op {
+    Ok(match op {
         "=" => cmp == Some(Ordering::Equal),
         "!=" => cmp != Some(Ordering::Equal),
         "<" => cmp == Some(Ordering::Less),
@@ -1041,7 +1122,7 @@ fn compare(a: &Item<'_>, b: &Item<'_>, op: &str, backwards: bool) -> bool {
         "<=" => matches!(cmp, Some(Ordering::Less | Ordering::Equal)),
         ">=" => matches!(cmp, Some(Ordering::Greater | Ordering::Equal)),
         _ => false,
-    }
+    })
 }
 fn function<'a>(
     name: &str,
@@ -1068,14 +1149,50 @@ fn function<'a>(
         Ok(v.first().map_or(String::new(), Item::string))
     };
     let s = || scalar(first);
+    if name == "data" {
+        return Ok(first
+            .iter()
+            .map(|i| match i {
+                Item::Node(n) => Item::Untyped(n.string()),
+                _ => i.clone(),
+            })
+            .collect());
+    }
+    if let Some(kind) = name.strip_prefix("xs:") {
+        if first.is_empty() {
+            return Ok(vec![]);
+        }
+        if first.len() != 1 {
+            return Err(err("XPTY0004", "constructor requires a singleton"));
+        }
+        let item = &first[0];
+        return Ok(vec![match kind {
+            "string" => Item::String(item.string()),
+            "untypedAtomic" => Item::Untyped(item.string()),
+            "boolean" => Item::Boolean(match item {
+                Item::Boolean(b) => *b,
+                Item::Number(n) => n.boolean(),
+                _ => match item.string().trim_matches([' ', '\t', '\r', '\n']) {
+                    "true" | "1" => true,
+                    "false" | "0" => false,
+                    _ => return Err(err("FORG0001", "invalid boolean lexical value")),
+                },
+            }),
+            _ => Item::Number(match item {
+                Item::Number(n) => n.convert(kind)?,
+                Item::Boolean(b) => Number::from(usize::from(*b)).convert(kind)?,
+                _ => Number::cast(kind, &item.string())?,
+            }),
+        }]);
+    }
     let result = match name {
         "true" => Item::Boolean(true),
         "false" => Item::Boolean(false),
-        "position" => Item::Number(focus.position as f64),
-        "last" => Item::Number(focus.size as f64),
+        "position" => Item::Number(Number::from(focus.position)),
+        "last" => Item::Number(Number::from(focus.size)),
         "string" => Item::String(s()?),
-        "number" => Item::Number(numeric(first, backwards)?),
-        "count" => Item::Number(first.len() as f64),
+        "number" => Item::Number(Number::Double(first.first().map_or(f64::NAN, Item::number))),
+        "count" => Item::Number(Number::from(first.len())),
         "exists" => Item::Boolean(!first.is_empty()),
         "empty" => Item::Boolean(first.is_empty()),
         "boolean" => Item::Boolean(boolean(first)?),
@@ -1086,12 +1203,12 @@ fn function<'a>(
                 .collect::<Vec<_>>()
                 .join(" "),
         ),
-        "string-length" => Item::Number(s()?.chars().count() as f64),
+        "string-length" => Item::Number(Number::from(s()?.chars().count())),
         "sum" => {
-            let mut sum = 0.0;
+            let mut sum = Number::from(0usize);
             for item in first {
                 budget.tick()?;
-                sum += item.number();
+                sum = sum.arithmetic(&numeric(std::slice::from_ref(item), backwards)?, "+")?;
             }
             Item::Number(sum)
         }

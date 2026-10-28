@@ -87,6 +87,9 @@ fn namespaces(n: Node<'_, '_>) -> BTreeMap<String, String> {
         .filter_map(|ns| ns.name().map(|prefix| (prefix.into(), ns.uri().into())))
         .collect();
     namespaces
+        .entry("xs".into())
+        .or_insert_with(|| "http://www.w3.org/2001/XMLSchema".into());
+    namespaces
         .entry("fn".into())
         .or_insert_with(|| "http://www.w3.org/2005/xpath-functions".into());
     namespaces

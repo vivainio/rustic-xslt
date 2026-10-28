@@ -101,4 +101,18 @@ conformance claims. Smaller tested increments are committed independently.
   The additional engine failures were previously blocked by harness support.
 - All 64 previous passes remain green; passing gate expanded to 66.
 
-Next: typed values/constructors and temporary trees, guided by these failures.
+## Increment 10: exact numeric values and constructors
+
+- Arbitrary-precision integer/decimal literals and arithmetic, double promotion,
+  numeric digit limits, lexical-cast errors and integer/decimal zero-division.
+- Initial xs:string/untypedAtomic/boolean/integer/decimal/double/float constructors
+  resolve by namespace URI; node/data atomization preserves untyped values.
+- General versus singleton value comparisons, exact numeric comparisons, empty
+  arithmetic and selected XPath 1.0 conversions.
+- Float constructor rounds to f32 but distinct float type identity remains ahead;
+  nonterminating decimal division uses the dependency's 100-digit default.
+- 82 Rust integration tests and Clippy/format pass. Selected W3C cases improve to
+  73 pass / 93 engine failures / 21 harness errors / 16 exclusions.
+- All 66 previous passes remain; gate expanded to 73.
+
+Next: binding sequence types, distinct float identity, then temporary trees.
