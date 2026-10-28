@@ -143,3 +143,32 @@ fn binding_and_template_duplicates_have_static_codes() {
         );
     }
 }
+
+#[test]
+fn typed_parameters_without_defaults_are_implicitly_required() {
+    for (version, code) in [("2.0", "XTDE0610"), ("3.0", "XTDE0700")] {
+        for body in [
+            r#"<xsl:param name="v" as="xs:integer"/><xsl:template name="entry"/>"#,
+            r#"<xsl:template name="entry"><xsl:param name="v" as="xs:integer"/></xsl:template>"#,
+        ] {
+            let s = Stylesheet::compile(&sheet(version, body)).unwrap();
+            let opts = TransformOptions {
+                initial_template: Some("entry".into()),
+                ..Default::default()
+            };
+            assert_eq!(s.transform_with_options("", &opts).unwrap_err().code, code);
+        }
+    }
+}
+#[test]
+fn optional_empty_types_and_explicit_empty_defaults_are_distinct() {
+    let s = Stylesheet::compile(&sheet("3.0", r#"<xsl:template match="/"><xsl:param name="v" as="xs:integer?"/><xsl:value-of select="empty($v)"/></xsl:template>"#)).unwrap();
+    assert_eq!(s.transform("<r/>").unwrap(), "true");
+    let s = Stylesheet::compile(&sheet("3.0", r#"<xsl:template match="/"><xsl:param name="v" as="xs:integer" select="()"/></xsl:template>"#)).unwrap();
+    assert_eq!(s.transform("<r/>").unwrap_err().code, "XTTE0600");
+}
+#[test]
+fn named_call_omitting_an_implicit_requirement_fails_dynamically() {
+    let s = Stylesheet::compile(&sheet("3.0", r#"<xsl:template name="target"><xsl:param name="v" as="xs:integer"/></xsl:template><xsl:template match="/"><xsl:call-template name="target"/></xsl:template>"#)).unwrap();
+    assert_eq!(s.transform("<r/>").unwrap_err().code, "XTDE0700");
+}

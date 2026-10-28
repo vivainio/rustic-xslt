@@ -83,8 +83,9 @@ Template application arguments use the caller's focus/scope, including when
 sorting changes the selected-node order. Modern built-in template rules forward
 ordinary supplied parameters; version 1.0 built-ins use their original parameter
 behavior. Explicit required global/template parameters are supported; missing named-call
-arguments are checked statically. Tunnel parameters and implicit requirements
-from nonempty sequence types remain ahead.
+arguments are checked statically. Parameters with nonempty required types and no default are implicitly required;
+XSLT 2.0 reports XTDE0610 and 3.0 reports XTDE0700 when they are missing.
+Tunnel parameters remain ahead.
 No imports, schema awareness,
 resource loading, or cancellation yet. Record streaming is described below. Empty result elements use
 explicit start/end tags. Literal results preserve in-scope non-XSLT namespaces except declared exclusions;

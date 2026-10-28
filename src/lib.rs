@@ -124,6 +124,7 @@ pub struct Stylesheet {
     omit_declaration: bool,
     text_output: bool,
     backwards: bool,
+    version: u8,
     globals: Vec<compile::Binding>,
     space_rules: Vec<whitespace::Rule>,
 }

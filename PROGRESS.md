@@ -257,5 +257,15 @@ conformance claims. Smaller tested increments are committed independently.
 - 164 Rust integration tests, 17 harness tests and Clippy/format pass. The 263-case
   W3C gate remains green; selected counts are unchanged.
 
-Next: implicit required parameters, tunnel parameters, and further practical
-XSLT 1.0 dispatch behavior.
+## Increment 22: implicitly required parameters
+
+- Typed parameter declarations without an explicit default become implicitly
+  required when their type excludes the empty sequence. Missing values report
+  XTDE0610 in 2.0 and XTDE0700 in 3.0, including stylesheet parameters.
+- Explicit empty defaults still undergo default-value type checking; optional
+  empty types retain their valid defaults. Implicit requirements remain dynamic
+  for named calls, distinct from explicit required=yes static checks.
+- 167 Rust integration tests and Clippy/format pass; all 263 W3C gate cases remain
+  green with unchanged selected-case counts.
+
+Next: tunnel parameters and further practical XSLT 1.0 dispatch behavior.

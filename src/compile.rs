@@ -66,6 +66,7 @@ pub(crate) struct Binding {
     pub value: BindingValue,
     pub parameter: bool,
     pub required: bool,
+    pub implicit_required: bool,
     pub ty: Option<crate::seqtype::SequenceType>,
 }
 #[derive(Debug)]
@@ -289,11 +290,16 @@ fn binding(n: Node<'_, '_>, parameter: bool, depth: usize) -> Result<Binding, Di
             BindingValue::Body(body)
         }
     };
+    let implicit_required = declaration
+        && n.attribute("select").is_none()
+        && ty.as_ref().is_some_and(|ty| ty.min > 0)
+        && matches!(&value, BindingValue::Select(Expr::Sequence(es)) if es.is_empty());
     Ok(Binding {
         name: id,
         value,
         parameter,
         required: mandatory,
+        implicit_required,
         ty,
     })
 }
@@ -799,6 +805,11 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
         omit_declaration: false,
         text_output: false,
         backwards: root.attribute("version") == Some("1.0"),
+        version: match root.attribute("version") {
+            Some("1.0") => 1,
+            Some("2.0") => 2,
+            _ => 3,
+        },
     };
     let mut output_seen = false;
     for n in root.children() {

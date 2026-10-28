@@ -383,6 +383,20 @@ fn execute<'a>(
                     "run",
                 ));
             }
+            if b.implicit_required {
+                return Err(Diagnostic::new(
+                    if sheet.version < 3 {
+                        "XTDE0610"
+                    } else {
+                        "XTDE0700"
+                    },
+                    format!(
+                        "implicitly required global parameter not supplied: {}",
+                        b.name
+                    ),
+                    "run",
+                ));
+            }
             let evaluated = match &b.value {
                 BindingValue::Select(e) => {
                     xpath::eval(e, &root, &globals, budget, 0, sheet.backwards)
@@ -519,9 +533,13 @@ fn run_tasks<'a>(
                         Rc::make_mut(&mut frame.env).insert(p.name.clone(), value);
                         tasks.push(Task::Parameters(t, index + 1, supplied, frame));
                     } else {
-                        if p.required {
+                        if p.required || p.implicit_required {
                             return Err(Diagnostic::new(
-                                "XTDE0700",
+                                if p.implicit_required && !p.required && sheet.version < 3 {
+                                    "XTDE0610"
+                                } else {
+                                    "XTDE0700"
+                                },
                                 format!("required template parameter not supplied: {}", p.name),
                                 "run",
                             ));
