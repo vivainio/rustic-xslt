@@ -1,4 +1,5 @@
 //! An early, deliberately limited XSLT engine. See README.md for supported syntax.
+mod aggregate;
 mod compile;
 mod mode;
 mod node;

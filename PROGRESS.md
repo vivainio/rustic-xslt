@@ -388,5 +388,18 @@ conformance claims. Smaller tested increments are committed independently.
   four harness errors / nine profile exclusions. All 111 previous passes remain;
   QT3 gate expanded to 310.
 
-Next: numeric aggregate functions, further XPath grammar coverage, template
-result types and raw XDM sequence collection.
+## Increment 32: numeric aggregate functions
+
+- Added avg/min/max and the optional sum zero argument. Numeric aggregates apply
+  common integer/decimal/float/double promotion, preserve arbitrary precision
+  where applicable, and handle NaN and empty sequences explicitly.
+- Untyped inputs atomize and cast to double; incomparable types report FORG0006.
+  Min/max also compare strings with codepoint collation and booleans; unsupported
+  collations report FOCH0002. Duration/date coverage remains ahead.
+- 225 Rust integration tests, 25 harness tests and Clippy/format pass. XSLT gate
+  expands to 358 (358 pass / 175 fail / 144 harness errors / 46 exclusions).
+- Twelve QT3 sets: 1,343 cases, 716 pass / 575 engine failures / four harness errors /
+  48 profile exclusions. All 310 previous passes remain; QT3 gate expands to 716.
+
+Next: XPath comments and QName normalization, template result types and raw XDM
+sequence collection.

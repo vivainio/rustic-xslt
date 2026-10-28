@@ -833,8 +833,11 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "true" | "false" | "position" | "last" => (0, 0),
         "string" | "number" | "normalize-space" | "string-length" | "name" | "local-name"
         | "namespace-uri" => (0, 1),
-        "count" | "boolean" | "not" | "sum" | "exists" | "empty" | "data" | "reverse" | "head"
-        | "tail" => (1, 1),
+        "count" | "boolean" | "not" | "exists" | "empty" | "data" | "reverse" | "head" | "tail" => {
+            (1, 1)
+        }
+        "sum" | "min" | "max" => (1, 2),
+        "avg" => (1, 1),
         "remove" => (2, 2),
         "insert-before" => (3, 3),
         "subsequence" => (2, 3),
@@ -1420,6 +1423,9 @@ fn function<'a>(
             }),
         }]);
     }
+    if matches!(name, "sum" | "avg" | "min" | "max") {
+        return crate::aggregate::evaluate(name, args, budget);
+    }
     if matches!(
         name,
         "reverse" | "head" | "tail" | "remove" | "insert-before" | "subsequence"
@@ -1541,14 +1547,6 @@ fn function<'a>(
                 .join(" "),
         ),
         "string-length" => Item::Number(Number::from(s()?.chars().count())),
-        "sum" => {
-            let mut sum = Number::from(0usize);
-            for item in first {
-                budget.tick()?;
-                sum = sum.arithmetic(&numeric(std::slice::from_ref(item), backwards)?, "+")?;
-            }
-            Item::Number(sum)
-        }
         "concat" => {
             let mut s = String::new();
             for a in args {
