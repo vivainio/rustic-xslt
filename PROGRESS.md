@@ -456,4 +456,19 @@ conformance claims. Smaller tested increments are committed independently.
   expands to 368 (368 pass / 165 failures / 144 harness errors / 46 exclusions).
   All 959 QT3 gate cases remain green with unchanged selected-case counts.
 
-Next: named node sequence types, then raw XDM sequence collection.
+## Increment 37: named node sequence types
+
+- Added element/attribute QName constraints and document-node(element(...))
+  constraints, including wildcards, prefix aliases and occurrence indicators.
+- Binding/default/supplied/template return checks and instance/treat operators
+  share the same expanded-name matching. Document constraints enforce a single
+  matching element child, excluding text and allowing comments/PIs.
+- Sequence type syntax preserves token boundaries; node schema annotations remain
+  an explicit implementation gap rather than being silently discarded.
+- 262 Rust integration tests and Clippy/format pass. All 368 XSLT gate cases remain.
+- Eighteen QT3 sets: 1,999 cases, 980 pass / 666 engine failures / 19 harness errors /
+  334 profile exclusions. All 21 selected sequence-type cases pass; previous 959
+  passes remain and the QT3 gate expands to 980.
+
+Next: raw sequence preservation across bindings and template calls, followed by
+constructed-node collection and broader XPath grammar coverage.

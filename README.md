@@ -74,7 +74,8 @@ with a 10,000-digit implementation limit; exponent literals use IEEE doubles.
 Non-terminating decimal division currently uses bigdecimal’s default precision
 (100 digits). Full numeric/atomic type coverage and canonical double formatting
 remain ahead. Floats and doubles have distinct type identity and numeric-promotion rules.
-Bindings support common atomic/node sequence types and occurrence indicators,
+Bindings support common atomic/node sequence types, named element/attribute tests,
+document element constraints and occurrence indicators,
 atomization and function conversion. Select expressions and temporary result-tree constructor bodies work. Untyped
 constructors return document nodes; typed node constructors return their children
 and apply function conversion. A sole typed xsl:sequence retains its atomic value.
@@ -193,7 +194,7 @@ A pinned, partial catalog runner and a 368-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. An initial internal QT3 bridge
-also gates 959 passing XPath cases at the pinned XPath suite revision.
+also gates 980 passing XPath cases at the pinned XPath suite revision.
 The example JSON-lines driver
 and its JSON dependency are development-only.
 

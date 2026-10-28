@@ -302,10 +302,12 @@ fn binding(n: Node<'_, '_>, parameter: bool, depth: usize) -> Result<Binding, Di
             };
             BindingValue::Select(e)
         } else {
-            if ty
-                .as_ref()
-                .is_some_and(|ty| matches!(ty.kind, crate::seqtype::Kind::Attribute))
-            {
+            if ty.as_ref().is_some_and(|ty| {
+                matches!(
+                    ty.kind,
+                    crate::seqtype::Kind::Attribute | crate::seqtype::Kind::NamedAttribute(_)
+                )
+            }) {
                 return Err(error(
                     n,
                     "standalone attribute constructor sequences are not implemented yet",

@@ -10,7 +10,10 @@ pub(crate) enum Kind {
     Node,
     Document,
     Element,
+    NamedElement(crate::xpath::Name),
     Attribute,
+    NamedAttribute(crate::xpath::Name),
+    DocumentElement(Option<crate::xpath::Name>),
     Text,
     Comment,
     Pi,
@@ -30,6 +33,37 @@ pub(crate) struct SequenceType {
     pub kind: Kind,
     pub min: usize,
     pub max: usize,
+}
+fn node_name(
+    source: &str,
+    namespaces: &BTreeMap<String, String>,
+) -> Result<Option<crate::xpath::Name>, Diagnostic> {
+    let source = source.trim();
+    if source.is_empty() || source == "*" {
+        return Ok(None);
+    }
+    let local = if source.starts_with("Q{") {
+        source.split_once('}').map_or(source, |(_, local)| local)
+    } else {
+        source
+    };
+    if local.contains(',') {
+        return Err(Diagnostic::new(
+            "RUST_XSLT_UNSUPPORTED",
+            "node type annotations are not implemented",
+            "compile",
+        ));
+    }
+    let canonical = crate::qname::resolve(source, namespaces, "XPST0003")?;
+    let (uri, local) = crate::qname::parts(&canonical);
+    Ok(Some(crate::xpath::Name {
+        uri: uri.map(str::to_owned),
+        local: local.into(),
+    }))
+}
+fn named_node(node: crate::node::XNode<'_>, name: &crate::xpath::Name) -> bool {
+    let (uri, local) = node.name();
+    uri == name.uri.as_deref() && local == name.local
 }
 impl SequenceType {
     pub fn parse(source: &str, namespaces: &BTreeMap<String, String>) -> Result<Self, Diagnostic> {
@@ -65,6 +99,29 @@ impl SequenceType {
                     min: 0,
                     max: 0,
                 });
+            }
+            name if name.starts_with("element(") && name.ends_with(')') => {
+                match node_name(&name[8..name.len() - 1], namespaces)? {
+                    Some(name) => Kind::NamedElement(name),
+                    None => Kind::Element,
+                }
+            }
+            name if name.starts_with("attribute(") && name.ends_with(')') => {
+                match node_name(&name[10..name.len() - 1], namespaces)? {
+                    Some(name) => Kind::NamedAttribute(name),
+                    None => Kind::Attribute,
+                }
+            }
+            name if name.starts_with("document-node(") && name.ends_with(')') => {
+                let inner = name[14..name.len() - 1].trim();
+                if !inner.starts_with("element(") || !inner.ends_with(')') {
+                    return Err(Diagnostic::new(
+                        "XPST0003",
+                        "document type requires an element test",
+                        "compile",
+                    ));
+                }
+                Kind::DocumentElement(node_name(&inner[8..inner.len() - 1], namespaces)?)
             }
             name => {
                 let canonical = crate::qname::resolve(name, namespaces, "XPST0003")?;
@@ -119,7 +176,25 @@ impl SequenceType {
             (Kind::Node, Item::Node(_)) => true,
             (Kind::Document, Item::Node(n)) => n.is_document(),
             (Kind::Element, Item::Node(n)) => n.is_element(),
+            (Kind::NamedElement(name), Item::Node(n)) => n.is_element() && named_node(*n, name),
             (Kind::Attribute, Item::Node(n)) => n.is_attribute(),
+            (Kind::NamedAttribute(name), Item::Node(n)) => n.is_attribute() && named_node(*n, name),
+            (Kind::DocumentElement(name), Item::Node(n)) => {
+                if !n.is_document() {
+                    return false;
+                }
+                let mut element = None;
+                for child in n.children() {
+                    if child.is_element() {
+                        if element.replace(child).is_some() {
+                            return false;
+                        }
+                    } else if !child.is_comment() && !child.is_pi() {
+                        return false;
+                    }
+                }
+                element.is_some_and(|n| name.as_ref().is_none_or(|name| named_node(n, name)))
+            }
             (Kind::Text, Item::Node(n)) => n.is_text(),
             (Kind::Comment, Item::Node(n)) => n.is_comment(),
             (Kind::Pi, Item::Node(n)) => n.is_pi(),

@@ -513,8 +513,35 @@ impl Parser {
                     return Err(syntax("expected a sequence type"));
                 };
                 if self.eat("(") {
-                    self.expect(")")?;
-                    name.push_str("()");
+                    name.push('(');
+                    let mut nesting = 1usize;
+                    let mut previous_name = false;
+                    while nesting > 0 {
+                        let token = self.next();
+                        let is_name = matches!(token, Token::Name(_));
+                        if previous_name && is_name {
+                            name.push(' ');
+                        }
+                        previous_name = is_name;
+                        match token {
+                            Token::Name(s) => name.push_str(&s),
+                            Token::Symbol(s) if s == "(" => {
+                                nesting += 1;
+                                if nesting > 128 {
+                                    return Err(syntax("sequence type nesting limit exceeded"));
+                                }
+                                name.push('(');
+                            }
+                            Token::Symbol(s) if s == ")" => {
+                                nesting -= 1;
+                                name.push(')');
+                            }
+                            Token::Symbol(s) if ["*", ",", "?"].contains(&s.as_str()) => {
+                                name.push_str(&s)
+                            }
+                            _ => return Err(syntax("invalid sequence type")),
+                        }
+                    }
                 }
                 for suffix in if matches!(op.as_str(), "cast" | "castable") {
                     &["?"][..]

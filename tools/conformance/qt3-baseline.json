@@ -17,7 +17,8 @@
     "prod-Comment",
     "prod-EQName",
     "prod-ForClause",
-    "prod-LetClause"
+    "prod-LetClause",
+    "prod-SequenceType"
   ],
   "passing_cases": [
     [
@@ -3855,6 +3856,90 @@
     [
       "prod-LetClause",
       "xquery30keywords2"
+    ],
+    [
+      "prod-SequenceType",
+      "sequence-type-1"
+    ],
+    [
+      "prod-SequenceType",
+      "sequence-type-2"
+    ],
+    [
+      "prod-SequenceType",
+      "sequence-type-3"
+    ],
+    [
+      "prod-SequenceType",
+      "sequence-type-4"
+    ],
+    [
+      "prod-SequenceType",
+      "sequence-type-5"
+    ],
+    [
+      "prod-SequenceType",
+      "sequence-type-6"
+    ],
+    [
+      "prod-SequenceType",
+      "sequence-type-7"
+    ],
+    [
+      "prod-SequenceType",
+      "sequence-type-8"
+    ],
+    [
+      "prod-SequenceType",
+      "sequence-type-9"
+    ],
+    [
+      "prod-SequenceType",
+      "sequence-type-10"
+    ],
+    [
+      "prod-SequenceType",
+      "sequence-type-11"
+    ],
+    [
+      "prod-SequenceType",
+      "sequence-type-12"
+    ],
+    [
+      "prod-SequenceType",
+      "sequence-type-13"
+    ],
+    [
+      "prod-SequenceType",
+      "sequence-type-14"
+    ],
+    [
+      "prod-SequenceType",
+      "sequence-type-15"
+    ],
+    [
+      "prod-SequenceType",
+      "sequence-type-16"
+    ],
+    [
+      "prod-SequenceType",
+      "sequence-type-17"
+    ],
+    [
+      "prod-SequenceType",
+      "sequence-type-18"
+    ],
+    [
+      "prod-SequenceType",
+      "sequence-type-19"
+    ],
+    [
+      "prod-SequenceType",
+      "sequence-type-20"
+    ],
+    [
+      "prod-SequenceType",
+      "sequence-type-21"
     ]
   ]
 }
