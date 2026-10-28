@@ -27,7 +27,7 @@ parameters, a named initial template/mode, and execution limits. API component
 names use a local name or `Q{uri}local` (also for `StreamOptions::template` and
 parameter keys); lexical prefixes require a stylesheet namespace scope and are
 rejected at API boundaries. Stylesheet component names and XPath variable
-references resolve prefixes at their declaring element; unprefixed names have
+references accept `Q{uri}local` and resolve prefixes at their declaring element; unprefixed names have
 no namespace, regardless of the default XML namespace. Component names currently
 use the documented ASCII name-character subset.
 
@@ -41,6 +41,8 @@ Supported so far:
   sequences, lazy if/then/else, instance-of/treat-as/cast/castable;
 - exact integer/decimal arithmetic, numeric promotion, general/value comparisons,
   basic xs constructors, atomization and string/node/sequence functions;
+- URIQualifiedNames in component names, variables, node tests/wildcards, supported
+  function calls and atomic sequence types;
 - `apply-templates`, `call-template`, `value-of`, `text`, `for-each`, `if`, `choose`;
 - namespace-aware literal results, constant attributes, AVTs and namespace fixup;
 - selected/shallow `copy`, namespace-copy controls, deep `copy-of`, document
@@ -154,7 +156,7 @@ streamable modes/accumulators and automatic plan selection remain ahead.
 
 ## W3C development checks
 
-A pinned, partial catalog runner and a 214-case passing regression gate are in
+A pinned, partial catalog runner and a 215-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. The example JSON-lines driver

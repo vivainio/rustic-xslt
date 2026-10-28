@@ -260,6 +260,36 @@ fn tokenize(s: &str) -> Result<Vec<Token>, Diagnostic> {
                 e.phase = "compile";
                 e
             })?));
+        } else if c == 'Q' && chars.get(i + 1) == Some(&'{') {
+            let start = i;
+            i += 2;
+            while i < chars.len() && chars[i] != '}' {
+                if chars[i] == '{' {
+                    return Err(syntax("nested brace in URIQualifiedName"));
+                }
+                i += 1;
+            }
+            if i == chars.len() {
+                return Err(syntax("unterminated URIQualifiedName"));
+            }
+            i += 1;
+            while i < chars.len()
+                && (chars[i].is_ascii_alphanumeric() || matches!(chars[i], '_' | '-' | '.'))
+            {
+                i += 1;
+            }
+            let wildcard = chars.get(i) == Some(&'*');
+            if wildcard {
+                i += 1;
+            }
+            let text: String = chars[start..i].iter().collect();
+            let validation = if wildcard {
+                format!("{}name", &text[..text.len() - 1])
+            } else {
+                text.clone()
+            };
+            crate::qname::external(&validation).map_err(|_| syntax("invalid URIQualifiedName"))?;
+            out.push(Token::Name(text));
         } else if c.is_alphabetic() || c == '_' {
             let start = i;
             i += 1;
@@ -361,6 +391,14 @@ impl Parser {
         }
     }
     fn qname(&self, text: String) -> Result<Name, Diagnostic> {
+        if text.starts_with("Q{") {
+            let canonical = crate::qname::resolve(&text, &self.namespaces, "XPST0003")?;
+            let (uri, local) = crate::qname::parts(&canonical);
+            return Ok(Name {
+                uri: uri.map(str::to_owned),
+                local: local.into(),
+            });
+        }
         if let Some((prefix, local)) = text.split_once(':') {
             Ok(Name {
                 uri: Some(
@@ -586,20 +624,18 @@ impl Parser {
                             self.expect(",")?;
                         }
                     }
-                    let local = if let Some((prefix, local)) = n.split_once(':') {
-                        match self.namespaces.get(prefix).map(String::as_str) {
-                            Some("http://www.w3.org/2005/xpath-functions") => local.into(),
-                            Some("http://www.w3.org/2001/XMLSchema") => format!("xs:{local}"),
-                            _ => {
-                                return Err(Diagnostic::new(
-                                    "XPST0017",
-                                    format!("unknown function namespace: {n}"),
-                                    "compile",
-                                ));
-                            }
+                    let name = self.qname(n.clone())?;
+                    let local = match name.uri.as_deref() {
+                        None if !n.starts_with("Q{") => name.local,
+                        Some("http://www.w3.org/2005/xpath-functions") => name.local,
+                        Some("http://www.w3.org/2001/XMLSchema") => format!("xs:{}", name.local),
+                        _ => {
+                            return Err(Diagnostic::new(
+                                "XPST0017",
+                                format!("unknown function namespace: {n}"),
+                                "compile",
+                            ));
                         }
-                    } else {
-                        n.clone()
                     };
                     let arity = function_arity(&local).ok_or_else(|| {
                         Diagnostic::new(
@@ -734,6 +770,8 @@ impl Parser {
                             };
                             self.expect(")")?;
                             test
+                        } else if n.starts_with("Q{") && n.ends_with("}*") {
+                            Test::Namespace(n[2..n.len() - 2].into())
                         } else if let Some(prefix) = n.strip_suffix(":*") {
                             Test::Namespace(self.namespaces.get(prefix).cloned().ok_or_else(
                                 || {
@@ -812,7 +850,7 @@ pub(crate) fn test_node(test: &Test, n: XNode<'_>, axis: Axis) -> bool {
                     .as_ref()
                     .is_none_or(|name| n.name() == (name.uri.as_deref(), name.local.as_str()))
         }
-        Test::Namespace(uri) => principal && n.name().0 == Some(uri.as_str()),
+        Test::Namespace(uri) => principal && n.name().0.unwrap_or_default() == uri,
         Test::Local(local) => principal && n.name().1 == local,
     }
 }

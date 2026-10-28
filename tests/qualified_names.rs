@@ -123,3 +123,86 @@ fn invalid_external_prefix_is_rejected() {
         "RUST_XSLT_INVALID_NAME"
     );
 }
+
+#[test]
+fn uriqualified_components_alias_prefixed_names() {
+    let s = Stylesheet::compile(&sheet(
+        r##"
+      <xsl:variable name="Q{urn:a}g" select="'global'"/>
+      <xsl:template name=" Q{urn:a}t "><xsl:param name="Q{urn:a}p"/>
+        <xsl:value-of select="concat($Q{urn:a}g, ':', $b:p)"/>
+      </xsl:template>
+      <xsl:template match="/" mode="Q{urn:a}m"><xsl:call-template name="b:t">
+        <xsl:with-param name="Q{urn:a}p" select="'param'"/>
+      </xsl:call-template></xsl:template>
+    "##,
+    ))
+    .unwrap();
+    let opts = TransformOptions {
+        initial_mode: Some("Q{urn:a}m".into()),
+        ..Default::default()
+    };
+    assert_eq!(
+        s.transform_with_options("<r/>", &opts).unwrap(),
+        "global:param"
+    );
+}
+#[test]
+fn uriqualified_paths_functions_and_types() {
+    let s = Stylesheet::compile(&sheet(r##"
+      <xsl:template match="/">
+        <xsl:variable name="Q{}v" as="Q{http://www.w3.org/2001/XMLSchema}integer" select="Q{http://www.w3.org/2001/XMLSchema}integer('7')"/>
+        <xsl:value-of select="Q{http://www.w3.org/2005/xpath-functions}concat($v, ':', Q{urn:doc}r/Q{}n, ':', $v instance of Q{http://www.w3.org/2001/XMLSchema}integer)"/>
+      </xsl:template>
+    "##)).unwrap();
+    assert_eq!(
+        s.transform("<r xmlns='urn:doc'><n xmlns=''>ok</n></r>")
+            .unwrap(),
+        "7:ok:true"
+    );
+}
+#[test]
+fn uriqualified_match_and_wildcard_tests() {
+    let s = Stylesheet::compile(&sheet(r##"
+      <xsl:template match="/"><xsl:value-of select="count(Q{}*/*)"/><xsl:apply-templates select="*/*"/></xsl:template>
+      <xsl:template match="Q{urn:doc}*">W</xsl:template>
+      <xsl:template match="Q{urn:doc}n">N</xsl:template>
+    "##)).unwrap();
+    assert_eq!(
+        s.transform("<r xmlns:p='urn:doc'><p:n/><p:o/></r>")
+            .unwrap(),
+        "2NW"
+    );
+}
+#[test]
+fn uriqualified_names_reject_malformed_tokens() {
+    for expr in ["$Q{urn:a", "$Q{a{b}v", "$Q{urn:a}1v", "$Q{}", "$Q{urn:a}*"] {
+        let body =
+            format!(r##"<xsl:template name="t"><xsl:value-of select="{expr}"/></xsl:template>"##);
+        assert_eq!(
+            Stylesheet::compile(&sheet(&body)).unwrap_err().code,
+            "XPST0003",
+            "{expr}"
+        );
+    }
+}
+#[test]
+fn explicitly_unnamespaced_function_has_no_default_function_namespace() {
+    assert_eq!(
+        Stylesheet::compile(&sheet(
+            r##"<xsl:template name="t"><xsl:value-of select="Q{}concat('a','b')"/></xsl:template>"##
+        ))
+        .unwrap_err()
+        .code,
+        "XPST0017"
+    );
+}
+#[test]
+fn uriqualified_alias_duplicates_are_rejected() {
+    assert!(
+        Stylesheet::compile(&sheet(
+            r##"<xsl:variable name="a:v"/><xsl:variable name="Q{urn:a}v"/>"##
+        ))
+        .is_err()
+    );
+}

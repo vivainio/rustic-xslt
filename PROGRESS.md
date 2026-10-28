@@ -192,5 +192,15 @@ conformance claims. Smaller tested increments are committed independently.
   97 harness errors / 45 exclusions. All 103 previous passes remain; the gate
   now records all 214 passing cases at the unchanged suite revision.
 
-Next: URIQualifiedNames in stylesheet components and XPath, followed by template
-application parameters and practical XSLT 1.0 dispatch behavior.
+## Increment 17: URIQualifiedNames
+
+- `Q{uri}local` component names share identity with lexical QName aliases.
+- XPath accepts URIQualifiedNames in variable references, name tests, supported
+  function calls and atomic sequence types; namespace wildcards include `Q{}*`.
+- Explicitly unnamespaced function names do not acquire the default function
+  namespace. Malformed braced names fail statically without lexer panics.
+- 137 Rust integration tests, 14 harness tests and Clippy/format pass. W3C selection:
+  215 pass / 218 engine failures / 97 harness errors / 45 exclusions; the 214-case
+  gate remains green and expands to 215.
+
+Next: template application parameters and practical XSLT 1.0 dispatch behavior.

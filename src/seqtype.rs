@@ -67,15 +67,9 @@ impl SequenceType {
                 });
             }
             name => {
-                let Some((p, local)) = name.split_once(':') else {
-                    return Err(Diagnostic::new(
-                        "XPST0051",
-                        "unsupported sequence type",
-                        "compile",
-                    ));
-                };
-                if namespaces.get(p).map(String::as_str) != Some("http://www.w3.org/2001/XMLSchema")
-                {
+                let canonical = crate::qname::resolve(name, namespaces, "XPST0003")?;
+                let (uri, local) = crate::qname::parts(&canonical);
+                if uri != Some("http://www.w3.org/2001/XMLSchema") {
                     return Err(Diagnostic::new(
                         "XPST0051",
                         "unknown type namespace",

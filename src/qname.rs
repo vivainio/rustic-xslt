@@ -20,6 +20,9 @@ pub(crate) fn resolve(
     code: &str,
 ) -> Result<String, Diagnostic> {
     let invalid = || Diagnostic::new(code, format!("invalid QName: {text}"), "compile");
+    if text.starts_with("Q{") {
+        return external(text).map_err(|_| invalid());
+    }
     if let Some((prefix, local)) = text.split_once(':') {
         if !ncname(prefix) || !ncname(local) {
             return Err(invalid());
@@ -59,4 +62,15 @@ pub(crate) fn external(text: &str) -> Result<String, Diagnostic> {
         format!("expected a local name or Q{{uri}}local: {text}"),
         "run",
     ))
+}
+
+/// Split a canonical expanded name produced by this module.
+pub(crate) fn parts(name: &str) -> (Option<&str>, &str) {
+    if let Some(rest) = name.strip_prefix("Q{")
+        && let Some((uri, local)) = rest.split_once('}')
+    {
+        (Some(uri), local)
+    } else {
+        (None, name)
+    }
 }
