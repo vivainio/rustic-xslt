@@ -200,3 +200,34 @@ fn lexical_errors_are_reported_in_dead_branches() {
         assert!(Stylesheet::compile(&sheet("3.0", body)).is_err());
     }
 }
+
+#[test]
+fn named_initial_template_can_run_without_a_source_document() {
+    let options = TransformOptions {
+        initial_template: Some("main".into()),
+        ..Default::default()
+    };
+    let s = Stylesheet::compile(&sheet(
+        "3.0",
+        r#"<xsl:template name="main"><xsl:text>no source needed</xsl:text></xsl:template>"#,
+    ))
+    .unwrap();
+    assert_eq!(
+        s.transform_with_options("", &options).unwrap(),
+        "no source needed"
+    );
+    for expression in [".", "/", "string()", "position()"] {
+        let s = Stylesheet::compile(&sheet(
+            "3.0",
+            &format!(
+                r#"<xsl:template name="main"><xsl:value-of select="{expression}"/></xsl:template>"#
+            ),
+        ))
+        .unwrap();
+        assert_eq!(
+            s.transform_with_options("", &options).unwrap_err().code,
+            "XPDY0002",
+            "{expression}"
+        );
+    }
+}

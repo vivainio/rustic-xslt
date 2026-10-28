@@ -125,6 +125,14 @@ and verifies that output begins before input is exhausted. These counters are
 not a measurement of process RSS. General XSLT streamability analysis,
 streamable modes/accumulators and automatic plan selection remain ahead.
 
+## W3C development checks
+
+A pinned, partial catalog runner and a 43-case passing regression gate are in
+[tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
+engine failures, missing harness support and optional-profile exclusions. These
+are development checks, not a conformance claim. The example JSON-lines driver
+and its JSON dependency are development-only.
+
 ## Go reference driver (development only)
 
 `tools/go-reference` reads JSON objects from stdin and returns one JSON response

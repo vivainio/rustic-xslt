@@ -89,6 +89,7 @@ impl<'a> XNode<'a> {
 }
 #[derive(Debug, Clone)]
 pub(crate) enum Item<'a> {
+    Absent,
     Node(XNode<'a>),
     String(String),
     Number(f64),
@@ -99,6 +100,7 @@ pub(crate) type Variables<'a> = BTreeMap<String, Value<'a>>;
 impl Item<'_> {
     pub fn string(&self) -> String {
         match self {
+            Self::Absent => String::new(),
             Self::Node(n) => n.string(),
             Self::String(s) => s.clone(),
             Self::Number(n) => {
@@ -684,9 +686,16 @@ pub(crate) fn eval<'a>(
             .get(n)
             .cloned()
             .ok_or_else(|| err("XPST0008", format!("unknown variable: {n}")))?,
-        Expr::Context => vec![focus.item.clone()],
+        Expr::Context => {
+            if matches!(focus.item, Item::Absent) {
+                return Err(err("XPDY0002", "context item is absent"));
+            } else {
+                vec![focus.item.clone()]
+            }
+        }
         Expr::Root => match focus.item {
             Item::Node(n) => vec![Item::Node(n.root())],
+            Item::Absent => return Err(err("XPDY0002", "context item is absent")),
             _ => return Err(err("XPTY0020", "root requires a node context")),
         },
         Expr::Sequence(es) => {
@@ -859,6 +868,15 @@ fn function<'a>(
     budget: &mut Budget,
     backwards: bool,
 ) -> Result<Value<'a>, Diagnostic> {
+    if args.is_empty()
+        && matches!(focus.item, Item::Absent)
+        && !["true", "false", "position", "last"].contains(&name)
+    {
+        return Err(err("XPDY0002", "context item is absent"));
+    }
+    if matches!(focus.item, Item::Absent) && ["position", "last"].contains(&name) {
+        return Err(err("XPDY0002", "context focus is absent"));
+    }
     let context = vec![focus.item.clone()];
     let first = args.first().unwrap_or(&context);
     let scalar = |v: &[Item<'_>]| -> Result<String, Diagnostic> {

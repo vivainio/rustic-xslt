@@ -8,3 +8,6 @@ description = "Native Rust XSLT engine, ported from go-xslt (early implementatio
 [dependencies]
 roxmltree = "=0.21.1"
 quick-xml = "=0.38.4"
+
+[dev-dependencies]
+serde_json = "=1.0.154"

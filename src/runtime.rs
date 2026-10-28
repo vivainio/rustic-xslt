@@ -181,9 +181,14 @@ pub(crate) fn transform(
     source: &str,
     options: &TransformOptions,
 ) -> Result<String, Diagnostic> {
-    let doc = crate::parse(source, "parse")?;
+    let absent = source.is_empty() && options.initial_template.is_some();
+    let doc = crate::parse(if absent { "<_absent/>" } else { source }, "parse")?;
     let root = Focus {
-        item: Item::Node(XNode::Tree(doc.root())),
+        item: if absent {
+            Item::Absent
+        } else {
+            Item::Node(XNode::Tree(doc.root()))
+        },
         position: 1,
         size: 1,
     };

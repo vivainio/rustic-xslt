@@ -52,5 +52,17 @@ conformance claims. Smaller tested increments are committed independently.
 - Streaming checks cover computed-name/content expressions and all sort keys.
 - 57 integration tests pass; format and Clippy pass.
 
-Next: a pinned W3C catalog runner, with explicit unsupported/assertion reporting,
-to guide further semantics work independently of the Go implementation.
+## Increment 6: pinned W3C test bridge
+
+- Development JSON-lines driver and partial catalog runner, exact error codes,
+  structural XML/string assertions, named environments and explicit status reports.
+- Passing-case regression gate records 43 cases at the pinned suite revision.
+- First choose/copy selection: 203 cases, 43 pass, 92 engine failures,
+  52 harness errors and 16 optional-profile exclusions. This is not a conformance
+  percentage. All 43 passing cases pass the committed gate.
+- Named initial templates can run without source; source-dependent expressions
+  correctly diagnose absent focus rather than seeing a fabricated source tree.
+- 58 Rust integration tests, seven runner tests, format and Clippy pass.
+
+Next: address suite-reported namespace exclusions, whitespace declarations and
+serialization settings while preserving the passing-case gate.
