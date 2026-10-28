@@ -77,4 +77,17 @@ conformance claims. Smaller tested increments are committed independently.
 - The same 203 W3C cases now have 57 passes, 78 engine failures, 52 harness
   errors and 16 exclusions. All 43 previous passes remain; gate expanded to 57.
 
-Next: richer XPath axes and node tests, then more suite-driven language support.
+## Increment 8: reverse axes, node tests and conditional expressions
+
+- Ancestor, sibling, following and preceding axes; reverse-axis predicate focus
+  is distinct from document-order normalization and grouped filters.
+- Namespace/local wildcards, named kind tests, PI targets and PI string values.
+- Lazy if/then/else expressions; lexical checks still inspect both branches.
+- Streaming checks explicitly reject all new nonlocal axes and traverse
+  conditionals. Wildcard match priorities follow their specificity.
+- 73 Rust integration tests and Clippy/format pass; the selected W3C cases
+  improve to 64 pass / 71 engine failures / 52 harness errors / 16 exclusions.
+- Previous 57 passing cases remain green; gate expanded to 64.
+
+Next: extend test-harness assertions so the remaining selected cases can expose
+engine behavior, then add typed values/constructors and temporary trees.

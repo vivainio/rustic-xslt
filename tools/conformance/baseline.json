@@ -83,11 +83,23 @@
     ],
     [
       "choose",
+      "choose-1201"
+    ],
+    [
+      "choose",
       "choose-1301"
     ],
     [
       "choose",
       "choose-1401"
+    ],
+    [
+      "choose",
+      "choose-1701"
+    ],
+    [
+      "choose",
+      "choose-1702"
     ],
     [
       "copy",
@@ -140,6 +152,10 @@
     [
       "copy",
       "copy-1501"
+    ],
+    [
+      "copy",
+      "copy-1601"
     ],
     [
       "copy",
@@ -200,6 +216,18 @@
     [
       "copy",
       "copy-3401"
+    ],
+    [
+      "copy",
+      "copy-3601"
+    ],
+    [
+      "copy",
+      "copy-3602"
+    ],
+    [
+      "copy",
+      "copy-3603"
     ],
     [
       "copy",

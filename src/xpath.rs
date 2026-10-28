@@ -16,7 +16,12 @@ pub(crate) enum Test {
     Node,
     Text,
     Comment,
-    Pi,
+    Pi(Option<String>),
+    Namespace(String),
+    Local(String),
+    Document,
+    Element(Option<Name>),
+    AttributeKind(Option<Name>),
 }
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum Axis {
@@ -26,6 +31,12 @@ pub(crate) enum Axis {
     Parent,
     Descendant,
     DescendantOrSelf,
+    Ancestor,
+    AncestorOrSelf,
+    FollowingSibling,
+    PrecedingSibling,
+    Following,
+    Preceding,
 }
 #[derive(Debug, Clone)]
 pub(crate) struct Step {
@@ -46,6 +57,7 @@ pub(crate) enum Expr {
     Unary(bool, Box<Expr>),
     Call(String, Vec<Expr>),
     Sequence(Vec<Expr>),
+    If(Box<Expr>, Box<Expr>, Box<Expr>),
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum XNode<'a> {
@@ -60,7 +72,12 @@ impl<'a> XNode<'a> {
                 .filter(|n| n.is_text())
                 .filter_map(|n| n.text())
                 .collect(),
-            Self::Tree(n) => n.text().unwrap_or_default().into(),
+            Self::Tree(n) => n
+                .pi()
+                .and_then(|pi| pi.value)
+                .or_else(|| n.text())
+                .unwrap_or_default()
+                .into(),
             Self::Attribute(n, local, uri) => n
                 .attributes()
                 .find(|a| a.name() == local && a.namespace() == uri)
@@ -263,6 +280,11 @@ fn tokenize(s: &str) -> Result<Vec<Token>, Diagnostic> {
             }
             if chars.get(i) == Some(&':') && chars.get(i + 1) != Some(&':') {
                 i += 1;
+                if chars.get(i) == Some(&'*') {
+                    i += 1;
+                    out.push(Token::Name(chars[start..i].iter().collect()));
+                    continue;
+                }
                 if !chars.get(i).is_some_and(|c| c.is_alphabetic() || *c == '_') {
                     return Err(syntax("expected local name after prefix"));
                 }
@@ -272,6 +294,19 @@ fn tokenize(s: &str) -> Result<Vec<Token>, Diagnostic> {
                 {
                     i += 1;
                 }
+            }
+            out.push(Token::Name(chars[start..i].iter().collect()));
+        } else if c == '*' && chars.get(i + 1) == Some(&':') {
+            let start = i;
+            i += 2;
+            if !chars.get(i).is_some_and(|c| c.is_alphabetic() || *c == '_') {
+                return Err(syntax("expected wildcard local name"));
+            }
+            i += 1;
+            while i < chars.len()
+                && (chars[i].is_alphanumeric() || matches!(chars[i], '_' | '-' | '.'))
+            {
+                i += 1;
             }
             out.push(Token::Name(chars[start..i].iter().collect()));
         } else {
@@ -449,9 +484,35 @@ impl Parser {
                     Expr::Number(n)
                 }
                 Token::Name(n)
+                    if n == "if"
+                        && self.tokens.get(self.index + 1) == Some(&Token::Symbol("(".into())) =>
+                {
+                    self.next();
+                    self.expect("(")?;
+                    let condition = self.expression(0)?;
+                    self.expect(")")?;
+                    if self.next() != Token::Name("then".into()) {
+                        return Err(syntax("expected then"));
+                    }
+                    let yes = self.expression(2)?;
+                    if self.next() != Token::Name("else".into()) {
+                        return Err(syntax("expected else"));
+                    }
+                    let no = self.expression(2)?;
+                    Expr::If(Box::new(condition), Box::new(yes), Box::new(no))
+                }
+                Token::Name(n)
                     if self.tokens.get(self.index + 1) == Some(&Token::Symbol("(".into()))
-                        && !["node", "text", "comment", "processing-instruction"]
-                            .contains(&n.as_str()) =>
+                        && ![
+                            "node",
+                            "text",
+                            "comment",
+                            "processing-instruction",
+                            "document-node",
+                            "element",
+                            "attribute",
+                        ]
+                        .contains(&n.as_str()) =>
                 {
                     self.next();
                     self.expect("(")?;
@@ -557,6 +618,12 @@ impl Parser {
                     "parent" => Axis::Parent,
                     "descendant" => Axis::Descendant,
                     "descendant-or-self" => Axis::DescendantOrSelf,
+                    "ancestor" => Axis::Ancestor,
+                    "ancestor-or-self" => Axis::AncestorOrSelf,
+                    "following-sibling" => Axis::FollowingSibling,
+                    "preceding-sibling" => Axis::PrecedingSibling,
+                    "following" => Axis::Following,
+                    "preceding" => Axis::Preceding,
                     _ => return Err(syntax(format!("unsupported axis: {n}"))),
                 };
             }
@@ -566,14 +633,53 @@ impl Parser {
                 match self.next() {
                     Token::Name(n) => {
                         if self.eat("(") {
-                            self.expect(")")?;
-                            match n.as_str() {
+                            let test = match n.as_str() {
                                 "node" => Test::Node,
                                 "text" => Test::Text,
                                 "comment" => Test::Comment,
-                                "processing-instruction" => Test::Pi,
+                                "document-node" => Test::Document,
+                                "processing-instruction" => {
+                                    let target = if let Token::String(s) = self.peek().clone() {
+                                        self.next();
+                                        Some(s)
+                                    } else {
+                                        None
+                                    };
+                                    Test::Pi(target)
+                                }
+                                "element" | "attribute" => {
+                                    let name = match self.peek().clone() {
+                                        Token::Name(n) => {
+                                            self.next();
+                                            Some(self.qname(n)?)
+                                        }
+                                        _ => {
+                                            self.eat("*");
+                                            None
+                                        }
+                                    };
+                                    if n == "element" {
+                                        Test::Element(name)
+                                    } else {
+                                        Test::AttributeKind(name)
+                                    }
+                                }
                                 _ => return Err(syntax("unsupported node test")),
-                            }
+                            };
+                            self.expect(")")?;
+                            test
+                        } else if let Some(prefix) = n.strip_suffix(":*") {
+                            Test::Namespace(self.namespaces.get(prefix).cloned().ok_or_else(
+                                || {
+                                    Diagnostic::new(
+                                        "XPST0081",
+                                        "unbound wildcard prefix",
+                                        "compile",
+                                    )
+                                },
+                            )?)
+                        } else if let Some(local) = n.strip_prefix("*:") {
+                            Test::Local(local.into())
                         } else {
                             Test::Name(self.qname(n)?)
                         }
@@ -624,7 +730,24 @@ pub(crate) fn test_node(test: &Test, n: XNode<'_>, axis: Axis) -> bool {
         }
         Test::Text => matches!(n, XNode::Tree(n) if n.is_text()),
         Test::Comment => matches!(n, XNode::Tree(n) if n.is_comment()),
-        Test::Pi => matches!(n, XNode::Tree(n) if n.is_pi()),
+        Test::Pi(target) => {
+            matches!(n, XNode::Tree(n) if n.pi().is_some_and(|pi| target.as_ref().is_none_or(|s| s == pi.target)))
+        }
+        Test::Document => matches!(n, XNode::Tree(n) if n.is_root()),
+        Test::Element(name) => {
+            matches!(n, XNode::Tree(node) if node.is_element())
+                && name
+                    .as_ref()
+                    .is_none_or(|name| n.name() == (name.uri.as_deref(), name.local.as_str()))
+        }
+        Test::AttributeKind(name) => {
+            matches!(n, XNode::Attribute(..))
+                && name
+                    .as_ref()
+                    .is_none_or(|name| n.name() == (name.uri.as_deref(), name.local.as_str()))
+        }
+        Test::Namespace(uri) => test_node(&Test::Any, n, axis) && n.name().0 == Some(uri.as_str()),
+        Test::Local(local) => test_node(&Test::Any, n, axis) && n.name().1 == local,
     }
 }
 fn ordered<'a>(nodes: Vec<XNode<'a>>) -> Value<'a> {
@@ -698,6 +821,17 @@ pub(crate) fn eval<'a>(
             Item::Absent => return Err(err("XPDY0002", "context item is absent")),
             _ => return Err(err("XPTY0020", "root requires a node context")),
         },
+        Expr::If(condition, yes, no) => {
+            let condition = eval(condition, focus, vars, budget, depth + 1, backwards)?;
+            eval(
+                if boolean(&condition)? { yes } else { no },
+                focus,
+                vars,
+                budget,
+                depth + 1,
+                backwards,
+            )?
+        }
         Expr::Sequence(es) => {
             let mut value = vec![];
             for e in es {
@@ -736,6 +870,54 @@ pub(crate) fn eval<'a>(
                                 .collect(),
                             _ => vec![],
                         },
+                        Axis::Ancestor | Axis::AncestorOrSelf => {
+                            let mut ancestors = vec![];
+                            let mut current = if matches!(step.axis, Axis::AncestorOrSelf) {
+                                Some(n)
+                            } else {
+                                n.parent()
+                            };
+                            while let Some(node) = current {
+                                budget.tick()?;
+                                ancestors.push(node);
+                                current = node.parent();
+                            }
+                            ancestors
+                        }
+                        Axis::FollowingSibling | Axis::PrecedingSibling => match n {
+                            XNode::Tree(n) => {
+                                if matches!(step.axis, Axis::FollowingSibling) {
+                                    n.next_siblings().skip(1).map(XNode::Tree).collect()
+                                } else {
+                                    n.prev_siblings().skip(1).map(XNode::Tree).collect()
+                                }
+                            }
+                            _ => vec![],
+                        },
+                        Axis::Following | Axis::Preceding => {
+                            let (owner, attribute) = match n {
+                                XNode::Tree(n) => (n, false),
+                                XNode::Attribute(n, ..) => (n, true),
+                            };
+                            let mut selected = vec![];
+                            for candidate in owner.document().descendants() {
+                                budget.tick()?;
+                                let keep = if matches!(step.axis, Axis::Following) {
+                                    candidate.id().get() > owner.id().get()
+                                        && (attribute || !candidate.ancestors().any(|a| a == owner))
+                                } else {
+                                    candidate.id().get() < owner.id().get()
+                                        && !owner.ancestors().any(|a| a == candidate)
+                                };
+                                if keep {
+                                    selected.push(XNode::Tree(candidate));
+                                }
+                            }
+                            if matches!(step.axis, Axis::Preceding) {
+                                selected.reverse();
+                            }
+                            selected
+                        }
                         Axis::Descendant | Axis::DescendantOrSelf => match n {
                             XNode::Tree(n) => n
                                 .descendants()

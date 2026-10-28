@@ -30,8 +30,9 @@ Supported so far:
 - match templates, named templates, modes/current-mode, explicit/default priority,
   global/template parameters and local variables;
 - lexical scope, forward global references, circular-global detection;
-- child/attribute/self/parent/descendant axes, namespaced XPath name tests,
-  wildcards, node/text/comment/PI tests, predicates, union and sequences;
+- child/attribute/self/parent/descendant/ancestor/sibling/following/preceding
+  axes, namespace wildcards, named node-kind/PI tests, predicates, union,
+  sequences and lazy if/then/else expressions;
 - arithmetic, comparisons, boolean operators, basic string/node/sequence functions;
 - `apply-templates`, `call-template`, `value-of`, `text`, `for-each`, `if`, `choose`;
 - namespace-aware literal results, constant attributes, AVTs and namespace fixup;
@@ -131,7 +132,7 @@ streamable modes/accumulators and automatic plan selection remain ahead.
 
 ## W3C development checks
 
-A pinned, partial catalog runner and a 57-case passing regression gate are in
+A pinned, partial catalog runner and a 64-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. The example JSON-lines driver

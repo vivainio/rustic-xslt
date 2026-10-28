@@ -787,6 +787,11 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     pending.push(a);
                     pending.push(b);
                 }
+                Expr::If(c, y, n) => {
+                    pending.push(c);
+                    pending.push(y);
+                    pending.push(n);
+                }
                 Expr::Unary(_, e) => pending.push(e),
                 Expr::Call(_, args) | Expr::Sequence(args) => pending.extend(args),
                 _ => {}

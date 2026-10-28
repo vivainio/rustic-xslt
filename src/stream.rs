@@ -77,9 +77,18 @@ fn safe_expression(e: &Expr, global: bool) -> Result<(), Diagnostic> {
                 ));
             }
             Expr::Path(base, steps) => {
-                if steps.iter().any(|s| matches!(s.axis, Axis::Parent)) {
+                if steps.iter().any(|s| {
+                    !matches!(
+                        s.axis,
+                        Axis::Child
+                            | Axis::Attribute
+                            | Axis::SelfNode
+                            | Axis::Descendant
+                            | Axis::DescendantOrSelf
+                    )
+                }) {
                     return Err(unsupported(
-                        "parent navigation can escape a streamed record",
+                        "nonlocal axis navigation can escape a streamed record",
                     ));
                 }
                 pending.push(base);
@@ -90,6 +99,11 @@ fn safe_expression(e: &Expr, global: bool) -> Result<(), Diagnostic> {
             Expr::Filter(base, predicates) => {
                 pending.push(base);
                 pending.extend(predicates);
+            }
+            Expr::If(c, y, n) => {
+                pending.push(c);
+                pending.push(y);
+                pending.push(n);
             }
             Expr::Unary(_, e) => pending.push(e),
             Expr::Binary(_, a, b) => {

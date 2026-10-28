@@ -36,8 +36,16 @@ pub(crate) fn parse(
             {
                 let priority = if steps.len() != 1 || !steps[0].predicates.is_empty() {
                     0.5
-                } else if matches!(steps[0].test, Test::Name(_)) {
+                } else if matches!(
+                    steps[0].test,
+                    Test::Name(_)
+                        | Test::Pi(Some(_))
+                        | Test::Element(Some(_))
+                        | Test::AttributeKind(Some(_))
+                ) {
                     0.0
+                } else if matches!(steps[0].test, Test::Namespace(_) | Test::Local(_)) {
+                    -0.25
                 } else {
                     -0.5
                 };
