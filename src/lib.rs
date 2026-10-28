@@ -1,6 +1,7 @@
 //! An early, deliberately limited XSLT engine. See README.md for supported syntax.
 mod compile;
 mod runtime;
+mod xpath;
 
 use std::fmt;
 
@@ -52,12 +53,22 @@ impl Default for Limits {
     }
 }
 
+/// Per-run string parameters, entry point and execution limits.
+#[derive(Debug, Clone, Default)]
+pub struct TransformOptions {
+    pub parameters: std::collections::BTreeMap<String, String>,
+    pub initial_template: Option<String>,
+    pub limits: Limits,
+}
+
 /// Immutable compiled instructions, reusable across threads and transformations.
 #[derive(Debug)]
 pub struct Stylesheet {
     templates: Vec<compile::Template>,
     omit_declaration: bool,
     text_output: bool,
+    backwards: bool,
+    globals: Vec<compile::Binding>,
 }
 impl Stylesheet {
     pub fn compile(source: &str) -> Result<Self, Diagnostic> {
@@ -66,12 +77,26 @@ impl Stylesheet {
     pub fn transform(&self, source: &str) -> Result<String, Diagnostic> {
         self.transform_with_limits(source, Limits::default())
     }
+    pub fn transform_with_options(
+        &self,
+        source: &str,
+        options: &TransformOptions,
+    ) -> Result<String, Diagnostic> {
+        runtime::transform(self, source, options)
+    }
     pub fn transform_with_limits(
         &self,
         source: &str,
         limits: Limits,
     ) -> Result<String, Diagnostic> {
-        runtime::transform(self, source, limits)
+        runtime::transform(
+            self,
+            source,
+            &TransformOptions {
+                limits,
+                ..TransformOptions::default()
+            },
+        )
     }
 }
 

@@ -33,13 +33,13 @@ fn builtin_rules_and_escaping() {
 #[test]
 fn compile_rejects_unimplemented_semantics() {
     for body in [
-        r#"<xsl:template match="/"><xsl:if test="true()"/></xsl:template>"#,
-        r#"<xsl:template match="/"><xsl:value-of select="//book"/></xsl:template>"#,
+        r#"<xsl:template match="/"><xsl:message/></xsl:template>"#,
+        r#"<xsl:template match="/"><xsl:value-of select="unknown-function()"/></xsl:template>"#,
         r#"<xsl:template match="/" mode="m"/>"#,
-        r#"<xsl:template match="/"><out id="{.}"/></xsl:template>"#,
+        r#"<xsl:template match="/"><out xmlns="urn:unsupported"/></xsl:template>"#,
     ] {
         let err = Stylesheet::compile(&sheet(body)).unwrap_err();
-        assert_eq!(err.code, "RUST_XSLT_UNSUPPORTED");
+        assert!(["RUST_XSLT_UNSUPPORTED", "XPST0017"].contains(&err.code.as_str()));
         assert!(err.line > 0);
     }
 }

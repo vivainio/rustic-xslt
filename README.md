@@ -19,36 +19,48 @@ assert_eq!(output, "<titles><title>Rust</title></titles>");
 # Ok::<(), rust_xslt::Diagnostic>(())
 ```
 
-The public surface currently consists of `Stylesheet::compile`, `transform`,
-`transform_with_limits`, a convenience `rust_xslt::transform`, and structured
-`Diagnostic` errors. Compiled stylesheets are immutable and `Send + Sync`.
+The public surface includes `Stylesheet::compile`, `transform`,
+`transform_with_options`, `transform_with_limits`, a convenience
+`rust_xslt::transform`, and structured `Diagnostic` errors. Compiled stylesheets
+are immutable and `Send + Sync`. `TransformOptions` accepts string global
+parameters, a named initial template, and execution limits.
 
-Supported in this first slice:
+Supported so far:
 
-- `xsl:stylesheet` / `xsl:transform`, match templates and built-in template rules;
-- unprefixed element-name paths, absolute paths, `.`, and `node()` selections;
-- `xsl:apply-templates`, `xsl:value-of`, `xsl:text`;
-- unnamespaced literal result elements and constant unnamespaced attributes;
-- XML or text output, and XML declaration omission;
-- step, execution-depth, and serialized-output-byte limits.
+- match templates, named templates, global/template parameters, local variables;
+- lexical scope, forward global references, circular-global detection;
+- child/attribute/self/parent/descendant axes, namespaced XPath name tests,
+  wildcards, node/text/comment/PI tests, predicates, union and sequences;
+- arithmetic, comparisons, boolean operators, basic string/node/sequence functions;
+- `apply-templates`, `call-template`, `value-of`, `text`, `for-each`, `if`, `choose`;
+- unnamespaced literal result elements, constant attributes and AVTs;
+- XML/text output, XML declaration omission, and shared execution budgets.
 
-Versions 1.0, 2.0 and 3.0 are accepted as headers only; their complete semantics
-are not implemented. Unsupported expressions, instructions and attributes fail
-at compilation with the implementation-specific code `RUST_XSLT_UNSUPPORTED`.
-No imports, parameters, predicates, copy instructions, namespace result fixup,
-streaming, schema awareness, resource loading or cancellation yet. Empty result
-elements use explicit start/end tags. Unused namespace declarations are omitted.
+Versions 1.0, 2.0 and 3.0 are accepted; complete version semantics are not yet
+implemented. Version 1.0 currently enables first-item value-of/AVT conversion
+and selected backwards-compatible XPath conversions. Numbers currently use
+`f64`; exact decimal/integer types and full atomic type checking remain ahead.
+Bindings with content currently support text only, not temporary result trees.
+Match patterns currently support unprefixed element-name paths and `/` only.
+
+Unsupported constructs are rejected rather than ignored. Implementation gaps
+use `RUST_XSLT_UNSUPPORTED`; syntax/name/function errors use XPath error codes.
+Variable references and named-template calls are checked even in dead branches.
+No imports, copy instructions, result namespace fixup, streaming, schema
+awareness, resource loading, or cancellation yet. Empty result elements use
+explicit start/end tags. Unused namespace declarations are omitted.
 
 Parsing uses `roxmltree` with DTD processing disabled and a one-million-node
 limit. No external resources are opened. Source trees and selected sequences
-are buffered in memory; execution limits are not a hard memory limit. Runtime
-diagnostic source locations and complete W3C error-code fidelity remain future
-work. The default execution depth is conservatively 128; template dispatch uses
-an explicit task stack. Compilation limits literal-result nesting to 128.
+are buffered; execution limits are not a hard memory limit. Runtime diagnostic
+locations and full W3C error-code fidelity remain ahead. Execution defaults to
+128 levels; XPath nesting is capped at 128 even when execution depth is raised.
+Template execution uses an explicit task stack. Compilation limits nested
+instruction bodies and XPath parsing, and caps expression token counts.
 
 Run `cargo test --offline` and `cargo clippy --offline --all-targets -- -D warnings`.
-The lockfile pins the initial dependency set. The catalog fixture is adapted
-from the Go engine tests; license and attribution are in LICENSE and NOTICE.
+The lockfile pins the dependency set. Adapted Go fixtures retain attribution in
+LICENSE and NOTICE. See [PROGRESS.md](PROGRESS.md) for delivered increments.
 
 ## Go reference driver (development only)
 
