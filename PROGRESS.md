@@ -360,5 +360,20 @@ conformance claims. Smaller tested increments are committed independently.
   failures / 144 harness errors / 46 exclusions. All 356 previous passes remain;
   gate expands to 357.
 
-Next: a narrow QT3 development bridge, template result types and further XPath
-function/grammar coverage.
+## Increment 30: internal QT3 development bridge
+
+- Added a pinned, development-only QT3 runner that evaluates expressions through
+  XSLT. Absent/local XML context, named environments and prefixes are supported.
+- Scalar/type/count/string/empty assertions, atomic deep equality, composites
+  and exact errors are checked without silently accepting unsupported assertions.
+  Unsupported setups/assertions remain harness errors; query and assertion scopes
+  are separate, and evaluator failures do not become engine passes.
+- Seven additional harness tests plus six live positive/negative controls pass;
+  25 harness tests total. The 212 Rust tests and 357-case XSLT gate remain green.
+- Selected op-to/op-bang: 182 cases, 111 pass / 69 engine failures / two XQuery-only
+  exclusions; all 14 simple-map cases pass. Recorded a separate 111-case QT3 gate.
+- Node deep equality, general setup/parameters and nondeterministic-query delivery
+  remain explicit harness gaps. No standalone XPath runtime API was introduced.
+
+Next: XPath sequence functions and grammar coverage, template result types, and
+raw XDM sequence collection.

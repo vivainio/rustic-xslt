@@ -57,3 +57,27 @@ secondary-result/message assertions, general parameter expressions and static ca
 parameters, context-item selectors, package/resource/schema environments,
 collations and additional dependency configurations. These appear in reports
 as harness errors. This runner is intended to grow alongside the engine.
+
+## Internal XPath / QT3 checks
+
+A separate partial bridge runs QT3 expressions through development stylesheets;
+this adds no public XPath API. The suite must be clean at
+`201a6e466940cdfc727f4babfedcde5332b9f578`.
+
+```sh
+python3 tools/conformance/qt3.py /path/to/qt3tests --sets op-to,op-bang \
+  --baseline tools/conformance/qt3-baseline.json
+```
+
+The first selection contains 182 cases: 111 pass, 69 engine failures and two
+XQuery-only profile exclusions. All 111 passing cases are recorded in a gate.
+Counts describe this selected development workload, not a conformance rate.
+
+The bridge supports absent/local XML context, named environment references and
+namespace declarations. It handles scalar/type/count/empty/string assertions,
+atomic deep equality, XPath assertions, exact error codes and composite assertions.
+Queries bind their result outside assertion scope, so assertion `$result` cannot
+satisfy a query's undeclared variable. Unsupported assertion expressions, node deep
+equality, setup and dependencies are reported as harness errors. Schema-aware and
+XQuery-only profiles are excluded explicitly. Queries are reevaluated for assertions;
+raw XDM delivery and nondeterministic functions are outside this initial bridge.

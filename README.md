@@ -184,7 +184,9 @@ streamable modes/accumulators and automatic plan selection remain ahead.
 A pinned, partial catalog runner and a 357-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
-are development checks, not a conformance claim. The example JSON-lines driver
+are development checks, not a conformance claim. An initial internal QT3 bridge
+also gates 111 passing range/simple-map cases at the pinned XPath suite revision.
+The example JSON-lines driver
 and its JSON dependency are development-only.
 
 ## Go reference driver (development only)
