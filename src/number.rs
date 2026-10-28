@@ -10,6 +10,7 @@ pub(crate) enum Number {
     Integer(BigInt),
     Decimal(BigDecimal),
     Double(f64),
+    Float(f32),
 }
 fn error(code: &str, message: &str) -> Diagnostic {
     Diagnostic::new(code, message, "run")
@@ -57,11 +58,11 @@ impl Number {
                         s.parse().map_err(|_| invalid())?
                     }
                 };
-                Ok(Self::Double(if kind == "float" {
-                    (n as f32) as f64
+                Ok(if kind == "float" {
+                    Self::Float(n as f32)
                 } else {
-                    n
-                }))
+                    Self::Double(n)
+                })
             }
             "integer" => BigInt::from_str(s)
                 .map(Self::Integer)
@@ -81,6 +82,13 @@ impl Number {
         match self {
             Self::Integer(n) => n.to_string(),
             Self::Decimal(n) => n.normalized().to_plain_string(),
+            Self::Float(n) => {
+                if n.is_finite() && *n != 0.0 {
+                    n.to_string()
+                } else {
+                    Self::Double(*n as f64).string()
+                }
+            }
             Self::Double(n) => {
                 if n.is_nan() {
                     "NaN".into()
@@ -99,6 +107,7 @@ impl Number {
     pub fn double(&self) -> f64 {
         match self {
             Self::Double(n) => *n,
+            Self::Float(n) => *n as f64,
             Self::Integer(n) => n.to_f64().unwrap_or_else(|| {
                 if n < &BigInt::zero() {
                     f64::NEG_INFINITY
@@ -120,6 +129,7 @@ impl Number {
             Self::Integer(n) => !n.is_zero(),
             Self::Decimal(n) => !n.is_zero(),
             Self::Double(n) => *n != 0.0 && !n.is_nan(),
+            Self::Float(n) => *n != 0.0 && !n.is_nan(),
         }
     }
     pub fn negate(&self) -> Self {
@@ -127,12 +137,15 @@ impl Number {
             Self::Integer(n) => Self::Integer(-n),
             Self::Decimal(n) => Self::Decimal(-n),
             Self::Double(n) => Self::Double(-n),
+            Self::Float(n) => Self::Float(-n),
         }
     }
     fn decimal(&self) -> Result<BigDecimal, Diagnostic> {
         match self {
             Self::Integer(n) => Ok(BigDecimal::from(n.clone())),
             Self::Decimal(n) => Ok(n.clone()),
+            Self::Float(n) => BigDecimal::from_f32(*n)
+                .ok_or_else(|| error("FOCA0002", "non-finite number cannot become decimal")),
             Self::Double(n) => BigDecimal::from_f64(*n)
                 .ok_or_else(|| error("FOCA0002", "non-finite number cannot become decimal")),
         }
@@ -145,13 +158,15 @@ impl Number {
             }
             "decimal" => Ok(Self::Decimal(self.decimal()?)),
             "double" => Ok(Self::Double(self.double())),
-            "float" => Ok(Self::Double((self.double() as f32) as f64)),
+            "float" => Ok(Self::Float(self.double() as f32)),
             _ => unreachable!(),
         }
     }
     pub fn compare(&self, other: &Self) -> Option<Ordering> {
         if matches!(self, Self::Double(_)) || matches!(other, Self::Double(_)) {
             self.double().partial_cmp(&other.double())
+        } else if matches!(self, Self::Float(_)) || matches!(other, Self::Float(_)) {
+            (self.double() as f32).partial_cmp(&(other.double() as f32))
         } else {
             Some(self.decimal().ok()?.cmp(&other.decimal().ok()?))
         }
@@ -160,6 +175,17 @@ impl Number {
         if matches!(self, Self::Double(_)) || matches!(rhs, Self::Double(_)) {
             let (a, b) = (self.double(), rhs.double());
             return Ok(Self::Double(match op {
+                "+" => a + b,
+                "-" => a - b,
+                "*" => a * b,
+                "div" => a / b,
+                "mod" => a % b,
+                _ => unreachable!(),
+            }));
+        }
+        if matches!(self, Self::Float(_)) || matches!(rhs, Self::Float(_)) {
+            let (a, b) = (self.double() as f32, rhs.double() as f32);
+            return Ok(Self::Float(match op {
                 "+" => a + b,
                 "-" => a - b,
                 "*" => a * b,

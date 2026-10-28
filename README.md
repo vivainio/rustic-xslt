@@ -32,7 +32,7 @@ Supported so far:
 - lexical scope, forward global references, circular-global detection;
 - child/attribute/self/parent/descendant/ancestor/sibling/following/preceding
   axes, namespace wildcards, named node-kind/PI tests, predicates, union,
-  sequences and lazy if/then/else expressions;
+  sequences, lazy if/then/else, instance-of/treat-as/cast/castable;
 - exact integer/decimal arithmetic, numeric promotion, general/value comparisons,
   basic xs constructors, atomization and string/node/sequence functions;
 - `apply-templates`, `call-template`, `value-of`, `text`, `for-each`, `if`, `choose`;
@@ -52,9 +52,10 @@ and selected backwards-compatible XPath conversions. Integer and decimal literal
 with a 10,000-digit implementation limit; exponent literals use IEEE doubles.
 Non-terminating decimal division currently uses bigdecimal’s default precision
 (100 digits). Full numeric/atomic type coverage and canonical double formatting
-remain ahead. Float constructors currently round to f32 but retain a double
-representation; distinct float type identity remains ahead.
-Bindings with content currently support text only, not temporary result trees.
+remain ahead. Floats and doubles have distinct type identity and numeric-promotion rules.
+Bindings support common atomic/node sequence types and occurrence indicators,
+atomization and function conversion. Select expressions and typed text content
+work; temporary result-tree constructors remain ahead.
 Match patterns support child/attribute paths, namespaces, wildcards, node tests,
 predicates, `/` and union. Descendant patterns and qualified mode/template names
 remain ahead.
@@ -137,7 +138,7 @@ streamable modes/accumulators and automatic plan selection remain ahead.
 
 ## W3C development checks
 
-A pinned, partial catalog runner and a 73-case passing regression gate are in
+A pinned, partial catalog runner and a 77-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. The example JSON-lines driver

@@ -52,6 +52,7 @@ pub(crate) struct Binding {
     pub name: String,
     pub value: Expr,
     pub parameter: bool,
+    pub ty: Option<crate::seqtype::SequenceType>,
 }
 #[derive(Debug)]
 pub(crate) struct Template {
@@ -127,7 +128,11 @@ fn empty(n: Node<'_, '_>) -> Result<(), Diagnostic> {
     Ok(())
 }
 fn binding(n: Node<'_, '_>, parameter: bool) -> Result<Binding, Diagnostic> {
-    attrs(n, &["name", "select"])?;
+    attrs(n, &["name", "select", "as"])?;
+    let ty = n
+        .attribute("as")
+        .map(|s| crate::seqtype::SequenceType::parse(s, &namespaces(n)))
+        .transpose()?;
     let id = required(n, "name")?;
     if !name(id) {
         return Err(error(n, "expected an unprefixed binding name"));
@@ -142,17 +147,30 @@ fn binding(n: Node<'_, '_>, parameter: bool) -> Result<Binding, Diagnostic> {
                 "binding content currently supports text only; use select for values",
             ));
         }
-        Expr::String(
-            n.children()
-                .filter(|c| c.is_text())
-                .filter_map(|c| c.text())
-                .collect(),
-        )
+        let text: String = n
+            .children()
+            .filter(|c| c.is_text())
+            .filter_map(|c| c.text())
+            .collect();
+        if ty.is_some() && xml_space(&text) {
+            Expr::Sequence(vec![])
+        } else if let Some(ty) = &ty {
+            if !ty.atomic() {
+                return Err(error(
+                    n,
+                    "typed text-node construction requires temporary-tree support",
+                ));
+            }
+            Expr::Call("xs:untypedAtomic".into(), vec![Expr::String(text)])
+        } else {
+            Expr::String(text)
+        }
     };
     Ok(Binding {
         name: id.into(),
         value,
         parameter,
+        ty,
     })
 }
 fn avt(n: Node<'_, '_>, value: &str) -> Result<Vec<Expr>, Diagnostic> {
@@ -795,7 +813,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     pending.push(y);
                     pending.push(n);
                 }
-                Expr::Unary(_, e) => pending.push(e),
+                Expr::Unary(_, e) | Expr::TypeOp(_, e, _) => pending.push(e),
                 Expr::Call(_, args) | Expr::Sequence(args) => pending.extend(args),
                 _ => {}
             }

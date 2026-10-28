@@ -244,11 +244,18 @@ fn execute<'a>(
         for b in pending {
             budget.tick()?;
             if let Some(s) = options.parameters.get(&b.name).filter(|_| b.parameter) {
-                globals.insert(b.name.clone(), vec![Item::String(s.clone())]);
+                let mut v = vec![Item::String(s.clone())];
+                if let Some(ty) = &b.ty {
+                    v = ty.convert(v, "XTTE0570")?;
+                }
+                globals.insert(b.name.clone(), v);
                 continue;
             }
             match xpath::eval(&b.value, &root, &globals, budget, 0, sheet.backwards) {
-                Ok(v) => {
+                Ok(mut v) => {
+                    if let Some(ty) = &b.ty {
+                        v = ty.convert(v, "XTTE0570")?;
+                    }
                     globals.insert(b.name.clone(), v);
                 }
                 Err(e) if e.code == "XPST0008" => remaining.push(b),
@@ -295,11 +302,15 @@ fn execute<'a>(
                 }
                 let mut env = (*globals).clone();
                 for p in &t.params {
-                    let v = if let Some(v) = params.remove(&p.name) {
+                    let supplied = params.contains_key(&p.name);
+                    let mut v = if let Some(v) = params.remove(&p.name) {
                         v
                     } else {
                         xpath::eval(&p.value, &focus, &env, budget, 0, sheet.backwards)?
                     };
+                    if let Some(ty) = &p.ty {
+                        v = ty.convert(v, if supplied { "XTTE0590" } else { "XTTE0570" })?;
+                    }
                     env.insert(p.name.clone(), v);
                 }
                 tasks.push(Task::Body(
@@ -374,7 +385,7 @@ fn execute<'a>(
                     continue;
                 };
                 if let Instruction::Bind(b) = instruction {
-                    let value = xpath::eval(
+                    let mut value = xpath::eval(
                         &b.value,
                         &frame.focus,
                         &frame.env,
@@ -382,6 +393,9 @@ fn execute<'a>(
                         0,
                         sheet.backwards,
                     )?;
+                    if let Some(ty) = &b.ty {
+                        value = ty.convert(value, "XTTE0570")?;
+                    }
                     Rc::make_mut(&mut frame.env).insert(b.name.clone(), value);
                     tasks.push(Task::Body(body, i + 1, frame));
                     continue;
@@ -632,10 +646,12 @@ fn execute<'a>(
                             })?;
                         let mut bindings = Variables::new();
                         for p in params {
-                            bindings.insert(
-                                p.name.clone(),
-                                xpath::eval(&p.value, &focus, &env, budget, 0, sheet.backwards)?,
-                            );
+                            let mut v =
+                                xpath::eval(&p.value, &focus, &env, budget, 0, sheet.backwards)?;
+                            if let Some(ty) = &p.ty {
+                                v = ty.convert(v, "XTTE0570")?;
+                            }
+                            bindings.insert(p.name.clone(), v);
                         }
                         tasks.push(Task::Enter(t, focus, bindings, depth + 1, mode));
                     }

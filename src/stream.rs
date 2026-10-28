@@ -105,7 +105,7 @@ fn safe_expression(e: &Expr, global: bool) -> Result<(), Diagnostic> {
                 pending.push(y);
                 pending.push(n);
             }
-            Expr::Unary(_, e) => pending.push(e),
+            Expr::Unary(_, e) | Expr::TypeOp(_, e, _) => pending.push(e),
             Expr::Binary(_, a, b) => {
                 pending.push(a);
                 pending.push(b);

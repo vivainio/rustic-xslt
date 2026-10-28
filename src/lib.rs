@@ -4,6 +4,7 @@ mod number;
 mod pattern;
 mod result;
 mod runtime;
+mod seqtype;
 mod sort;
 mod stream;
 mod whitespace;

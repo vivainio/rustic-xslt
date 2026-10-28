@@ -58,6 +58,7 @@ pub(crate) enum Expr {
     Call(String, Vec<Expr>),
     Sequence(Vec<Expr>),
     If(Box<Expr>, Box<Expr>, Box<Expr>),
+    TypeOp(String, Box<Expr>, crate::seqtype::SequenceType),
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum XNode<'a> {
@@ -304,7 +305,7 @@ fn tokenize(s: &str) -> Result<Vec<Token>, Diagnostic> {
             if matches!(pair.as_str(), "//" | ".." | "!=" | "<=" | ">=" | "::") {
                 out.push(Token::Symbol(pair));
                 i += 2;
-            } else if "/.@[](),$+-*=<>|".contains(c) {
+            } else if "/.@[](),$+-*=<>|?".contains(c) {
                 out.push(Token::Symbol(c.to_string()));
                 i += 1;
             } else {
@@ -392,7 +393,64 @@ impl Parser {
     }
     fn expression_inner(&mut self, minimum: u8) -> Result<Expr, Diagnostic> {
         let mut left = self.primary()?;
+        let mut previous_type = None;
         loop {
+            if let Token::Name(op) = self.peek().clone()
+                && ["instance", "treat", "cast", "castable"].contains(&op.as_str())
+            {
+                let precedence = match op.as_str() {
+                    "instance" => 10,
+                    "treat" => 11,
+                    "castable" => 12,
+                    _ => 13,
+                };
+                if minimum > precedence {
+                    break;
+                }
+                if previous_type.is_some_and(|p| precedence >= p) {
+                    return Err(syntax("invalid ordering or repetition of type operators"));
+                }
+                previous_type = Some(precedence);
+                self.next();
+                let expected = if op == "instance" { "of" } else { "as" };
+                if self.next() != Token::Name(expected.into()) {
+                    return Err(syntax(format!("expected {expected}")));
+                }
+                let Token::Name(mut name) = self.next() else {
+                    return Err(syntax("expected a sequence type"));
+                };
+                if self.eat("(") {
+                    self.expect(")")?;
+                    name.push_str("()");
+                }
+                for suffix in if matches!(op.as_str(), "cast" | "castable") {
+                    &["?"][..]
+                } else {
+                    &["?", "*", "+"][..]
+                } {
+                    if self.eat(suffix) {
+                        name.push_str(suffix);
+                        break;
+                    }
+                }
+                let ty = crate::seqtype::SequenceType::parse(&name, &self.namespaces)?;
+                if matches!(op.as_str(), "cast" | "castable")
+                    && (!ty.atomic()
+                        || matches!(
+                            ty.kind,
+                            crate::seqtype::Kind::Atomic | crate::seqtype::Kind::Numeric
+                        )
+                        || ty.max != 1)
+                {
+                    return Err(Diagnostic::new(
+                        "XPST0080",
+                        "cast target must be a supported concrete atomic type",
+                        "compile",
+                    ));
+                }
+                left = Expr::TypeOp(op, Box::new(left), ty);
+                continue;
+            }
             let (op, prec) = match self.peek() {
                 Token::Symbol(s) if s == "," => (s.clone(), 1),
                 Token::Name(s) if s == "or" => (s.clone(), 2),
@@ -403,7 +461,7 @@ impl Parser {
                 Token::Symbol(s) if ["=", "!=", "<", ">", "<=", ">="].contains(&s.as_str()) => {
                     (s.clone(), 4)
                 }
-                Token::Symbol(s) if s == "|" => (s.clone(), 5),
+                Token::Symbol(s) if s == "|" => (s.clone(), 8),
                 Token::Symbol(s) if s == "+" || s == "-" => (s.clone(), 6),
                 Token::Symbol(s) if s == "*" => (s.clone(), 7),
                 Token::Name(s) if s == "div" || s == "mod" => (s.clone(), 7),
@@ -430,9 +488,9 @@ impl Parser {
     }
     fn primary(&mut self) -> Result<Expr, Diagnostic> {
         let mut e = if self.eat("-") {
-            Expr::Unary(false, Box::new(self.expression(8)?))
+            Expr::Unary(false, Box::new(self.expression(14)?))
         } else if self.eat("+") {
-            Expr::Unary(true, Box::new(self.expression(8)?))
+            Expr::Unary(true, Box::new(self.expression(14)?))
         } else if self.eat("(") {
             if self.eat(")") {
                 Expr::Sequence(vec![])
@@ -447,7 +505,9 @@ impl Parser {
                 _ => return Err(syntax("expected unprefixed variable name")),
             }
         } else if self.eat("/") {
-            if self.step_start() {
+            let type_operator = matches!(self.peek(),Token::Name(n) if ["instance","treat","cast","castable"].contains(&n.as_str()))
+                && matches!(self.tokens.get(self.index+1),Some(Token::Name(n)) if n == "of" || n == "as");
+            if self.step_start() && !type_operator {
                 let step = self.step()?;
                 Expr::Path(Box::new(Expr::Root), vec![step])
             } else {
@@ -824,6 +884,63 @@ pub(crate) fn eval<'a>(
             Item::Absent => return Err(err("XPDY0002", "context item is absent")),
             _ => return Err(err("XPTY0020", "root requires a node context")),
         },
+        Expr::TypeOp(op, e, ty) => {
+            let value = eval(e, focus, vars, budget, depth + 1, backwards)?;
+            match op.as_str() {
+                "instance" => vec![Item::Boolean(ty.matches(&value))],
+                "treat" => {
+                    if !ty.matches(&value) {
+                        return Err(err(
+                            "XPDY0050",
+                            "treat-as value does not match the required type",
+                        ));
+                    }
+                    value
+                }
+                _ => {
+                    let mut cast = || -> Result<Value<'a>, Diagnostic> {
+                        if value.len() < ty.min || value.len() > ty.max {
+                            return Err(err(
+                                "XPTY0004",
+                                "cast requires the declared singleton cardinality",
+                            ));
+                        }
+                        let kind = match ty.kind {
+                            crate::seqtype::Kind::String => "string",
+                            crate::seqtype::Kind::Untyped => "untypedAtomic",
+                            crate::seqtype::Kind::Boolean => "boolean",
+                            crate::seqtype::Kind::Integer => "integer",
+                            crate::seqtype::Kind::Decimal => "decimal",
+                            crate::seqtype::Kind::Float => "float",
+                            crate::seqtype::Kind::Double => "double",
+                            _ => unreachable!(),
+                        };
+                        function(
+                            &format!("xs:{kind}"),
+                            std::slice::from_ref(&value),
+                            focus,
+                            budget,
+                            backwards,
+                        )
+                    };
+                    let result = cast();
+                    if op == "castable" {
+                        match result {
+                            Ok(_) => vec![Item::Boolean(true)],
+                            Err(e)
+                                if ["XPTY0004", "FORG0001", "FOCA0002"]
+                                    .contains(&e.code.as_str()) =>
+                            {
+                                vec![Item::Boolean(false)]
+                            }
+                            Err(e) => return Err(e),
+                        }
+                    } else {
+                        result?
+                    }
+                }
+            }
+        }
         Expr::If(condition, yes, no) => {
             let condition = eval(condition, focus, vars, budget, depth + 1, backwards)?;
             eval(

@@ -115,4 +115,15 @@ conformance claims. Smaller tested increments are committed independently.
   73 pass / 93 engine failures / 21 harness errors / 16 exclusions.
 - All 66 previous passes remain; gate expanded to 73.
 
-Next: binding sequence types, distinct float identity, then temporary trees.
+## Increment 11: sequence types and type operators
+
+- Common atomic/node sequence types, occurrence indicators and binding checks;
+  function conversion atomizes nodes, casts untyped values and promotes numbers.
+- Supplied template parameter mismatches are distinguished from binding errors.
+- Distinct float/double values and promotion, instance-of/treat-as/cast/castable.
+- Corrected type/union/unary operator precedence against the reference grammar.
+- 91 Rust integration tests and Clippy/format pass. Selected W3C cases improve to
+  77 pass / 89 engine failures / 21 harness errors / 16 exclusions.
+- All 73 previous passes remain; gate expanded to 77.
+
+Next: per-run temporary document ownership, node identity and constructor bodies.
