@@ -346,5 +346,19 @@ conformance claims. Smaller tested increments are committed independently.
   356 pass / 177 engine failures / 144 harness errors / 46 exclusions. All 330
   previous passes remain; gate expands to 356.
 
-Next: XPath range/simple-map operators, template result types and broader XPath
-verification through the cached QT3 suite.
+## Increment 29: XPath ranges and simple maps
+
+- Exact integer range bounds support untyped atomization, optional empty values,
+  descending empty ranges and arbitrary precision without double conversion.
+- Range cardinality is checked against the remaining shared execution budget
+  before allocation; generated items and simple-map iterations consume that budget.
+- Simple maps retain order/duplicates and set position/last against their input
+  sequence; empty inputs skip their right operand. Dot now denotes any context
+  item rather than implicitly requiring a node self-axis.
+- Precedence and non-associative range grammar are checked explicitly.
+- 212 Rust integration tests and Clippy/format pass. W3C: 357 pass / 176 engine
+  failures / 144 harness errors / 46 exclusions. All 356 previous passes remain;
+  gate expands to 357.
+
+Next: a narrow QT3 development bridge, template result types and further XPath
+function/grammar coverage.

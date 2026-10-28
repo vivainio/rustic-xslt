@@ -45,7 +45,8 @@ Supported so far:
 - lexical scope, forward global references, circular-global detection;
 - child/attribute/self/parent/descendant/ancestor/sibling/following/preceding
   axes, namespace wildcards, named node-kind/PI tests, predicates, union,
-  sequences, lazy if/then/else, instance-of/treat-as/cast/castable;
+  sequences, budgeted exact integer ranges, focus-aware simple maps (`!`),
+  lazy if/then/else, instance-of/treat-as/cast/castable;
 - exact integer/decimal arithmetic, numeric promotion, general/value comparisons,
   basic xs constructors, atomization and string/node/sequence functions;
 - URIQualifiedNames in component names, variables, node tests/wildcards, supported
@@ -180,7 +181,7 @@ streamable modes/accumulators and automatic plan selection remain ahead.
 
 ## W3C development checks
 
-A pinned, partial catalog runner and a 356-case passing regression gate are in
+A pinned, partial catalog runner and a 357-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. The example JSON-lines driver

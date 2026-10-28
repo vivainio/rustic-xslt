@@ -337,7 +337,7 @@ fn tokenize(s: &str) -> Result<Vec<Token>, Diagnostic> {
             ) {
                 out.push(Token::Symbol(pair));
                 i += 2;
-            } else if "/.@[](),$+-*=<>|?".contains(c) {
+            } else if "/.@[](),$+-*=<>|?!".contains(c) {
                 out.push(Token::Symbol(c.to_string()));
                 i += 1;
             } else {
@@ -434,6 +434,7 @@ impl Parser {
     fn expression_inner(&mut self, minimum: u8) -> Result<Expr, Diagnostic> {
         let mut left = self.primary()?;
         let mut previous_type = None;
+        let mut range_seen = false;
         loop {
             if let Token::Name(op) = self.peek().clone()
                 && ["instance", "treat", "cast", "castable"].contains(&op.as_str())
@@ -504,6 +505,8 @@ impl Parser {
                 {
                     (s.clone(), 4)
                 }
+                Token::Name(s) if s == "to" => (s.clone(), 5),
+                Token::Symbol(s) if s == "!" => (s.clone(), 15),
                 Token::Symbol(s) if s == "|" => (s.clone(), 8),
                 Token::Symbol(s) if s == "+" || s == "-" => (s.clone(), 6),
                 Token::Symbol(s) if s == "*" => (s.clone(), 7),
@@ -514,6 +517,21 @@ impl Parser {
                 break;
             }
             self.next();
+            if op == "to" {
+                if range_seen {
+                    return Err(syntax("range expressions cannot be chained"));
+                }
+                range_seen = true;
+            }
+            if op == "!"
+                && (matches!(self.peek(), Token::Symbol(s) if s == "+" || s == "-")
+                    || matches!(self.peek(), Token::Name(n) if n == "if")
+                        && self.tokens.get(self.index + 1) == Some(&Token::Symbol("(".into())))
+            {
+                return Err(syntax(
+                    "simple-map right operand requires a path expression or parentheses",
+                ));
+            }
             let right = self.expression(prec + 1)?;
             left = if op == "," {
                 match left {
@@ -549,6 +567,8 @@ impl Parser {
                 }
                 _ => return Err(syntax("expected variable QName")),
             }
+        } else if self.eat(".") {
+            Expr::Context
         } else if self.eat("/") {
             let type_operator = matches!(self.peek(),Token::Name(n) if ["instance","treat","cast","castable"].contains(&n.as_str()))
                 && matches!(self.tokens.get(self.index+1),Some(Token::Name(n)) if n == "of" || n == "as");
@@ -1107,6 +1127,30 @@ pub(crate) fn eval<'a>(
         }
         Expr::Binary(op, a, b) => {
             let a = eval(a, focus, vars, budget, depth + 1, backwards)?;
+            if op == "!" {
+                let size = a.len();
+                let mut result = vec![];
+                for (index, item) in a.into_iter().enumerate() {
+                    budget.tick()?;
+                    let mapped = eval(
+                        b,
+                        &Focus {
+                            item,
+                            position: index + 1,
+                            size,
+                        },
+                        vars,
+                        budget,
+                        depth + 1,
+                        backwards,
+                    )?;
+                    for item in mapped {
+                        budget.tick()?;
+                        result.push(item);
+                    }
+                }
+                return Ok(result);
+            }
             if op == "and" && !boolean(&a)? {
                 return Ok(vec![Item::Boolean(false)]);
             }
@@ -1116,6 +1160,44 @@ pub(crate) fn eval<'a>(
             let b = eval(b, focus, vars, budget, depth + 1, backwards)?;
             match op.as_str() {
                 "and" | "or" => vec![Item::Boolean(boolean(&b)?)],
+                "to" => {
+                    fn bound(value: &[Item<'_>]) -> Result<Option<num_bigint::BigInt>, Diagnostic> {
+                        match value {
+                            [] => Ok(None),
+                            [item] => match atomize(item) {
+                                Item::Number(Number::Integer(n)) => Ok(Some(n)),
+                                Item::Untyped(s) => {
+                                    let Number::Integer(n) = Number::cast("integer", &s)? else {
+                                        unreachable!()
+                                    };
+                                    Ok(Some(n))
+                                }
+                                _ => Err(err("XPTY0004", "range bounds must be optional integers")),
+                            },
+                            _ => Err(err("XPTY0004", "range bounds must be optional integers")),
+                        }
+                    }
+                    let (Some(mut start), Some(end)) = (bound(&a)?, bound(&b)?) else {
+                        return Ok(vec![]);
+                    };
+                    if start > end {
+                        return Ok(vec![]);
+                    }
+                    let length = &end - &start + num_bigint::BigInt::from(1u8);
+                    if length > num_bigint::BigInt::from(budget.remaining) {
+                        return Err(err(
+                            "XPDY0130",
+                            "range exceeds the remaining execution budget",
+                        ));
+                    }
+                    let mut items = vec![];
+                    while start <= end {
+                        budget.tick()?;
+                        items.push(Item::Number(Number::Integer(start.clone())));
+                        start += 1;
+                    }
+                    items
+                }
                 "|" => {
                     let nodes = a
                         .into_iter()
