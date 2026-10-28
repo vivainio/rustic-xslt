@@ -1,9 +1,10 @@
+use crate::whitespace::xml_space;
 use crate::{
     Diagnostic, Stylesheet,
     xpath::{self, Expr},
 };
 use roxmltree::Node;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 pub(crate) const XSL: &str = "http://www.w3.org/1999/XSL/Transform";
 
 #[derive(Debug)]
@@ -100,7 +101,14 @@ fn expr(n: Node<'_, '_>, s: &str) -> Result<Expr, Diagnostic> {
     })
 }
 fn attrs(n: Node<'_, '_>, allowed: &[&str]) -> Result<(), Diagnostic> {
+    excluded_uris(n)?;
     for a in n.attributes() {
+        if a.namespace() == Some("http://www.w3.org/XML/1998/namespace") && a.name() == "space" {
+            continue;
+        }
+        if a.namespace().is_none() && a.name() == "exclude-result-prefixes" {
+            continue;
+        }
         if a.namespace().is_some() || !allowed.contains(&a.name()) {
             return Err(error(n, format!("unsupported attribute: {}", a.name())));
         }
@@ -109,7 +117,7 @@ fn attrs(n: Node<'_, '_>, allowed: &[&str]) -> Result<(), Diagnostic> {
 }
 fn empty(n: Node<'_, '_>) -> Result<(), Diagnostic> {
     if n.children()
-        .any(|c| c.is_element() || c.is_text() && !c.text().unwrap_or_default().trim().is_empty())
+        .any(|c| c.is_element() || c.is_text() && !xml_space(c.text().unwrap_or_default()))
     {
         return Err(error(n, "instruction content is unsupported"));
     }
@@ -254,7 +262,7 @@ fn sorts(n: Node<'_, '_>) -> Result<Vec<Sort>, Diagnostic> {
                 descending,
                 case_order: case_order.into(),
             });
-        } else if c.is_element() || c.is_text() && !c.text().unwrap_or_default().trim().is_empty() {
+        } else if c.is_element() || c.is_text() && !xml_space(c.text().unwrap_or_default()) {
             if n.tag_name().name() == "apply-templates" {
                 return Err(error(
                     c,
@@ -265,6 +273,79 @@ fn sorts(n: Node<'_, '_>) -> Result<Vec<Sort>, Diagnostic> {
         }
     }
     Ok(keys)
+}
+fn excluded_uris(n: Node<'_, '_>) -> Result<BTreeSet<String>, Diagnostic> {
+    let mut uris = BTreeSet::new();
+    for ancestor in n.ancestors().filter(|n| n.is_element()) {
+        let value = if ancestor.tag_name().namespace() == Some(XSL) {
+            ancestor.attribute("exclude-result-prefixes")
+        } else {
+            ancestor.attribute((XSL, "exclude-result-prefixes"))
+        };
+        for token in value.unwrap_or("").split_whitespace() {
+            if token == "#all" {
+                uris.extend(ancestor.namespaces().map(|ns| ns.uri().to_owned()));
+            } else {
+                let prefix = if token == "#default" {
+                    None
+                } else {
+                    Some(token)
+                };
+                let uri = ancestor.lookup_namespace_uri(prefix).ok_or_else(|| {
+                    let mut e = error(ancestor, "undeclared exclude-result-prefixes prefix");
+                    e.code = "XTSE0808".into();
+                    e
+                })?;
+                uris.insert(uri.into());
+            }
+        }
+    }
+    Ok(uris)
+}
+fn space_rules(n: Node<'_, '_>, strip: bool) -> Result<Vec<crate::whitespace::Rule>, Diagnostic> {
+    attrs(n, &["elements"])?;
+    empty(n)?;
+    let mut rules = vec![];
+    for token in required(n, "elements")?.split_whitespace() {
+        let (uri, local, specificity) = if token == "*" {
+            (None, None, 0)
+        } else if let Some(prefix) = token.strip_suffix(":*") {
+            let uri = n
+                .lookup_namespace_uri(Some(prefix))
+                .ok_or_else(|| error(n, "unbound whitespace-rule prefix"))?;
+            (Some(uri.into()), None, 1)
+        } else {
+            let e = expr(n, token)?;
+            let Expr::Path(base, steps) = e else {
+                return Err(error(n, "invalid whitespace-rule name"));
+            };
+            if steps.len() != 1
+                || !matches!(*base, Expr::Context)
+                || !matches!(steps[0].axis, xpath::Axis::Child)
+                || !steps[0].predicates.is_empty()
+            {
+                return Err(error(n, "invalid whitespace-rule name"));
+            }
+            let xpath::Test::Name(name) = &steps[0].test else {
+                return Err(error(n, "invalid whitespace-rule name"));
+            };
+            (
+                Some(name.uri.clone().unwrap_or_default()),
+                Some(name.local.clone()),
+                2,
+            )
+        };
+        rules.push(crate::whitespace::Rule {
+            uri,
+            local,
+            specificity,
+            strip,
+        });
+    }
+    if rules.is_empty() {
+        return Err(error(n, "empty whitespace-rule list"));
+    }
+    Ok(rules)
 }
 fn body(
     parent: Node<'_, '_>,
@@ -278,7 +359,13 @@ fn body(
     for n in parent.children() {
         if n.is_text() {
             let t = n.text().unwrap_or_default();
-            if !t.trim().is_empty() {
+            if !xml_space(t)
+                || parent
+                    .ancestors()
+                    .filter_map(|n| n.attribute(("http://www.w3.org/XML/1998/namespace", "space")))
+                    .next()
+                    == Some("preserve")
+            {
                 out.push(Instruction::Text(t.into()));
             }
         } else if n.is_element() {
@@ -393,7 +480,7 @@ fn body(
                         let mut branches = vec![];
                         let mut otherwise = false;
                         for c in n.children() {
-                            if c.is_text() && !c.text().unwrap_or_default().trim().is_empty() {
+                            if c.is_text() && !xml_space(c.text().unwrap_or_default()) {
                                 return Err(error(c, "unexpected text in choose"));
                             }
                             if !c.is_element() {
@@ -434,7 +521,7 @@ fn body(
                         }
                         let mut params = vec![];
                         for c in n.children() {
-                            if c.is_text() && !c.text().unwrap_or_default().trim().is_empty() {
+                            if c.is_text() && !xml_space(c.text().unwrap_or_default()) {
                                 return Err(error(c, "unexpected call-template text"));
                             }
                             if !c.is_element() {
@@ -461,6 +548,9 @@ fn body(
                 let mut attributes = vec![];
                 for a in n.attributes() {
                     if a.namespace() == Some(XSL) {
+                        if a.name() == "exclude-result-prefixes" {
+                            continue;
+                        }
                         return Err(error(n, "unsupported XSLT attribute on literal result"));
                     }
                     attributes.push((
@@ -469,7 +559,10 @@ fn body(
                     ));
                 }
                 let mut element = crate::result::source_element(n, false);
-                element.namespaces.retain(|_, uri| uri != XSL);
+                let excluded = excluded_uris(n)?;
+                element
+                    .namespaces
+                    .retain(|_, uri| uri != XSL && !excluded.contains(uri));
                 out.push(Instruction::Element {
                     element,
                     attributes,
@@ -507,13 +600,14 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
     let mut sheet = Stylesheet {
         templates: vec![],
         globals: vec![],
+        space_rules: vec![],
         omit_declaration: false,
         text_output: false,
         backwards: root.attribute("version") == Some("1.0"),
     };
     let mut output_seen = false;
     for n in root.children() {
-        if n.is_text() && !n.text().unwrap_or_default().trim().is_empty() {
+        if n.is_text() && !xml_space(n.text().unwrap_or_default()) {
             return Err(error(n, "unexpected top-level text"));
         }
         if !n.is_element() {
@@ -523,6 +617,22 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
             return Err(error(n, "unsupported top-level element"));
         }
         match n.tag_name().name() {
+            "strip-space" | "preserve-space" => {
+                let rules = space_rules(n, n.tag_name().name() == "strip-space")?;
+                for rule in &rules {
+                    if sheet.space_rules.iter().any(|r| {
+                        r.specificity == rule.specificity
+                            && r.strip != rule.strip
+                            && r.uri == rule.uri
+                            && r.local == rule.local
+                    }) {
+                        let mut e = error(n, "conflicting whitespace declarations");
+                        e.code = "XTSE0270".into();
+                        return Err(e);
+                    }
+                }
+                sheet.space_rules.extend(rules);
+            }
             "param" | "variable" => {
                 let b = binding(n, n.tag_name().name() == "param")?;
                 if sheet.globals.iter().any(|g| g.name == b.name) {
@@ -561,7 +671,7 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
                         }
                         params.push(b);
                     } else if c.is_element()
-                        || c.is_text() && !c.text().unwrap_or_default().trim().is_empty()
+                        || c.is_text() && !xml_space(c.text().unwrap_or_default())
                     {
                         content = true;
                     }
@@ -601,7 +711,30 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
                 });
             }
             "output" => {
-                attrs(n, &["method", "omit-xml-declaration"])?;
+                attrs(
+                    n,
+                    &[
+                        "method",
+                        "omit-xml-declaration",
+                        "encoding",
+                        "indent",
+                        "version",
+                    ],
+                )?;
+                if n.attribute("encoding")
+                    .is_some_and(|s| !s.eq_ignore_ascii_case("UTF-8"))
+                {
+                    return Err(error(
+                        n,
+                        "only UTF-8 output encoding is currently supported",
+                    ));
+                }
+                if n.attribute("indent").is_some_and(|s| s != "no") {
+                    return Err(error(n, "indentation is not implemented yet"));
+                }
+                if n.attribute("version").is_some_and(|s| s != "1.0") {
+                    return Err(error(n, "only XML 1.0 output is currently supported"));
+                }
                 empty(n)?;
                 if output_seen {
                     return Err(error(n, "multiple xsl:output declarations are unsupported"));

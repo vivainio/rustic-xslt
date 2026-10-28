@@ -5,6 +5,7 @@ mod result;
 mod runtime;
 mod sort;
 mod stream;
+mod whitespace;
 mod xpath;
 pub use stream::{StreamOptions, StreamStats};
 
@@ -75,6 +76,7 @@ pub struct Stylesheet {
     text_output: bool,
     backwards: bool,
     globals: Vec<compile::Binding>,
+    space_rules: Vec<whitespace::Rule>,
 }
 impl Stylesheet {
     pub fn compile(source: &str) -> Result<Self, Diagnostic> {

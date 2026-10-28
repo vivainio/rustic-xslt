@@ -181,6 +181,8 @@ pub(crate) fn transform(
     source: &str,
     options: &TransformOptions,
 ) -> Result<String, Diagnostic> {
+    let prepared = crate::whitespace::prepare(sheet, source, false)?;
+    let source = prepared.as_deref().unwrap_or(source);
     let absent = source.is_empty() && options.initial_template.is_some();
     let doc = crate::parse(if absent { "<_absent/>" } else { source }, "parse")?;
     let root = Focus {
@@ -200,7 +202,10 @@ pub(crate) fn transform_record(
     options: &TransformOptions,
     budget: &mut Budget,
     position: usize,
+    inherited_preserve: bool,
 ) -> Result<String, Diagnostic> {
+    let prepared = crate::whitespace::prepare(sheet, source, inherited_preserve)?;
+    let source = prepared.as_deref().unwrap_or(source);
     let doc = crate::parse(source, "parse")?;
     let root = Focus {
         item: Item::Node(XNode::Tree(doc.root_element())),

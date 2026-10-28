@@ -7,6 +7,10 @@
     ],
     [
       "choose",
+      "choose-0102"
+    ],
+    [
+      "choose",
       "choose-0201"
     ],
     [
@@ -48,6 +52,10 @@
     [
       "choose",
       "choose-0603"
+    ],
+    [
+      "choose",
+      "choose-0604"
     ],
     [
       "choose",
@@ -131,7 +139,19 @@
     ],
     [
       "copy",
+      "copy-1501"
+    ],
+    [
+      "copy",
+      "copy-1701"
+    ],
+    [
+      "copy",
       "copy-1801"
+    ],
+    [
+      "copy",
+      "copy-2001"
     ],
     [
       "copy",
@@ -155,6 +175,10 @@
     ],
     [
       "copy",
+      "copy-2901"
+    ],
+    [
+      "copy",
       "copy-3001"
     ],
     [
@@ -167,11 +191,43 @@
     ],
     [
       "copy",
+      "copy-3301"
+    ],
+    [
+      "copy",
+      "copy-3302"
+    ],
+    [
+      "copy",
       "copy-3401"
     ],
     [
       "copy",
+      "copy-3701"
+    ],
+    [
+      "copy",
+      "copy-3801"
+    ],
+    [
+      "copy",
+      "copy-3901"
+    ],
+    [
+      "copy",
+      "copy-4001"
+    ],
+    [
+      "copy",
       "copy-4502"
+    ],
+    [
+      "copy",
+      "copy-4701"
+    ],
+    [
+      "copy",
+      "copy-4702"
     ]
   ]
 }

@@ -64,5 +64,17 @@ conformance claims. Smaller tested increments are committed independently.
   correctly diagnose absent focus rather than seeing a fabricated source tree.
 - 58 Rust integration tests, seven runner tests, format and Clippy pass.
 
-Next: address suite-reported namespace exclusions, whitespace declarations and
-serialization settings while preserving the passing-case gate.
+## Increment 7: namespace exclusions and whitespace declarations
+
+- Namespace exclusions resolve against each declaring scope; #all is a snapshot,
+  and required result-name bindings survive exclusion.
+- Source strip/preserve rules with specificity and inherited xml:space; text,
+  CDATA and character references are stripped as one logical text node.
+- Streamed records inherit xml:space for stripping without injected attributes.
+- Explicit UTF-8, XML 1.0 and indent=no output settings are accepted; other
+  encodings and indentation remain explicit gaps.
+- 67 Rust integration tests, seven harness tests and Clippy/format pass.
+- The same 203 W3C cases now have 57 passes, 78 engine failures, 52 harness
+  errors and 16 exclusions. All 43 previous passes remain; gate expanded to 57.
+
+Next: richer XPath axes and node tests, then more suite-driven language support.

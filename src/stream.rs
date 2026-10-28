@@ -343,10 +343,16 @@ fn complete_start(
     }
     Ok(complete)
 }
+struct StartInfo {
+    name: Name,
+    namespaces: BTreeMap<String, String>,
+    complete: BytesStart<'static>,
+    preserve: Option<bool>,
+}
 fn validate_start(
     start: &BytesStart<'_>,
     inherited: &BTreeMap<String, String>,
-) -> Result<(Name, BTreeMap<String, String>, BytesStart<'static>), Diagnostic> {
+) -> Result<StartInfo, Diagnostic> {
     let complete = complete_start(start, inherited)?;
     let mut writer = Writer::new(Vec::new());
     writer
@@ -364,7 +370,15 @@ fn validate_start(
         .namespaces()
         .map(|ns| (ns.name().unwrap_or("").into(), ns.uri().into()))
         .collect();
-    Ok((name, namespaces, complete))
+    let preserve = root
+        .attribute(("http://www.w3.org/XML/1998/namespace", "space"))
+        .map(|s| s == "preserve");
+    Ok(StartInfo {
+        name,
+        namespaces,
+        complete,
+        preserve,
+    })
 }
 fn validate_leaf(event: &Event<'_>) -> Result<(), Diagnostic> {
     let mut writer = Writer::new(Vec::new());
@@ -407,10 +421,11 @@ pub(crate) fn transform<R: BufRead, W: Write>(
         max: options.max_event_bytes,
     });
     reader.config_mut().check_comments = true;
-    let mut stack: Vec<(Name, BTreeMap<String, String>)> = vec![];
+    let mut stack: Vec<(Name, BTreeMap<String, String>, bool)> = vec![];
     let mut event_buffer = vec![];
     let mut record: Option<Writer<RecordBuffer>> = None;
     let mut stats = StreamStats::default();
+    let mut record_preserve = false;
     let mut roots = 0;
     let mut declaration = false;
     if !sheet.text_output && !sheet.omit_declaration {
@@ -443,12 +458,23 @@ pub(crate) fn transform<R: BufRead, W: Write>(
                 if stack.len() >= options.max_input_depth {
                     return Err(limit("input XML depth limit exceeded"));
                 }
-                let inherited = stack.last().map(|(_, ns)| ns.clone()).unwrap_or_default();
-                let (name, namespaces, complete) = validate_start(start, &inherited)?;
+                let inherited = stack
+                    .last()
+                    .map(|(_, ns, _)| ns.clone())
+                    .unwrap_or_default();
+                let inherited_preserve = stack.last().is_some_and(|(_, _, p)| *p);
+                let StartInfo {
+                    name,
+                    namespaces,
+                    complete,
+                    preserve,
+                } = validate_start(start, &inherited)?;
+                let preserve = preserve.unwrap_or(inherited_preserve);
                 let selected = stack.len() + 1 == path.len()
-                    && stack.iter().zip(&path).all(|((n, _), p)| n == p)
+                    && stack.iter().zip(&path).all(|((n, _, _), p)| n == p)
                     && path.last() == Some(&name);
                 if selected {
+                    record_preserve = inherited_preserve;
                     record = Some(Writer::new(RecordBuffer {
                         bytes: vec![],
                         max: options.max_record_bytes,
@@ -470,7 +496,7 @@ pub(crate) fn transform<R: BufRead, W: Write>(
                 }
                 stats.peak_input_depth = stats.peak_input_depth.max(stack.len() + 1);
                 if matches!(event, Event::Start(_)) {
-                    stack.push((name, namespaces));
+                    stack.push((name, namespaces, preserve));
                 }
             }
             Event::End(_) => {
@@ -545,8 +571,14 @@ pub(crate) fn transform<R: BufRead, W: Write>(
                     ..options.limits
                 },
             };
-            let text =
-                runtime::transform_record(sheet, xml, &transform, &mut budget, stats.records + 1)?;
+            let text = runtime::transform_record(
+                sheet,
+                xml,
+                &transform,
+                &mut budget,
+                stats.records + 1,
+                record_preserve,
+            )?;
             write_output(
                 output,
                 text.as_bytes(),

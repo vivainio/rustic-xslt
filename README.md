@@ -39,7 +39,10 @@ Supported so far:
   construction, and value separators;
 - stable multi-key sorting for for-each/apply-templates with numeric/text keys,
   static ascending/descending order and case-order;
-- XML/text output, XML declaration omission, and shared execution budgets.
+- source strip-space/preserve-space rules, inherited xml:space, and namespace
+  exclusions resolved at the declaring scope;
+- UTF-8 XML/text output, explicit indent="no", XML declaration omission, and
+  shared execution budgets.
 
 Versions 1.0, 2.0 and 3.0 are accepted; complete version semantics are not yet
 implemented. Version 1.0 currently enables first-item value-of/AVT conversion
@@ -55,8 +58,9 @@ use `RUST_XSLT_UNSUPPORTED`; syntax/name/function errors use XPath error codes.
 Variable references and named-template calls are checked even in dead branches.
 No imports, schema awareness,
 resource loading, or cancellation yet. Record streaming is described below. Empty result elements use
-explicit start/end tags. Literal results preserve in-scope non-XSLT namespaces; exclude-result-prefixes
-is not implemented yet.
+explicit start/end tags. Literal results preserve in-scope non-XSLT namespaces except declared exclusions;
+required element/attribute namespace bindings are always retained. XML indentation
+and non-UTF-8 output remain unsupported.
 
 Parsing uses `roxmltree` with DTD processing disabled and a one-million-node
 limit. No external resources are opened. Source trees and selected sequences
@@ -127,7 +131,7 @@ streamable modes/accumulators and automatic plan selection remain ahead.
 
 ## W3C development checks
 
-A pinned, partial catalog runner and a 43-case passing regression gate are in
+A pinned, partial catalog runner and a 57-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. The example JSON-lines driver
