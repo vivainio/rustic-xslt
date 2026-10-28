@@ -9,20 +9,42 @@ pub(crate) const XSL: &str = "http://www.w3.org/1999/XSL/Transform";
 #[derive(Debug)]
 pub(crate) enum Instruction {
     Text(String),
-    Value(Expr),
-    Apply(Expr, String),
+    Value(Expr, Option<Vec<Expr>>),
+    Apply(Expr, String, Vec<Sort>),
     Copy(Vec<Instruction>),
     CopyOf(Expr),
+    ComputedElement(ComputedName, Vec<Instruction>),
+    Attribute(ComputedName, Content),
+    Comment(Content),
+    Pi(Vec<Expr>, Content),
     Element {
         element: crate::result::Element,
         attributes: Vec<(crate::result::Name, Vec<Expr>)>,
         body: Vec<Instruction>,
     },
-    ForEach(Expr, Vec<Instruction>),
+    ForEach(Expr, Vec<Sort>, Vec<Instruction>),
     If(Expr, Vec<Instruction>),
     Choose(Vec<(Option<Expr>, Vec<Instruction>)>),
     Bind(Binding),
     Call(String, Vec<Binding>),
+}
+#[derive(Debug)]
+pub(crate) struct Sort {
+    pub select: Expr,
+    pub numeric: bool,
+    pub descending: bool,
+    pub case_order: String,
+}
+#[derive(Debug)]
+pub(crate) struct ComputedName {
+    pub parts: Vec<Expr>,
+    pub namespace: Option<Vec<Expr>>,
+    pub bindings: BTreeMap<String, String>,
+}
+#[derive(Debug)]
+pub(crate) enum Content {
+    Select(Expr, Vec<Expr>),
+    Body(Vec<Instruction>),
 }
 #[derive(Debug)]
 pub(crate) struct Binding {
@@ -175,6 +197,75 @@ fn avt(n: Node<'_, '_>, value: &str) -> Result<Vec<Expr>, Diagnostic> {
     }
     Ok(parts)
 }
+fn computed_name(n: Node<'_, '_>) -> Result<ComputedName, Diagnostic> {
+    let mut bindings = namespaces(n);
+    if let Some(uri) = n.lookup_namespace_uri(None) {
+        bindings.insert(String::new(), uri.into());
+    }
+    Ok(ComputedName {
+        parts: avt(n, required(n, "name")?)?,
+        namespace: n.attribute("namespace").map(|s| avt(n, s)).transpose()?,
+        bindings,
+    })
+}
+fn content(n: Node<'_, '_>, depth: usize) -> Result<Content, Diagnostic> {
+    let separator = avt(n, n.attribute("separator").unwrap_or(" "))?;
+    if let Some(s) = n.attribute("select") {
+        empty(n)?;
+        Ok(Content::Select(expr(n, s)?, separator))
+    } else {
+        if n.attribute("separator").is_some() {
+            return Err(error(
+                n,
+                "separator with a sequence-constructor body is not implemented",
+            ));
+        }
+        Ok(Content::Body(body(n, depth, false)?))
+    }
+}
+fn sorts(n: Node<'_, '_>) -> Result<Vec<Sort>, Diagnostic> {
+    let mut keys = vec![];
+    let mut content = false;
+    for c in n.children() {
+        if c.is_element() && c.tag_name().namespace() == Some(XSL) && c.tag_name().name() == "sort"
+        {
+            if content {
+                return Err(error(c, "sort keys must precede the instruction body"));
+            }
+            attrs(c, &["select", "data-type", "order", "case-order"])?;
+            empty(c)?;
+            let numeric = match c.attribute("data-type").unwrap_or("text") {
+                "text" => false,
+                "number" => true,
+                _ => return Err(error(c, "unsupported sort data-type")),
+            };
+            let descending = match c.attribute("order").unwrap_or("ascending") {
+                "ascending" => false,
+                "descending" => true,
+                _ => return Err(error(c, "unsupported sort order")),
+            };
+            let case_order = c.attribute("case-order").unwrap_or("");
+            if !["", "upper-first", "lower-first"].contains(&case_order) {
+                return Err(error(c, "unsupported case-order"));
+            }
+            keys.push(Sort {
+                select: expr(c, c.attribute("select").unwrap_or("."))?,
+                numeric,
+                descending,
+                case_order: case_order.into(),
+            });
+        } else if c.is_element() || c.is_text() && !c.text().unwrap_or_default().trim().is_empty() {
+            if n.tag_name().name() == "apply-templates" {
+                return Err(error(
+                    c,
+                    "apply-templates content currently supports sort keys only",
+                ));
+            }
+            content = true;
+        }
+    }
+    Ok(keys)
+}
 fn body(
     parent: Node<'_, '_>,
     depth: usize,
@@ -212,10 +303,15 @@ fn body(
                             if n.tag_name().name() == "apply-templates" {
                                 &["select", "mode"]
                             } else {
-                                &["select"]
+                                &["select", "separator"]
                             },
                         )?;
-                        empty(n)?;
+                        let sorts = if n.tag_name().name() == "apply-templates" {
+                            sorts(n)?
+                        } else {
+                            empty(n)?;
+                            vec![]
+                        };
                         let value = if let Some(s) = n.attribute("select") {
                             expr(n, s)?
                         } else if n.tag_name().name() == "apply-templates" {
@@ -224,13 +320,48 @@ fn body(
                             return Err(error(n, "value-of requires select"));
                         };
                         out.push(if n.tag_name().name() == "value-of" {
-                            Instruction::Value(value)
+                            Instruction::Value(
+                                value,
+                                n.attribute("separator").map(|s| avt(n, s)).transpose()?,
+                            )
                         } else {
                             Instruction::Apply(
                                 value,
                                 mode(n, n.attribute("mode").unwrap_or("#default"), true)?,
+                                sorts,
                             )
                         });
+                    }
+                    "sort"
+                        if parent.tag_name().namespace() == Some(XSL)
+                            && parent.tag_name().name() == "for-each" =>
+                    {
+                        continue;
+                    }
+                    "element" => {
+                        attrs(n, &["name", "namespace"])?;
+                        out.push(Instruction::ComputedElement(
+                            computed_name(n)?,
+                            body(n, depth + 1, false)?,
+                        ));
+                    }
+                    "attribute" => {
+                        attrs(n, &["name", "namespace", "select", "separator"])?;
+                        out.push(Instruction::Attribute(
+                            computed_name(n)?,
+                            content(n, depth + 1)?,
+                        ));
+                    }
+                    "comment" => {
+                        attrs(n, &["select", "separator"])?;
+                        out.push(Instruction::Comment(content(n, depth + 1)?));
+                    }
+                    "processing-instruction" => {
+                        attrs(n, &["name", "select", "separator"])?;
+                        out.push(Instruction::Pi(
+                            avt(n, required(n, "name")?)?,
+                            content(n, depth + 1)?,
+                        ));
                     }
                     "copy" => {
                         attrs(n, &[])?;
@@ -246,6 +377,7 @@ fn body(
                         attrs(n, &["select"])?;
                         out.push(Instruction::ForEach(
                             expr(n, required(n, "select")?)?,
+                            sorts(n)?,
                             body(n, depth + 1, false)?,
                         ));
                     }
@@ -534,10 +666,54 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
         mut scope: Scope,
         templates: &Scope,
     ) -> Result<(), Diagnostic> {
+        fn parts(es: &[Expr], scope: &Scope) -> Result<(), Diagnostic> {
+            for e in es {
+                expression(e, scope)?;
+            }
+            Ok(())
+        }
+        fn cname(n: &ComputedName, scope: &Scope) -> Result<(), Diagnostic> {
+            parts(&n.parts, scope)?;
+            if let Some(es) = &n.namespace {
+                parts(es, scope)?;
+            }
+            Ok(())
+        }
+        fn value(c: &Content, scope: &Scope, templates: &Scope) -> Result<(), Diagnostic> {
+            match c {
+                Content::Select(e, sep) => {
+                    expression(e, scope)?;
+                    parts(sep, scope)
+                }
+                Content::Body(body) => instructions(body, scope.clone(), templates),
+            }
+        }
         for i in body {
             match i {
+                Instruction::Value(_, Some(es)) => parts(es, &scope)?,
+                Instruction::Apply(_, _, keys) | Instruction::ForEach(_, keys, _) => {
+                    for k in keys {
+                        expression(&k.select, &scope)?;
+                    }
+                }
+                _ => {}
+            }
+            match i {
+                Instruction::ComputedElement(n, body) => {
+                    cname(n, &scope)?;
+                    instructions(body, scope.clone(), templates)?;
+                }
+                Instruction::Attribute(n, c) => {
+                    cname(n, &scope)?;
+                    value(c, &scope, templates)?;
+                }
+                Instruction::Comment(c) => value(c, &scope, templates)?,
+                Instruction::Pi(n, c) => {
+                    parts(n, &scope)?;
+                    value(c, &scope, templates)?;
+                }
                 Instruction::Text(_) => {}
-                Instruction::Value(e) | Instruction::Apply(e, _) | Instruction::CopyOf(e) => {
+                Instruction::Value(e, _) | Instruction::Apply(e, _, _) | Instruction::CopyOf(e) => {
                     expression(e, &scope)?
                 }
                 Instruction::Bind(b) => {
@@ -555,7 +731,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     instructions(body, scope.clone(), templates)?;
                 }
                 Instruction::Copy(body) => instructions(body, scope.clone(), templates)?,
-                Instruction::ForEach(e, body) | Instruction::If(e, body) => {
+                Instruction::ForEach(e, _, body) | Instruction::If(e, body) => {
                     expression(e, &scope)?;
                     instructions(body, scope.clone(), templates)?;
                 }

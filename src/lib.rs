@@ -3,6 +3,7 @@ mod compile;
 mod pattern;
 mod result;
 mod runtime;
+mod sort;
 mod stream;
 mod xpath;
 pub use stream::{StreamOptions, StreamStats};

@@ -42,4 +42,15 @@ conformance claims. Smaller tested increments are committed independently.
 - Streamed record-local template dispatch; unsafe match shapes are rejected.
 - 45 integration tests pass; format and Clippy checks pass.
 
-Next: computed elements/attributes, sorting and richer XPath axes/functions.
+## Increment 5: computed nodes and stable sorting
+
+- Computed element/attribute QNames, namespace resolution and dynamic errors;
+  body/select content, value separators and sanitized comment/PI construction.
+- Explicit-stack string-content capture and shared output/execution limits.
+- Stable, budgeted multi-key mergesort; original sort-key focus and sorted
+  iteration focus, numeric NaN ordering and static text case-order.
+- Streaming checks cover computed-name/content expressions and all sort keys.
+- 57 integration tests pass; format and Clippy pass.
+
+Next: a pinned W3C catalog runner, with explicit unsupported/assertion reporting,
+to guide further semantics work independently of the Go implementation.

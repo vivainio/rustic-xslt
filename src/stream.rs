@@ -2,7 +2,7 @@
 //! approach. This is an explicit record API, not an XSLT streamability claim.
 use crate::{
     Diagnostic, Stylesheet, TransformOptions,
-    compile::Instruction,
+    compile::{ComputedName, Content, Instruction},
     runtime,
     xpath::{self, Axis, Budget, Expr, Name, Test},
 };
@@ -115,6 +115,29 @@ fn safe_expression(e: &Expr, global: bool) -> Result<(), Diagnostic> {
     }
     Ok(())
 }
+fn safe_name(n: &ComputedName) -> Result<(), Diagnostic> {
+    for e in &n.parts {
+        safe_expression(e, false)?;
+    }
+    if let Some(es) = &n.namespace {
+        for e in es {
+            safe_expression(e, false)?;
+        }
+    }
+    Ok(())
+}
+fn safe_content<'a>(c: &'a Content, bodies: &mut Vec<&'a [Instruction]>) -> Result<(), Diagnostic> {
+    match c {
+        Content::Select(e, sep) => {
+            safe_expression(e, false)?;
+            for e in sep {
+                safe_expression(e, false)?;
+            }
+        }
+        Content::Body(body) => bodies.push(body),
+    };
+    Ok(())
+}
 fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Diagnostic> {
     let path = xpath::parse(&options.record_path, options.namespaces.clone())?;
     let Expr::Path(base, steps) = path else {
@@ -158,11 +181,39 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
         while let Some(body) = bodies.pop() {
             for i in body {
                 match i {
+                    Instruction::Value(_, Some(parts)) => {
+                        for e in parts {
+                            safe_expression(e, false)?;
+                        }
+                    }
+                    Instruction::Apply(_, _, keys) | Instruction::ForEach(_, keys, _) => {
+                        for key in keys {
+                            safe_expression(&key.select, false)?;
+                        }
+                    }
+                    _ => {}
+                }
+                match i {
+                    Instruction::ComputedElement(n, body) => {
+                        safe_name(n)?;
+                        bodies.push(body);
+                    }
+                    Instruction::Attribute(n, c) => {
+                        safe_name(n)?;
+                        safe_content(c, &mut bodies)?;
+                    }
+                    Instruction::Comment(c) => safe_content(c, &mut bodies)?,
+                    Instruction::Pi(parts, c) => {
+                        for e in parts {
+                            safe_expression(e, false)?;
+                        }
+                        safe_content(c, &mut bodies)?;
+                    }
                     Instruction::Text(_) => {}
-                    Instruction::Value(e) | Instruction::CopyOf(e) => safe_expression(e, false)?,
+                    Instruction::Value(e, _) | Instruction::CopyOf(e) => safe_expression(e, false)?,
                     Instruction::Copy(body) => bodies.push(body),
                     Instruction::Bind(b) => safe_expression(&b.value, false)?,
-                    Instruction::Apply(e, _) => {
+                    Instruction::Apply(e, _, _) => {
                         safe_expression(e, false)?;
                         for template in &sheet.templates {
                             if let Some(branches) = &template.pattern {
@@ -190,7 +241,7 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                         }
                         bodies.push(body);
                     }
-                    Instruction::ForEach(e, body) | Instruction::If(e, body) => {
+                    Instruction::ForEach(e, _, body) | Instruction::If(e, body) => {
                         safe_expression(e, false)?;
                         bodies.push(body);
                     }

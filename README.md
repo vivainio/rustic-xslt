@@ -35,7 +35,10 @@ Supported so far:
 - arithmetic, comparisons, boolean operators, basic string/node/sequence functions;
 - `apply-templates`, `call-template`, `value-of`, `text`, `for-each`, `if`, `choose`;
 - namespace-aware literal results, constant attributes, AVTs and namespace fixup;
-- shallow `copy`, deep `copy-of`, comments and processing-instruction copying;
+- shallow `copy`, deep `copy-of`, computed elements/attributes, comment/PI
+  construction, and value separators;
+- stable multi-key sorting for for-each/apply-templates with numeric/text keys,
+  static ascending/descending order and case-order;
 - XML/text output, XML declaration omission, and shared execution budgets.
 
 Versions 1.0, 2.0 and 3.0 are accepted; complete version semantics are not yet
@@ -50,7 +53,7 @@ remain ahead.
 Unsupported constructs are rejected rather than ignored. Implementation gaps
 use `RUST_XSLT_UNSUPPORTED`; syntax/name/function errors use XPath error codes.
 Variable references and named-template calls are checked even in dead branches.
-No imports, computed nodes, sorting, schema awareness,
+No imports, schema awareness,
 resource loading, or cancellation yet. Record streaming is described below. Empty result elements use
 explicit start/end tags. Literal results preserve in-scope non-XSLT namespaces; exclude-result-prefixes
 is not implemented yet.
@@ -60,7 +63,10 @@ limit. No external resources are opened. Source trees and selected sequences
 are buffered; execution limits are not a hard memory limit. Runtime diagnostic
 locations and full W3C error-code fidelity remain ahead. Execution defaults to
 128 levels; XPath nesting is capped at 128 even when execution depth is raised.
-Template execution uses an explicit task stack. Compilation limits nested
+Template execution and result-content capture use an explicit task stack.
+Computed QName validation currently accepts letters, digits, underscore, hyphen
+and dot, rather than the full XML name-character tables. Sort settings are
+static; locale collations and sort-setting AVTs remain ahead. Compilation limits nested
 instruction bodies and XPath parsing, and caps expression token counts.
 
 Run `cargo test --offline` and `cargo clippy --offline --all-targets -- -D warnings`.

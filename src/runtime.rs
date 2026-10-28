@@ -1,6 +1,6 @@
 use crate::{
     Diagnostic, Stylesheet, TransformOptions,
-    compile::{Instruction, Template},
+    compile::{ComputedName, Content, Instruction, Template},
     result::{self, Output},
     xpath::{self, Budget, Focus, Item, Value, Variables, XNode},
 };
@@ -22,6 +22,147 @@ enum Task<'a> {
     DeepCopy(XNode<'a>, usize),
     Atomic(String),
     Close,
+    FinishCapture(Capture, Output),
+}
+enum Capture {
+    Attribute(result::Name),
+    Comment,
+    Pi(String),
+}
+fn parts(
+    parts: &[xpath::Expr],
+    focus: &Focus<'_>,
+    env: &Variables<'_>,
+    budget: &mut Budget,
+    backwards: bool,
+) -> Result<String, Diagnostic> {
+    let mut text = String::new();
+    for e in parts {
+        let mut v = xpath::eval(e, focus, env, budget, 0, backwards)?;
+        if backwards {
+            v.truncate(1);
+        }
+        text.push_str(&xpath::string(&v, " "));
+    }
+    Ok(text)
+}
+fn ncname(s: &str) -> bool {
+    let mut chars = s.chars();
+    chars.next().is_some_and(|c| c.is_alphabetic() || c == '_')
+        && chars.all(|c| c.is_alphanumeric() || matches!(c, '_' | '-' | '.'))
+}
+fn computed_name(
+    n: &ComputedName,
+    attribute: bool,
+    frame: &Frame<'_>,
+    budget: &mut Budget,
+    backwards: bool,
+) -> Result<result::Name, Diagnostic> {
+    let text = parts(&n.parts, &frame.focus, &frame.env, budget, backwards)?;
+    let text = text.trim();
+    let fields: Vec<_> = text.split(':').collect();
+    let code = if attribute { "XTDE0850" } else { "XTDE0820" };
+    if fields.len() > 2 || fields.iter().any(|s| !ncname(s)) {
+        return Err(Diagnostic::new(
+            code,
+            "computed name is not a supported lexical QName",
+            "run",
+        ));
+    }
+    let (mut prefix, local) = if fields.len() == 2 {
+        (fields[0].to_owned(), fields[1])
+    } else {
+        (String::new(), fields[0])
+    };
+    let uri = if let Some(es) = &n.namespace {
+        parts(es, &frame.focus, &frame.env, budget, backwards)?
+    } else if !prefix.is_empty() {
+        n.bindings.get(&prefix).cloned().ok_or_else(|| {
+            Diagnostic::new(
+                if attribute { "XTDE0860" } else { "XTDE0830" },
+                "unbound computed-name prefix",
+                "run",
+            )
+        })?
+    } else if attribute {
+        String::new()
+    } else {
+        n.bindings.get("").cloned().unwrap_or_default()
+    };
+    if uri == "http://www.w3.org/2000/xmlns/"
+        || prefix == "xml" && uri != "http://www.w3.org/XML/1998/namespace"
+    {
+        return Err(Diagnostic::new(
+            if attribute { "XTDE0865" } else { "XTDE0835" },
+            "reserved computed namespace",
+            "run",
+        ));
+    }
+    if attribute && text == "xmlns" && n.namespace.is_none() {
+        return Err(Diagnostic::new(
+            "XTDE0855",
+            "cannot create an xmlns attribute",
+            "run",
+        ));
+    }
+    if prefix == "xmlns" {
+        prefix = "ns".into();
+    }
+    if uri.is_empty() {
+        prefix.clear();
+    }
+    if uri == "http://www.w3.org/XML/1998/namespace" {
+        prefix = "xml".into();
+    }
+    Ok(result::Name {
+        qname: if prefix.is_empty() {
+            local.into()
+        } else {
+            format!("{prefix}:{local}")
+        },
+        local: local.into(),
+        uri: if uri.is_empty() { None } else { Some(uri) },
+    })
+}
+fn finish_capture(kind: Capture, value: String, output: &mut Output) -> Result<(), Diagnostic> {
+    match kind {
+        Capture::Attribute(name) => output.attribute(name, value),
+        Capture::Comment => {
+            let mut value = value.replace("--", "- -");
+            while value.contains("--") {
+                value = value.replace("--", "- -");
+            }
+            if value.ends_with('-') {
+                value.push(' ');
+            }
+            output.comment(&value)
+        }
+        Capture::Pi(name) => output.pi(&name, &value.replace("?>", "? >")),
+    }
+}
+fn capture<'a>(
+    content: &'a Content,
+    kind: Capture,
+    frame: Frame<'a>,
+    sheet: &Stylesheet,
+    budget: &mut Budget,
+    output: &mut Output,
+    tasks: &mut Vec<Task<'a>>,
+) -> Result<(), Diagnostic> {
+    match content {
+        Content::Select(e, sep) => {
+            let v = xpath::eval(e, &frame.focus, &frame.env, budget, 0, sheet.backwards)?;
+            let sep = parts(sep, &frame.focus, &frame.env, budget, sheet.backwards)?;
+            finish_capture(kind, xpath::string(&v, &sep), output)
+        }
+        Content::Body(body) => {
+            let captured = Output::new(output.max.saturating_sub(output.value.len()), true);
+            let saved = std::mem::replace(output, captured);
+            tasks.push(Task::FinishCapture(kind, saved));
+            tasks.push(Task::Body(body, 0, frame));
+            Ok(())
+        }
+    }
 }
 fn focus_sequence(value: Value<'_>) -> Vec<Focus<'_>> {
     let size = value.len();
@@ -243,23 +384,102 @@ fn execute<'a>(
                     mode,
                 } = frame;
                 match instruction {
+                    Instruction::ComputedElement(n, body) => {
+                        let frame = Frame {
+                            focus,
+                            env,
+                            depth: depth + 1,
+                            mode,
+                        };
+                        let name = computed_name(n, false, &frame, budget, sheet.backwards)?;
+                        output.start(result::Element {
+                            name,
+                            namespaces: Default::default(),
+                            attributes: vec![],
+                        })?;
+                        tasks.push(Task::Close);
+                        tasks.push(Task::Body(body, 0, frame));
+                    }
+                    Instruction::Attribute(n, content) => {
+                        let frame = Frame {
+                            focus,
+                            env,
+                            depth: depth + 1,
+                            mode,
+                        };
+                        let name = computed_name(n, true, &frame, budget, sheet.backwards)?;
+                        capture(
+                            content,
+                            Capture::Attribute(name),
+                            frame,
+                            sheet,
+                            budget,
+                            &mut output,
+                            &mut tasks,
+                        )?;
+                    }
+                    Instruction::Comment(content) => capture(
+                        content,
+                        Capture::Comment,
+                        Frame {
+                            focus,
+                            env,
+                            depth: depth + 1,
+                            mode,
+                        },
+                        sheet,
+                        budget,
+                        &mut output,
+                        &mut tasks,
+                    )?,
+                    Instruction::Pi(n, content) => {
+                        let name = parts(n, &focus, &env, budget, sheet.backwards)?;
+                        let name = name.trim().to_owned();
+                        if !ncname(&name) || name.eq_ignore_ascii_case("xml") {
+                            return Err(Diagnostic::new(
+                                "XTDE0890",
+                                "invalid processing-instruction target",
+                                "run",
+                            ));
+                        }
+                        capture(
+                            content,
+                            Capture::Pi(name),
+                            Frame {
+                                focus,
+                                env,
+                                depth: depth + 1,
+                                mode,
+                            },
+                            sheet,
+                            budget,
+                            &mut output,
+                            &mut tasks,
+                        )?;
+                    }
                     Instruction::Bind(_) => unreachable!(),
                     Instruction::Text(t) => output.text(t)?,
-                    Instruction::Value(e) => {
+                    Instruction::Value(e, separator) => {
                         let mut v = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
-                        if sheet.backwards {
+                        if sheet.backwards && separator.is_none() {
                             v.truncate(1);
                         }
+                        let separator = separator
+                            .as_ref()
+                            .map(|es| parts(es, &focus, &env, budget, sheet.backwards))
+                            .transpose()?
+                            .unwrap_or_else(|| " ".into());
                         for (i, item) in v.iter().enumerate() {
                             budget.tick()?;
                             if i > 0 {
-                                output.text(" ")?;
+                                output.text(&separator)?;
                             }
                             output.text(&item.string())?;
                         }
                     }
-                    Instruction::Apply(e, target_mode) => {
+                    Instruction::Apply(e, target_mode, sorts) => {
                         let value = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
+                        let value = crate::sort::sort(value, sorts, &env, budget, sheet.backwards)?;
                         let target_mode = if target_mode == "#current" {
                             mode
                         } else {
@@ -326,8 +546,9 @@ fn execute<'a>(
                         Item::Node(n) => copied_leaf(n, &mut output)?,
                         atomic => output.text(&atomic.string())?,
                     },
-                    Instruction::ForEach(e, body) => {
+                    Instruction::ForEach(e, sorts, body) => {
                         let value = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
+                        let value = crate::sort::sort(value, sorts, &env, budget, sheet.backwards)?;
                         for f in focus_sequence(value).into_iter().rev() {
                             tasks.push(Task::Body(
                                 body,
@@ -459,6 +680,10 @@ fn execute<'a>(
                 }
             }
             Task::Atomic(s) => output.text(&s)?,
+            Task::FinishCapture(kind, saved) => {
+                let value = std::mem::replace(&mut output, saved).value;
+                finish_capture(kind, value, &mut output)?;
+            }
             Task::Close => output.end()?,
         }
     }
