@@ -1199,6 +1199,12 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                         "compile",
                     ));
                 }
+                Expr::For(name, select, body) | Expr::Let(name, select, body) => {
+                    expression(select, scope)?;
+                    let mut inner = scope.clone();
+                    inner.insert(name.clone());
+                    expression(body, &inner)?;
+                }
                 Expr::Path(base, steps) => {
                     pending.push(base);
                     for s in steps {

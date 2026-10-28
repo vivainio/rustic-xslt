@@ -50,6 +50,8 @@ pub(crate) enum Expr {
     String(String),
     Number(Number),
     Variable(String),
+    For(String, Box<Expr>, Box<Expr>),
+    Let(String, Box<Expr>, Box<Expr>),
     Context,
     Root,
     Path(Box<Expr>, Vec<Step>),
@@ -278,6 +280,9 @@ fn tokenize(s: &str) -> Result<Vec<Token>, Diagnostic> {
                     i += 1;
                 }
             }
+            if chars.get(i).is_some_and(|c| c.is_alphabetic() || *c == '_') {
+                return Err(syntax("numeric literal must be separated from a name"));
+            }
             let n: String = chars[start..i].iter().collect();
             out.push(Token::Number(Number::literal(&n).map_err(|mut e| {
                 e.phase = "compile";
@@ -321,7 +326,7 @@ fn tokenize(s: &str) -> Result<Vec<Token>, Diagnostic> {
             {
                 i += 1;
             }
-            if chars.get(i) == Some(&':') && chars.get(i + 1) != Some(&':') {
+            if chars.get(i) == Some(&':') && !matches!(chars.get(i + 1), Some(':' | '=')) {
                 i += 1;
                 if chars.get(i) == Some(&'*') {
                     i += 1;
@@ -356,7 +361,7 @@ fn tokenize(s: &str) -> Result<Vec<Token>, Diagnostic> {
             let pair: String = chars[i..chars.len().min(i + 2)].iter().collect();
             if matches!(
                 pair.as_str(),
-                "//" | ".." | "!=" | "<=" | ">=" | "::" | "<<" | ">>"
+                "//" | ".." | "!=" | "<=" | ">=" | "::" | "<<" | ">>" | ":="
             ) {
                 out.push(Token::Symbol(pair));
                 i += 2;
@@ -471,6 +476,14 @@ impl Parser {
         result
     }
     fn expression_inner(&mut self, minimum: u8) -> Result<Expr, Diagnostic> {
+        if minimum > 2
+            && matches!(self.peek(), Token::Name(n) if n == "for" || n == "let")
+            && self.tokens.get(self.index + 1) == Some(&Token::Symbol("$".into()))
+        {
+            return Err(syntax(
+                "for/let expressions require parentheses in this operand",
+            ));
+        }
         let mut left = self.primary()?;
         let mut previous_type = None;
         let mut range_seen = false;
@@ -641,6 +654,13 @@ impl Parser {
                     Expr::Number(n)
                 }
                 Token::Name(n)
+                    if (n == "for" || n == "let")
+                        && self.tokens.get(self.index + 1) == Some(&Token::Symbol("$".into())) =>
+                {
+                    self.next();
+                    self.binding_expression(n == "for")?
+                }
+                Token::Name(n)
                     if n == "if"
                         && self.tokens.get(self.index + 1) == Some(&Token::Symbol("(".into())) =>
                 {
@@ -751,6 +771,51 @@ impl Parser {
             }
         }
         Ok(e)
+    }
+    fn binding_expression(&mut self, iterative: bool) -> Result<Expr, Diagnostic> {
+        let mut bindings = vec![];
+        loop {
+            if bindings.len() >= 128 {
+                return Err(syntax("XPath binding nesting limit exceeded"));
+            }
+            self.expect("$")?;
+            let Token::Name(name) = self.next() else {
+                return Err(syntax("expected binding variable name"));
+            };
+            let name = crate::qname::resolve(&name, &self.namespaces, "XPST0003")?;
+            if iterative {
+                if self.next() != Token::Name("in".into()) {
+                    return Err(syntax("expected in"));
+                }
+            } else {
+                self.expect(":=")?;
+            }
+            let extra = bindings.len();
+            self.depth += extra;
+            let selected = self.expression(2);
+            self.depth -= extra;
+            let select = selected?;
+            bindings.push((name, select));
+            if !self.eat(",") {
+                break;
+            }
+        }
+        if self.next() != Token::Name("return".into()) {
+            return Err(syntax("expected return"));
+        }
+        let extra = bindings.len().saturating_sub(1);
+        self.depth += extra;
+        let returned = self.expression(2);
+        self.depth -= extra;
+        let mut body = returned?;
+        for (name, select) in bindings.into_iter().rev() {
+            body = if iterative {
+                Expr::For(name, Box::new(select), Box::new(body))
+            } else {
+                Expr::Let(name, Box::new(select), Box::new(body))
+            };
+        }
+        Ok(body)
     }
     fn step_start(&self) -> bool {
         matches!(self.peek(), Token::Name(_))
@@ -977,6 +1042,26 @@ pub(crate) fn eval<'a>(
             .get(n)
             .cloned()
             .ok_or_else(|| err("XPST0008", format!("unknown variable: {n}")))?,
+        Expr::For(name, select, body) => {
+            let selected = eval(select, focus, vars, budget, depth + 1, backwards)?;
+            let mut result = vec![];
+            for item in selected {
+                budget.tick()?;
+                let mut scope = vars.clone();
+                scope.insert(name.clone(), vec![item]);
+                for item in eval(body, focus, &scope, budget, depth + 1, backwards)? {
+                    budget.tick()?;
+                    result.push(item);
+                }
+            }
+            result
+        }
+        Expr::Let(name, select, body) => {
+            let selected = eval(select, focus, vars, budget, depth + 1, backwards)?;
+            let mut scope = vars.clone();
+            scope.insert(name.clone(), selected);
+            eval(body, focus, &scope, budget, depth + 1, backwards)?
+        }
         Expr::Context => {
             if matches!(focus.item, Item::Absent) {
                 return Err(err("XPDY0002", "context item is absent"));

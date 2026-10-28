@@ -46,7 +46,8 @@ Supported so far:
 - child/attribute/self/parent/descendant/ancestor/sibling/following/preceding
   axes, namespace wildcards, named node-kind/PI tests, predicates, union,
   sequences, budgeted exact integer ranges, focus-aware simple maps (`!`),
-  lazy if/then/else, bounded nested XPath comments, instance-of/treat-as/cast/castable;
+  lexical for/let bindings, lazy if/then/else, bounded nested XPath comments,
+  instance-of/treat-as/cast/castable;
 - exact integer/decimal arithmetic, numeric promotion, general/value comparisons,
   basic xs constructors, atomization and string/node/sequence functions, including
   reverse/head/tail, remove/insert-before, subsequence and numeric sum/avg/min/max;
@@ -182,11 +183,11 @@ streamable modes/accumulators and automatic plan selection remain ahead.
 
 ## W3C development checks
 
-A pinned, partial catalog runner and a 358-case passing regression gate are in
+A pinned, partial catalog runner and a 362-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. An initial internal QT3 bridge
-also gates 753 passing XPath cases at the pinned XPath suite revision.
+also gates 857 passing XPath cases at the pinned XPath suite revision.
 The example JSON-lines driver
 and its JSON dependency are development-only.
 

@@ -555,7 +555,15 @@
     ],
     [
       "fn-head",
+      "head-004"
+    ],
+    [
+      "fn-head",
       "head-005"
+    ],
+    [
+      "fn-head",
+      "head-006"
     ],
     [
       "fn-insert-before",
@@ -1052,6 +1060,10 @@
     [
       "fn-max",
       "fn-max-11"
+    ],
+    [
+      "fn-max",
+      "cbcl-max-019"
     ],
     [
       "fn-min",
@@ -1927,6 +1939,10 @@
     ],
     [
       "fn-subsequence",
+      "cbcl-subsequence-007"
+    ],
+    [
+      "fn-subsequence",
       "cbcl-subsequence-008"
     ],
     [
@@ -1955,11 +1971,47 @@
     ],
     [
       "fn-subsequence",
+      "cbcl-subsequence-015"
+    ],
+    [
+      "fn-subsequence",
+      "cbcl-subsequence-016"
+    ],
+    [
+      "fn-subsequence",
+      "cbcl-subsequence-017"
+    ],
+    [
+      "fn-subsequence",
+      "cbcl-subsequence-018"
+    ],
+    [
+      "fn-subsequence",
+      "cbcl-subsequence-019"
+    ],
+    [
+      "fn-subsequence",
+      "cbcl-subsequence-020"
+    ],
+    [
+      "fn-subsequence",
+      "cbcl-subsequence-021"
+    ],
+    [
+      "fn-subsequence",
       "cbcl-subsequence-022"
     ],
     [
       "fn-subsequence",
+      "cbcl-subsequence-023"
+    ],
+    [
+      "fn-subsequence",
       "cbcl-subsequence-024"
+    ],
+    [
+      "fn-subsequence",
+      "cbcl-subsequence-026"
     ],
     [
       "fn-sum",
@@ -2279,6 +2331,14 @@
     ],
     [
       "fn-sum",
+      "cbcl-sum-func-002"
+    ],
+    [
+      "fn-sum",
+      "cbcl-sum-func-003"
+    ],
+    [
+      "fn-sum",
       "cbcl-sum-func-004"
     ],
     [
@@ -2296,6 +2356,10 @@
     [
       "fn-tail",
       "tail-003"
+    ],
+    [
+      "fn-tail",
+      "tail-004"
     ],
     [
       "op-bang",
@@ -2623,6 +2687,10 @@
     ],
     [
       "op-to",
+      "K2-RangeExpr-3"
+    ],
+    [
+      "op-to",
       "RangeExpr-401"
     ],
     [
@@ -2931,6 +2999,10 @@
     ],
     [
       "prod-Comment",
+      "K-XQueryComment-12"
+    ],
+    [
+      "prod-Comment",
       "K-XQueryComment-13"
     ],
     [
@@ -2967,6 +3039,18 @@
     ],
     [
       "prod-EQName",
+      "eqname-015"
+    ],
+    [
+      "prod-EQName",
+      "eqname-024"
+    ],
+    [
+      "prod-EQName",
+      "eqname-025"
+    ],
+    [
+      "prod-EQName",
       "eqname-026"
     ],
     [
@@ -2976,6 +3060,18 @@
     [
       "prod-EQName",
       "eqname-028"
+    ],
+    [
+      "prod-EQName",
+      "eqname-032"
+    ],
+    [
+      "prod-EQName",
+      "eqname-033"
+    ],
+    [
+      "prod-EQName",
+      "eqname-034"
     ],
     [
       "prod-EQName",
@@ -3012,6 +3108,326 @@
     [
       "prod-EQName",
       "eqname-912"
+    ],
+    [
+      "prod-ForClause",
+      "ForExpr001"
+    ],
+    [
+      "prod-ForClause",
+      "ForExpr009"
+    ],
+    [
+      "prod-ForClause",
+      "ForExpr012"
+    ],
+    [
+      "prod-ForClause",
+      "ForExpr014"
+    ],
+    [
+      "prod-ForClause",
+      "ForExpr015"
+    ],
+    [
+      "prod-ForClause",
+      "ForExpr017"
+    ],
+    [
+      "prod-ForClause",
+      "ForExpr018"
+    ],
+    [
+      "prod-ForClause",
+      "ForExpr019"
+    ],
+    [
+      "prod-ForClause",
+      "ForExpr020"
+    ],
+    [
+      "prod-ForClause",
+      "ForExpr021"
+    ],
+    [
+      "prod-ForClause",
+      "ForExpr026"
+    ],
+    [
+      "prod-ForClause",
+      "ForExpr030"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-1"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-2"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-3"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-4"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-6"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-7"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-8"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-9"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-12"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-13"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-14"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-15"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-16"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-17"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-19"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-21"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-24"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-25"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-26"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-27"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-28"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-29"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-30"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-31"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-32"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-33"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-34"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-35"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-36"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-37"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-38"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-39"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-40"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-41"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-42"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-43"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-44"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-45"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-46"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-47"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-48"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-50"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-51"
+    ],
+    [
+      "prod-ForClause",
+      "K2-ForExprWithout-1"
+    ],
+    [
+      "prod-ForClause",
+      "K2-ForExprWithout-7"
+    ],
+    [
+      "prod-ForClause",
+      "K2-ForExprWithout-40"
+    ],
+    [
+      "prod-ForClause",
+      "K2-ForExprWithout-41"
+    ],
+    [
+      "prod-ForClause",
+      "K2-ForExprWithout-45"
+    ],
+    [
+      "prod-LetClause",
+      "LetExpr001"
+    ],
+    [
+      "prod-LetClause",
+      "LetExpr002"
+    ],
+    [
+      "prod-LetClause",
+      "LetExpr003"
+    ],
+    [
+      "prod-LetClause",
+      "LetExpr008"
+    ],
+    [
+      "prod-LetClause",
+      "LetExpr010"
+    ],
+    [
+      "prod-LetClause",
+      "LetExpr011"
+    ],
+    [
+      "prod-LetClause",
+      "LetExpr012"
+    ],
+    [
+      "prod-LetClause",
+      "LetExpr013"
+    ],
+    [
+      "prod-LetClause",
+      "LetExpr014"
+    ],
+    [
+      "prod-LetClause",
+      "LetExpr015"
+    ],
+    [
+      "prod-LetClause",
+      "LetExpr020a"
+    ],
+    [
+      "prod-LetClause",
+      "LetExpr021"
+    ],
+    [
+      "prod-LetClause",
+      "K-LetExprWithout-1"
+    ],
+    [
+      "prod-LetClause",
+      "K-LetExprWithout-2"
+    ],
+    [
+      "prod-LetClause",
+      "K-LetExprWithout-3"
+    ],
+    [
+      "prod-LetClause",
+      "K2-LetExprWithout-8"
+    ],
+    [
+      "prod-LetClause",
+      "K2-LetExprWithout-19"
+    ],
+    [
+      "prod-LetClause",
+      "K2-LetExprWithout-25"
+    ],
+    [
+      "prod-LetClause",
+      "xquery10keywords2"
+    ],
+    [
+      "prod-LetClause",
+      "xquery30keywords2"
     ]
   ]
 }

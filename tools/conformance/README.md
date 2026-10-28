@@ -28,9 +28,9 @@ python3 -m unittest discover -s tools/conformance -p 'test_*.py'
 
 The gate fails for missing or regressed baseline cases. Other failures and
 harness errors are still named and counted, never reclassified as passes.
-The current gate contains 358 passing cases out of 723 selected cases: 175 engine
+The current gate contains 362 passing cases out of 723 selected cases: 171 engine
 failures, 144 harness errors, 46 optional-profile exclusions. Do not present the
-358 cases as an applicable-suite pass rate.
+362 cases as an applicable-suite pass rate.
 
 Supported setup: local stylesheet/source files or inline content, local/global
 named environments, string/boolean/numeric/empty parameter literals, ordinary/tunnel
@@ -65,12 +65,12 @@ this adds no public XPath API. The suite must be clean at
 `201a6e466940cdfc727f4babfedcde5332b9f578`.
 
 ```sh
-python3 tools/conformance/qt3.py /path/to/qt3tests --sets op-to,op-bang,fn-reverse,fn-subsequence,fn-remove,fn-insert-before,fn-head,fn-tail,fn-sum,fn-avg,fn-min,fn-max,prod-Comment,prod-EQName \
+python3 tools/conformance/qt3.py /path/to/qt3tests --sets op-to,op-bang,fn-reverse,fn-subsequence,fn-remove,fn-insert-before,fn-head,fn-tail,fn-sum,fn-avg,fn-min,fn-max,prod-Comment,prod-EQName,prod-ForClause,prod-LetClause \
   --baseline tools/conformance/qt3-baseline.json
 ```
 
-The current selection contains 1,437 cases: 753 pass, 587 engine failures, ten
-harness errors and 87 profile exclusions. All 753 passing cases are recorded
+The current selection contains 1,715 cases: 857 pass, 577 engine failures, 14
+harness errors and 267 profile exclusions. All 857 passing cases are recorded
 in a gate.
 Counts describe this selected development workload, not a conformance rate.
 

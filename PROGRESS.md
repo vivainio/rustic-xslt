@@ -415,5 +415,18 @@ conformance claims. Smaller tested increments are committed independently.
 - Fourteen QT3 sets: 1,437 cases, 753 pass / 587 engine failures / ten harness errors /
   87 profile exclusions. All 716 previous passes remain; QT3 gate expands to 753.
 
-Next: XPath for/let expressions, template result types and raw XDM sequence
+## Increment 34: XPath for/let expressions
+
+- Lexical for/let bindings support sequential comma-separated bindings, QName
+  variables, shadowing and ordered Cartesian iteration without changing focus.
+- Empty for inputs skip their bodies; let binds whole sequences. Static checks
+  reject forward/out-of-scope references even in unexecuted branches.
+- Assignment/numeric token boundaries are checked; lowered multi-binding depth
+  counts toward the 128-level XPath bound. Streaming checks traverse both sides.
+- 242 Rust integration tests and Clippy/format pass. XSLT gate expands to 362:
+  362 pass / 171 engine failures / 144 harness errors / 46 exclusions.
+- Sixteen QT3 sets: 1,715 cases, 857 pass / 577 engine failures / 14 harness errors /
+  267 profile exclusions. All 753 previous passes remain; QT3 gate expands to 857.
+
+Next: deep sequence equality, template result types and raw XDM sequence
 collection.
