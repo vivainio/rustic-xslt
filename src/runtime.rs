@@ -681,7 +681,9 @@ fn run_tasks<'a>(
                         "run",
                     ));
                 };
+                let definition = sheet.modes.get(&mode).copied().unwrap_or_default();
                 let mut best: Option<(&Template, f64)> = None;
+                let mut ambiguous = false;
                 for t in &sheet.templates {
                     budget.tick()?;
                     if !t.modes.iter().any(|m| m == &mode || m == "#all") {
@@ -699,29 +701,74 @@ fn run_tasks<'a>(
                                     sheet.backwards,
                                 )?
                             {
+                                if let Some((previous, p)) = best {
+                                    if priority > p {
+                                        ambiguous = false;
+                                    } else if priority == p && !std::ptr::eq(previous, t) {
+                                        ambiguous = true;
+                                    }
+                                }
                                 best = Some((t, priority));
                             }
                         }
                     }
                 }
+                if ambiguous && definition.fail_on_multiple == Some(true) {
+                    return Err(Diagnostic::new(
+                        "XTDE0540",
+                        "multiple template rules match at the highest priority",
+                        "run",
+                    ));
+                }
                 if let Some((t, _)) = best {
                     tasks.push(Task::Enter(t, focus, (*params).clone(), depth, mode));
                 } else {
+                    use crate::mode::OnNoMatch as P;
+                    let policy = definition.policy();
+                    if policy == P::Fail {
+                        return Err(Diagnostic::new(
+                            "XTDE0555",
+                            "no matching template rule",
+                            "run",
+                        ));
+                    }
+                    if policy == P::DeepCopy {
+                        tasks.push(Task::DeepCopy(node, depth, true));
+                        continue;
+                    }
+                    // Even deep-skip descends through a document node.
+                    if policy == P::DeepSkip && !node.is_document() {
+                        continue;
+                    }
                     if node.is_document() || node.is_element() {
+                        if policy == P::ShallowCopy && node.is_element() {
+                            output.start(result::source_element(node.raw, false))?;
+                            tasks.push(Task::Close);
+                        }
+                        let inherited = if sheet.backwards {
+                            Rc::new(Supplied::inherited(params.tunnel.clone()))
+                        } else {
+                            params
+                        };
                         let children = node.children().map(Item::Node).collect();
                         for f in focus_sequence(children).into_iter().rev() {
-                            tasks.push(Task::Apply(
-                                f,
-                                depth + 1,
-                                mode.clone(),
-                                if sheet.backwards {
-                                    Rc::new(Supplied::inherited(params.tunnel.clone()))
-                                } else {
-                                    params.clone()
-                                },
-                            ));
+                            tasks.push(Task::Apply(f, depth + 1, mode.clone(), inherited.clone()));
                         }
-                    } else if node.is_text() || node.is_attribute() {
+                        if matches!(policy, P::ShallowSkip | P::ShallowCopy) {
+                            let attributes =
+                                node.attributes().into_iter().map(Item::Node).collect();
+                            for f in focus_sequence(attributes).into_iter().rev() {
+                                tasks.push(Task::Apply(
+                                    f,
+                                    depth + 1,
+                                    mode.clone(),
+                                    inherited.clone(),
+                                ));
+                            }
+                        }
+                    } else if policy == P::ShallowCopy {
+                        copied_leaf(node, &mut output)?;
+                    } else if policy == P::TextOnlyCopy && (node.is_text() || node.is_attribute()) {
                         output.text(&node.string())?;
                     }
                 }

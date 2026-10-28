@@ -3,6 +3,26 @@
   "passing_cases": [
     [
       "mode",
+      "mode-0001"
+    ],
+    [
+      "mode",
+      "mode-0003"
+    ],
+    [
+      "mode",
+      "mode-0005"
+    ],
+    [
+      "mode",
+      "mode-0015"
+    ],
+    [
+      "mode",
+      "mode-0016"
+    ],
+    [
+      "mode",
       "mode-0101"
     ],
     [
@@ -103,6 +123,18 @@
     ],
     [
       "mode",
+      "mode-1417"
+    ],
+    [
+      "mode",
+      "mode-1423"
+    ],
+    [
+      "mode",
+      "mode-1431"
+    ],
+    [
+      "mode",
       "mode-1433"
     ],
     [
@@ -116,6 +148,18 @@
     [
       "mode",
       "mode-1501"
+    ],
+    [
+      "mode",
+      "mode-1502"
+    ],
+    [
+      "mode",
+      "mode-1516"
+    ],
+    [
+      "mode",
+      "mode-1517"
     ],
     [
       "mode",

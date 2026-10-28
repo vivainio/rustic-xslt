@@ -1,5 +1,6 @@
 //! An early, deliberately limited XSLT engine. See README.md for supported syntax.
 mod compile;
+mod mode;
 mod node;
 mod number;
 mod pattern;
@@ -128,6 +129,7 @@ pub struct Stylesheet {
     backwards: bool,
     version: u8,
     default_mode: String,
+    modes: std::collections::BTreeMap<String, mode::Mode>,
     globals: Vec<compile::Binding>,
     space_rules: Vec<whitespace::Rule>,
 }

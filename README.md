@@ -39,7 +39,8 @@ use the documented ASCII name-character subset.
 Supported so far:
 
 - match templates, named templates, modes/current-mode, scoped default-mode,
-  explicit/default priority,
+  explicit/default priority, declared node-mode copy/skip/fail policies and
+  on-multiple-match fail/use-last handling,
   global/template parameters and local variables, with namespace-qualified names;
 - lexical scope, forward global references, circular-global detection;
 - child/attribute/self/parent/descendant/ancestor/sibling/following/preceding
@@ -77,6 +78,10 @@ Mixed typed top-level atomic/node constructor sequences, standalone attribute
 sequences and zero-length constructed text-node identity remain incomplete.
 Match patterns support child/attribute paths, namespaces, wildcards, node tests,
 predicates, `/` and union. Descendant patterns remain ahead.
+
+Mode declarations support node-based text-only-copy, shallow/deep-copy,
+shallow/deep-skip and fail policies. Compatible declarations merge; conflicting
+settings fail statically. Full streamability and atomic-item patterns remain ahead.
 
 Unsupported constructs are rejected rather than ignored. Implementation gaps
 use `RUST_XSLT_UNSUPPORTED`; syntax/name/function errors use XPath error codes.
@@ -172,7 +177,7 @@ streamable modes/accumulators and automatic plan selection remain ahead.
 
 ## W3C development checks
 
-A pinned, partial catalog runner and a 316-case passing regression gate are in
+A pinned, partial catalog runner and a 327-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. The example JSON-lines driver

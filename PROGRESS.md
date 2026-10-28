@@ -304,5 +304,19 @@ conformance claims. Smaller tested increments are committed independently.
   failures / 132 harness errors / 46 exclusions. All 296 previous passes remain;
   gate expands to 316.
 
-Next: mode declarations and built-in-rule policies, followed by template result
-types and next-match.
+## Increment 26: mode declarations and built-in node policies
+
+- Declared modes support text-only-copy, shallow/deep-copy, shallow/deep-skip and
+  fail policies on nodes; document deep-skip still processes document children.
+- Shallow policies dispatch attributes and children with separate focus lists;
+  copies retain namespace fixup and share execution/output limits.
+- Compatible explicit mode settings merge; conflicts are XTSE0545. Highest
+  priority ambiguities can fail with XTDE0540; overlapping branches of one
+  template do not count as distinct competing rules.
+- True streamability and accumulator requirements remain explicit gaps.
+- 191 Rust integration tests and Clippy/format pass. W3C: 327 pass / 177 engine
+  failures / 133 harness errors / 46 exclusions. All 316 previous passes remain;
+  gate expands to 327.
+
+Next: declared-mode enforcement and initial-mode eligibility, followed by
+next-match and template result types.

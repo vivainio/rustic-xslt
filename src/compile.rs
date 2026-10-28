@@ -867,6 +867,7 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
         globals: vec![],
         space_rules: vec![],
         default_mode: default_mode(root)?,
+        modes: BTreeMap::new(),
         omit_declaration: false,
         text_output: false,
         backwards: root.attribute("version") == Some("1.0"),
@@ -888,6 +889,76 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
             return Err(error(n, "unsupported top-level element"));
         }
         match n.tag_name().name() {
+            "mode" => {
+                use crate::mode::OnNoMatch;
+                attrs(
+                    n,
+                    &[
+                        "name",
+                        "on-no-match",
+                        "on-multiple-match",
+                        "streamable",
+                        "use-accumulators",
+                    ],
+                )?;
+                empty(n)?;
+                if boolean_attribute(n, "streamable", false)? {
+                    return Err(error(n, "XSLT streamable modes are not implemented"));
+                }
+                if n.attribute("use-accumulators")
+                    .is_some_and(|s| !s.trim().is_empty())
+                {
+                    return Err(error(n, "mode accumulators are not implemented"));
+                }
+                let name = n
+                    .attribute("name")
+                    .map(|s| component_name(n, s))
+                    .transpose()?
+                    .unwrap_or_default();
+                check_component_namespace(n, &name, false)?;
+                let policy = n
+                    .attribute("on-no-match")
+                    .map(|s| {
+                        Ok(match s.trim() {
+                            "text-only-copy" => OnNoMatch::TextOnlyCopy,
+                            "shallow-copy" => OnNoMatch::ShallowCopy,
+                            "deep-copy" => OnNoMatch::DeepCopy,
+                            "shallow-skip" => OnNoMatch::ShallowSkip,
+                            "deep-skip" => OnNoMatch::DeepSkip,
+                            "fail" => OnNoMatch::Fail,
+                            _ => {
+                                return Err(static_error(
+                                    n,
+                                    "XTSE0020",
+                                    "invalid on-no-match policy",
+                                ));
+                            }
+                        })
+                    })
+                    .transpose()?;
+                let multiple = n
+                    .attribute("on-multiple-match")
+                    .map(|s| match s.trim() {
+                        "fail" => Ok(true),
+                        "use-last" => Ok(false),
+                        _ => Err(static_error(
+                            n,
+                            "XTSE0020",
+                            "invalid on-multiple-match policy",
+                        )),
+                    })
+                    .transpose()?;
+                let entry = sheet.modes.entry(name).or_default();
+                if policy.zip(entry.on_no_match).is_some_and(|(a, b)| a != b)
+                    || multiple
+                        .zip(entry.fail_on_multiple)
+                        .is_some_and(|(a, b)| a != b)
+                {
+                    return Err(static_error(n, "XTSE0545", "conflicting mode declarations"));
+                }
+                entry.on_no_match = policy.or(entry.on_no_match);
+                entry.fail_on_multiple = multiple.or(entry.fail_on_multiple);
+            }
             "strip-space" | "preserve-space" => {
                 let rules = space_rules(n, n.tag_name().name() == "strip-space")?;
                 for rule in &rules {
