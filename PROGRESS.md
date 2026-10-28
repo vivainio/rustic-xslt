@@ -180,5 +180,17 @@ conformance claims. Smaller tested increments are committed independently.
 - 131 Rust integration tests, ten harness tests and Clippy/format pass. All 103
   W3C gate cases remain green (103 pass / 61 fail / 23 harness errors / 16 exclusions).
 
-Next: namespace-aware catalog entry/parameter setup and broader QName regressions;
-then template application parameters and practical XSLT 1.0 dispatch behavior.
+## Increment 16: qualified catalog setup and expanded regression gate
+
+- Catalog initial template/mode and global parameter names resolve namespace
+  prefixes at each setup element, then use the API's expanded-name notation.
+- Missing prefixes, invalid names and aliased duplicate catalog parameters are
+  harness errors; string-only and initial-parameter limitations remain explicit.
+- Four new harness tests cover aliases, shadowing, default namespace independence
+  and URIQualifiedNames. All 14 harness tests pass; 131 Rust tests remain green.
+- Surveyed nine related W3C sets: 575 cases, 214 pass / 219 engine failures /
+  97 harness errors / 45 exclusions. All 103 previous passes remain; the gate
+  now records all 214 passing cases at the unchanged suite revision.
+
+Next: URIQualifiedNames in stylesheet components and XPath, followed by template
+application parameters and practical XSLT 1.0 dispatch behavior.

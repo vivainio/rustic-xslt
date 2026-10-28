@@ -87,6 +87,23 @@ def read_resource(node, base):
         return text(content)
     raise HarnessError(f"{tag(node)} requires file or content")
 
+def component_name(node):
+    """Resolve catalog QName attributes in their own namespace scope."""
+    name = node.get("name", "").strip()
+    ncname = r"[A-Za-z_][A-Za-z0-9_.-]*"
+    if re.fullmatch(ncname, name):
+        return name
+    if match := re.fullmatch(r"Q\{([^{}]*)\}(" + ncname + r")", name):
+        uri, local = match.groups()
+        return f"Q{{{uri}}}{local}" if uri else local
+    if match := re.fullmatch(f"({ncname}):({ncname})", name):
+        prefix, local = match.groups()
+        uri = NAMESPACES.get(id(node), {}).get(prefix)
+        if uri is None:
+            raise HarnessError(f"unbound catalog name prefix: {prefix}")
+        return f"Q{{{uri}}}{local}" if uri else local
+    raise HarnessError(f"invalid catalog component name: {name}")
+
 def parameters(nodes):
     result = {}
     for p in nodes:
@@ -95,7 +112,10 @@ def parameters(nodes):
             raise HarnessError("static/tunnel catalog parameters")
         s = p.get("select", "").strip()
         if re.fullmatch(r"'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"", s):
-            result[p.get("name")] = s[1:-1].replace(s[0] * 2, s[0])
+            name = component_name(p)
+            if name in result:
+                raise HarnessError(f"duplicate catalog parameter: {name}")
+            result[name] = s[1:-1].replace(s[0] * 2, s[0])
         else:
             raise HarnessError("non-string catalog parameter expression")
     return result
@@ -298,7 +318,7 @@ def run_case(case, base, registry, driver):
             check_attrs(part, ["name"])
             if len(part):
                 raise HarnessError("initial-entry parameters")
-            request["initialTemplate" if kind == "initial-template" else "initialMode"] = part.get("name", "")
+            request["initialTemplate" if kind == "initial-template" else "initialMode"] = component_name(part)
         elif kind == "output":
             check_attrs(part, ["serialize"])
         else:

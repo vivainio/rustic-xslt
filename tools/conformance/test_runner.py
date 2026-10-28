@@ -77,5 +77,44 @@ class XPathAssertions(unittest.TestCase):
                 return {'output':'false','diagnostics':[]}
         self.assertFalse(assertion(node('<assert>false()</assert>'),{'method':'xml','output':'<r/>'},Path(),FalseDriver())[0])
 
+class ComponentNames(unittest.TestCase):
+    def catalog(self, xml):
+        import tempfile
+        from run import parse_catalog
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "catalog.xml"
+            path.write_text(xml)
+            return parse_catalog(path)
+
+    def test_catalog_names_resolve_at_each_element(self):
+        from run import component_name
+        root = self.catalog('''<test xmlns="urn:default" xmlns:p="urn:outer">
+            <initial-template name="p:t"/><initial-mode name="p:m" xmlns:p="urn:inner"/>
+            <param name="p:v" select="'value'"/><param name="v" select="'bare'"/>
+            </test>''')
+        self.assertEqual(component_name(root[0]), "Q{urn:outer}t")
+        self.assertEqual(component_name(root[1]), "Q{urn:inner}m")
+        self.assertEqual(parameters(root[2:]), {"Q{urn:outer}v": "value", "v": "bare"})
+
+    def test_equivalent_parameter_names_are_duplicates(self):
+        root = self.catalog('''<test xmlns:p="urn:p" xmlns:q="urn:p">
+            <param name="p:v" select="'a'"/><param name="q:v" select="'b'"/>
+            </test>''')
+        with self.assertRaises(HarnessError):
+            parameters(root)
+
+    def test_invalid_or_unbound_catalog_names_are_harness_errors(self):
+        from run import component_name
+        root = self.catalog('<test><initial-template name="p:t"/><param name="a:b:c"/></test>')
+        for entry in root:
+            with self.assertRaises(HarnessError):
+                component_name(entry)
+
+    def test_uriqualified_names_and_empty_namespace(self):
+        from run import component_name
+        root = self.catalog('<test><param name="Q{urn:p}v"/><param name="Q{}v"/></test>')
+        self.assertEqual(component_name(root[0]), "Q{urn:p}v")
+        self.assertEqual(component_name(root[1]), "v")
+
 if __name__ == '__main__':
     unittest.main()
