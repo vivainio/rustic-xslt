@@ -375,5 +375,18 @@ conformance claims. Smaller tested increments are committed independently.
 - Node deep equality, general setup/parameters and nondeterministic-query delivery
   remain explicit harness gaps. No standalone XPath runtime API was introduced.
 
-Next: XPath sequence functions and grammar coverage, template result types, and
-raw XDM sequence collection.
+## Increment 31: XPath sequence functions
+
+- Added reverse/head/tail, remove/insert-before and subsequence with atomic/node
+  identity preservation and shared execution-budget charges.
+- Exact integer insertion/removal positions avoid machine-integer overflow;
+  subsequence uses XPath half-toward-positive-infinity rounding and IEEE NaN/
+  infinity endpoint rules. Function conversion rejects wrong argument types.
+- 218 Rust integration tests, 25 harness tests and Clippy/format pass. All 357
+  XSLT gate cases remain green.
+- Expanded QT3 selection to eight sets: 467 cases, 310 pass / 144 engine failures /
+  four harness errors / nine profile exclusions. All 111 previous passes remain;
+  QT3 gate expanded to 310.
+
+Next: numeric aggregate functions, further XPath grammar coverage, template
+result types and raw XDM sequence collection.

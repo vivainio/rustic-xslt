@@ -65,12 +65,13 @@ this adds no public XPath API. The suite must be clean at
 `201a6e466940cdfc727f4babfedcde5332b9f578`.
 
 ```sh
-python3 tools/conformance/qt3.py /path/to/qt3tests --sets op-to,op-bang \
+python3 tools/conformance/qt3.py /path/to/qt3tests --sets op-to,op-bang,fn-reverse,fn-subsequence,fn-remove,fn-insert-before,fn-head,fn-tail \
   --baseline tools/conformance/qt3-baseline.json
 ```
 
-The first selection contains 182 cases: 111 pass, 69 engine failures and two
-XQuery-only profile exclusions. All 111 passing cases are recorded in a gate.
+The current selection contains 467 cases: 310 pass, 144 engine failures, four
+harness errors and nine profile exclusions. All 310 passing cases are recorded
+in a gate.
 Counts describe this selected development workload, not a conformance rate.
 
 The bridge supports absent/local XML context, named environment references and

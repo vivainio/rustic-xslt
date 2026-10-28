@@ -2,6 +2,7 @@
 //! of literals, binary expressions, function calls and axis steps.
 pub(crate) use crate::node::XNode;
 use crate::{Diagnostic, Limits, number::Number};
+use num_traits::ToPrimitive;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -832,7 +833,11 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "true" | "false" | "position" | "last" => (0, 0),
         "string" | "number" | "normalize-space" | "string-length" | "name" | "local-name"
         | "namespace-uri" => (0, 1),
-        "count" | "boolean" | "not" | "sum" | "exists" | "empty" | "data" => (1, 1),
+        "count" | "boolean" | "not" | "sum" | "exists" | "empty" | "data" | "reverse" | "head"
+        | "tail" => (1, 1),
+        "remove" => (2, 2),
+        "insert-before" => (3, 3),
+        "subsequence" => (2, 3),
         "contains" | "starts-with" | "ends-with" | "substring-before" | "substring-after"
         | "string-join" => (2, 2),
         "concat" => (2, usize::MAX),
@@ -1414,6 +1419,108 @@ fn function<'a>(
                 _ => Number::cast(kind, &item.string())?,
             }),
         }]);
+    }
+    if matches!(
+        name,
+        "reverse" | "head" | "tail" | "remove" | "insert-before" | "subsequence"
+    ) {
+        fn integer(value: &[Item<'_>]) -> Result<num_bigint::BigInt, Diagnostic> {
+            match value {
+                [item] => match atomize(item) {
+                    Item::Number(Number::Integer(n)) => Ok(n),
+                    Item::Untyped(s) => {
+                        let Number::Integer(n) = Number::cast("integer", &s)? else {
+                            unreachable!()
+                        };
+                        Ok(n)
+                    }
+                    _ => Err(err("XPTY0004", "sequence position requires an integer")),
+                },
+                _ => Err(err("XPTY0004", "sequence position requires a singleton")),
+            }
+        }
+        fn double(value: &[Item<'_>]) -> Result<f64, Diagnostic> {
+            match value {
+                [item] => match atomize(item) {
+                    Item::Number(n) => Ok(n.double()),
+                    Item::Untyped(s) => Ok(Number::cast("double", &s)?.double()),
+                    _ => Err(err(
+                        "XPTY0004",
+                        "subsequence position requires a numeric value",
+                    )),
+                },
+                _ => Err(err("XPTY0004", "subsequence position requires a singleton")),
+            }
+        }
+        fn round(n: f64) -> f64 {
+            let floor = n.floor();
+            if n - floor < 0.5 { floor } else { n.ceil() }
+        }
+        let mut result = vec![];
+        if name == "reverse" {
+            for item in first.iter().rev() {
+                budget.tick()?;
+                result.push(item.clone());
+            }
+        } else if name == "head" {
+            if let Some(item) = first.first() {
+                budget.tick()?;
+                result.push(item.clone());
+            }
+        } else if name == "tail" {
+            for item in first.iter().skip(1) {
+                budget.tick()?;
+                result.push(item.clone());
+            }
+        } else if name == "remove" {
+            let index = integer(&args[1])?.to_usize();
+            for (i, item) in first.iter().enumerate() {
+                budget.tick()?;
+                if Some(i + 1) != index {
+                    result.push(item.clone());
+                }
+            }
+        } else if name == "insert-before" {
+            let position = integer(&args[1])?;
+            let index = if position <= 1.into() {
+                0
+            } else if position > first.len().into() {
+                first.len()
+            } else {
+                position.to_usize().unwrap() - 1
+            };
+            for (i, item) in first.iter().enumerate() {
+                if i == index {
+                    for item in &args[2] {
+                        budget.tick()?;
+                        result.push(item.clone());
+                    }
+                }
+                budget.tick()?;
+                result.push(item.clone());
+            }
+            if index == first.len() {
+                for item in &args[2] {
+                    budget.tick()?;
+                    result.push(item.clone());
+                }
+            }
+        } else {
+            let start = round(double(&args[1])?);
+            let end = if let Some(length) = args.get(2) {
+                start + round(double(length)?)
+            } else {
+                f64::INFINITY
+            };
+            for (i, item) in first.iter().enumerate() {
+                budget.tick()?;
+                let position = (i + 1) as f64;
+                if position >= start && position < end {
+                    result.push(item.clone());
+                }
+            }
+        }
+        return Ok(result);
     }
     let result = match name {
         "true" => Item::Boolean(true),
