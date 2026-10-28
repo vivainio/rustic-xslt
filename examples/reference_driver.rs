@@ -1,9 +1,46 @@
 //! Development-only JSON-lines protocol used by the W3C/differential harness.
-use rust_xslt::{Diagnostic, Stylesheet, TransformOptions};
+use rust_xslt::{Diagnostic, ParameterValue, Stylesheet, TransformOptions};
 use serde_json::{Value, json};
 use std::io::{self, BufRead, Write};
 fn diagnostic(e: Diagnostic) -> Value {
     json!({ "code": e.code, "message": e.message, "phase": e.phase, "line": e.line, "col": e.column })
+}
+fn parameter(value: &Value) -> Result<ParameterValue, Diagnostic> {
+    let invalid = || Diagnostic {
+        code: "RUST_XSLT_INVALID_PARAMETER".into(),
+        message: "invalid driver parameter value".into(),
+        phase: "run",
+        line: 0,
+        column: 0,
+    };
+    if let Some(s) = value.as_str() {
+        return Ok(ParameterValue::String(s.into()));
+    }
+    if let Some(b) = value.as_bool() {
+        return Ok(ParameterValue::Boolean(b));
+    }
+    let text = value.get("value").and_then(Value::as_str);
+    Ok(match value.get("type").and_then(Value::as_str) {
+        Some("empty") => ParameterValue::Empty,
+        Some("integer") => ParameterValue::Integer(text.ok_or_else(invalid)?.into()),
+        Some("decimal") => ParameterValue::Decimal(text.ok_or_else(invalid)?.into()),
+        Some("untypedAtomic") => ParameterValue::UntypedAtomic(text.ok_or_else(invalid)?.into()),
+        Some("double" | "float") => {
+            let s = text.ok_or_else(invalid)?;
+            let n = match s {
+                "INF" => f64::INFINITY,
+                "-INF" => f64::NEG_INFINITY,
+                "NaN" => f64::NAN,
+                _ => s.parse().map_err(|_| invalid())?,
+            };
+            if value["type"] == "float" {
+                ParameterValue::Float(n as f32)
+            } else {
+                ParameterValue::Double(n)
+            }
+        }
+        _ => return Err(invalid()),
+    })
 }
 fn run(req: Value) -> Value {
     let string = |key| req.get(key).and_then(Value::as_str).unwrap_or("");
@@ -29,10 +66,18 @@ fn run(req: Value) -> Value {
         },
         ..Default::default()
     };
-    if let Some(params) = req.get("params").and_then(Value::as_object) {
-        for (k, v) in params {
-            if let Some(s) = v.as_str() {
-                options.parameters.insert(k.clone(), s.into());
+    for (key, initial) in [("params", false), ("initialParams", true)] {
+        if let Some(params) = req.get(key).and_then(Value::as_object) {
+            for (k, v) in params {
+                let value = match parameter(v) {
+                    Ok(value) => value,
+                    Err(e) => return json!({"diagnostics":[diagnostic(e)]}),
+                };
+                if initial {
+                    options.initial_parameters.insert(k.clone(), value);
+                } else {
+                    options.typed_parameters.insert(k.clone(), value);
+                }
             }
         }
     }

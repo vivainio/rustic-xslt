@@ -67,11 +67,51 @@ impl Default for Limits {
     }
 }
 
+/// Atomic values accepted by the transformation parameter API.
+/// Exact numeric values use lexical strings and the engine's numeric digit limit.
+#[derive(Debug, Clone)]
+pub enum ParameterValue {
+    Empty,
+    String(String),
+    UntypedAtomic(String),
+    Boolean(bool),
+    Integer(String),
+    Decimal(String),
+    Double(f64),
+    Float(f32),
+}
+impl From<String> for ParameterValue {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+impl From<&str> for ParameterValue {
+    fn from(value: &str) -> Self {
+        Self::String(value.into())
+    }
+}
+impl From<bool> for ParameterValue {
+    fn from(value: bool) -> Self {
+        Self::Boolean(value)
+    }
+}
+impl From<i64> for ParameterValue {
+    fn from(value: i64) -> Self {
+        Self::Integer(value.to_string())
+    }
+}
+
 /// Per-run string parameters, entry point and execution limits.
 /// Component names are local names or `Q{uri}local`; lexical prefixes are invalid.
 #[derive(Debug, Clone, Default)]
 pub struct TransformOptions {
+    /// String-valued global parameters, retained for compatibility.
     pub parameters: std::collections::BTreeMap<String, String>,
+    /// Atomic global parameters. Names must not duplicate `parameters`.
+    pub typed_parameters: std::collections::BTreeMap<String, ParameterValue>,
+    /// Ordinary parameters for the initial template or initial template rules.
+    /// These are independent of global parameters, even when names coincide.
+    pub initial_parameters: std::collections::BTreeMap<String, ParameterValue>,
     pub initial_template: Option<String>,
     pub initial_mode: Option<String>,
     pub limits: Limits,

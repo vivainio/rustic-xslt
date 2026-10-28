@@ -107,17 +107,30 @@ def component_name(node):
 def parameters(nodes):
     result = {}
     for p in nodes:
+        if tag(p) != "param":
+            raise HarnessError(f"unsupported initial-entry child: {tag(p)}")
         check_attrs(p, ["name", "select", "static", "tunnel"])
         if p.get("static", "no") != "no" or p.get("tunnel", "no") != "no":
             raise HarnessError("static/tunnel catalog parameters")
         s = p.get("select", "").strip()
         if re.fullmatch(r"'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"", s):
-            name = component_name(p)
-            if name in result:
-                raise HarnessError(f"duplicate catalog parameter: {name}")
-            result[name] = s[1:-1].replace(s[0] * 2, s[0])
+            value = s[1:-1].replace(s[0] * 2, s[0])
+        elif re.fullmatch(r"[+-]?[0-9]+", s):
+            value = {"type": "integer", "value": s}
+        elif re.fullmatch(r"[+-]?(?:[0-9]+\.[0-9]*|\.[0-9]+)", s):
+            value = {"type": "decimal", "value": s}
+        elif re.fullmatch(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)[eE][+-]?[0-9]+", s):
+            value = {"type": "double", "value": s}
+        elif s in {"true()", "false()"}:
+            value = s == "true()"
+        elif s == "()":
+            value = {"type": "empty"}
         else:
-            raise HarnessError("non-string catalog parameter expression")
+            raise HarnessError("unsupported catalog parameter expression")
+        name = component_name(p)
+        if name in result:
+            raise HarnessError(f"duplicate catalog parameter: {name}")
+        result[name] = value
     return result
 
 def environment(node, registry, seen=()):
@@ -316,8 +329,7 @@ def run_case(case, base, registry, driver):
             request["params"].update(parameters([part]))
         elif kind in {"initial-template", "initial-mode"}:
             check_attrs(part, ["name"])
-            if len(part):
-                raise HarnessError("initial-entry parameters")
+            request["initialParams"] = parameters(part)
             request["initialTemplate" if kind == "initial-template" else "initialMode"] = component_name(part)
         elif kind == "output":
             check_attrs(part, ["serialize"])

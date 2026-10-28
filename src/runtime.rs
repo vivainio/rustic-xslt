@@ -4,7 +4,7 @@ use crate::{
     result::{self, Output},
     xpath::{self, Budget, Focus, Item, Value, Variables, XNode},
 };
-use std::{collections::BTreeMap, rc::Rc};
+use std::rc::Rc;
 fn limit() -> Diagnostic {
     Diagnostic::new("XPDY0130", "execution depth limit exceeded", "run")
 }
@@ -310,6 +310,34 @@ fn copied_leaf(node: XNode<'_>, output: &mut Output) -> Result<(), Diagnostic> {
         Ok(())
     }
 }
+fn parameter_value<'a>(value: &crate::ParameterValue) -> Result<Value<'a>, Diagnostic> {
+    use crate::{ParameterValue as P, number::Number};
+    Ok(match value {
+        P::Empty => vec![],
+        P::String(s) => vec![Item::String(s.clone())],
+        P::UntypedAtomic(s) => vec![Item::Untyped(s.clone())],
+        P::Boolean(v) => vec![Item::Boolean(*v)],
+        P::Integer(s) => vec![Item::Number(Number::cast("integer", s)?)],
+        P::Decimal(s) => vec![Item::Number(Number::cast("decimal", s)?)],
+        P::Double(n) => vec![Item::Number(Number::Double(*n))],
+        P::Float(n) => vec![Item::Number(Number::Float(*n))],
+    })
+}
+fn insert_parameter<'a>(
+    parameters: &mut Variables<'a>,
+    name: &str,
+    value: Value<'a>,
+) -> Result<(), Diagnostic> {
+    let name = crate::qname::external(name)?;
+    if parameters.insert(name.clone(), value).is_some() {
+        return Err(Diagnostic::new(
+            "RUST_XSLT_INVALID_PARAMETER",
+            format!("duplicate external parameter: {name}"),
+            "run",
+        ));
+    }
+    Ok(())
+}
 fn execute<'a>(
     sheet: &'a Stylesheet,
     root: Focus<'a>,
@@ -318,11 +346,20 @@ fn execute<'a>(
     declaration: bool,
     trees: &crate::trees::Trees<'a>,
 ) -> Result<String, Diagnostic> {
-    let parameters = options
-        .parameters
-        .iter()
-        .map(|(name, value)| Ok((crate::qname::external(name)?, value)))
-        .collect::<Result<BTreeMap<_, _>, Diagnostic>>()?;
+    let mut parameters = Variables::new();
+    for (name, value) in &options.parameters {
+        budget.tick()?;
+        insert_parameter(&mut parameters, name, vec![Item::String(value.clone())])?;
+    }
+    for (name, value) in &options.typed_parameters {
+        budget.tick()?;
+        insert_parameter(&mut parameters, name, parameter_value(value)?)?;
+    }
+    let mut initial_parameters = Variables::new();
+    for (name, value) in &options.initial_parameters {
+        budget.tick()?;
+        insert_parameter(&mut initial_parameters, name, parameter_value(value)?)?;
+    }
     let limits = options.limits;
     let mut globals = Variables::new();
     let mut pending: Vec<_> = sheet.globals.iter().collect();
@@ -332,7 +369,7 @@ fn execute<'a>(
         for b in pending {
             budget.tick()?;
             if let Some(s) = parameters.get(&b.name).filter(|_| b.parameter) {
-                let mut v = vec![Item::String((*s).clone())];
+                let mut v = (*s).clone();
                 if let Some(ty) = &b.ty {
                     v = ty.convert(v, "XTTE0590")?;
                 }
@@ -427,13 +464,13 @@ fn execute<'a>(
                     "run",
                 )
             })?;
-        vec![Task::Enter(t, root, Variables::new(), 0, initial_mode)]
+        vec![Task::Enter(t, root, initial_parameters, 0, initial_mode)]
     } else {
         vec![Task::Apply(
             root,
             0,
             initial_mode,
-            Rc::new(Variables::new()),
+            Rc::new(initial_parameters),
         )]
     };
     let run = Run {

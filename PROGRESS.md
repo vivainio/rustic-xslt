@@ -242,5 +242,20 @@ conformance claims. Smaller tested increments are committed independently.
   failures / 111 harness errors / 46 exclusions; all 262 prior passes remain.
   Gate expanded to 263.
 
-Next: initial-entry parameters, implicit required parameters, and further
-practical XSLT 1.0 dispatch behavior.
+## Increment 21: atomic and initial-entry parameter API
+
+- Added ParameterValue for strings, untyped values, booleans, exact integers and
+  decimals, floats/doubles and empty sequences. Existing string globals remain
+  compatible; typed_parameters and initial_parameters are separate maps.
+- Named/matched initial templates and streamed record entries accept ordinary
+  parameters independently of globals; aliased duplicate API names are errors.
+- Parameter conversion consumes the shared budget and numeric lexical limits.
+  Nodes and general parameter sequences remain outside this initial atomic API.
+- The development driver/catalog supports simple atomic setup literals and
+  ordinary initial parameters; complex expressions/static/tunnel setup remain
+  explicit harness gaps.
+- 164 Rust integration tests, 17 harness tests and Clippy/format pass. The 263-case
+  W3C gate remains green; selected counts are unchanged.
+
+Next: implicit required parameters, tunnel parameters, and further practical
+XSLT 1.0 dispatch behavior.

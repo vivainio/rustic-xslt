@@ -33,7 +33,8 @@ failures, 111 harness errors, 46 optional-profile exclusions. Do not present the
 263 cases as an applicable-suite pass rate.
 
 Supported setup: local stylesheet/source files or inline content, local/global
-named environments, string parameter literals, initial template/mode selection,
+named environments, string/boolean/numeric/empty parameter literals, ordinary
+initial template/mode parameters and selection,
 and serialization selection. Supported assertions: exact W3C error codes
 (including explicit `*`), structural `assert-xml`/`assert-serialization`,
 `assert-string-value`, supported XPath `assert` expressions, all-of/any-of/not. XML comparison preserves tree shape,
@@ -52,7 +53,7 @@ to the XML result document and the catalog namespace scope preserved. Unsupporte
 assertion expressions are harness errors. No standalone XPath product is added.
 
 Still missing: raw XDM result access, complete XPath assertion coverage, regex assertions,
-secondary-result/message assertions, typed/static/tunnel/initial-entry catalog
+secondary-result/message assertions, general parameter expressions, static/tunnel catalog
 parameters, context-item selectors, package/resource/schema environments,
 collations and additional dependency configurations. These appear in reports
 as harness errors. This runner is intended to grow alongside the engine.

@@ -77,6 +77,37 @@ class XPathAssertions(unittest.TestCase):
                 return {'output':'false','diagnostics':[]}
         self.assertFalse(assertion(node('<assert>false()</assert>'),{'method':'xml','output':'<r/>'},Path(),FalseDriver())[0])
 
+class ParameterExpressions(unittest.TestCase):
+    def test_simple_atomic_parameter_expressions(self):
+        for expression, expected in [("123456789012345678901234567890", {"type": "integer", "value": "123456789012345678901234567890"}), ("-1.25", {"type": "decimal", "value": "-1.25"}), ("1e3", {"type": "double", "value": "1e3"}), ("true()", True), ("false()", False), ("()", {"type": "empty"})]:
+            self.assertEqual(parameters([node(f'<param name="v" select="{expression}"/>')]), {"v": expected})
+
+    def test_initial_parameters_are_separate_from_globals(self):
+        import tempfile
+        from run import parse_catalog, run_case
+        class RecordingDriver:
+            def call(self, request):
+                self.request = request
+                return {"output": "ok", "method": "text", "diagnostics": []}
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "case.xml"
+            path.write_text(f'''<test-case xmlns="{NS[1:-1]}" xmlns:p="urn:p"><test>
+                <stylesheet><content>stylesheet</content></stylesheet>
+                <param name="p:v" select="'global'"/>
+                <initial-template name="p:entry"><param name="p:v" select="42"/></initial-template>
+                </test><result><assert-string-value>ok</assert-string-value></result></test-case>''')
+            case = parse_catalog(path)
+            driver = RecordingDriver()
+            self.assertEqual(run_case(case, Path(tmp), {}, driver)[0], "pass")
+            self.assertEqual(driver.request["params"], {"Q{urn:p}v": "global"})
+            self.assertEqual(driver.request["initialParams"], {"Q{urn:p}v": {"type": "integer", "value": "42"}})
+            self.assertEqual(driver.request["initialTemplate"], "Q{urn:p}entry")
+
+    def test_complex_static_and_tunnel_parameters_remain_harness_errors(self):
+        for xml in ['<param name="v" select="1+2"/>', '<param name="v" select="1" static="yes"/>', '<param name="v" select="1" tunnel="yes"/>']:
+            with self.assertRaises(HarnessError):
+                parameters([node(xml)])
+
 class ComponentNames(unittest.TestCase):
     def catalog(self, xml):
         import tempfile
@@ -88,7 +119,7 @@ class ComponentNames(unittest.TestCase):
 
     def test_catalog_names_resolve_at_each_element(self):
         from run import component_name
-        root = self.catalog('''<test xmlns="urn:default" xmlns:p="urn:outer">
+        root = self.catalog('''<test xmlns="http://www.w3.org/2012/10/xslt-test-catalog" xmlns:p="urn:outer">
             <initial-template name="p:t"/><initial-mode name="p:m" xmlns:p="urn:inner"/>
             <param name="p:v" select="'value'"/><param name="v" select="'bare'"/>
             </test>''')

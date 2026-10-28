@@ -23,7 +23,11 @@ The public surface includes `Stylesheet::compile`, `transform`,
 `transform_with_options`, `transform_with_limits`, a convenience
 `rust_xslt::transform`, and structured `Diagnostic` errors. Compiled stylesheets
 are immutable and `Send + Sync`. `TransformOptions` accepts string global
-parameters, a named initial template/mode, and execution limits. API component
+parameters, atomic `typed_parameters`, separate `initial_parameters`, a named
+initial template/mode, and execution limits. `ParameterValue` represents strings,
+untyped atomic values, booleans, exact integer/decimal lexical values, floats,
+doubles and the empty sequence. The same parameter fields are available for
+streamed record entry. Supplying aliased duplicate names is an API error. API component
 names use a local name or `Q{uri}local` (also for `StreamOptions::template` and
 parameter keys); lexical prefixes require a stylesheet namespace scope and are
 rejected at API boundaries. Stylesheet component names and XPath variable
