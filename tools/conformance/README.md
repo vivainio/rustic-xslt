@@ -8,7 +8,7 @@ The reference source pins `xslt30-test` to
 check out that revision, then run:
 
 ```sh
-python3 tools/conformance/run.py /path/to/xslt30-test --sets choose,copy,template,variable,param,mode,call-template,apply-templates,initial-template,initial-mode
+python3 tools/conformance/run.py /path/to/xslt30-test --sets choose,copy,template,variable,param,mode,tunnel,call-template,apply-templates,initial-template,initial-mode
 ```
 
 The command builds a development-only Rust JSON-lines example, reads catalog
@@ -21,19 +21,19 @@ XPath API is added to the shipped library.
 For the committed passing-case regression gate:
 
 ```sh
-python3 tools/conformance/run.py /path/to/xslt30-test --sets choose,copy,template,variable,param,mode,call-template,apply-templates,initial-template,initial-mode \
+python3 tools/conformance/run.py /path/to/xslt30-test --sets choose,copy,template,variable,param,mode,tunnel,call-template,apply-templates,initial-template,initial-mode \
   --baseline tools/conformance/baseline.json
 python3 -m unittest discover -s tools/conformance -p 'test_*.py'
 ```
 
 The gate fails for missing or regressed baseline cases. Other failures and
 harness errors are still named and counted, never reclassified as passes.
-The current gate contains 263 passing cases out of 625 selected cases: 205 engine
-failures, 111 harness errors, 46 optional-profile exclusions. Do not present the
-263 cases as an applicable-suite pass rate.
+The current gate contains 295 passing cases out of 683 selected cases: 210 engine
+failures, 132 harness errors, 46 optional-profile exclusions. Do not present the
+295 cases as an applicable-suite pass rate.
 
 Supported setup: local stylesheet/source files or inline content, local/global
-named environments, string/boolean/numeric/empty parameter literals, ordinary
+named environments, string/boolean/numeric/empty parameter literals, ordinary/tunnel
 initial template/mode parameters and selection,
 and serialization selection. Supported assertions: exact W3C error codes
 (including explicit `*`), structural `assert-xml`/`assert-serialization`,
@@ -53,7 +53,7 @@ to the XML result document and the catalog namespace scope preserved. Unsupporte
 assertion expressions are harness errors. No standalone XPath product is added.
 
 Still missing: raw XDM result access, complete XPath assertion coverage, regex assertions,
-secondary-result/message assertions, general parameter expressions, static/tunnel catalog
+secondary-result/message assertions, general parameter expressions and static catalog
 parameters, context-item selectors, package/resource/schema environments,
 collations and additional dependency configurations. These appear in reports
 as harness errors. This runner is intended to grow alongside the engine.

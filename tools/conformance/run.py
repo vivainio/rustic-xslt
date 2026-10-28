@@ -104,14 +104,20 @@ def component_name(node):
         return f"Q{{{uri}}}{local}" if uri else local
     raise HarnessError(f"invalid catalog component name: {name}")
 
-def parameters(nodes):
-    result = {}
+def parameters(nodes, allow_tunnel=False, tunnel=False):
+    result, seen = {}, set()
     for p in nodes:
         if tag(p) != "param":
             raise HarnessError(f"unsupported initial-entry child: {tag(p)}")
         check_attrs(p, ["name", "select", "static", "tunnel"])
-        if p.get("static", "no") != "no" or p.get("tunnel", "no") != "no":
-            raise HarnessError("static/tunnel catalog parameters")
+        if p.get("static", "no") != "no":
+            raise HarnessError("static catalog parameters")
+        flag = p.get("tunnel", "no").strip()
+        if flag not in {"yes", "true", "1", "no", "false", "0"}:
+            raise HarnessError("invalid catalog tunnel flag")
+        is_tunnel = flag in {"yes", "true", "1"}
+        if is_tunnel and not allow_tunnel:
+            raise HarnessError("global tunnel catalog parameters")
         s = p.get("select", "").strip()
         if re.fullmatch(r"'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"", s):
             value = s[1:-1].replace(s[0] * 2, s[0])
@@ -128,9 +134,11 @@ def parameters(nodes):
         else:
             raise HarnessError("unsupported catalog parameter expression")
         name = component_name(p)
-        if name in result:
+        if name in seen:
             raise HarnessError(f"duplicate catalog parameter: {name}")
-        result[name] = value
+        seen.add(name)
+        if is_tunnel == tunnel:
+            result[name] = value
     return result
 
 def environment(node, registry, seen=()):
@@ -329,7 +337,8 @@ def run_case(case, base, registry, driver):
             request["params"].update(parameters([part]))
         elif kind in {"initial-template", "initial-mode"}:
             check_attrs(part, ["name"])
-            request["initialParams"] = parameters(part)
+            request["initialParams"] = parameters(part, allow_tunnel=True)
+            request["initialTunnelParams"] = parameters(part, allow_tunnel=True, tunnel=True)
             request["initialTemplate" if kind == "initial-template" else "initialMode"] = component_name(part)
         elif kind == "output":
             check_attrs(part, ["serialize"])

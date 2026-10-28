@@ -268,4 +268,19 @@ conformance claims. Smaller tested increments are committed independently.
 - 167 Rust integration tests and Clippy/format pass; all 263 W3C gate cases remain
   green with unchanged selected-case counts.
 
-Next: tunnel parameters and further practical XSLT 1.0 dispatch behavior.
+## Increment 23: tunnel parameters
+
+- Tunnel bindings flow through named/matched templates and built-in rules using
+  owned shared frames; with-param overrides are scoped to their called branch.
+- Ordinary parameters do not intercept tunnel values. Receiver defaults and
+  type conversions remain local; explicit required tunnel parameters are dynamic.
+- Added initial_tunnel_parameters to tree/record APIs and the development
+  protocol; the catalog keeps ordinary and tunnel initial bindings separate.
+- 176 Rust integration tests, 18 harness tests and Clippy/format pass. Eleven W3C
+  sets: 683 cases, 295 pass / 210 engine failures / 132 harness errors / 46 exclusions.
+  All 263 previous gate cases remain; gate expands to 295.
+- Downloaded the complete QT3 suite at 201a6e466940cdfc727f4babfedcde5332b9f578
+  for subsequent offline XPath work. Full pinned XSLT suite is also cached.
+
+Next: URIQualifiedNames inside AVTs, default modes and further practical XSLT
+1.0 dispatch behavior; template result types and next-match remain ahead.

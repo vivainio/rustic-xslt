@@ -112,6 +112,8 @@ pub struct TransformOptions {
     /// Ordinary parameters for the initial template or initial template rules.
     /// These are independent of global parameters, even when names coincide.
     pub initial_parameters: std::collections::BTreeMap<String, ParameterValue>,
+    /// Tunnel parameters for the initial template or initial template rules.
+    pub initial_tunnel_parameters: std::collections::BTreeMap<String, ParameterValue>,
     pub initial_template: Option<String>,
     pub initial_mode: Option<String>,
     pub limits: Limits,

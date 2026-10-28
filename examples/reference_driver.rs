@@ -66,17 +66,27 @@ fn run(req: Value) -> Value {
         },
         ..Default::default()
     };
-    for (key, initial) in [("params", false), ("initialParams", true)] {
+    for (key, kind) in [
+        ("params", 0),
+        ("initialParams", 1),
+        ("initialTunnelParams", 2),
+    ] {
         if let Some(params) = req.get(key).and_then(Value::as_object) {
             for (k, v) in params {
                 let value = match parameter(v) {
                     Ok(value) => value,
                     Err(e) => return json!({"diagnostics":[diagnostic(e)]}),
                 };
-                if initial {
-                    options.initial_parameters.insert(k.clone(), value);
-                } else {
-                    options.typed_parameters.insert(k.clone(), value);
+                match kind {
+                    1 => {
+                        options.initial_parameters.insert(k.clone(), value);
+                    }
+                    2 => {
+                        options.initial_tunnel_parameters.insert(k.clone(), value);
+                    }
+                    _ => {
+                        options.typed_parameters.insert(k.clone(), value);
+                    }
                 }
             }
         }

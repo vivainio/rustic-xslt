@@ -28,6 +28,7 @@ pub struct StreamOptions {
     pub parameters: BTreeMap<String, String>,
     pub typed_parameters: BTreeMap<String, crate::ParameterValue>,
     pub initial_parameters: BTreeMap<String, crate::ParameterValue>,
+    pub initial_tunnel_parameters: BTreeMap<String, crate::ParameterValue>,
     pub limits: crate::Limits,
     pub max_record_bytes: usize,
     pub max_event_bytes: usize,
@@ -42,6 +43,7 @@ impl Default for StreamOptions {
             parameters: BTreeMap::new(),
             typed_parameters: BTreeMap::new(),
             initial_parameters: BTreeMap::new(),
+            initial_tunnel_parameters: BTreeMap::new(),
             limits: crate::Limits::default(),
             max_record_bytes: 8 * 1024 * 1024,
             max_event_bytes: 1024 * 1024,
@@ -719,6 +721,7 @@ pub(crate) fn transform<R: BufRead, W: Write>(
                 parameters: options.parameters.clone(),
                 typed_parameters: options.typed_parameters.clone(),
                 initial_parameters: options.initial_parameters.clone(),
+                initial_tunnel_parameters: options.initial_tunnel_parameters.clone(),
                 initial_template: Some(options.template.clone()),
                 initial_mode: None,
                 limits: crate::Limits {

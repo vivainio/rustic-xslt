@@ -103,6 +103,11 @@ class ParameterExpressions(unittest.TestCase):
             self.assertEqual(driver.request["initialParams"], {"Q{urn:p}v": {"type": "integer", "value": "42"}})
             self.assertEqual(driver.request["initialTemplate"], "Q{urn:p}entry")
 
+    def test_tunnel_initial_values_are_separated(self):
+        entries = [node('<param name="ordinary" select="1"/>'), node('<param name="tunnel" select="2" tunnel="yes"/>')]
+        self.assertEqual(parameters(entries, allow_tunnel=True), {"ordinary": {"type": "integer", "value": "1"}})
+        self.assertEqual(parameters(entries, allow_tunnel=True, tunnel=True), {"tunnel": {"type": "integer", "value": "2"}})
+
     def test_complex_static_and_tunnel_parameters_remain_harness_errors(self):
         for xml in ['<param name="v" select="1+2"/>', '<param name="v" select="1" static="yes"/>', '<param name="v" select="1" tunnel="yes"/>']:
             with self.assertRaises(HarnessError):

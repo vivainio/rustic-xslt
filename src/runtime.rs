@@ -14,34 +14,55 @@ struct Frame<'a> {
     env: Rc<Variables<'a>>,
     depth: usize,
     mode: String,
+    tunnel: Rc<Variables<'a>>,
+}
+#[derive(Clone, Default)]
+struct Supplied<'a> {
+    ordinary: Variables<'a>,
+    tunnel: Rc<Variables<'a>>,
+}
+impl<'a> Supplied<'a> {
+    fn inherited(tunnel: Rc<Variables<'a>>) -> Self {
+        Self {
+            ordinary: Variables::new(),
+            tunnel,
+        }
+    }
+    fn insert(&mut self, binding: &Binding, value: Value<'a>) {
+        if binding.tunnel {
+            Rc::make_mut(&mut self.tunnel).insert(binding.name.clone(), value);
+        } else {
+            self.ordinary.insert(binding.name.clone(), value);
+        }
+    }
 }
 enum Task<'a> {
-    Apply(Focus<'a>, usize, String, Rc<Variables<'a>>),
+    Apply(Focus<'a>, usize, String, Rc<Supplied<'a>>),
     ApplyArguments(
         Vec<Focus<'a>>,
         String,
         &'a [Binding],
         usize,
-        Variables<'a>,
+        Supplied<'a>,
         Frame<'a>,
     ),
     Body(&'a [Instruction], usize, Frame<'a>),
-    Enter(&'a Template, Focus<'a>, Variables<'a>, usize, String),
+    Enter(&'a Template, Focus<'a>, Supplied<'a>, usize, String),
     DeepCopy(XNode<'a>, usize, bool),
     FinishDocument(Output, usize),
     Atomic(String),
     Close,
     FinishCapture(Capture, Output),
     Parameters(&'a Template, usize, Variables<'a>, Frame<'a>),
-    Arguments(&'a Template, &'a [Binding], usize, Variables<'a>, Frame<'a>),
+    Arguments(&'a Template, &'a [Binding], usize, Supplied<'a>, Frame<'a>),
     EvaluateBinding(&'a Binding, Frame<'a>, BindNext<'a>),
     FinishBinding(&'a Binding, Frame<'a>, BindNext<'a>, Output),
 }
 enum BindNext<'a> {
     Local(&'a [Instruction], usize),
     Parameter(&'a Template, usize, Variables<'a>),
-    Argument(&'a Template, &'a [Binding], usize, Variables<'a>),
-    ApplyArgument(Vec<Focus<'a>>, String, &'a [Binding], usize, Variables<'a>),
+    Argument(&'a Template, &'a [Binding], usize, Supplied<'a>),
+    ApplyArgument(Vec<Focus<'a>>, String, &'a [Binding], usize, Supplied<'a>),
 }
 impl BindNext<'_> {
     fn type_error(&self) -> &'static str {
@@ -72,11 +93,11 @@ fn complete_binding<'a>(
             tasks.push(Task::Parameters(t, index, supplied, frame));
         }
         BindNext::ApplyArgument(foci, mode, params, index, mut args) => {
-            args.insert(binding.name.clone(), value);
+            args.insert(binding, value);
             tasks.push(Task::ApplyArguments(foci, mode, params, index, args, frame));
         }
         BindNext::Argument(t, params, index, mut args) => {
-            args.insert(binding.name.clone(), value);
+            args.insert(binding, value);
             tasks.push(Task::Arguments(t, params, index, args, frame));
         }
     }
@@ -355,10 +376,22 @@ fn execute<'a>(
         budget.tick()?;
         insert_parameter(&mut parameters, name, parameter_value(value)?)?;
     }
-    let mut initial_parameters = Variables::new();
+    let mut initial_parameters = Supplied::default();
     for (name, value) in &options.initial_parameters {
         budget.tick()?;
-        insert_parameter(&mut initial_parameters, name, parameter_value(value)?)?;
+        insert_parameter(
+            &mut initial_parameters.ordinary,
+            name,
+            parameter_value(value)?,
+        )?;
+    }
+    for (name, value) in &options.initial_tunnel_parameters {
+        budget.tick()?;
+        insert_parameter(
+            Rc::make_mut(&mut initial_parameters.tunnel),
+            name,
+            parameter_value(value)?,
+        )?;
     }
     let limits = options.limits;
     let mut globals = Variables::new();
@@ -408,6 +441,7 @@ fn execute<'a>(
                         env: env.clone(),
                         depth: 0,
                         mode: String::new(),
+                        tunnel: Rc::new(Variables::new()),
                     };
                     let run = Run {
                         sheet,
@@ -515,18 +549,24 @@ fn run_tasks<'a>(
                 tasks.push(Task::Parameters(
                     t,
                     0,
-                    params,
+                    params.ordinary,
                     Frame {
                         focus,
                         env: Rc::new((*globals).clone()),
                         depth,
                         mode,
+                        tunnel: params.tunnel,
                     },
                 ));
             }
             Task::Parameters(t, index, mut supplied, mut frame) => {
                 if let Some(p) = t.params.get(index) {
-                    if let Some(mut value) = supplied.remove(&p.name) {
+                    let value = if p.tunnel {
+                        frame.tunnel.get(&p.name).cloned()
+                    } else {
+                        supplied.remove(&p.name)
+                    };
+                    if let Some(mut value) = value {
                         if let Some(ty) = &p.ty {
                             value = ty.convert(value, "XTTE0590")?;
                         }
@@ -663,7 +703,7 @@ fn run_tasks<'a>(
                                 depth + 1,
                                 mode.clone(),
                                 if sheet.backwards {
-                                    Rc::new(Variables::new())
+                                    Rc::new(Supplied::inherited(params.tunnel.clone()))
                                 } else {
                                     params.clone()
                                 },
@@ -695,6 +735,7 @@ fn run_tasks<'a>(
                     env,
                     depth,
                     mode,
+                    tunnel,
                 } = frame;
                 match instruction {
                     Instruction::ComputedElement(n, inherit, body) => {
@@ -703,6 +744,7 @@ fn run_tasks<'a>(
                             env,
                             depth: depth + 1,
                             mode,
+                            tunnel: tunnel.clone(),
                         };
                         let name = computed_name(n, false, &frame, budget, sheet.backwards)?;
                         output.start(result::Element {
@@ -720,6 +762,7 @@ fn run_tasks<'a>(
                             env,
                             depth: depth + 1,
                             mode,
+                            tunnel: tunnel.clone(),
                         };
                         let name = computed_name(n, true, &frame, budget, sheet.backwards)?;
                         capture(
@@ -740,6 +783,7 @@ fn run_tasks<'a>(
                             env,
                             depth: depth + 1,
                             mode,
+                            tunnel: tunnel.clone(),
                         },
                         sheet,
                         budget,
@@ -764,6 +808,7 @@ fn run_tasks<'a>(
                                 env,
                                 depth: depth + 1,
                                 mode,
+                                tunnel: tunnel.clone(),
                             },
                             sheet,
                             budget,
@@ -805,12 +850,13 @@ fn run_tasks<'a>(
                             target_mode,
                             params,
                             0,
-                            Variables::new(),
+                            Supplied::inherited(tunnel.clone()),
                             Frame {
                                 focus,
                                 env,
                                 depth,
                                 mode,
+                                tunnel: tunnel.clone(),
                             },
                         ));
                     }
@@ -882,6 +928,7 @@ fn run_tasks<'a>(
                                         env,
                                         depth: depth + 1,
                                         mode,
+                                        tunnel: tunnel.clone(),
                                     },
                                 ));
                             }
@@ -893,6 +940,7 @@ fn run_tasks<'a>(
                                     env,
                                     depth: depth + 1,
                                     mode,
+                                    tunnel: tunnel.clone(),
                                 },
                             )),
                             Item::Node(n) => copied_leaf(n, &mut output)?,
@@ -920,6 +968,7 @@ fn run_tasks<'a>(
                                 env,
                                 depth: depth + 1,
                                 mode,
+                                tunnel: tunnel.clone(),
                             },
                         ));
                     }
@@ -935,6 +984,7 @@ fn run_tasks<'a>(
                                     env: env.clone(),
                                     depth: depth + 1,
                                     mode: mode.clone(),
+                                    tunnel: tunnel.clone(),
                                 },
                             ));
                         }
@@ -956,6 +1006,7 @@ fn run_tasks<'a>(
                                     env,
                                     depth: depth + 1,
                                     mode,
+                                    tunnel: tunnel.clone(),
                                 },
                             ));
                         }
@@ -979,6 +1030,7 @@ fn run_tasks<'a>(
                                         env,
                                         depth: depth + 1,
                                         mode,
+                                        tunnel: tunnel.clone(),
                                     },
                                 ));
                                 break;
@@ -1001,12 +1053,13 @@ fn run_tasks<'a>(
                             t,
                             params,
                             0,
-                            Variables::new(),
+                            Supplied::inherited(tunnel.clone()),
                             Frame {
                                 focus,
                                 env,
                                 depth,
                                 mode,
+                                tunnel: tunnel.clone(),
                             },
                         ));
                     }
@@ -1038,6 +1091,7 @@ fn run_tasks<'a>(
                                 env,
                                 depth: depth + 1,
                                 mode,
+                                tunnel: tunnel.clone(),
                             },
                         ));
                     }

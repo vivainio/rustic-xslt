@@ -67,6 +67,7 @@ pub(crate) struct Binding {
     pub parameter: bool,
     pub required: bool,
     pub implicit_required: bool,
+    pub tunnel: bool,
     pub ty: Option<crate::seqtype::SequenceType>,
 }
 #[derive(Debug)]
@@ -216,11 +217,26 @@ fn binding(n: Node<'_, '_>, parameter: bool, depth: usize) -> Result<Binding, Di
     attrs(
         n,
         if declaration {
-            &["name", "select", "as", "required"]
+            &["name", "select", "as", "required", "tunnel"]
+        } else if parameter {
+            &["name", "select", "as", "tunnel"]
         } else {
             &["name", "select", "as"]
         },
     )?;
+    let tunnel = parameter && boolean_attribute(n, "tunnel", false)?;
+    if declaration
+        && tunnel
+        && n.parent_element().is_none_or(|p| {
+            p.tag_name().namespace() != Some(XSL) || p.tag_name().name() != "template"
+        })
+    {
+        return Err(static_error(
+            n,
+            "XTSE0020",
+            "tunnel parameters must belong to a template",
+        ));
+    }
     let mandatory = declaration && boolean_attribute(n, "required", false)?;
     if mandatory
         && (n.attribute("select").is_some()
@@ -300,6 +316,7 @@ fn binding(n: Node<'_, '_>, parameter: bool, depth: usize) -> Result<Binding, Di
         parameter,
         required: mandatory,
         implicit_required,
+        tunnel,
         ty,
     })
 }
@@ -1139,7 +1156,10 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                         )
                     })?;
                     for p in &target.params {
-                        if p.required && !params.iter().any(|a| a.name == p.name) {
+                        if p.required
+                            && !p.tunnel
+                            && !params.iter().any(|a| !a.tunnel && a.name == p.name)
+                        {
                             return Err(Diagnostic::new(
                                 "XTSE0690",
                                 format!("required parameter not supplied: {}", p.name),
@@ -1149,7 +1169,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     }
                     if !templates.backwards {
                         for p in params {
-                            if !target.params.iter().any(|a| a.name == p.name) {
+                            if !p.tunnel
+                                && !target.params.iter().any(|a| !a.tunnel && a.name == p.name)
+                            {
                                 return Err(Diagnostic::new(
                                     "XTSE0680",
                                     format!("unknown template parameter: {}", p.name),

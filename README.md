@@ -85,7 +85,9 @@ ordinary supplied parameters; version 1.0 built-ins use their original parameter
 behavior. Explicit required global/template parameters are supported; missing named-call
 arguments are checked statically. Parameters with nonempty required types and no default are implicitly required;
 XSLT 2.0 reports XTDE0610 and 3.0 reports XTDE0700 when they are missing.
-Tunnel parameters remain ahead.
+Tunnel parameters pass through undeclared intermediate templates and built-in
+rules; ordinary and tunnel values remain separate. Initial tunnel values use
+`initial_tunnel_parameters`.
 No imports, schema awareness,
 resource loading, or cancellation yet. Record streaming is described below. Empty result elements use
 explicit start/end tags. Literal results preserve in-scope non-XSLT namespaces except declared exclusions;
@@ -168,7 +170,7 @@ streamable modes/accumulators and automatic plan selection remain ahead.
 
 ## W3C development checks
 
-A pinned, partial catalog runner and a 263-case passing regression gate are in
+A pinned, partial catalog runner and a 295-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. The example JSON-lines driver

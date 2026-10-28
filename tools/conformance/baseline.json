@@ -106,6 +106,98 @@
       "mode-1501"
     ],
     [
+      "tunnel",
+      "tunnel-0101"
+    ],
+    [
+      "tunnel",
+      "tunnel-0102"
+    ],
+    [
+      "tunnel",
+      "tunnel-0103"
+    ],
+    [
+      "tunnel",
+      "tunnel-0104"
+    ],
+    [
+      "tunnel",
+      "tunnel-0105"
+    ],
+    [
+      "tunnel",
+      "tunnel-0106"
+    ],
+    [
+      "tunnel",
+      "tunnel-0107"
+    ],
+    [
+      "tunnel",
+      "tunnel-0108"
+    ],
+    [
+      "tunnel",
+      "tunnel-0109"
+    ],
+    [
+      "tunnel",
+      "tunnel-0110"
+    ],
+    [
+      "tunnel",
+      "tunnel-0111"
+    ],
+    [
+      "tunnel",
+      "tunnel-0114"
+    ],
+    [
+      "tunnel",
+      "tunnel-0115"
+    ],
+    [
+      "tunnel",
+      "tunnel-0116"
+    ],
+    [
+      "tunnel",
+      "tunnel-0117"
+    ],
+    [
+      "tunnel",
+      "tunnel-0118"
+    ],
+    [
+      "tunnel",
+      "tunnel-0119"
+    ],
+    [
+      "tunnel",
+      "tunnel-0120"
+    ],
+    [
+      "tunnel",
+      "tunnel-0301"
+    ],
+    [
+      "tunnel",
+      "tunnel-0302"
+    ],
+    [
+      "tunnel",
+      "tunnel-0404"
+    ],
+    [
+      "tunnel",
+      "tunnel-0405"
+    ],
+    [
+      "tunnel",
+      "tunnel-0406"
+    ],
+    [
       "param",
       "param-0102"
     ],
@@ -204,6 +296,38 @@
     [
       "variable",
       "variable-0122"
+    ],
+    [
+      "variable",
+      "variable-0202"
+    ],
+    [
+      "variable",
+      "variable-0203"
+    ],
+    [
+      "variable",
+      "variable-0204"
+    ],
+    [
+      "variable",
+      "variable-0205"
+    ],
+    [
+      "variable",
+      "variable-0206"
+    ],
+    [
+      "variable",
+      "variable-0301"
+    ],
+    [
+      "variable",
+      "variable-0302"
+    ],
+    [
+      "variable",
+      "variable-0303"
     ],
     [
       "variable",
@@ -1048,6 +1172,10 @@
     [
       "copy",
       "copy-4805"
+    ],
+    [
+      "initial-mode",
+      "initial-mode-004"
     ],
     [
       "initial-mode",
