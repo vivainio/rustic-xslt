@@ -111,6 +111,10 @@
     ],
     [
       "mode",
+      "mode-1204"
+    ],
+    [
+      "mode",
       "mode-1301"
     ],
     [
@@ -123,7 +127,19 @@
     ],
     [
       "mode",
+      "mode-1413"
+    ],
+    [
+      "mode",
       "mode-1417"
+    ],
+    [
+      "mode",
+      "mode-1419"
+    ],
+    [
+      "mode",
+      "mode-1421"
     ],
     [
       "mode",
@@ -320,6 +336,14 @@
     [
       "tunnel",
       "tunnel-0302"
+    ],
+    [
+      "tunnel",
+      "tunnel-0303"
+    ],
+    [
+      "tunnel",
+      "tunnel-0304"
     ],
     [
       "tunnel",
@@ -772,6 +796,18 @@
     [
       "apply-templates",
       "conflict-resolution-1101"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-1201"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-1205"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-1401"
     ],
     [
       "apply-templates",
@@ -1312,6 +1348,74 @@
     [
       "copy",
       "copy-4805"
+    ],
+    [
+      "next-match",
+      "next-match-002"
+    ],
+    [
+      "next-match",
+      "next-match-003"
+    ],
+    [
+      "next-match",
+      "next-match-009"
+    ],
+    [
+      "next-match",
+      "next-match-013"
+    ],
+    [
+      "next-match",
+      "next-match-014"
+    ],
+    [
+      "next-match",
+      "next-match-015"
+    ],
+    [
+      "next-match",
+      "next-match-018"
+    ],
+    [
+      "next-match",
+      "next-match-020"
+    ],
+    [
+      "next-match",
+      "next-match-023"
+    ],
+    [
+      "next-match",
+      "next-match-024"
+    ],
+    [
+      "next-match",
+      "next-match-025"
+    ],
+    [
+      "next-match",
+      "next-match-026"
+    ],
+    [
+      "next-match",
+      "next-match-030"
+    ],
+    [
+      "next-match",
+      "next-match-031"
+    ],
+    [
+      "next-match",
+      "next-match-033"
+    ],
+    [
+      "next-match",
+      "next-match-034"
+    ],
+    [
+      "next-match",
+      "next-match-039"
     ],
     [
       "initial-mode",

@@ -8,7 +8,7 @@ The reference source pins `xslt30-test` to
 check out that revision, then run:
 
 ```sh
-python3 tools/conformance/run.py /path/to/xslt30-test --sets choose,copy,template,variable,param,mode,tunnel,call-template,apply-templates,initial-template,initial-mode
+python3 tools/conformance/run.py /path/to/xslt30-test --sets choose,copy,template,variable,param,mode,tunnel,call-template,apply-templates,initial-template,initial-mode,next-match
 ```
 
 The command builds a development-only Rust JSON-lines example, reads catalog
@@ -21,16 +21,16 @@ XPath API is added to the shipped library.
 For the committed passing-case regression gate:
 
 ```sh
-python3 tools/conformance/run.py /path/to/xslt30-test --sets choose,copy,template,variable,param,mode,tunnel,call-template,apply-templates,initial-template,initial-mode \
+python3 tools/conformance/run.py /path/to/xslt30-test --sets choose,copy,template,variable,param,mode,tunnel,call-template,apply-templates,initial-template,initial-mode,next-match \
   --baseline tools/conformance/baseline.json
 python3 -m unittest discover -s tools/conformance -p 'test_*.py'
 ```
 
 The gate fails for missing or regressed baseline cases. Other failures and
 harness errors are still named and counted, never reclassified as passes.
-The current gate contains 330 passing cases out of 683 selected cases: 174 engine
-failures, 133 harness errors, 46 optional-profile exclusions. Do not present the
-330 cases as an applicable-suite pass rate.
+The current gate contains 356 passing cases out of 723 selected cases: 177 engine
+failures, 144 harness errors, 46 optional-profile exclusions. Do not present the
+356 cases as an applicable-suite pass rate.
 
 Supported setup: local stylesheet/source files or inline content, local/global
 named environments, string/boolean/numeric/empty parameter literals, ordinary/tunnel

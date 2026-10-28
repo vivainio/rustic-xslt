@@ -8,6 +8,20 @@ use std::rc::Rc;
 fn limit() -> Diagnostic {
     Diagnostic::new("XPDY0130", "execution depth limit exceeded", "run")
 }
+#[derive(Clone, Copy, PartialEq)]
+struct Rule {
+    template: usize,
+    branch: usize,
+    priority: f64,
+}
+impl Rule {
+    fn compare(self, other: Self) -> std::cmp::Ordering {
+        self.priority
+            .partial_cmp(&other.priority)
+            .expect("finite template priorities")
+            .then((self.template, self.branch).cmp(&(other.template, other.branch)))
+    }
+}
 #[derive(Clone)]
 struct Frame<'a> {
     focus: Focus<'a>,
@@ -15,6 +29,7 @@ struct Frame<'a> {
     depth: usize,
     mode: String,
     tunnel: Rc<Variables<'a>>,
+    rule: Option<Rule>,
 }
 #[derive(Clone, Default)]
 struct Supplied<'a> {
@@ -37,7 +52,7 @@ impl<'a> Supplied<'a> {
     }
 }
 enum Task<'a> {
-    Apply(Focus<'a>, usize, String, Rc<Supplied<'a>>),
+    Apply(Focus<'a>, usize, String, Rc<Supplied<'a>>, Option<Rule>),
     ApplyArguments(
         Vec<Focus<'a>>,
         String,
@@ -45,9 +60,17 @@ enum Task<'a> {
         usize,
         Supplied<'a>,
         Frame<'a>,
+        Option<Rule>,
     ),
     Body(&'a [Instruction], usize, Frame<'a>),
-    Enter(&'a Template, Focus<'a>, Supplied<'a>, usize, String),
+    Enter(
+        &'a Template,
+        Focus<'a>,
+        Supplied<'a>,
+        usize,
+        String,
+        Option<Rule>,
+    ),
     DeepCopy(XNode<'a>, usize, bool),
     FinishDocument(Output, usize),
     Atomic(String),
@@ -62,7 +85,14 @@ enum BindNext<'a> {
     Local(&'a [Instruction], usize),
     Parameter(&'a Template, usize, Variables<'a>),
     Argument(&'a Template, &'a [Binding], usize, Supplied<'a>),
-    ApplyArgument(Vec<Focus<'a>>, String, &'a [Binding], usize, Supplied<'a>),
+    ApplyArgument(
+        Vec<Focus<'a>>,
+        String,
+        &'a [Binding],
+        usize,
+        Supplied<'a>,
+        Option<Rule>,
+    ),
 }
 impl BindNext<'_> {
     fn type_error(&self) -> &'static str {
@@ -92,9 +122,11 @@ fn complete_binding<'a>(
             Rc::make_mut(&mut frame.env).insert(binding.name.clone(), value);
             tasks.push(Task::Parameters(t, index, supplied, frame));
         }
-        BindNext::ApplyArgument(foci, mode, params, index, mut args) => {
+        BindNext::ApplyArgument(foci, mode, params, index, mut args, before) => {
             args.insert(binding, value);
-            tasks.push(Task::ApplyArguments(foci, mode, params, index, args, frame));
+            tasks.push(Task::ApplyArguments(
+                foci, mode, params, index, args, frame, before,
+            ));
         }
         BindNext::Argument(t, params, index, mut args) => {
             args.insert(binding, value);
@@ -442,6 +474,7 @@ fn execute<'a>(
                         depth: 0,
                         mode: String::new(),
                         tunnel: Rc::new(Variables::new()),
+                        rule: None,
                     };
                     let run = Run {
                         sheet,
@@ -544,13 +577,21 @@ fn execute<'a>(
                     "run",
                 )
             })?;
-        vec![Task::Enter(t, root, initial_parameters, 0, initial_mode)]
+        vec![Task::Enter(
+            t,
+            root,
+            initial_parameters,
+            0,
+            initial_mode,
+            None,
+        )]
     } else {
         vec![Task::Apply(
             root,
             0,
             initial_mode,
             Rc::new(initial_parameters),
+            None,
         )]
     };
     let run = Run {
@@ -574,7 +615,7 @@ fn run_tasks<'a>(
     while let Some(task) = tasks.pop() {
         budget.tick()?;
         match task {
-            Task::Enter(t, focus, params, depth, mode) => {
+            Task::Enter(t, focus, params, depth, mode, rule) => {
                 if depth > limits.max_depth {
                     return Err(limit());
                 }
@@ -588,6 +629,7 @@ fn run_tasks<'a>(
                         depth,
                         mode,
                         tunnel: params.tunnel,
+                        rule,
                     },
                 ));
             }
@@ -626,12 +668,12 @@ fn run_tasks<'a>(
                     tasks.push(Task::Body(&t.body, 0, frame));
                 }
             }
-            Task::ApplyArguments(foci, mode, params, index, args, frame) => {
+            Task::ApplyArguments(foci, mode, params, index, args, frame, before) => {
                 if let Some(p) = params.get(index) {
                     tasks.push(Task::EvaluateBinding(
                         p,
                         frame,
-                        BindNext::ApplyArgument(foci, mode, params, index + 1, args),
+                        BindNext::ApplyArgument(foci, mode, params, index + 1, args, before),
                     ));
                 } else {
                     let args = Rc::new(args);
@@ -641,6 +683,7 @@ fn run_tasks<'a>(
                             frame.depth + 1,
                             mode.clone(),
                             args.clone(),
+                            before,
                         ));
                     }
                 }
@@ -659,6 +702,7 @@ fn run_tasks<'a>(
                         args,
                         frame.depth + 1,
                         frame.mode,
+                        frame.rule,
                     ));
                 }
             }
@@ -690,7 +734,7 @@ fn run_tasks<'a>(
                 )?;
                 complete_binding(binding, value, frame, next, &mut tasks)?;
             }
-            Task::Apply(focus, depth, mode, params) => {
+            Task::Apply(focus, depth, mode, params, before) => {
                 if depth > limits.max_depth {
                     return Err(limit());
                 }
@@ -702,33 +746,40 @@ fn run_tasks<'a>(
                     ));
                 };
                 let definition = sheet.modes.get(&mode).copied().unwrap_or_default();
-                let mut best: Option<(&Template, f64)> = None;
+                let mut best: Option<Rule> = None;
                 let mut ambiguous = false;
-                for t in &sheet.templates {
+                for (ti, t) in sheet.templates.iter().enumerate() {
                     budget.tick()?;
                     if !t.modes.iter().any(|m| m == &mode || m == "#all") {
                         continue;
                     }
                     if let Some(branches) = &t.pattern {
-                        for b in branches {
-                            let priority = t.priority.unwrap_or(b.priority);
-                            if best.as_ref().is_none_or(|(_, p)| priority >= *p)
-                                && crate::pattern::matches(
-                                    b,
-                                    node,
-                                    &globals,
-                                    budget,
-                                    sheet.backwards,
-                                )?
+                        for (bi, b) in branches.iter().enumerate() {
+                            let candidate = Rule {
+                                template: ti,
+                                branch: if t.priority.is_some() { 0 } else { bi },
+                                priority: t.priority.unwrap_or(b.priority),
+                            };
+                            if before.is_some_and(|bound| !candidate.compare(bound).is_lt()) {
+                                continue;
+                            }
+                            if best.is_some_and(|best| candidate.priority < best.priority) {
+                                continue;
+                            }
+                            if crate::pattern::matches(b, node, &globals, budget, sheet.backwards)?
                             {
-                                if let Some((previous, p)) = best {
-                                    if priority > p {
+                                if let Some(previous) = best {
+                                    if candidate.priority > previous.priority {
                                         ambiguous = false;
-                                    } else if priority == p && !std::ptr::eq(previous, t) {
+                                    } else if candidate.priority == previous.priority
+                                        && candidate.template != previous.template
+                                    {
                                         ambiguous = true;
                                     }
                                 }
-                                best = Some((t, priority));
+                                if best.is_none_or(|best| candidate.compare(best).is_gt()) {
+                                    best = Some(candidate);
+                                }
                             }
                         }
                     }
@@ -740,8 +791,15 @@ fn run_tasks<'a>(
                         "run",
                     ));
                 }
-                if let Some((t, _)) = best {
-                    tasks.push(Task::Enter(t, focus, (*params).clone(), depth, mode));
+                if let Some(rule) = best {
+                    tasks.push(Task::Enter(
+                        &sheet.templates[rule.template],
+                        focus,
+                        (*params).clone(),
+                        depth,
+                        mode,
+                        Some(rule),
+                    ));
                 } else {
                     use crate::mode::OnNoMatch as P;
                     let policy = definition.policy();
@@ -772,7 +830,13 @@ fn run_tasks<'a>(
                         };
                         let children = node.children().map(Item::Node).collect();
                         for f in focus_sequence(children).into_iter().rev() {
-                            tasks.push(Task::Apply(f, depth + 1, mode.clone(), inherited.clone()));
+                            tasks.push(Task::Apply(
+                                f,
+                                depth + 1,
+                                mode.clone(),
+                                inherited.clone(),
+                                None,
+                            ));
                         }
                         if matches!(policy, P::ShallowSkip | P::ShallowCopy) {
                             let attributes =
@@ -783,6 +847,7 @@ fn run_tasks<'a>(
                                     depth + 1,
                                     mode.clone(),
                                     inherited.clone(),
+                                    None,
                                 ));
                             }
                         }
@@ -815,6 +880,7 @@ fn run_tasks<'a>(
                     depth,
                     mode,
                     tunnel,
+                    rule,
                 } = frame;
                 match instruction {
                     Instruction::ComputedElement(n, inherit, body) => {
@@ -824,6 +890,7 @@ fn run_tasks<'a>(
                             depth: depth + 1,
                             mode,
                             tunnel: tunnel.clone(),
+                            rule,
                         };
                         let name = computed_name(n, false, &frame, budget, sheet.backwards)?;
                         output.start(result::Element {
@@ -842,6 +909,7 @@ fn run_tasks<'a>(
                             depth: depth + 1,
                             mode,
                             tunnel: tunnel.clone(),
+                            rule,
                         };
                         let name = computed_name(n, true, &frame, budget, sheet.backwards)?;
                         capture(
@@ -863,6 +931,7 @@ fn run_tasks<'a>(
                             depth: depth + 1,
                             mode,
                             tunnel: tunnel.clone(),
+                            rule,
                         },
                         sheet,
                         budget,
@@ -888,6 +957,7 @@ fn run_tasks<'a>(
                                 depth: depth + 1,
                                 mode,
                                 tunnel: tunnel.clone(),
+                                rule,
                             },
                             sheet,
                             budget,
@@ -936,7 +1006,9 @@ fn run_tasks<'a>(
                                 depth,
                                 mode,
                                 tunnel: tunnel.clone(),
+                                rule,
                             },
+                            None,
                         ));
                     }
                     Instruction::CopyOf(e, _) | Instruction::Sequence(e) => {
@@ -990,6 +1062,7 @@ fn run_tasks<'a>(
                                 size: 1,
                             };
                         }
+                        let rule = if select.is_some() { None } else { rule };
                         match focus.item.clone() {
                             Item::Node(n) if n.is_element() => {
                                 let mut element = result::source_element(n.raw, false);
@@ -1008,6 +1081,7 @@ fn run_tasks<'a>(
                                         depth: depth + 1,
                                         mode,
                                         tunnel: tunnel.clone(),
+                                        rule,
                                     },
                                 ));
                             }
@@ -1020,6 +1094,7 @@ fn run_tasks<'a>(
                                     depth: depth + 1,
                                     mode,
                                     tunnel: tunnel.clone(),
+                                    rule,
                                 },
                             )),
                             Item::Node(n) => copied_leaf(n, &mut output)?,
@@ -1048,6 +1123,7 @@ fn run_tasks<'a>(
                                 depth: depth + 1,
                                 mode,
                                 tunnel: tunnel.clone(),
+                                rule,
                             },
                         ));
                     }
@@ -1064,6 +1140,7 @@ fn run_tasks<'a>(
                                     depth: depth + 1,
                                     mode: mode.clone(),
                                     tunnel: tunnel.clone(),
+                                    rule: None,
                                 },
                             ));
                         }
@@ -1086,6 +1163,7 @@ fn run_tasks<'a>(
                                     depth: depth + 1,
                                     mode,
                                     tunnel: tunnel.clone(),
+                                    rule,
                                 },
                             ));
                         }
@@ -1110,11 +1188,37 @@ fn run_tasks<'a>(
                                         depth: depth + 1,
                                         mode,
                                         tunnel: tunnel.clone(),
+                                        rule,
                                     },
                                 ));
                                 break;
                             }
                         }
+                    }
+                    Instruction::NextMatch(params) => {
+                        let before = rule.ok_or_else(|| {
+                            Diagnostic::new(
+                                "XTDE0560",
+                                "next-match requires a current template rule",
+                                "run",
+                            )
+                        })?;
+                        tasks.push(Task::ApplyArguments(
+                            vec![focus.clone()],
+                            mode.clone(),
+                            params,
+                            0,
+                            Supplied::inherited(tunnel.clone()),
+                            Frame {
+                                focus,
+                                env,
+                                depth,
+                                mode,
+                                tunnel,
+                                rule,
+                            },
+                            Some(before),
+                        ));
                     }
                     Instruction::Call(name, params) => {
                         let t = sheet
@@ -1139,6 +1243,7 @@ fn run_tasks<'a>(
                                 depth,
                                 mode,
                                 tunnel: tunnel.clone(),
+                                rule,
                             },
                         ));
                     }
@@ -1171,6 +1276,7 @@ fn run_tasks<'a>(
                                 depth: depth + 1,
                                 mode,
                                 tunnel: tunnel.clone(),
+                                rule,
                             },
                         ));
                     }

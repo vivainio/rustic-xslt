@@ -50,7 +50,7 @@ Supported so far:
   basic xs constructors, atomization and string/node/sequence functions;
 - URIQualifiedNames in component names, variables, node tests/wildcards, supported
   function calls and atomic sequence types;
-- `apply-templates` and `call-template` with ordinary parameters (select or
+- `apply-templates`, `call-template` and `next-match` with parameters (select or
   constructor bodies), plus `value-of`, `text`, `for-each`, `if`, `choose`;
 - namespace-aware literal results, constant attributes, AVTs and namespace fixup;
 - selected/shallow `copy`, namespace-copy controls, deep `copy-of`, document
@@ -180,7 +180,7 @@ streamable modes/accumulators and automatic plan selection remain ahead.
 
 ## W3C development checks
 
-A pinned, partial catalog runner and a 330-case passing regression gate are in
+A pinned, partial catalog runner and a 356-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. The example JSON-lines driver

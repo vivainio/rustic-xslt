@@ -331,4 +331,20 @@ conformance claims. Smaller tested increments are committed independently.
   failures / 133 harness errors / 46 exclusions. All 327 previous passes remain;
   gate expands to 330.
 
-Next: next-match and template result types.
+## Increment 28: next-match
+
+- Ranked dispatch tracks the current rule through named calls; next-match selects
+  lower priority or earlier declarations in the same mode, with fresh ordinary
+  arguments and inherited tunnel values. Exhaustion uses the mode's built-in rule.
+- Union alternatives remain separate continuation candidates unless an explicit
+  priority unifies them; they still do not trigger multiple-template ambiguity.
+- for-each and copy with explicit select clear the current rule. Missing-rule
+  calls report XTDE0560. Static and streaming checks inspect argument bodies.
+- A 600-rule continuation test uses the explicit task stack and verifies the
+  shared execution budget. Imports/apply-imports remain unsupported.
+- 204 Rust integration tests and Clippy/format pass. Twelve W3C sets: 723 cases,
+  356 pass / 177 engine failures / 144 harness errors / 46 exclusions. All 330
+  previous passes remain; gate expands to 356.
+
+Next: XPath range/simple-map operators, template result types and broader XPath
+verification through the cached QT3 suite.

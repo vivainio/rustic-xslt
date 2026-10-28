@@ -35,6 +35,7 @@ pub(crate) enum Instruction {
     Choose(Vec<(Option<Expr>, Vec<Instruction>)>),
     Bind(Binding),
     Call(String, Vec<Binding>),
+    NextMatch(Vec<Binding>),
 }
 #[derive(Debug)]
 pub(crate) struct Sort {
@@ -330,6 +331,7 @@ fn top_sequence(body: &[Instruction]) -> bool {
     body.iter().any(|i| match i {
         Instruction::Sequence(_)
         | Instruction::Call(_, _)
+        | Instruction::NextMatch(_)
         | Instruction::CopyOf(..)
         | Instruction::Copy { .. }
         | Instruction::Document(_) => true,
@@ -766,6 +768,10 @@ fn body(
                             return Err(error(n, "choose requires at least one when"));
                         }
                         out.push(Instruction::Choose(branches));
+                    }
+                    "next-match" => {
+                        attrs(n, &[])?;
+                        out.push(Instruction::NextMatch(with_params(n, depth, false)?));
                     }
                     "call-template" => {
                         attrs(n, &["name"])?;
@@ -1230,7 +1236,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 }
                 _ => {}
             }
-            if let Instruction::Apply(_, _, _, params) = i {
+            if let Instruction::Apply(_, _, _, params) | Instruction::NextMatch(params) = i {
                 for p in params {
                     match &p.value {
                         BindingValue::Select(e) => expression(e, &scope)?,
@@ -1254,7 +1260,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     parts(n, &scope)?;
                     value(c, &scope, templates)?;
                 }
-                Instruction::Text(_) => {}
+                Instruction::Text(_) | Instruction::NextMatch(_) => {}
                 Instruction::Value(e, _)
                 | Instruction::Apply(e, _, _, _)
                 | Instruction::CopyOf(e, _)

@@ -268,7 +268,10 @@ fn safe_global_body(body: &[Instruction]) -> Result<(), Diagnostic> {
                 safe_expression(e, true)?;
                 safe_global_body(body)?;
             }
-            Instruction::Apply(..) | Instruction::Call(..) | Instruction::Copy { .. } => {
+            Instruction::Apply(..)
+            | Instruction::Call(..)
+            | Instruction::NextMatch(..)
+            | Instruction::Copy { .. } => {
                 return Err(unsupported(
                     "streamed global constructors cannot invoke templates or copy the source context",
                 ));
@@ -361,11 +364,13 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                     }
                     Instruction::Document(body) => bodies.push(body),
                     Instruction::Bind(b) => safe_binding(&b.value, false, &mut bodies)?,
-                    Instruction::Apply(e, _, _, params) => {
+                    Instruction::Apply(_, _, _, params) | Instruction::NextMatch(params) => {
                         for p in params {
                             safe_binding(&p.value, false, &mut bodies)?;
                         }
-                        safe_expression(e, false)?;
+                        if let Instruction::Apply(e, ..) = i {
+                            safe_expression(e, false)?;
+                        }
                         for template in &sheet.templates {
                             if let Some(branches) = &template.pattern {
                                 if branches.iter().any(|b| {
