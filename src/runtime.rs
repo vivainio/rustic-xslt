@@ -73,6 +73,7 @@ enum Task<'a> {
     ),
     DeepCopy(XNode<'a>, usize, bool),
     FinishDocument(Output, usize),
+    FinishTemplate(&'a crate::seqtype::SequenceType, Output, usize, bool),
     Atomic(String),
     Close,
     FinishCapture(Capture, Output),
@@ -134,6 +135,14 @@ fn complete_binding<'a>(
         }
     }
     Ok(())
+}
+fn emit_value<'a>(value: Value<'a>, tasks: &mut Vec<Task<'a>>, depth: usize, namespaces: bool) {
+    for item in value.into_iter().rev() {
+        match item {
+            Item::Node(n) => tasks.push(Task::DeepCopy(n, depth + 1, namespaces)),
+            atomic => tasks.push(Task::Atomic(atomic.string())),
+        }
+    }
 }
 struct Run<'a, 'r> {
     sheet: &'a Stylesheet,
@@ -664,9 +673,49 @@ fn run_tasks<'a>(
                             BindNext::Parameter(t, index + 1, supplied),
                         ));
                     }
+                } else if let Some(ty) = &t.result_type {
+                    let unconstrained = matches!(ty.kind, crate::seqtype::Kind::Item)
+                        && ty.min == 0
+                        && ty.max == usize::MAX;
+                    if unconstrained {
+                        tasks.push(Task::Body(&t.body, 0, frame));
+                    } else if let [Instruction::Sequence(e)] = t.body.as_slice() {
+                        let value =
+                            xpath::eval(e, &frame.focus, &frame.env, budget, 0, sheet.backwards)?;
+                        emit_value(
+                            ty.convert(value, "XTTE0505")?,
+                            &mut tasks,
+                            frame.depth,
+                            true,
+                        );
+                    } else {
+                        let saved = std::mem::replace(
+                            &mut output,
+                            Output::document(limits.max_output_bytes),
+                        );
+                        let document = matches!(t.body.as_slice(), [Instruction::Document(_)]);
+                        tasks.push(Task::FinishTemplate(ty, saved, frame.depth, document));
+                        if let [Instruction::Document(body)] = t.body.as_slice() {
+                            frame.depth += 1;
+                            tasks.push(Task::Body(body, 0, frame));
+                        } else {
+                            tasks.push(Task::Body(&t.body, 0, frame));
+                        }
+                    }
                 } else {
                     tasks.push(Task::Body(&t.body, 0, frame));
                 }
+            }
+            Task::FinishTemplate(ty, saved, depth, document) => {
+                let xml = std::mem::replace(&mut output, saved).value;
+                let value =
+                    trees.construct(xml, if document { None } else { Some(ty) }, "XTTE0505")?;
+                let value = if document {
+                    ty.convert(value, "XTTE0505")?
+                } else {
+                    value
+                };
+                emit_value(value, &mut tasks, depth, true);
             }
             Task::ApplyArguments(foci, mode, params, index, args, frame, before) => {
                 if let Some(p) = params.get(index) {
@@ -1017,25 +1066,7 @@ fn run_tasks<'a>(
                             _ => true,
                         };
                         let value = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
-                        // Copy atomics as text with a separator only between adjacent atomics.
-                        let mut operations = vec![];
-                        for item in value {
-                            match item {
-                                Item::Node(n) => {
-                                    operations.push(Ok(n));
-                                }
-                                _ => {
-                                    operations.push(Err(item.string()));
-                                }
-                            }
-                        }
-                        // Text operations need their own tasks to preserve mixed sequence order.
-                        for op in operations.into_iter().rev() {
-                            match op {
-                                Ok(n) => tasks.push(Task::DeepCopy(n, depth + 1, namespaces)),
-                                Err(s) => tasks.push(Task::Atomic(s)),
-                            }
-                        }
+                        emit_value(value, &mut tasks, depth, namespaces);
                     }
                     Instruction::Copy {
                         select,

@@ -78,6 +78,7 @@ pub(crate) struct Template {
     pub priority: Option<f64>,
     pub name: Option<String>,
     pub params: Vec<Binding>,
+    pub result_type: Option<crate::seqtype::SequenceType>,
     pub body: Vec<Instruction>,
 }
 fn error(n: Node<'_, '_>, message: impl Into<String>) -> Diagnostic {
@@ -345,6 +346,16 @@ fn top_sequence(body: &[Instruction]) -> bool {
         | Instruction::Document(_) => true,
         Instruction::ForEach(_, _, b) | Instruction::If(_, b) => top_sequence(b),
         Instruction::Choose(bs) => bs.iter().any(|(_, b)| top_sequence(b)),
+        _ => false,
+    })
+}
+fn element_result_body(body: &[Instruction]) -> bool {
+    body.iter().all(|i| match i {
+        Instruction::Element { .. } | Instruction::ComputedElement(..) | Instruction::Bind(_) => {
+            true
+        }
+        Instruction::ForEach(_, _, body) | Instruction::If(_, body) => element_result_body(body),
+        Instruction::Choose(branches) => branches.iter().all(|(_, body)| element_result_body(body)),
         _ => false,
     })
 }
@@ -1046,7 +1057,7 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
                 sheet.globals.push(b);
             }
             "template" => {
-                attrs(n, &["match", "name", "mode", "priority"])?;
+                attrs(n, &["match", "name", "mode", "priority", "as"])?;
                 let p = n
                     .attribute("match")
                     .map(|p| crate::pattern::parse(p, namespaces(n)))
@@ -1123,13 +1134,34 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
                 if p.is_none() && (n.attribute("mode").is_some() || priority.is_some()) {
                     return Err(error(n, "mode/priority require a match pattern"));
                 }
+                let result_type = n
+                    .attribute("as")
+                    .map(|s| crate::seqtype::SequenceType::parse(s, &namespaces(n)))
+                    .transpose()?;
+                let body = body(n, 0, true)?;
+                if let Some(ty) = &result_type {
+                    let unconstrained = matches!(ty.kind, crate::seqtype::Kind::Item)
+                        && ty.min == 0
+                        && ty.max == usize::MAX;
+                    let direct = matches!(
+                        body.as_slice(),
+                        [Instruction::Sequence(_)] | [Instruction::Document(_)]
+                    );
+                    if !unconstrained && !direct && !element_result_body(&body) {
+                        return Err(error(
+                            n,
+                            "this template result constructor requires raw XDM sequence collection",
+                        ));
+                    }
+                }
                 sheet.templates.push(Template {
                     pattern: p,
                     modes,
                     priority,
                     name: id,
                     params,
-                    body: body(n, 0, true)?,
+                    result_type,
+                    body,
                 });
             }
             "output" => {

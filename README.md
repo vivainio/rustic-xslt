@@ -78,6 +78,11 @@ Bindings support common atomic/node sequence types and occurrence indicators,
 atomization and function conversion. Select expressions and temporary result-tree constructor bodies work. Untyped
 constructors return document nodes; typed node constructors return their children
 and apply function conversion. A sole typed xsl:sequence retains its atomic value.
+Template result types apply function conversion with XTTE0505 diagnostics for
+sole sequence/document returns and element-only constructors (including supported
+control flow). Unconstrained item()* templates retain ordinary output behavior.
+Other constrained template bodies that require raw sequence collection are
+explicitly rejected.
 Mixed typed top-level atomic/node constructor sequences, standalone attribute
 sequences and zero-length constructed text-node identity remain incomplete.
 Match patterns support child/attribute paths, namespaces, wildcards, node tests,
@@ -184,7 +189,7 @@ streamable modes/accumulators and automatic plan selection remain ahead.
 
 ## W3C development checks
 
-A pinned, partial catalog runner and a 363-case passing regression gate are in
+A pinned, partial catalog runner and a 368-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. An initial internal QT3 bridge

@@ -442,4 +442,18 @@ conformance claims. Smaller tested increments are committed independently.
 - Seventeen QT3 sets: 1,978 cases, 959 pass / 666 engine failures / 19 harness errors /
   334 profile exclusions. All 857 previous passes remain; QT3 gate expands to 959.
 
-Next: template result types and raw XDM sequence collection.
+## Increment 36: declared template result types
+
+- Template as attributes validate sole sequence/document returns and element-only
+  constructor bodies (including supported control flow), reporting XTTE0505.
+- Direct sequences retain atomic types for function conversion. Sole documents
+  retain document type through capture; unconstrained item()* needs no conversion.
+- Other constrained bodies remain explicit raw-collection gaps, avoiding silent
+  type erasure or adjacent-text merging before required-type checks.
+- Tree, initial-entry and record-template invocation share the same conversion
+  path and temporary-tree/output budgets.
+- 256 Rust integration tests, 27 harness tests and Clippy/format pass. XSLT gate
+  expands to 368 (368 pass / 165 failures / 144 harness errors / 46 exclusions).
+  All 959 QT3 gate cases remain green with unchanged selected-case counts.
+
+Next: named node sequence types, then raw XDM sequence collection.
