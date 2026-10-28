@@ -148,7 +148,12 @@ fn safe_content<'a>(c: &'a Content, bodies: &mut Vec<&'a [Instruction]>) -> Resu
                 safe_expression(e, false)?;
             }
         }
-        Content::Body(body) => bodies.push(body),
+        Content::Body(body, sep) => {
+            for e in sep {
+                safe_expression(e, false)?;
+            }
+            bodies.push(body);
+        }
     };
     Ok(())
 }
@@ -189,7 +194,12 @@ fn safe_global_body(body: &[Instruction]) -> Result<(), Diagnostic> {
                     safe_expression(e, true)?;
                 }
             }
-            Content::Body(body) => safe_global_body(body)?,
+            Content::Body(body, sep) => {
+                for e in sep {
+                    safe_expression(e, true)?;
+                }
+                safe_global_body(body)?;
+            }
         }
         Ok(())
     }

@@ -52,7 +52,7 @@ pub(crate) struct ComputedName {
 #[derive(Debug)]
 pub(crate) enum Content {
     Select(Expr, Vec<Expr>),
-    Body(Vec<Instruction>),
+    Body(Vec<Instruction>, Vec<Expr>),
 }
 #[derive(Debug)]
 pub(crate) enum BindingValue {
@@ -296,13 +296,16 @@ fn content(n: Node<'_, '_>, depth: usize) -> Result<Content, Diagnostic> {
         empty(n)?;
         Ok(Content::Select(expr(n, s)?, separator))
     } else {
-        if n.attribute("separator").is_some() {
-            return Err(error(
-                n,
-                "separator with a sequence-constructor body is not implemented",
-            ));
-        }
-        Ok(Content::Body(body(n, depth, false)?))
+        let separator = avt(
+            n,
+            n.attribute("separator")
+                .unwrap_or(if n.tag_name().name() == "attribute" {
+                    ""
+                } else {
+                    " "
+                }),
+        )?;
+        Ok(Content::Body(body(n, depth, false)?, separator))
     }
 }
 fn sorts(n: Node<'_, '_>) -> Result<Vec<Sort>, Diagnostic> {
@@ -515,11 +518,11 @@ fn body(
                         ));
                     }
                     "comment" => {
-                        attrs(n, &["select", "separator"])?;
+                        attrs(n, &["select"])?;
                         out.push(Instruction::Comment(content(n, depth + 1)?));
                     }
                     "processing-instruction" => {
-                        attrs(n, &["name", "select", "separator"])?;
+                        attrs(n, &["name", "select"])?;
                         out.push(Instruction::Pi(
                             avt(n, required(n, "name")?)?,
                             content(n, depth + 1)?,
@@ -917,7 +920,10 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     expression(e, scope)?;
                     parts(sep, scope)
                 }
-                Content::Body(body) => instructions(body, scope.clone(), templates),
+                Content::Body(body, sep) => {
+                    parts(sep, scope)?;
+                    instructions(body, scope.clone(), templates)
+                }
             }
         }
         for i in body {

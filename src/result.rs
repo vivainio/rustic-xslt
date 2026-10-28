@@ -20,12 +20,18 @@ struct Open {
     pending: bool,
     inherited: BTreeMap<String, String>,
 }
+struct Simple {
+    separator: String,
+    parts: Vec<(String, bool)>,
+}
 pub(crate) struct Output {
     pub value: String,
     pub max: usize,
     pub text: bool,
     stack: Vec<Open>,
     document: bool,
+    simple: Option<Simple>,
+    adjacent_atomic: bool,
 }
 impl Output {
     pub fn new(max: usize, text: bool) -> Self {
@@ -35,7 +41,72 @@ impl Output {
             text,
             stack: vec![],
             document: false,
+            simple: None,
+            adjacent_atomic: false,
         }
+    }
+    pub fn simple(max: usize, separator: String) -> Self {
+        let mut value = Self::new(max, true);
+        value.simple = Some(Simple {
+            separator,
+            parts: vec![],
+        });
+        value
+    }
+    pub fn finish_simple(self) -> Result<String, Diagnostic> {
+        let Some(simple) = self.simple else {
+            return Ok(self.value);
+        };
+        let separators = simple
+            .parts
+            .len()
+            .saturating_sub(1)
+            .saturating_mul(simple.separator.len());
+        if separators > self.max.saturating_sub(self.value.len()) {
+            return Err(Diagnostic::new(
+                "XPDY0130",
+                "simple-content byte limit exceeded",
+                "run",
+            ));
+        }
+        Ok(simple
+            .parts
+            .into_iter()
+            .map(|(s, _)| s)
+            .collect::<Vec<_>>()
+            .join(&simple.separator))
+    }
+    fn simple_part(&mut self, value: &str, text: bool) -> Result<(), Diagnostic> {
+        self.push(value)?;
+        let simple = self.simple.as_mut().unwrap();
+        if text && simple.parts.last().is_some_and(|(_, previous)| *previous) {
+            simple.parts.last_mut().unwrap().0.push_str(value);
+        } else {
+            simple.parts.push((value.into(), text));
+        }
+        Ok(())
+    }
+    pub fn simple_node(&mut self, node: crate::node::XNode<'_>) -> Result<bool, Diagnostic> {
+        if self.simple.is_none() || !self.stack.is_empty() {
+            return Ok(false);
+        }
+        if node.is_text() {
+            self.text(&node.string())?;
+        } else {
+            self.simple_part(&node.string(), false)?;
+        }
+        Ok(true)
+    }
+    pub fn atomic(&mut self, value: &str) -> Result<(), Diagnostic> {
+        if self.simple.is_some() && self.stack.is_empty() {
+            return self.simple_part(value, false);
+        }
+        if self.adjacent_atomic {
+            self.text(" ")?;
+        }
+        self.text(value)?;
+        self.adjacent_atomic = true;
+        Ok(())
     }
     pub fn document(max: usize) -> Self {
         let mut value = Self::new(max, false);
@@ -88,6 +159,10 @@ impl Output {
     }
     pub fn start(&mut self, mut element: Element) -> Result<(), Diagnostic> {
         self.flush_start()?;
+        self.adjacent_atomic = false;
+        if self.simple.is_some() && self.stack.is_empty() {
+            self.simple_part("", false)?;
+        }
         let inherited = self
             .stack
             .last()
@@ -118,6 +193,9 @@ impl Output {
         Ok(())
     }
     pub fn attribute(&mut self, mut name: Name, value: String) -> Result<(), Diagnostic> {
+        if self.simple.is_some() && self.stack.is_empty() {
+            return self.simple_part(&value, false);
+        }
         let code = if self.stack.is_empty() && self.document {
             "XTDE0420"
         } else {
@@ -166,6 +244,7 @@ impl Output {
         Ok(())
     }
     pub fn end(&mut self) -> Result<(), Diagnostic> {
+        self.adjacent_atomic = false;
         self.flush_start()?;
         let Some(open) = self.stack.pop() else {
             return Err(Diagnostic::new(
@@ -185,7 +264,23 @@ impl Output {
         if s.is_empty() {
             return Ok(());
         }
+        self.adjacent_atomic = false;
         self.flush_start()?;
+        if self.simple.is_some() {
+            if self.stack.is_empty() {
+                return self.simple_part(s, true);
+            }
+            self.push(s)?;
+            self.simple
+                .as_mut()
+                .unwrap()
+                .parts
+                .last_mut()
+                .unwrap()
+                .0
+                .push_str(s);
+            return Ok(());
+        }
         if self.text {
             self.push(s)
         } else {
@@ -193,6 +288,10 @@ impl Output {
         }
     }
     pub fn comment(&mut self, s: &str) -> Result<(), Diagnostic> {
+        self.adjacent_atomic = false;
+        if self.simple.is_some() && self.stack.is_empty() {
+            return self.simple_part(s, false);
+        }
         self.flush_start()?;
         if !self.text {
             self.push("<!--")?;
@@ -202,6 +301,10 @@ impl Output {
         Ok(())
     }
     pub fn pi(&mut self, target: &str, s: &str) -> Result<(), Diagnostic> {
+        self.adjacent_atomic = false;
+        if self.simple.is_some() && self.stack.is_empty() {
+            return self.simple_part(s, false);
+        }
         self.flush_start()?;
         if !self.text {
             self.push("<?")?;

@@ -156,4 +156,17 @@ conformance claims. Smaller tested increments are committed independently.
   101 pass / 63 engine failures / 23 harness errors / 16 exclusions.
   All 90 previous passes remain; two new harness errors became reachable.
 
-Next: sequence-aware simple-content construction, then qualified entry names.
+## Increment 14: sequence-aware simple content
+
+- Simple-content capture merges adjacent text nodes while preserving boundaries
+  of atomized elements/documents/comments/PIs/attributes and atomic values.
+- Attribute body separators (including AVTs) are supported; default attribute
+  body separator remains empty, comment/PI separator remains a space.
+- Value-of/AVT/select simple content also merges adjacent real text nodes.
+- Adjacent atomic result values normalize across instruction/template boundaries;
+  separator expansion is checked before allocating terminal joined results.
+- 122 Rust integration tests and Clippy/format pass. Both targeted W3C comment/PI
+  cases now pass: 103 pass / 61 engine failures / 23 harness errors / 16 exclusions.
+- All 101 previous passes remain; gate expanded to 103.
+
+Next: qualified template/mode/variable/parameter names and entry points.

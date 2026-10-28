@@ -84,7 +84,7 @@ fn parts(
         if backwards {
             v.truncate(1);
         }
-        text.push_str(&xpath::string(&v, " "));
+        text.push_str(&xpath::simple_string(&v, " ", usize::MAX)?);
     }
     Ok(text)
 }
@@ -195,10 +195,15 @@ fn capture<'a>(
         Content::Select(e, sep) => {
             let v = xpath::eval(e, &frame.focus, &frame.env, budget, 0, sheet.backwards)?;
             let sep = parts(sep, &frame.focus, &frame.env, budget, sheet.backwards)?;
-            finish_capture(kind, xpath::string(&v, &sep), output)
+            finish_capture(
+                kind,
+                xpath::simple_string(&v, &sep, output.max.saturating_sub(output.value.len()))?,
+                output,
+            )
         }
-        Content::Body(body) => {
-            let captured = Output::new(output.max.saturating_sub(output.value.len()), true);
+        Content::Body(body, sep) => {
+            let separator = parts(sep, &frame.focus, &frame.env, budget, sheet.backwards)?;
+            let captured = Output::simple(output.max.saturating_sub(output.value.len()), separator);
             let saved = std::mem::replace(output, captured);
             tasks.push(Task::FinishCapture(kind, saved));
             tasks.push(Task::Body(body, 0, frame));
@@ -641,13 +646,14 @@ fn run_tasks<'a>(
                             .map(|es| parts(es, &focus, &env, budget, sheet.backwards))
                             .transpose()?
                             .unwrap_or_else(|| " ".into());
-                        for (i, item) in v.iter().enumerate() {
+                        for _ in &v {
                             budget.tick()?;
-                            if i > 0 {
-                                output.text(&separator)?;
-                            }
-                            output.text(&item.string())?;
                         }
+                        output.text(&xpath::simple_string(
+                            &v,
+                            &separator,
+                            output.max.saturating_sub(output.value.len()),
+                        )?)?;
                     }
                     Instruction::Apply(e, target_mode, sorts) => {
                         let value = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
@@ -669,20 +675,13 @@ fn run_tasks<'a>(
                         let value = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
                         // Copy atomics as text with a separator only between adjacent atomics.
                         let mut operations = vec![];
-                        let mut atomic = false;
                         for item in value {
                             match item {
                                 Item::Node(n) => {
                                     operations.push(Ok(n));
-                                    atomic = false;
                                 }
                                 _ => {
-                                    let mut s = item.string();
-                                    if atomic {
-                                        s.insert(0, ' ');
-                                    }
-                                    operations.push(Err(s));
-                                    atomic = true;
+                                    operations.push(Err(item.string()));
                                 }
                             }
                         }
@@ -757,7 +756,7 @@ fn run_tasks<'a>(
                                     "run",
                                 ));
                             }
-                            atomic => output.text(&atomic.string())?,
+                            atomic => output.atomic(&atomic.string())?,
                         }
                     }
                     Instruction::Document(body) => {
@@ -878,7 +877,7 @@ fn run_tasks<'a>(
                                 if sheet.backwards {
                                     v.truncate(1);
                                 }
-                                value.push_str(&xpath::string(&v, " "));
+                                value.push_str(&xpath::simple_string(&v, " ", usize::MAX)?);
                             }
                             element.attributes.push((name.clone(), value));
                         }
@@ -898,6 +897,9 @@ fn run_tasks<'a>(
                 }
             }
             Task::DeepCopy(node, depth, namespaces) => {
+                if output.simple_node(node)? {
+                    continue;
+                }
                 if depth > limits.max_depth {
                     return Err(limit());
                 }
@@ -925,9 +927,9 @@ fn run_tasks<'a>(
                 };
                 tasks.push(Task::DeepCopy(node, depth + 1, true));
             }
-            Task::Atomic(s) => output.text(&s)?,
+            Task::Atomic(s) => output.atomic(&s)?,
             Task::FinishCapture(kind, saved) => {
-                let value = std::mem::replace(&mut output, saved).value;
+                let value = std::mem::replace(&mut output, saved).finish_simple()?;
                 finish_capture(kind, value, &mut output)?;
             }
             Task::Close => output.end()?,

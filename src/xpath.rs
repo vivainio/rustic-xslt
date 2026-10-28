@@ -143,6 +143,43 @@ pub(crate) fn boolean(value: &[Item<'_>]) -> Result<bool, Diagnostic> {
         )),
     }
 }
+/// XSLT simple-content construction merges adjacent text nodes before
+/// atomization; ordinary XPath string-join intentionally does not.
+pub(crate) fn simple_string(
+    value: &[Item<'_>],
+    separator: &str,
+    max: usize,
+) -> Result<String, Diagnostic> {
+    let mut parts: Vec<String> = vec![];
+    let mut previous_text = false;
+    let mut bytes = 0usize;
+    for item in value {
+        let text = matches!(item,Item::Node(n) if n.is_text());
+        let value = item.string();
+        if value.len() > max.saturating_sub(bytes) {
+            return Err(err("XPDY0130", "simple-content byte limit exceeded"));
+        }
+        bytes += value.len();
+        if text && value.is_empty() {
+            continue;
+        }
+        if text && previous_text {
+            parts.last_mut().unwrap().push_str(&value);
+        } else {
+            parts.push(value);
+        }
+        previous_text = text;
+    }
+    if parts
+        .len()
+        .saturating_sub(1)
+        .saturating_mul(separator.len())
+        > max.saturating_sub(bytes)
+    {
+        return Err(err("XPDY0130", "simple-content byte limit exceeded"));
+    }
+    Ok(parts.join(separator))
+}
 pub(crate) fn string(value: &[Item<'_>], separator: &str) -> String {
     value
         .iter()

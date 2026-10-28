@@ -39,7 +39,7 @@ Supported so far:
 - namespace-aware literal results, constant attributes, AVTs and namespace fixup;
 - selected/shallow `copy`, namespace-copy controls, deep `copy-of`, document
   construction, computed elements/attributes, comment/PI
-  construction, and value separators;
+  construction, and sequence-aware simple content with value/body separators;
 - stable multi-key sorting for for-each/apply-templates with numeric/text keys,
   static ascending/descending order and case-order;
 - source strip-space/preserve-space rules, inherited xml:space, and namespace
@@ -149,7 +149,7 @@ streamable modes/accumulators and automatic plan selection remain ahead.
 
 ## W3C development checks
 
-A pinned, partial catalog runner and a 101-case passing regression gate are in
+A pinned, partial catalog runner and a 103-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. The example JSON-lines driver
