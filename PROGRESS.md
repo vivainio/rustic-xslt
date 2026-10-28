@@ -89,5 +89,16 @@ conformance claims. Smaller tested increments are committed independently.
   improve to 64 pass / 71 engine failures / 52 harness errors / 16 exclusions.
 - Previous 57 passing cases remain green; gate expanded to 64.
 
-Next: extend test-harness assertions so the remaining selected cases can expose
-engine behavior, then add typed values/constructors and temporary trees.
+## Increment 9: XPath catalog assertions
+
+- Catalog parser preserves namespace scopes; supported XPath assertions run via
+  a development stylesheet with the principal XML document bound as $result.
+- Unsupported assertion expressions remain harness errors, and false assertions
+  remain engine failures. No public standalone XPath API was added.
+- Ten harness unit tests pass, including namespace shadowing and failed
+  assertion-evaluator classification.
+- Same 203 cases: 66 passes, 100 engine failures, 21 harness errors, 16 exclusions.
+  The additional engine failures were previously blocked by harness support.
+- All 64 previous passes remain green; passing gate expanded to 66.
+
+Next: typed values/constructors and temporary trees, guided by these failures.

@@ -50,5 +50,32 @@ class Assertions(unittest.TestCase):
             self.assertEqual(environment(parent,registry)['source'],'<global/>')
             self.assertEqual(environment(reference,registry)['source'],'<local/>')
 
+
+class XPathAssertions(unittest.TestCase):
+    def test_assertion_namespace_scope_is_preserved(self):
+        import tempfile
+        from run import parse_catalog, assert_stylesheet
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp)/'catalog.xml'
+            path.write_text(f'<test-set xmlns="{NS[1:-1]}" xmlns:p="urn:outer"><result xmlns:p="urn:inner"><assert>$result/p:out</assert></result></test-set>')
+            root = parse_catalog(path)
+            a = root.find(NS+'result').find(NS+'assert')
+            sheet = assert_stylesheet(a)
+            self.assertIn('xmlns:p="urn:inner"',sheet)
+            self.assertIn('boolean(($result/p:out))',sheet)
+
+    def test_assertion_evaluation_errors_are_harness_failures(self):
+        class BrokenDriver:
+            def call(self, request):
+                return {'diagnostics':[{'code':'XPST0017','message':'unsupported assertion function'}]}
+        with self.assertRaises(HarnessError):
+            assertion(node('<assert>unknown()</assert>'),{'method':'xml','output':'<r/>'},Path(),BrokenDriver())
+
+    def test_assertion_evaluation_false_is_an_engine_failure(self):
+        class FalseDriver:
+            def call(self, request):
+                return {'output':'false','diagnostics':[]}
+        self.assertFalse(assertion(node('<assert>false()</assert>'),{'method':'xml','output':'<r/>'},Path(),FalseDriver())[0])
+
 if __name__ == '__main__':
     unittest.main()

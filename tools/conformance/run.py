@@ -18,12 +18,45 @@ from xml.sax.saxutils import quoteattr
 NS = "{http://www.w3.org/2012/10/xslt-test-catalog}"
 PIN = "fddf1cf920087e791f13315d68dfbe874d97dc56"
 ROOT = Path(__file__).resolve().parents[2]
+NAMESPACES = {}
 
 class HarnessError(Exception):
     pass
 
 class ProfileExcluded(Exception):
     pass
+
+def parse_catalog(path):
+    bindings, pending, stack = {}, [], []
+    for event, value in ET.iterparse(path, events=("start-ns", "start", "end")):
+        if event == "start-ns":
+            pending.append(value)
+        elif event == "start":
+            stack.append(bindings)
+            bindings = dict(bindings)
+            bindings.update(pending)
+            pending.clear()
+            NAMESPACES[id(value)] = dict(bindings)
+        else:
+            bindings = stack.pop()
+    return value
+
+
+def assert_stylesheet(assertion):
+    bindings = NAMESPACES.get(id(assertion), {})
+    prefix = "_harness_xsl"
+    while prefix in bindings:
+        prefix += "_"
+    declarations = [f'xmlns:{prefix}="http://www.w3.org/1999/XSL/Transform"']
+    for p, uri in bindings.items():
+        if p and p != "xml":
+            declarations.append(f"xmlns:{p}={quoteattr(uri)}")
+    expression = quoteattr("boolean((" + text(assertion) + "))")
+    return (f'<{prefix}:stylesheet version="3.0" {" ".join(declarations)}>'
+            f'<{prefix}:output method="text"/>'
+            f'<{prefix}:variable name="result" select="/"/>'
+            f'<{prefix}:template match="/"><{prefix}:value-of select={expression}/></{prefix}:template>'
+            f'</{prefix}:stylesheet>')
 
 def tag(node):
     return node.tag.removeprefix(NS)
@@ -158,26 +191,26 @@ def preflight(assertion):
             raise HarnessError(f"empty {kind}")
         for a in assertion:
             preflight(a)
-    elif kind not in {"error", "assert-xml", "assert-serialization", "assert-string-value"}:
+    elif kind not in {"error", "assert-xml", "assert-serialization", "assert-string-value", "assert"}:
         raise HarnessError(f"unsupported assertion: {kind}")
     else:
-        allowed = {"error": ["code"], "assert-xml": ["file", "ignore-prefixes"], "assert-serialization": ["file", "ignore-prefixes"], "assert-string-value": ["normalize-space"]}[kind]
+        allowed = {"error": ["code"], "assert-xml": ["file", "ignore-prefixes"], "assert-serialization": ["file", "ignore-prefixes"], "assert-string-value": ["normalize-space"], "assert": []}[kind]
         check_attrs(assertion, allowed)
 
-def assertion(a, response, base):
+def assertion(a, response, base, driver=None):
     kind = tag(a)
     if kind == "all-of":
-        results = [assertion(c, response, base) for c in a]
+        results = [assertion(c, response, base, driver) for c in a]
         return all(r[0] for r in results), "; ".join(r[1] for r in results if not r[0])
     if kind == "any-of":
-        results = [assertion(c, response, base) for c in a]
+        results = [assertion(c, response, base, driver) for c in a]
         return any(r[0] for r in results), "; ".join(r[1] for r in results)
     if kind == "not":
         if len(a) != 1:
             raise HarnessError("not requires one assertion")
         if response.get("diagnostics"):
             return False, "unexpected error in negated assertion"
-        ok, reason = assertion(a[0], response, base)
+        ok, reason = assertion(a[0], response, base, driver)
         return not ok, "negated assertion: " + reason
     errors = response.get("diagnostics", [])
     if kind == "error":
@@ -191,6 +224,17 @@ def assertion(a, response, base):
         e = errors[0]
         return False, f"{e['code']}: {e['message']}"
     output = response.get("output", "")
+    if kind == "assert":
+        if driver is None or response.get("method") != "xml":
+            raise HarnessError("XPath assertions currently require an XML result document and a driver")
+        evaluated = driver.call({"stylesheet": assert_stylesheet(a), "source": output})
+        if evaluated.get("diagnostics"):
+            e = evaluated["diagnostics"][0]
+            raise HarnessError(f"XPath assertion could not be evaluated: {e['code']}: {e['message']}")
+        if evaluated.get("output") not in {"true", "false"}:
+            raise HarnessError("XPath assertion returned no boolean")
+        return evaluated["output"] == "true", "XPath assertion was false"
+
     if kind in {"assert-xml", "assert-serialization"}:
         expected = (base / a.get("file")).read_text(encoding="utf-8-sig") if a.get("file") else text(a)
         try:
@@ -262,7 +306,7 @@ def run_case(case, base, registry, driver):
     if "stylesheet" not in request:
         raise HarnessError("no stylesheet")
     response = driver.call(request)
-    answers = [assertion(a, response, base) for a in result]
+    answers = [assertion(a, response, base, driver) for a in result]
     return ("pass", "") if all(r[0] for r in answers) else ("fail", "; ".join(r[1] for r in answers if not r[0]))
 
 def main():
@@ -283,7 +327,7 @@ def main():
         parser.error(f"suite must be clean and pinned to {PIN}; got {revision}, dirty={bool(dirty)}")
     subprocess.run(["cargo", "build", "--offline", "--example", "reference_driver"], cwd=ROOT, check=True)
     driver = Driver(ROOT / "target/debug/examples/reference_driver")
-    root = ET.parse(catalog).getroot()
+    root = parse_catalog(catalog)
     registry = {e.get("name"): (e, args.suite) for e in children(root, "environment")}
     for e in children(root, "environment"):
         registry[id(e)] = e, args.suite
@@ -297,7 +341,7 @@ def main():
                 continue
             found.add(name)
             path = args.suite / ref.get("file")
-            test_set = ET.parse(path).getroot()
+            test_set = parse_catalog(path)
             local = dict(registry)
             for e in children(test_set, "environment"):
                 local[e.get("name")] = e, path.parent

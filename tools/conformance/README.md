@@ -28,15 +28,15 @@ python3 -m unittest discover -s tools/conformance -p 'test_*.py'
 
 The gate fails for missing or regressed baseline cases. Other failures and
 harness errors are still named and counted, never reclassified as passes.
-The current gate contains 64 passing cases out of 203 selected cases: 71 engine
-failures, 52 harness errors, 16 optional-profile exclusions. Do not present the
-64 cases as an applicable-suite pass rate.
+The current gate contains 66 passing cases out of 203 selected cases: 100 engine
+failures, 21 harness errors, 16 optional-profile exclusions. Do not present the
+66 cases as an applicable-suite pass rate.
 
 Supported setup: local stylesheet/source files or inline content, local/global
 named environments, string parameter literals, initial template/mode selection,
 and serialization selection. Supported assertions: exact W3C error codes
 (including explicit `*`), structural `assert-xml`/`assert-serialization`,
-`assert-string-value`, all-of/any-of/not. XML comparison preserves tree shape,
+`assert-string-value`, supported XPath `assert` expressions, all-of/any-of/not. XML comparison preserves tree shape,
 text/whitespace, comments, PIs and prefixes unless ignore-prefixes is requested;
 attribute order and redundant namespace declarations do not matter.
 
@@ -47,7 +47,11 @@ are harness errors; engine gaps remain failures. Optional schema-aware, XSLT
 streaming and static-typing profiles are excluded explicitly; the record API is
 not treated as the XSLT streaming feature.
 
-Still missing: raw XDM result access, arbitrary XPath assertions, regex assertions,
+XPath assertions run through a development-only stylesheet with `$result` bound
+to the XML result document and the catalog namespace scope preserved. Unsupported
+assertion expressions are harness errors. No standalone XPath product is added.
+
+Still missing: raw XDM result access, complete XPath assertion coverage, regex assertions,
 secondary-result/message assertions, typed/static/tunnel/initial-entry catalog
 parameters, context-item selectors, package/resource/schema environments,
 collations and additional dependency configurations. These appear in reports
