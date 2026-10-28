@@ -1,5 +1,7 @@
 //! An early, deliberately limited XSLT engine. See README.md for supported syntax.
 mod compile;
+mod pattern;
+mod result;
 mod runtime;
 mod stream;
 mod xpath;
@@ -60,6 +62,7 @@ impl Default for Limits {
 pub struct TransformOptions {
     pub parameters: std::collections::BTreeMap<String, String>,
     pub initial_template: Option<String>,
+    pub initial_mode: Option<String>,
     pub limits: Limits,
 }
 

@@ -33,5 +33,13 @@ conformance claims. Smaller tested increments are committed independently.
   peak buffering and output before EOF. No process RSS measurement yet.
 - Format and Clippy pass; reference Go execution remains unavailable.
 
-Next: template patterns/modes and identity transforms, while keeping streaming
-restrictions synchronized with every new instruction and XPath feature.
+## Increment 4: identity transforms and namespace-aware results
+
+- XPath-backed union/wildcard/namespaced/positional match patterns, correct
+  branch priorities, explicit priorities, modes and current-mode propagation.
+- Shallow/deep copy, comment/PI copying, pending result start tags and namespace
+  fixup (including default undeclarations and conflicting copied prefixes).
+- Streamed record-local template dispatch; unsafe match shapes are rejected.
+- 45 integration tests pass; format and Clippy checks pass.
+
+Next: computed elements/attributes, sorting and richer XPath axes/functions.

@@ -27,13 +27,15 @@ parameters, a named initial template, and execution limits.
 
 Supported so far:
 
-- match templates, named templates, global/template parameters, local variables;
+- match templates, named templates, modes/current-mode, explicit/default priority,
+  global/template parameters and local variables;
 - lexical scope, forward global references, circular-global detection;
 - child/attribute/self/parent/descendant axes, namespaced XPath name tests,
   wildcards, node/text/comment/PI tests, predicates, union and sequences;
 - arithmetic, comparisons, boolean operators, basic string/node/sequence functions;
 - `apply-templates`, `call-template`, `value-of`, `text`, `for-each`, `if`, `choose`;
-- unnamespaced literal result elements, constant attributes and AVTs;
+- namespace-aware literal results, constant attributes, AVTs and namespace fixup;
+- shallow `copy`, deep `copy-of`, comments and processing-instruction copying;
 - XML/text output, XML declaration omission, and shared execution budgets.
 
 Versions 1.0, 2.0 and 3.0 are accepted; complete version semantics are not yet
@@ -41,14 +43,17 @@ implemented. Version 1.0 currently enables first-item value-of/AVT conversion
 and selected backwards-compatible XPath conversions. Numbers currently use
 `f64`; exact decimal/integer types and full atomic type checking remain ahead.
 Bindings with content currently support text only, not temporary result trees.
-Match patterns currently support unprefixed element-name paths and `/` only.
+Match patterns support child/attribute paths, namespaces, wildcards, node tests,
+predicates, `/` and union. Descendant patterns and qualified mode/template names
+remain ahead.
 
 Unsupported constructs are rejected rather than ignored. Implementation gaps
 use `RUST_XSLT_UNSUPPORTED`; syntax/name/function errors use XPath error codes.
 Variable references and named-template calls are checked even in dead branches.
-No imports, copy instructions, result namespace fixup, schema awareness,
+No imports, computed nodes, sorting, schema awareness,
 resource loading, or cancellation yet. Record streaming is described below. Empty result elements use
-explicit start/end tags. Unused namespace declarations are omitted.
+explicit start/end tags. Literal results preserve in-scope non-XSLT namespaces; exclude-result-prefixes
+is not implemented yet.
 
 Parsing uses `roxmltree` with DTD processing disabled and a one-million-node
 limit. No external resources are opened. Source trees and selected sequences
@@ -93,9 +98,11 @@ no outer wrapper. The XML declaration, when enabled, is written once. Use
 bindings are preserved when a record is detached.
 
 Static checks reject absolute paths, parent navigation, `last()`, source-dependent
-globals and apply-templates in the reachable record-template call graph, before
+globals in the reachable record-template call graph, before
 reading input or writing output. Rejection is conservative, including `last()`
 in grounded inner loops. `position()` is the selected record's one-based index.
+Record-local template dispatch supports single-step, predicate-free match patterns
+(including identity transforms); more complex dispatch patterns are rejected.
 There is no silent fallback to whole-document buffering.
 
 The stream has explicit event-byte, record-byte and input-depth limits, plus

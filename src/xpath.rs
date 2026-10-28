@@ -605,7 +605,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         _ => return None,
     })
 }
-fn test_node(test: &Test, n: XNode<'_>, axis: Axis) -> bool {
+pub(crate) fn test_node(test: &Test, n: XNode<'_>, axis: Axis) -> bool {
     match test {
         Test::Node => true,
         Test::Any => match n {

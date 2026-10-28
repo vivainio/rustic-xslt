@@ -10,10 +10,12 @@ pub(crate) const XSL: &str = "http://www.w3.org/1999/XSL/Transform";
 pub(crate) enum Instruction {
     Text(String),
     Value(Expr),
-    Apply(Expr),
+    Apply(Expr, String),
+    Copy(Vec<Instruction>),
+    CopyOf(Expr),
     Element {
-        name: String,
-        attributes: Vec<(String, Vec<Expr>)>,
+        element: crate::result::Element,
+        attributes: Vec<(crate::result::Name, Vec<Expr>)>,
         body: Vec<Instruction>,
     },
     ForEach(Expr, Vec<Instruction>),
@@ -30,7 +32,9 @@ pub(crate) struct Binding {
 }
 #[derive(Debug)]
 pub(crate) struct Template {
-    pub pattern: Option<String>,
+    pub pattern: Option<Vec<crate::pattern::Branch>>,
+    pub modes: Vec<String>,
+    pub priority: Option<f64>,
     pub name: Option<String>,
     pub params: Vec<Binding>,
     pub body: Vec<Instruction>,
@@ -54,7 +58,7 @@ fn required<'a>(n: Node<'a, '_>, a: &str) -> Result<&'a str, Diagnostic> {
     n.attribute(a)
         .ok_or_else(|| error(n, format!("missing required attribute: {a}")))
 }
-fn expr(n: Node<'_, '_>, s: &str) -> Result<Expr, Diagnostic> {
+fn namespaces(n: Node<'_, '_>) -> BTreeMap<String, String> {
     let mut namespaces: BTreeMap<_, _> = n
         .namespaces()
         .filter_map(|ns| ns.name().map(|prefix| (prefix.into(), ns.uri().into())))
@@ -62,6 +66,10 @@ fn expr(n: Node<'_, '_>, s: &str) -> Result<Expr, Diagnostic> {
     namespaces
         .entry("fn".into())
         .or_insert_with(|| "http://www.w3.org/2005/xpath-functions".into());
+    namespaces
+}
+fn expr(n: Node<'_, '_>, s: &str) -> Result<Expr, Diagnostic> {
+    let namespaces = namespaces(n);
     xpath::parse(s, namespaces).map_err(|mut e| {
         let pos = n.document().text_pos_at(n.range().start);
         e.line = pos.row;
@@ -199,7 +207,14 @@ fn body(
                         ));
                     }
                     "value-of" | "apply-templates" => {
-                        attrs(n, &["select"])?;
+                        attrs(
+                            n,
+                            if n.tag_name().name() == "apply-templates" {
+                                &["select", "mode"]
+                            } else {
+                                &["select"]
+                            },
+                        )?;
                         empty(n)?;
                         let value = if let Some(s) = n.attribute("select") {
                             expr(n, s)?
@@ -211,8 +226,20 @@ fn body(
                         out.push(if n.tag_name().name() == "value-of" {
                             Instruction::Value(value)
                         } else {
-                            Instruction::Apply(value)
+                            Instruction::Apply(
+                                value,
+                                mode(n, n.attribute("mode").unwrap_or("#default"), true)?,
+                            )
                         });
+                    }
+                    "copy" => {
+                        attrs(n, &[])?;
+                        out.push(Instruction::Copy(body(n, depth + 1, false)?));
+                    }
+                    "copy-of" => {
+                        attrs(n, &["select"])?;
+                        empty(n)?;
+                        out.push(Instruction::CopyOf(expr(n, required(n, "select")?)?));
                     }
                     "variable" => out.push(Instruction::Bind(binding(n, false)?)),
                     "for-each" => {
@@ -299,21 +326,20 @@ fn body(
                     }
                 }
             } else {
-                if n.tag_name().namespace().is_some() {
-                    return Err(error(n, "namespaced literal results are not implemented"));
-                }
                 let mut attributes = vec![];
                 for a in n.attributes() {
-                    if a.namespace().is_some() {
-                        return Err(error(
-                            n,
-                            "namespaced literal attributes are not implemented",
-                        ));
+                    if a.namespace() == Some(XSL) {
+                        return Err(error(n, "unsupported XSLT attribute on literal result"));
                     }
-                    attributes.push((a.name().into(), avt(n, a.value())?));
+                    attributes.push((
+                        crate::result::attribute_name(n, a.name(), a.namespace()),
+                        avt(n, a.value())?,
+                    ));
                 }
+                let mut element = crate::result::source_element(n, false);
+                element.namespaces.retain(|_, uri| uri != XSL);
                 out.push(Instruction::Element {
-                    name: n.tag_name().name().into(),
+                    element,
                     attributes,
                     body: body(n, depth + 1, false)?,
                 });
@@ -322,12 +348,17 @@ fn body(
     }
     Ok(out)
 }
-fn pattern(n: Node<'_, '_>, p: &str) -> Result<String, Diagnostic> {
-    let p = p.trim();
-    if p != "/" && (p.starts_with("//") || p.trim_start_matches('/').split('/').any(|s| !name(s))) {
-        return Err(error(n, "unsupported match pattern"));
+fn mode(n: Node<'_, '_>, value: &str, current: bool) -> Result<String, Diagnostic> {
+    if value == "#default" {
+        return Ok(String::new());
     }
-    Ok(p.into())
+    if current && value == "#current" {
+        return Ok(value.into());
+    }
+    if !name(value) {
+        return Err(error(n, "expected an unprefixed mode name or #default"));
+    }
+    Ok(value.into())
 }
 pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
     let doc = crate::parse(source, "compile")?;
@@ -368,8 +399,11 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
                 sheet.globals.push(b);
             }
             "template" => {
-                attrs(n, &["match", "name"])?;
-                let p = n.attribute("match").map(|p| pattern(n, p)).transpose()?;
+                attrs(n, &["match", "name", "mode", "priority"])?;
+                let p = n
+                    .attribute("match")
+                    .map(|p| crate::pattern::parse(p, namespaces(n)))
+                    .transpose()?;
                 let id = n.attribute("name").map(str::to_owned);
                 if p.is_none() && id.is_none() {
                     return Err(error(n, "template requires match or name"));
@@ -400,8 +434,35 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
                         content = true;
                     }
                 }
+                let modes = if n.attribute("mode") == Some("#all") {
+                    vec!["#all".into()]
+                } else {
+                    n.attribute("mode")
+                        .unwrap_or("#default")
+                        .split_whitespace()
+                        .map(|m| mode(n, m, false))
+                        .collect::<Result<Vec<_>, _>>()?
+                };
+                if modes.is_empty() {
+                    return Err(error(n, "empty mode list"));
+                }
+                let priority = n
+                    .attribute("priority")
+                    .map(|s| {
+                        s.parse::<f64>()
+                            .map_err(|_| error(n, "invalid template priority"))
+                    })
+                    .transpose()?;
+                if priority.is_some_and(|p| !p.is_finite()) {
+                    return Err(error(n, "template priority must be finite"));
+                }
+                if p.is_none() && (n.attribute("mode").is_some() || priority.is_some()) {
+                    return Err(error(n, "mode/priority require a match pattern"));
+                }
                 sheet.templates.push(Template {
                     pattern: p,
+                    modes,
+                    priority,
                     name: id,
                     params,
                     body: body(n, 0, true)?,
@@ -476,7 +537,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
         for i in body {
             match i {
                 Instruction::Text(_) => {}
-                Instruction::Value(e) | Instruction::Apply(e) => expression(e, &scope)?,
+                Instruction::Value(e) | Instruction::Apply(e, _) | Instruction::CopyOf(e) => {
+                    expression(e, &scope)?
+                }
                 Instruction::Bind(b) => {
                     expression(&b.value, &scope)?;
                     scope.insert(b.name.clone());
@@ -491,6 +554,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     }
                     instructions(body, scope.clone(), templates)?;
                 }
+                Instruction::Copy(body) => instructions(body, scope.clone(), templates)?,
                 Instruction::ForEach(e, body) | Instruction::If(e, body) => {
                     expression(e, &scope)?;
                     instructions(body, scope.clone(), templates)?;
@@ -529,6 +593,15 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
         expression(&b.value, &globals)?;
     }
     for t in &sheet.templates {
+        if let Some(branches) = &t.pattern {
+            for b in branches {
+                for s in &b.steps {
+                    for p in &s.predicates {
+                        expression(p, &globals)?;
+                    }
+                }
+            }
+        }
         let mut scope = globals.clone();
         for p in &t.params {
             expression(&p.value, &scope)?;

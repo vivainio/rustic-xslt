@@ -148,7 +148,7 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
     let mut pending = vec![template];
     let mut visited = BTreeSet::new();
     while let Some(t) = pending.pop() {
-        if !visited.insert(t.name.as_deref()) {
+        if !visited.insert(std::ptr::from_ref(t)) {
             continue;
         }
         for p in &t.params {
@@ -159,12 +159,26 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
             for i in body {
                 match i {
                     Instruction::Text(_) => {}
-                    Instruction::Value(e) => safe_expression(e, false)?,
+                    Instruction::Value(e) | Instruction::CopyOf(e) => safe_expression(e, false)?,
+                    Instruction::Copy(body) => bodies.push(body),
                     Instruction::Bind(b) => safe_expression(&b.value, false)?,
-                    Instruction::Apply(_) => {
-                        return Err(unsupported(
-                            "template dispatch inside a streamed record is not supported yet",
-                        ));
+                    Instruction::Apply(e, _) => {
+                        safe_expression(e, false)?;
+                        for template in &sheet.templates {
+                            if let Some(branches) = &template.pattern {
+                                if branches.iter().any(|b| {
+                                    !b.steps.is_empty()
+                                        && (b.absolute
+                                            || b.steps.len() != 1
+                                            || !b.steps[0].predicates.is_empty())
+                                }) {
+                                    return Err(unsupported(
+                                        "streamed dispatch currently requires single-step, predicate-free patterns",
+                                    ));
+                                }
+                                pending.push(template);
+                            }
+                        }
                     }
                     Instruction::Element {
                         attributes, body, ..
@@ -474,6 +488,7 @@ pub(crate) fn transform<R: BufRead, W: Write>(
             let transform = TransformOptions {
                 parameters: options.parameters.clone(),
                 initial_template: Some(options.template.clone()),
+                initial_mode: None,
                 limits: crate::Limits {
                     max_output_bytes: remaining,
                     ..options.limits
