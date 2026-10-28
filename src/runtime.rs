@@ -16,7 +16,15 @@ struct Frame<'a> {
     mode: String,
 }
 enum Task<'a> {
-    Apply(Focus<'a>, usize, String),
+    Apply(Focus<'a>, usize, String, Rc<Variables<'a>>),
+    ApplyArguments(
+        Vec<Focus<'a>>,
+        String,
+        &'a [Binding],
+        usize,
+        Variables<'a>,
+        Frame<'a>,
+    ),
     Body(&'a [Instruction], usize, Frame<'a>),
     Enter(&'a Template, Focus<'a>, Variables<'a>, usize, String),
     DeepCopy(XNode<'a>, usize, bool),
@@ -33,6 +41,7 @@ enum BindNext<'a> {
     Local(&'a [Instruction], usize),
     Parameter(&'a Template, usize, Variables<'a>),
     Argument(&'a Template, &'a [Binding], usize, Variables<'a>),
+    ApplyArgument(Vec<Focus<'a>>, String, &'a [Binding], usize, Variables<'a>),
 }
 fn complete_binding<'a>(
     binding: &Binding,
@@ -52,6 +61,10 @@ fn complete_binding<'a>(
         BindNext::Parameter(t, index, supplied) => {
             Rc::make_mut(&mut frame.env).insert(binding.name.clone(), value);
             tasks.push(Task::Parameters(t, index, supplied, frame));
+        }
+        BindNext::ApplyArgument(foci, mode, params, index, mut args) => {
+            args.insert(binding.name.clone(), value);
+            tasks.push(Task::ApplyArguments(foci, mode, params, index, args, frame));
         }
         BindNext::Argument(t, params, index, mut args) => {
             args.insert(binding.name.clone(), value);
@@ -399,7 +412,12 @@ fn execute<'a>(
             })?;
         vec![Task::Enter(t, root, Variables::new(), 0, initial_mode)]
     } else {
-        vec![Task::Apply(root, 0, initial_mode)]
+        vec![Task::Apply(
+            root,
+            0,
+            initial_mode,
+            Rc::new(Variables::new()),
+        )]
     };
     let run = Run {
         sheet,
@@ -457,6 +475,25 @@ fn run_tasks<'a>(
                     tasks.push(Task::Body(&t.body, 0, frame));
                 }
             }
+            Task::ApplyArguments(foci, mode, params, index, args, frame) => {
+                if let Some(p) = params.get(index) {
+                    tasks.push(Task::EvaluateBinding(
+                        p,
+                        frame,
+                        BindNext::ApplyArgument(foci, mode, params, index + 1, args),
+                    ));
+                } else {
+                    let args = Rc::new(args);
+                    for focus in foci.into_iter().rev() {
+                        tasks.push(Task::Apply(
+                            focus,
+                            frame.depth + 1,
+                            mode.clone(),
+                            args.clone(),
+                        ));
+                    }
+                }
+            }
             Task::Arguments(t, params, index, args, frame) => {
                 if let Some(p) = params.get(index) {
                     tasks.push(Task::EvaluateBinding(
@@ -501,7 +538,7 @@ fn run_tasks<'a>(
                 )?;
                 complete_binding(binding, value, frame, next, &mut tasks)?;
             }
-            Task::Apply(focus, depth, mode) => {
+            Task::Apply(focus, depth, mode, params) => {
                 if depth > limits.max_depth {
                     return Err(limit());
                 }
@@ -536,12 +573,21 @@ fn run_tasks<'a>(
                     }
                 }
                 if let Some((t, _)) = best {
-                    tasks.push(Task::Enter(t, focus, Variables::new(), depth, mode));
+                    tasks.push(Task::Enter(t, focus, (*params).clone(), depth, mode));
                 } else {
                     if node.is_document() || node.is_element() {
                         let children = node.children().map(Item::Node).collect();
                         for f in focus_sequence(children).into_iter().rev() {
-                            tasks.push(Task::Apply(f, depth + 1, mode.clone()));
+                            tasks.push(Task::Apply(
+                                f,
+                                depth + 1,
+                                mode.clone(),
+                                if sheet.backwards {
+                                    Rc::new(Variables::new())
+                                } else {
+                                    params.clone()
+                                },
+                            ));
                         }
                     } else if node.is_text() || node.is_attribute() {
                         output.text(&node.string())?;
@@ -666,17 +712,27 @@ fn run_tasks<'a>(
                             output.max.saturating_sub(output.value.len()),
                         )?)?;
                     }
-                    Instruction::Apply(e, target_mode, sorts) => {
+                    Instruction::Apply(e, target_mode, sorts, params) => {
                         let value = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
                         let value = crate::sort::sort(value, sorts, &env, budget, sheet.backwards)?;
                         let target_mode = if target_mode == "#current" {
-                            mode
+                            mode.clone()
                         } else {
                             target_mode.clone()
                         };
-                        for f in focus_sequence(value).into_iter().rev() {
-                            tasks.push(Task::Apply(f, depth + 1, target_mode.clone()));
-                        }
+                        tasks.push(Task::ApplyArguments(
+                            focus_sequence(value),
+                            target_mode,
+                            params,
+                            0,
+                            Variables::new(),
+                            Frame {
+                                focus,
+                                env,
+                                depth,
+                                mode,
+                            },
+                        ));
                     }
                     Instruction::CopyOf(e, _) | Instruction::Sequence(e) => {
                         let namespaces = match instruction {

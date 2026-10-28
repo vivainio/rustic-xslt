@@ -203,4 +203,20 @@ conformance claims. Smaller tested increments are committed independently.
   215 pass / 218 engine failures / 97 harness errors / 45 exclusions; the 214-case
   gate remains green and expands to 215.
 
-Next: template application parameters and practical XSLT 1.0 dispatch behavior.
+## Increment 18: template application parameters
+
+- `apply-templates` accepts ordinary `with-param` bindings after sort keys;
+  expanded-name duplicate checks and lexical validation also inspect dead code.
+- Argument expressions and constructor bodies execute on the task stack in the
+  caller's focus/scope, then values are shared across selected template dispatch.
+- Supplied-parameter type checks, per-template defaults and modern built-in-rule
+  forwarding are preserved; explicit nested applications do not leak arguments.
+  Version 1.0 built-in rules retain their no-parameter behavior.
+- Record streaming traverses argument expressions/constructors before consuming
+  input; safe record-local arguments work with fresh per-record arenas.
+- 146 Rust integration tests, 14 harness tests and Clippy/format pass. Ten W3C
+  sets: 625 cases, 245 pass / 224 engine failures / 110 harness errors / 46 exclusions.
+  All 215 previous passes remain; gate expanded to 245 cases.
+
+Next: required parameters, named-template argument diagnostics, reserved component
+namespaces, and further practical XSLT 1.0 dispatch behavior.

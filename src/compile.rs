@@ -11,7 +11,7 @@ pub(crate) const XSL: &str = "http://www.w3.org/1999/XSL/Transform";
 pub(crate) enum Instruction {
     Text(String),
     Value(Expr, Option<Vec<Expr>>),
-    Apply(Expr, String, Vec<Sort>),
+    Apply(Expr, String, Vec<Sort>, Vec<Binding>),
     Copy {
         select: Option<Expr>,
         namespaces: bool,
@@ -314,6 +314,35 @@ fn content(n: Node<'_, '_>, depth: usize) -> Result<Content, Diagnostic> {
         Ok(Content::Body(body(n, depth, false)?, separator))
     }
 }
+fn with_params(
+    n: Node<'_, '_>,
+    depth: usize,
+    allow_sort: bool,
+) -> Result<Vec<Binding>, Diagnostic> {
+    let mut params = vec![];
+    for c in n.children() {
+        if c.is_text() && !xml_space(c.text().unwrap_or_default()) {
+            return Err(error(c, "unexpected template invocation text"));
+        }
+        if !c.is_element() {
+            continue;
+        }
+        if allow_sort && c.tag_name().namespace() == Some(XSL) && c.tag_name().name() == "sort" {
+            continue;
+        }
+        if c.tag_name().namespace() != Some(XSL) || c.tag_name().name() != "with-param" {
+            return Err(error(c, "expected with-param"));
+        }
+        let b = binding(c, true, depth)?;
+        if params.iter().any(|p: &Binding| p.name == b.name) {
+            let mut e = error(c, "duplicate with-param");
+            e.code = "XTSE0670".into();
+            return Err(e);
+        }
+        params.push(b);
+    }
+    Ok(params)
+}
 fn sorts(n: Node<'_, '_>) -> Result<Vec<Sort>, Diagnostic> {
     let mut keys = vec![];
     let mut content = false;
@@ -346,10 +375,14 @@ fn sorts(n: Node<'_, '_>) -> Result<Vec<Sort>, Diagnostic> {
                 case_order: case_order.into(),
             });
         } else if c.is_element() || c.is_text() && !xml_space(c.text().unwrap_or_default()) {
-            if n.tag_name().name() == "apply-templates" {
+            if n.tag_name().name() == "apply-templates"
+                && !(c.is_element()
+                    && c.tag_name().namespace() == Some(XSL)
+                    && c.tag_name().name() == "with-param")
+            {
                 return Err(error(
                     c,
-                    "apply-templates content currently supports sort keys only",
+                    "apply-templates requires sort or with-param children",
                 ));
             }
             content = true;
@@ -499,6 +532,7 @@ fn body(
                                 value,
                                 mode(n, n.attribute("mode").unwrap_or("#default"), true)?,
                                 sorts,
+                                with_params(n, depth, true)?,
                             )
                         });
                     }
@@ -617,25 +651,7 @@ fn body(
                     "call-template" => {
                         attrs(n, &["name"])?;
                         let id = component_name(n, required(n, "name")?)?;
-                        let mut params = vec![];
-                        for c in n.children() {
-                            if c.is_text() && !xml_space(c.text().unwrap_or_default()) {
-                                return Err(error(c, "unexpected call-template text"));
-                            }
-                            if !c.is_element() {
-                                continue;
-                            }
-                            if c.tag_name().namespace() != Some(XSL)
-                                || c.tag_name().name() != "with-param"
-                            {
-                                return Err(error(c, "expected with-param"));
-                            }
-                            let b = binding(c, true, depth)?;
-                            if params.iter().any(|p: &Binding| p.name == b.name) {
-                                return Err(error(c, "duplicate with-param"));
-                            }
-                            params.push(b);
-                        }
+                        let params = with_params(n, depth, false)?;
                         out.push(Instruction::Call(id, params));
                     }
                     other => {
@@ -674,6 +690,7 @@ fn body(
     Ok(out)
 }
 fn mode(n: Node<'_, '_>, value: &str, current: bool) -> Result<String, Diagnostic> {
+    let value = value.trim();
     if value == "#default" {
         return Ok(String::new());
     }
@@ -932,12 +949,22 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
         for i in body {
             match i {
                 Instruction::Value(_, Some(es)) => parts(es, &scope)?,
-                Instruction::Apply(_, _, keys) | Instruction::ForEach(_, keys, _) => {
+                Instruction::Apply(_, _, keys, _) | Instruction::ForEach(_, keys, _) => {
                     for k in keys {
                         expression(&k.select, &scope)?;
                     }
                 }
                 _ => {}
+            }
+            if let Instruction::Apply(_, _, _, params) = i {
+                for p in params {
+                    match &p.value {
+                        BindingValue::Select(e) => expression(e, &scope)?,
+                        BindingValue::Body(body) | BindingValue::Document(body) => {
+                            instructions(body, scope.clone(), templates)?
+                        }
+                    }
+                }
             }
             match i {
                 Instruction::ComputedElement(n, _, body) => {
@@ -955,7 +982,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 }
                 Instruction::Text(_) => {}
                 Instruction::Value(e, _)
-                | Instruction::Apply(e, _, _)
+                | Instruction::Apply(e, _, _, _)
                 | Instruction::CopyOf(e, _)
                 | Instruction::Sequence(e) => expression(e, &scope)?,
                 Instruction::Bind(b) => {

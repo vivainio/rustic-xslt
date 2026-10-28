@@ -43,7 +43,8 @@ Supported so far:
   basic xs constructors, atomization and string/node/sequence functions;
 - URIQualifiedNames in component names, variables, node tests/wildcards, supported
   function calls and atomic sequence types;
-- `apply-templates`, `call-template`, `value-of`, `text`, `for-each`, `if`, `choose`;
+- `apply-templates` and `call-template` with ordinary parameters (select or
+  constructor bodies), plus `value-of`, `text`, `for-each`, `if`, `choose`;
 - namespace-aware literal results, constant attributes, AVTs and namespace fixup;
 - selected/shallow `copy`, namespace-copy controls, deep `copy-of`, document
   construction, computed elements/attributes, comment/PI
@@ -74,6 +75,10 @@ predicates, `/` and union. Descendant patterns remain ahead.
 Unsupported constructs are rejected rather than ignored. Implementation gaps
 use `RUST_XSLT_UNSUPPORTED`; syntax/name/function errors use XPath error codes.
 Variable references and named-template calls are checked even in dead branches.
+Template application arguments use the caller's focus/scope, including when
+sorting changes the selected-node order. Modern built-in template rules forward
+ordinary supplied parameters; version 1.0 built-ins use their original parameter
+behavior. Tunnel/required parameters remain unsupported.
 No imports, schema awareness,
 resource loading, or cancellation yet. Record streaming is described below. Empty result elements use
 explicit start/end tags. Literal results preserve in-scope non-XSLT namespaces except declared exclusions;
@@ -156,7 +161,7 @@ streamable modes/accumulators and automatic plan selection remain ahead.
 
 ## W3C development checks
 
-A pinned, partial catalog runner and a 215-case passing regression gate are in
+A pinned, partial catalog runner and a 245-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. The example JSON-lines driver

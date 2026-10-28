@@ -320,7 +320,7 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                             safe_expression(e, false)?;
                         }
                     }
-                    Instruction::Apply(_, _, keys) | Instruction::ForEach(_, keys, _) => {
+                    Instruction::Apply(_, _, keys, _) | Instruction::ForEach(_, keys, _) => {
                         for key in keys {
                             safe_expression(&key.select, false)?;
                         }
@@ -355,7 +355,10 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                     }
                     Instruction::Document(body) => bodies.push(body),
                     Instruction::Bind(b) => safe_binding(&b.value, false, &mut bodies)?,
-                    Instruction::Apply(e, _, _) => {
+                    Instruction::Apply(e, _, _, params) => {
+                        for p in params {
+                            safe_binding(&p.value, false, &mut bodies)?;
+                        }
                         safe_expression(e, false)?;
                         for template in &sheet.templates {
                             if let Some(branches) = &template.pattern {

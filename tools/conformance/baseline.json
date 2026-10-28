@@ -143,7 +143,19 @@
     ],
     [
       "variable",
+      "variable-0101"
+    ],
+    [
+      "variable",
+      "variable-0102"
+    ],
+    [
+      "variable",
       "variable-0103"
+    ],
+    [
+      "variable",
+      "variable-0106"
     ],
     [
       "variable",
@@ -164,6 +176,10 @@
     [
       "variable",
       "variable-0801"
+    ],
+    [
+      "variable",
+      "variable-0802"
     ],
     [
       "variable",
@@ -319,6 +335,10 @@
     ],
     [
       "variable",
+      "variable-3201"
+    ],
+    [
+      "variable",
       "variable-3301"
     ],
     [
@@ -336,6 +356,30 @@
     [
       "variable",
       "variable-3701"
+    ],
+    [
+      "variable",
+      "variable-3801"
+    ],
+    [
+      "variable",
+      "variable-3802"
+    ],
+    [
+      "variable",
+      "variable-3901"
+    ],
+    [
+      "variable",
+      "variable-4001"
+    ],
+    [
+      "variable",
+      "variable-4101"
+    ],
+    [
+      "variable",
+      "variable-4201"
     ],
     [
       "variable",
@@ -364,6 +408,66 @@
     [
       "variable",
       "variable-4801"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-0101"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-0102c"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-0104c"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-0106"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-0107"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-0108c"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-0110c"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-0201"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-0401c"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-0601"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-0901"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-1001"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-1101"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-1701"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-1801"
     ],
     [
       "call-template",
@@ -396,6 +500,22 @@
     [
       "call-template",
       "call-template-0402"
+    ],
+    [
+      "call-template",
+      "call-template-0601"
+    ],
+    [
+      "call-template",
+      "call-template-0701"
+    ],
+    [
+      "call-template",
+      "call-template-0702"
+    ],
+    [
+      "call-template",
+      "call-template-0703"
     ],
     [
       "call-template",
