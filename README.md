@@ -37,7 +37,8 @@ Supported so far:
   basic xs constructors, atomization and string/node/sequence functions;
 - `apply-templates`, `call-template`, `value-of`, `text`, `for-each`, `if`, `choose`;
 - namespace-aware literal results, constant attributes, AVTs and namespace fixup;
-- shallow `copy`, deep `copy-of`, computed elements/attributes, comment/PI
+- selected/shallow `copy`, namespace-copy controls, deep `copy-of`, document
+  construction, computed elements/attributes, comment/PI
   construction, and value separators;
 - stable multi-key sorting for for-each/apply-templates with numeric/text keys,
   static ascending/descending order and case-order;
@@ -83,6 +84,8 @@ node handles preserve parent/root navigation and identity across documents.
 `Limits::max_temporary_bytes` caps retained serialized temporary-tree source bytes
 (default 64 MiB), with fresh arenas per streamed record. Parsed-node storage and
 other allocations are additional, so this is not a hard memory bound.
+Namespace-axis/raw namespace-node support remains ahead; serialized XML 1.0
+cannot represent all XDM namespace inheritance boundaries.
 Computed QName validation currently accepts letters, digits, underscore, hyphen
 and dot, rather than the full XML name-character tables. Sort settings are
 static; locale collations and sort-setting AVTs remain ahead. Compilation limits nested
@@ -146,7 +149,7 @@ streamable modes/accumulators and automatic plan selection remain ahead.
 
 ## W3C development checks
 
-A pinned, partial catalog runner and a 90-case passing regression gate are in
+A pinned, partial catalog runner and a 101-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. The example JSON-lines driver

@@ -96,7 +96,13 @@ impl<'a> XNode<'a> {
         if let Some((local, uri)) = self.attribute {
             (uri, local)
         } else if self.is_element() {
-            (self.raw.tag_name().namespace(), self.raw.tag_name().name())
+            (
+                self.raw
+                    .tag_name()
+                    .namespace()
+                    .filter(|uri| !uri.is_empty()),
+                self.raw.tag_name().name(),
+            )
         } else {
             (None, self.raw.pi().map_or("", |pi| pi.target))
         }

@@ -142,4 +142,18 @@ conformance claims. Smaller tested increments are committed independently.
 - Selected W3C cases: 90 pass / 76 engine failures / 21 harness errors / 16 exclusions.
   All 77 previous passes remain; gate expanded to 90.
 
-Next: document/copy instructions, namespace-copy controls and qualified entry names.
+## Increment 13: document and copy controls
+
+- xsl:copy select handles zero/singleton values, replacement focus, ignored atomic
+  bodies and XTTE3180; implicit copy rejects absent focus.
+- copy-namespaces controls retain bindings required by element/attribute names;
+  inherit-namespaces controls result construction and required default resets.
+- xsl:document uses per-run document ownership; typed sole-document constructors
+  return document nodes, nested documents flatten, document attributes fail.
+- Empty namespace URIs are normalized across parser boundaries, XPath and stream
+  record selection. New selectors are included in streaming safety checks.
+- 113 Rust integration tests and Clippy/format pass. Selected W3C cases:
+  101 pass / 63 engine failures / 23 harness errors / 16 exclusions.
+  All 90 previous passes remain; two new harness errors became reachable.
+
+Next: sequence-aware simple-content construction, then qualified entry names.

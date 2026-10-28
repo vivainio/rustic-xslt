@@ -13,6 +13,7 @@ pub(crate) struct Element {
     pub name: Name,
     pub namespaces: BTreeMap<String, String>,
     pub attributes: Vec<(Name, String)>,
+    pub inherit_namespaces: bool,
 }
 struct Open {
     element: Element,
@@ -92,7 +93,15 @@ impl Output {
             .last()
             .map(|o| o.element.namespaces.clone())
             .unwrap_or_default();
-        let mut namespaces = inherited.clone();
+        let mut namespaces = if self
+            .stack
+            .last()
+            .is_none_or(|o| o.element.inherit_namespaces)
+        {
+            inherited.clone()
+        } else {
+            BTreeMap::new()
+        };
         namespaces.extend(element.namespaces);
         let prefix = element.name.qname.split_once(':').map_or("", |(p, _)| p);
         namespaces.insert(prefix.into(), element.name.uri.clone().unwrap_or_default());
@@ -234,7 +243,10 @@ pub(crate) fn source_name(node: roxmltree::Node<'_, '_>) -> Name {
         .unwrap_or(tag.name());
     Name {
         qname: qname.into(),
-        uri: tag.namespace().map(str::to_owned),
+        uri: tag
+            .namespace()
+            .filter(|uri| !uri.is_empty())
+            .map(str::to_owned),
         local: tag.name().into(),
     }
 }
@@ -260,6 +272,7 @@ pub(crate) fn source_element(node: roxmltree::Node<'_, '_>, attributes: bool) ->
             .namespaces()
             .map(|ns| (ns.name().unwrap_or("").into(), ns.uri().into()))
             .collect(),
+        inherit_namespaces: true,
         attributes: if attributes {
             node.attributes()
                 .map(|a| {

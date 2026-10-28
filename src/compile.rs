@@ -12,10 +12,16 @@ pub(crate) enum Instruction {
     Text(String),
     Value(Expr, Option<Vec<Expr>>),
     Apply(Expr, String, Vec<Sort>),
-    Copy(Vec<Instruction>),
-    CopyOf(Expr),
+    Copy {
+        select: Option<Expr>,
+        namespaces: bool,
+        inherit: bool,
+        body: Vec<Instruction>,
+    },
+    CopyOf(Expr, bool),
+    Document(Vec<Instruction>),
     Sequence(Expr),
-    ComputedElement(ComputedName, Vec<Instruction>),
+    ComputedElement(ComputedName, bool, Vec<Instruction>),
     Attribute(ComputedName, Content),
     Comment(Content),
     Pi(Vec<Expr>, Content),
@@ -52,6 +58,7 @@ pub(crate) enum Content {
 pub(crate) enum BindingValue {
     Select(Expr),
     Body(Vec<Instruction>),
+    Document(Vec<Instruction>),
 }
 #[derive(Debug)]
 pub(crate) struct Binding {
@@ -133,6 +140,21 @@ fn empty(n: Node<'_, '_>) -> Result<(), Diagnostic> {
     }
     Ok(())
 }
+fn boolean_value(n: Node<'_, '_>, value: Option<&str>, default: bool) -> Result<bool, Diagnostic> {
+    match value {
+        None => Ok(default),
+        Some("yes" | "true" | "1") => Ok(true),
+        Some("no" | "false" | "0") => Ok(false),
+        _ => {
+            let mut e = error(n, "invalid boolean stylesheet attribute");
+            e.code = "XTSE0020".into();
+            Err(e)
+        }
+    }
+}
+fn boolean_attribute(n: Node<'_, '_>, name: &str, default: bool) -> Result<bool, Diagnostic> {
+    boolean_value(n, n.attribute(name), default)
+}
 fn binding(n: Node<'_, '_>, parameter: bool, depth: usize) -> Result<Binding, Diagnostic> {
     attrs(n, &["name", "select", "as"])?;
     let ty = n
@@ -154,6 +176,11 @@ fn binding(n: Node<'_, '_>, parameter: bool, depth: usize) -> Result<Binding, Di
             } else {
                 Expr::String(String::new())
             })
+        } else if ty.is_some() && body.len() == 1 && matches!(body[0], Instruction::Document(_)) {
+            let Instruction::Document(body) = body.into_iter().next().unwrap() else {
+                unreachable!()
+            };
+            BindingValue::Document(body)
         } else if ty.is_some() && body.len() == 1 && matches!(body[0], Instruction::Sequence(_)) {
             let Instruction::Sequence(e) = body.into_iter().next().unwrap() else {
                 unreachable!()
@@ -191,8 +218,9 @@ fn top_sequence(body: &[Instruction]) -> bool {
     body.iter().any(|i| match i {
         Instruction::Sequence(_)
         | Instruction::Call(_, _)
-        | Instruction::CopyOf(_)
-        | Instruction::Copy(_) => true,
+        | Instruction::CopyOf(..)
+        | Instruction::Copy { .. }
+        | Instruction::Document(_) => true,
         Instruction::ForEach(_, _, b) | Instruction::If(_, b) => top_sequence(b),
         Instruction::Choose(bs) => bs.iter().any(|(_, b)| top_sequence(b)),
         _ => false,
@@ -472,9 +500,10 @@ fn body(
                         continue;
                     }
                     "element" => {
-                        attrs(n, &["name", "namespace"])?;
+                        attrs(n, &["name", "namespace", "inherit-namespaces"])?;
                         out.push(Instruction::ComputedElement(
                             computed_name(n)?,
+                            boolean_attribute(n, "inherit-namespaces", true)?,
                             body(n, depth + 1, false)?,
                         ));
                     }
@@ -496,19 +525,31 @@ fn body(
                             content(n, depth + 1)?,
                         ));
                     }
-                    "copy" => {
-                        attrs(n, &[])?;
-                        out.push(Instruction::Copy(body(n, depth + 1, false)?));
-                    }
                     "sequence" => {
                         attrs(n, &["select"])?;
                         empty(n)?;
                         out.push(Instruction::Sequence(expr(n, required(n, "select")?)?));
                     }
+                    "copy" => {
+                        attrs(n, &["select", "copy-namespaces", "inherit-namespaces"])?;
+                        out.push(Instruction::Copy {
+                            select: n.attribute("select").map(|s| expr(n, s)).transpose()?,
+                            namespaces: boolean_attribute(n, "copy-namespaces", true)?,
+                            inherit: boolean_attribute(n, "inherit-namespaces", true)?,
+                            body: body(n, depth + 1, false)?,
+                        });
+                    }
                     "copy-of" => {
-                        attrs(n, &["select"])?;
+                        attrs(n, &["select", "copy-namespaces"])?;
                         empty(n)?;
-                        out.push(Instruction::CopyOf(expr(n, required(n, "select")?)?));
+                        out.push(Instruction::CopyOf(
+                            expr(n, required(n, "select")?)?,
+                            boolean_attribute(n, "copy-namespaces", true)?,
+                        ));
+                    }
+                    "document" => {
+                        attrs(n, &[])?;
+                        out.push(Instruction::Document(body(n, depth + 1, false)?));
                     }
                     "variable" => out.push(Instruction::Bind(binding(n, false, depth)?)),
                     "for-each" => {
@@ -599,7 +640,7 @@ fn body(
                 let mut attributes = vec![];
                 for a in n.attributes() {
                     if a.namespace() == Some(XSL) {
-                        if a.name() == "exclude-result-prefixes" {
+                        if ["exclude-result-prefixes", "inherit-namespaces"].contains(&a.name()) {
                             continue;
                         }
                         return Err(error(n, "unsupported XSLT attribute on literal result"));
@@ -610,6 +651,8 @@ fn body(
                     ));
                 }
                 let mut element = crate::result::source_element(n, false);
+                element.inherit_namespaces =
+                    boolean_value(n, n.attribute((XSL, "inherit-namespaces")), true)?;
                 let excluded = excluded_uris(n)?;
                 element
                     .namespaces
@@ -888,7 +931,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 _ => {}
             }
             match i {
-                Instruction::ComputedElement(n, body) => {
+                Instruction::ComputedElement(n, _, body) => {
                     cname(n, &scope)?;
                     instructions(body, scope.clone(), templates)?;
                 }
@@ -904,12 +947,14 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 Instruction::Text(_) => {}
                 Instruction::Value(e, _)
                 | Instruction::Apply(e, _, _)
-                | Instruction::CopyOf(e)
+                | Instruction::CopyOf(e, _)
                 | Instruction::Sequence(e) => expression(e, &scope)?,
                 Instruction::Bind(b) => {
                     match &b.value {
                         BindingValue::Select(e) => expression(e, &scope)?,
-                        BindingValue::Body(body) => instructions(body, scope.clone(), templates)?,
+                        BindingValue::Body(body) | BindingValue::Document(body) => {
+                            instructions(body, scope.clone(), templates)?
+                        }
                     }
                     scope.insert(b.name.clone());
                 }
@@ -923,7 +968,13 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     }
                     instructions(body, scope.clone(), templates)?;
                 }
-                Instruction::Copy(body) => instructions(body, scope.clone(), templates)?,
+                Instruction::Document(body) => instructions(body, scope.clone(), templates)?,
+                Instruction::Copy { select, body, .. } => {
+                    if let Some(e) = select {
+                        expression(e, &scope)?;
+                    }
+                    instructions(body, scope.clone(), templates)?;
+                }
                 Instruction::ForEach(e, _, body) | Instruction::If(e, body) => {
                     expression(e, &scope)?;
                     instructions(body, scope.clone(), templates)?;
@@ -947,7 +998,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     for p in params {
                         match &p.value {
                             BindingValue::Select(e) => expression(e, &scope)?,
-                            BindingValue::Body(body) => {
+                            BindingValue::Body(body) | BindingValue::Document(body) => {
                                 instructions(body, scope.clone(), templates)?
                             }
                         }
@@ -966,7 +1017,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
     for b in &sheet.globals {
         match &b.value {
             BindingValue::Select(e) => expression(e, &globals)?,
-            BindingValue::Body(body) => instructions(body, globals.clone(), &templates)?,
+            BindingValue::Body(body) | BindingValue::Document(body) => {
+                instructions(body, globals.clone(), &templates)?
+            }
         }
     }
     for t in &sheet.templates {
@@ -983,7 +1036,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
         for p in &t.params {
             match &p.value {
                 BindingValue::Select(e) => expression(e, &scope)?,
-                BindingValue::Body(body) => instructions(body, scope.clone(), &templates)?,
+                BindingValue::Body(body) | BindingValue::Document(body) => {
+                    instructions(body, scope.clone(), &templates)?
+                }
             }
             scope.insert(p.name.clone());
         }

@@ -203,6 +203,30 @@
     ],
     [
       "copy",
+      "copy-0601"
+    ],
+    [
+      "copy",
+      "copy-0602"
+    ],
+    [
+      "copy",
+      "copy-0604"
+    ],
+    [
+      "copy",
+      "copy-0605"
+    ],
+    [
+      "copy",
+      "element-0607"
+    ],
+    [
+      "copy",
+      "element-0608"
+    ],
+    [
+      "copy",
       "copy-0701"
     ],
     [
@@ -355,11 +379,31 @@
     ],
     [
       "copy",
+      "copy-4601"
+    ],
+    [
+      "copy",
       "copy-4701"
     ],
     [
       "copy",
       "copy-4702"
+    ],
+    [
+      "copy",
+      "copy-4801"
+    ],
+    [
+      "copy",
+      "copy-4803"
+    ],
+    [
+      "copy",
+      "copy-4804"
+    ],
+    [
+      "copy",
+      "copy-4805"
     ]
   ]
 }

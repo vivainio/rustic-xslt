@@ -159,7 +159,7 @@ fn safe_binding<'a>(
 ) -> Result<(), Diagnostic> {
     match value {
         BindingValue::Select(e) => safe_expression(e, global)?,
-        BindingValue::Body(body) => {
+        BindingValue::Body(body) | BindingValue::Document(body) => {
             if global {
                 safe_global_body(body)?;
             } else {
@@ -204,7 +204,7 @@ fn safe_global_body(body: &[Instruction]) -> Result<(), Diagnostic> {
                     }
                 }
             }
-            Instruction::Sequence(e) | Instruction::CopyOf(e) => safe_expression(e, true)?,
+            Instruction::Sequence(e) | Instruction::CopyOf(e, _) => safe_expression(e, true)?,
             Instruction::Bind(b) => safe_binding(&b.value, true, &mut vec![])?,
             Instruction::Element {
                 attributes, body, ..
@@ -216,7 +216,7 @@ fn safe_global_body(body: &[Instruction]) -> Result<(), Diagnostic> {
                 }
                 safe_global_body(body)?;
             }
-            Instruction::ComputedElement(n, body) => {
+            Instruction::ComputedElement(n, _, body) => {
                 name(n)?;
                 safe_global_body(body)?;
             }
@@ -243,7 +243,16 @@ fn safe_global_body(body: &[Instruction]) -> Result<(), Diagnostic> {
                     safe_global_body(body)?;
                 }
             }
-            Instruction::Apply(..) | Instruction::Call(..) | Instruction::Copy(_) => {
+            Instruction::Document(body) => safe_global_body(body)?,
+            Instruction::Copy {
+                select: Some(e),
+                body,
+                ..
+            } => {
+                safe_expression(e, true)?;
+                safe_global_body(body)?;
+            }
+            Instruction::Apply(..) | Instruction::Call(..) | Instruction::Copy { .. } => {
                 return Err(unsupported(
                     "streamed global constructors cannot invoke templates or copy the source context",
                 ));
@@ -308,7 +317,7 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                     _ => {}
                 }
                 match i {
-                    Instruction::ComputedElement(n, body) => {
+                    Instruction::ComputedElement(n, _, body) => {
                         safe_name(n)?;
                         bodies.push(body);
                     }
@@ -325,9 +334,15 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                     }
                     Instruction::Text(_) => {}
                     Instruction::Value(e, _)
-                    | Instruction::CopyOf(e)
+                    | Instruction::CopyOf(e, _)
                     | Instruction::Sequence(e) => safe_expression(e, false)?,
-                    Instruction::Copy(body) => bodies.push(body),
+                    Instruction::Copy { select, body, .. } => {
+                        if let Some(e) = select {
+                            safe_expression(e, false)?;
+                        }
+                        bodies.push(body);
+                    }
+                    Instruction::Document(body) => bodies.push(body),
                     Instruction::Bind(b) => safe_binding(&b.value, false, &mut bodies)?,
                     Instruction::Apply(e, _, _) => {
                         safe_expression(e, false)?;
@@ -479,7 +494,11 @@ fn validate_start(
     let doc = crate::parse(xml, "parse")?;
     let root = doc.root_element();
     let name = Name {
-        uri: root.tag_name().namespace().map(str::to_owned),
+        uri: root
+            .tag_name()
+            .namespace()
+            .filter(|uri| !uri.is_empty())
+            .map(str::to_owned),
         local: root.tag_name().name().into(),
     };
     let namespaces = root

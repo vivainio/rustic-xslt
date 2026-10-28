@@ -19,7 +19,8 @@ enum Task<'a> {
     Apply(Focus<'a>, usize, String),
     Body(&'a [Instruction], usize, Frame<'a>),
     Enter(&'a Template, Focus<'a>, Variables<'a>, usize, String),
-    DeepCopy(XNode<'a>, usize),
+    DeepCopy(XNode<'a>, usize, bool),
+    FinishDocument(Output, usize),
     Atomic(String),
     Close,
     FinishCapture(Capture, Output),
@@ -310,7 +311,7 @@ fn execute<'a>(
                 BindingValue::Select(e) => {
                     xpath::eval(e, &root, &globals, budget, 0, sheet.backwards)
                 }
-                BindingValue::Body(body) => {
+                BindingValue::Body(body) | BindingValue::Document(body) => {
                     let env = Rc::new(globals.clone());
                     let frame = Frame {
                         focus: root.clone(),
@@ -330,7 +331,16 @@ fn execute<'a>(
                         vec![Task::Body(body, 0, frame)],
                         Output::document(limits.max_output_bytes),
                     )
-                    .and_then(|xml| trees.construct(xml, b.ty.as_ref()))
+                    .and_then(|xml| {
+                        trees.construct(
+                            xml,
+                            if matches!(b.value, BindingValue::Document(_)) {
+                                None
+                            } else {
+                                b.ty.as_ref()
+                            },
+                        )
+                    })
                 }
             };
             match evaluated {
@@ -454,7 +464,7 @@ fn run_tasks<'a>(
                         xpath::eval(e, &frame.focus, &frame.env, budget, 0, sheet.backwards)?;
                     complete_binding(binding, value, frame, next, &mut tasks)?;
                 }
-                BindingValue::Body(body) => {
+                BindingValue::Body(body) | BindingValue::Document(body) => {
                     let saved =
                         std::mem::replace(&mut output, Output::document(limits.max_output_bytes));
                     let mut constructor = frame.clone();
@@ -465,7 +475,14 @@ fn run_tasks<'a>(
             },
             Task::FinishBinding(binding, frame, next, saved) => {
                 let xml = std::mem::replace(&mut output, saved).value;
-                let value = trees.construct(xml, binding.ty.as_ref())?;
+                let value = trees.construct(
+                    xml,
+                    if matches!(binding.value, BindingValue::Document(_)) {
+                        None
+                    } else {
+                        binding.ty.as_ref()
+                    },
+                )?;
                 complete_binding(binding, value, frame, next, &mut tasks)?;
             }
             Task::Apply(focus, depth, mode) => {
@@ -538,7 +555,7 @@ fn run_tasks<'a>(
                     mode,
                 } = frame;
                 match instruction {
-                    Instruction::ComputedElement(n, body) => {
+                    Instruction::ComputedElement(n, inherit, body) => {
                         let frame = Frame {
                             focus,
                             env,
@@ -550,6 +567,7 @@ fn run_tasks<'a>(
                             name,
                             namespaces: Default::default(),
                             attributes: vec![],
+                            inherit_namespaces: *inherit,
                         })?;
                         tasks.push(Task::Close);
                         tasks.push(Task::Body(body, 0, frame));
@@ -643,7 +661,11 @@ fn run_tasks<'a>(
                             tasks.push(Task::Apply(f, depth + 1, target_mode.clone()));
                         }
                     }
-                    Instruction::CopyOf(e) | Instruction::Sequence(e) => {
+                    Instruction::CopyOf(e, _) | Instruction::Sequence(e) => {
+                        let namespaces = match instruction {
+                            Instruction::CopyOf(_, value) => *value,
+                            _ => true,
+                        };
                         let value = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
                         // Copy atomics as text with a separator only between adjacent atomics.
                         let mut operations = vec![];
@@ -667,16 +689,57 @@ fn run_tasks<'a>(
                         // Text operations need their own tasks to preserve mixed sequence order.
                         for op in operations.into_iter().rev() {
                             match op {
-                                Ok(n) => tasks.push(Task::DeepCopy(n, depth + 1)),
+                                Ok(n) => tasks.push(Task::DeepCopy(n, depth + 1, namespaces)),
                                 Err(s) => tasks.push(Task::Atomic(s)),
                             }
                         }
                     }
-                    Instruction::Copy(body) => match focus.item.clone() {
-                        Item::Node(n) if n.is_element() => {
-                            output.start(result::source_element(n.raw, false))?;
-                            tasks.push(Task::Close);
-                            tasks.push(Task::Body(
+                    Instruction::Copy {
+                        select,
+                        namespaces,
+                        inherit,
+                        body,
+                    } => {
+                        let mut focus = focus;
+                        if let Some(e) = select {
+                            let value = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
+                            if value.is_empty() {
+                                continue;
+                            }
+                            if value.len() != 1 {
+                                return Err(Diagnostic::new(
+                                    "XTTE3180",
+                                    "copy select requires at most one item",
+                                    "run",
+                                ));
+                            }
+                            focus = Focus {
+                                item: value.into_iter().next().unwrap(),
+                                position: 1,
+                                size: 1,
+                            };
+                        }
+                        match focus.item.clone() {
+                            Item::Node(n) if n.is_element() => {
+                                let mut element = result::source_element(n.raw, false);
+                                if !namespaces {
+                                    element.namespaces.clear();
+                                }
+                                element.inherit_namespaces = *inherit;
+                                output.start(element)?;
+                                tasks.push(Task::Close);
+                                tasks.push(Task::Body(
+                                    body,
+                                    0,
+                                    Frame {
+                                        focus,
+                                        env,
+                                        depth: depth + 1,
+                                        mode,
+                                    },
+                                ));
+                            }
+                            Item::Node(n) if n.is_document() => tasks.push(Task::Body(
                                 body,
                                 0,
                                 Frame {
@@ -685,9 +748,25 @@ fn run_tasks<'a>(
                                     depth: depth + 1,
                                     mode,
                                 },
-                            ));
+                            )),
+                            Item::Node(n) => copied_leaf(n, &mut output)?,
+                            Item::Absent => {
+                                return Err(Diagnostic::new(
+                                    "XPDY0002",
+                                    "copy requires a context item",
+                                    "run",
+                                ));
+                            }
+                            atomic => output.text(&atomic.string())?,
                         }
-                        Item::Node(n) if n.is_document() => tasks.push(Task::Body(
+                    }
+                    Instruction::Document(body) => {
+                        let saved = std::mem::replace(
+                            &mut output,
+                            Output::document(limits.max_output_bytes),
+                        );
+                        tasks.push(Task::FinishDocument(saved, depth));
+                        tasks.push(Task::Body(
                             body,
                             0,
                             Frame {
@@ -696,10 +775,8 @@ fn run_tasks<'a>(
                                 depth: depth + 1,
                                 mode,
                             },
-                        )),
-                        Item::Node(n) => copied_leaf(n, &mut output)?,
-                        atomic => output.text(&atomic.string())?,
-                    },
+                        ));
+                    }
                     Instruction::ForEach(e, sorts, body) => {
                         let value = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
                         let value = crate::sort::sort(value, sorts, &env, budget, sheet.backwards)?;
@@ -820,21 +897,33 @@ fn run_tasks<'a>(
                     }
                 }
             }
-            Task::DeepCopy(node, depth) => {
+            Task::DeepCopy(node, depth, namespaces) => {
                 if depth > limits.max_depth {
                     return Err(limit());
                 }
                 if node.is_document() || node.is_element() {
                     if node.is_element() {
-                        output.start(result::source_element(node.raw, true))?;
+                        let mut element = result::source_element(node.raw, true);
+                        if !namespaces {
+                            element.namespaces.clear();
+                        }
+                        output.start(element)?;
                         tasks.push(Task::Close);
                     }
                     for child in node.children().rev() {
-                        tasks.push(Task::DeepCopy(child, depth + 1));
+                        tasks.push(Task::DeepCopy(child, depth + 1, namespaces));
                     }
                 } else {
                     copied_leaf(node, &mut output)?;
                 }
+            }
+            Task::FinishDocument(saved, depth) => {
+                let xml = std::mem::replace(&mut output, saved).value;
+                let value = trees.construct(xml, None)?;
+                let Item::Node(node) = value.into_iter().next().unwrap() else {
+                    unreachable!()
+                };
+                tasks.push(Task::DeepCopy(node, depth + 1, true));
             }
             Task::Atomic(s) => output.text(&s)?,
             Task::FinishCapture(kind, saved) => {
