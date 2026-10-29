@@ -1046,40 +1046,27 @@ fn mode(n: Node<'_, '_>, value: &str, current: bool) -> Result<String, Diagnosti
     check_component_namespace(n, &name, false)?;
     Ok(name)
 }
-pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
-    let doc = crate::parse(source, "compile")?;
-    let root = doc.root_element();
-    if root.tag_name().namespace() != Some(XSL)
-        || !matches!(root.tag_name().name(), "stylesheet" | "transform")
-    {
-        return Err(error(root, "expected xsl:stylesheet or xsl:transform"));
-    }
-    attrs(root, &["version"])?;
-    if !matches!(root.attribute("version"), Some("1.0" | "2.0" | "3.0")) {
-        return Err(error(root, "expected version 1.0, 2.0, or 3.0"));
-    }
-    let mut sheet = Stylesheet {
-        templates: vec![],
-        globals: vec![],
-        functions: Default::default(),
-        keys: Default::default(),
-        attribute_sets: BTreeMap::new(),
-        space_rules: vec![],
-        default_mode: default_mode(root)?,
-        modes: BTreeMap::new(),
-        omit_declaration: false,
-        text_output: false,
-        backwards: root.attribute("version") == Some("1.0"),
-        version: match root.attribute("version") {
-            Some("1.0") => 1,
-            Some("2.0") => 2,
-            _ => 3,
-        },
-    };
-    let mut output_seen = false;
-    let mut functions: BTreeMap<(String, usize), xpath::UserFunction> = BTreeMap::new();
-    let mut keys: BTreeMap<String, Vec<xpath::KeyDefinition>> = BTreeMap::new();
-    let mut attribute_sets: BTreeMap<String, AttributeSet> = BTreeMap::new();
+struct Declarations<'a> {
+    sheet: &'a mut Stylesheet,
+    output_seen: &'a mut bool,
+    functions: &'a mut BTreeMap<(String, usize), xpath::UserFunction>,
+    keys: &'a mut BTreeMap<String, Vec<xpath::KeyDefinition>>,
+    attribute_sets: &'a mut BTreeMap<String, AttributeSet>,
+}
+type Resolver<'a> = &'a dyn Fn(&str) -> Result<String, Diagnostic>;
+fn declarations(
+    root: Node<'_, '_>,
+    state: &mut Declarations<'_>,
+    resolver: Option<Resolver<'_>>,
+    depth: usize,
+) -> Result<(), Diagnostic> {
+    let Declarations {
+        sheet,
+        output_seen,
+        functions,
+        keys,
+        attribute_sets,
+    } = state;
     for n in root.children() {
         if n.is_text() && !xml_space(n.text().unwrap_or_default()) {
             return Err(error(n, "unexpected top-level text"));
@@ -1346,10 +1333,10 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
                     return Err(error(n, "only XML 1.0 output is currently supported"));
                 }
                 empty(n)?;
-                if output_seen {
+                if **output_seen {
                     return Err(error(n, "multiple xsl:output declarations are unsupported"));
                 }
-                output_seen = true;
+                **output_seen = true;
                 sheet.text_output = match n.attribute("method").unwrap_or("xml") {
                     "xml" => false,
                     "text" => true,
@@ -1360,6 +1347,45 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
                     "no" => false,
                     _ => return Err(error(n, "invalid omit-xml-declaration")),
                 };
+            }
+            "include" => {
+                attrs(n, &["href"])?;
+                empty(n)?;
+                let href = required(n, "href")?;
+                let Some(resolver) = resolver else {
+                    return Err(error(n, "xsl:include needs a resource resolver"));
+                };
+                if depth >= 32 {
+                    return Err(static_error(
+                        n,
+                        "XTSE0180",
+                        "stylesheet inclusion is too deep",
+                    ));
+                }
+                let included = resolver(href)?;
+                let doc = crate::parse(&included, "compile")?;
+                let included_root = doc.root_element();
+                if included_root.tag_name().namespace() != Some(XSL)
+                    || !matches!(included_root.tag_name().name(), "stylesheet" | "transform")
+                {
+                    return Err(error(
+                        included_root,
+                        "included module must be xsl:stylesheet or xsl:transform",
+                    ));
+                }
+                attrs(included_root, &["version"])?;
+                declarations(
+                    included_root,
+                    &mut Declarations {
+                        sheet,
+                        output_seen,
+                        functions,
+                        keys,
+                        attribute_sets,
+                    },
+                    Some(resolver),
+                    depth + 1,
+                )?;
             }
             "attribute-set" => {
                 attrs(
@@ -1526,6 +1552,57 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
             other => return Err(error(n, format!("unsupported declaration: {other}"))),
         }
     }
+    Ok(())
+}
+pub(crate) fn compile(
+    source: &str,
+    resolver: Option<Resolver<'_>>,
+) -> Result<Stylesheet, Diagnostic> {
+    let doc = crate::parse(source, "compile")?;
+    let root = doc.root_element();
+    if root.tag_name().namespace() != Some(XSL)
+        || !matches!(root.tag_name().name(), "stylesheet" | "transform")
+    {
+        return Err(error(root, "expected xsl:stylesheet or xsl:transform"));
+    }
+    attrs(root, &["version"])?;
+    if !matches!(root.attribute("version"), Some("1.0" | "2.0" | "3.0")) {
+        return Err(error(root, "expected version 1.0, 2.0, or 3.0"));
+    }
+    let mut sheet = Stylesheet {
+        templates: vec![],
+        globals: vec![],
+        functions: Default::default(),
+        keys: Default::default(),
+        attribute_sets: BTreeMap::new(),
+        space_rules: vec![],
+        default_mode: default_mode(root)?,
+        modes: BTreeMap::new(),
+        omit_declaration: false,
+        text_output: false,
+        backwards: root.attribute("version") == Some("1.0"),
+        version: match root.attribute("version") {
+            Some("1.0") => 1,
+            Some("2.0") => 2,
+            _ => 3,
+        },
+    };
+    let mut output_seen = false;
+    let mut functions: BTreeMap<(String, usize), xpath::UserFunction> = BTreeMap::new();
+    let mut keys: BTreeMap<String, Vec<xpath::KeyDefinition>> = BTreeMap::new();
+    let mut attribute_sets: BTreeMap<String, AttributeSet> = BTreeMap::new();
+    declarations(
+        root,
+        &mut Declarations {
+            sheet: &mut sheet,
+            output_seen: &mut output_seen,
+            functions: &mut functions,
+            keys: &mut keys,
+            attribute_sets: &mut attribute_sets,
+        },
+        resolver,
+        0,
+    )?;
     sheet.functions = std::sync::Arc::new(functions);
     sheet.keys = std::sync::Arc::new(keys);
     sheet.attribute_sets = attribute_sets;

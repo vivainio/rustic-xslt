@@ -1022,3 +1022,12 @@ conformance claims. Smaller tested increments are committed independently.
   use-attribute-sets on literal result elements and xsl:element. Literal attributes
   and later xsl:attribute instructions override set attributes; unknown sets are
   XTSE0710 and cycles XTSE0720. xsl:copy and record streaming do not apply sets yet.
+
+## Increment 85: xsl:include
+
+- Added Stylesheet::compile_with_resolver(), which loads xsl:include hrefs through a
+  caller-supplied closure; included modules contribute every declaration kind
+  (templates, variables, functions, keys, attribute sets, whitespace rules, modes).
+  Inclusion nesting is limited (XTSE0180) so include cycles fail; plain compile()
+  rejects xsl:include. xsl:import is still unsupported because import precedence is
+  not implemented.

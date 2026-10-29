@@ -150,7 +150,14 @@ pub struct Stylesheet {
 }
 impl Stylesheet {
     pub fn compile(source: &str) -> Result<Self, Diagnostic> {
-        compile::compile(source)
+        compile::compile(source, None)
+    }
+    /// Compile a stylesheet whose `xsl:include` hrefs are loaded through `resolver`.
+    pub fn compile_with_resolver(
+        source: &str,
+        resolver: &dyn Fn(&str) -> Result<String, Diagnostic>,
+    ) -> Result<Self, Diagnostic> {
+        compile::compile(source, Some(resolver))
     }
     pub fn transform(&self, source: &str) -> Result<String, Diagnostic> {
         self.transform_with_limits(source, Limits::default())
