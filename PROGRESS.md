@@ -652,5 +652,16 @@ conformance claims. Smaller tested increments are committed independently.
 - Thirty-six QT3 sets: 3,200 cases, 1,657 pass / 879 engine failures / 52 harness
   errors / 612 profile exclusions. Conditional expressions add 18 gate cases.
 
-Next: codepoint string comparison and further XPath coverage.
+## Increment 54: codepoint string comparison
+
+- compare returns integer -1/0/1 using Unicode codepoint order; codepoint-equal
+  compares strings without implicit normalization. Empty arguments return ().
+- Modern string conversion, static arity checks and explicit codepoint collation
+  validation preserve XPTY0004/FOCH0002 diagnostics. Comparison scans are budgeted.
+- 339 Rust integration tests, 27 harness tests and Clippy/format pass. All 381
+  XSLT gate cases and prior QT3 cases remain green.
+- Thirty-eight QT3 sets: 3,332 cases, 1,736 pass / 914 engine failures / 64 harness
+  errors / 618 profile exclusions. Gate adds 79 string-comparison cases.
+
+Next: Unicode normalization and further XPath coverage.
 

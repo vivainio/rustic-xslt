@@ -2,7 +2,9 @@
   "suite_revision": "201a6e466940cdfc727f4babfedcde5332b9f578",
   "selected_sets": [
     "fn-avg",
+    "fn-codepoint-equal",
     "fn-codepoints-to-string",
+    "fn-compare",
     "fn-deep-equal",
     "fn-exactly-one",
     "fn-head",
@@ -5776,6 +5778,78 @@
       "K2-ForExprWithout-45"
     ],
     [
+      "prod-IfExpr",
+      "CondExpr008"
+    ],
+    [
+      "prod-IfExpr",
+      "CondExpr009"
+    ],
+    [
+      "prod-IfExpr",
+      "CondExpr010"
+    ],
+    [
+      "prod-IfExpr",
+      "CondExpr014"
+    ],
+    [
+      "prod-IfExpr",
+      "CondExpr015"
+    ],
+    [
+      "prod-IfExpr",
+      "CondExpr016"
+    ],
+    [
+      "prod-IfExpr",
+      "CondExpr017"
+    ],
+    [
+      "prod-IfExpr",
+      "CondExpr018"
+    ],
+    [
+      "prod-IfExpr",
+      "CondExpr019"
+    ],
+    [
+      "prod-IfExpr",
+      "CondExpr20"
+    ],
+    [
+      "prod-IfExpr",
+      "CondExpr21"
+    ],
+    [
+      "prod-IfExpr",
+      "K-CondExpr-1"
+    ],
+    [
+      "prod-IfExpr",
+      "K-CondExpr-2"
+    ],
+    [
+      "prod-IfExpr",
+      "K2-CondExpr-4"
+    ],
+    [
+      "prod-IfExpr",
+      "K2-CondExpr-5"
+    ],
+    [
+      "prod-IfExpr",
+      "K2-CondExpr-7"
+    ],
+    [
+      "prod-IfExpr",
+      "cbcl-condexpr-001"
+    ],
+    [
+      "prod-IfExpr",
+      "cbcl-condexpr-002"
+    ],
+    [
       "prod-LetClause",
       "LetExpr001"
     ],
@@ -6596,76 +6670,320 @@
       "sequence-type-21"
     ],
     [
-      "prod-IfExpr",
-      "CondExpr008"
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-1"
     ],
     [
-      "prod-IfExpr",
-      "CondExpr009"
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-2"
     ],
     [
-      "prod-IfExpr",
-      "CondExpr010"
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-2a"
     ],
     [
-      "prod-IfExpr",
-      "CondExpr014"
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-2b"
     ],
     [
-      "prod-IfExpr",
-      "CondExpr015"
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-3"
     ],
     [
-      "prod-IfExpr",
-      "CondExpr016"
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-4"
     ],
     [
-      "prod-IfExpr",
-      "CondExpr017"
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-5"
     ],
     [
-      "prod-IfExpr",
-      "CondExpr018"
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-6"
     ],
     [
-      "prod-IfExpr",
-      "CondExpr019"
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-7"
     ],
     [
-      "prod-IfExpr",
-      "CondExpr20"
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-8"
     ],
     [
-      "prod-IfExpr",
-      "CondExpr21"
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-9"
     ],
     [
-      "prod-IfExpr",
-      "K-CondExpr-1"
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-10"
     ],
     [
-      "prod-IfExpr",
-      "K-CondExpr-2"
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-11"
     ],
     [
-      "prod-IfExpr",
-      "K2-CondExpr-4"
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-12"
     ],
     [
-      "prod-IfExpr",
-      "K2-CondExpr-5"
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-13"
     ],
     [
-      "prod-IfExpr",
-      "K2-CondExpr-7"
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-14"
     ],
     [
-      "prod-IfExpr",
-      "cbcl-condexpr-001"
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-15"
     ],
     [
-      "prod-IfExpr",
-      "cbcl-condexpr-002"
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-16"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-17"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-18"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-19"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-20"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-21"
+    ],
+    [
+      "fn-compare",
+      "fn-compare2args-1"
+    ],
+    [
+      "fn-compare",
+      "fn-compare2args-2"
+    ],
+    [
+      "fn-compare",
+      "fn-compare2args-3"
+    ],
+    [
+      "fn-compare",
+      "fn-compare2args-4"
+    ],
+    [
+      "fn-compare",
+      "fn-compare2args-5"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-1"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-2"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-3"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-4"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-5"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-6"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-7"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-8"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-9"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-10"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-11"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-12"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-13"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-14"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-15"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-16"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-17"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-18"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-19"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-20"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-21"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-22"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-1"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-2"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-3"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-4"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-5"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-6"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-7"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-8"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-9"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-10"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-11"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-12"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-13"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-14"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-15"
+    ],
+    [
+      "fn-compare",
+      "compare-001"
+    ],
+    [
+      "fn-compare",
+      "compare-002"
+    ],
+    [
+      "fn-compare",
+      "compare-003"
+    ],
+    [
+      "fn-compare",
+      "compare-004"
+    ],
+    [
+      "fn-compare",
+      "compare-005"
+    ],
+    [
+      "fn-compare",
+      "compare-006"
+    ],
+    [
+      "fn-compare",
+      "compare-007"
+    ],
+    [
+      "fn-compare",
+      "compare-008"
+    ],
+    [
+      "fn-compare",
+      "compare-009"
+    ],
+    [
+      "fn-compare",
+      "compare-011"
+    ],
+    [
+      "fn-compare",
+      "compare-013"
+    ],
+    [
+      "fn-compare",
+      "K2-CompareFunc-1"
+    ],
+    [
+      "fn-compare",
+      "K2-CompareFunc-2"
+    ],
+    [
+      "fn-compare",
+      "K2-CompareFunc-3"
     ]
   ]
 }

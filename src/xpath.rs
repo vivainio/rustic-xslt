@@ -998,7 +998,8 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "avg" | "exactly-one" | "zero-or-one" | "one-or-more" | "upper-case" | "lower-case" => {
             (1, 1)
         }
-        "substring" => (2, 3),
+        "substring" | "compare" => (2, 3),
+        "codepoint-equal" => (2, 2),
         "codepoints-to-string" | "string-to-codepoints" => (1, 1),
         "translate" => (3, 3),
         "remove" => (2, 2),
@@ -1708,6 +1709,8 @@ fn function<'a>(
             | "substring"
             | "codepoints-to-string"
             | "string-to-codepoints"
+            | "compare"
+            | "codepoint-equal"
     ) {
         return crate::string_functions::evaluate(name, args, budget, backwards);
     }

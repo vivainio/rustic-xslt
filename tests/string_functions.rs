@@ -220,3 +220,53 @@ fn codepoint_conversions_consume_shared_budget() {
         );
     }
 }
+
+#[test]
+fn codepoint_comparisons_return_typed_results_without_normalization() {
+    for (expr, expected) in [
+        ("compare('abc','abc')", "0"),
+        ("compare('abc','abd')", "-1"),
+        ("compare('ab','a')", "1"),
+        ("compare('🙂','界')", "1"),
+        ("compare('a','A')", "1"),
+        ("compare('','') instance of xs:integer", "true"),
+        ("codepoint-equal('é','é')", "false"),
+        ("codepoint-equal('','')", "true"),
+        ("codepoint-equal('🙂','🙂')", "true"),
+        ("empty(compare((),'x'))", "true"),
+        ("empty(codepoint-equal('x',()))", "true"),
+        (
+            "compare('a','b','http://www.w3.org/2005/xpath-functions/collation/codepoint')",
+            "-1",
+        ),
+        ("codepoint-equal(r/@a, 'abCd')", "true"),
+    ] {
+        assert_eq!(evaluate(expr), expected, "{expr}");
+    }
+}
+#[test]
+fn string_comparisons_validate_types_collations_and_arity() {
+    for (expr, code) in [
+        ("compare('a','b','urn:unsupported')", "FOCH0002"),
+        ("compare('a','b',())", "XPTY0004"),
+        ("codepoint-equal((),1)", "XPTY0004"),
+        ("compare(1,'a')", "XPTY0004"),
+        ("compare('a',('a','b'))", "XPTY0004"),
+    ] {
+        assert_eq!(
+            Stylesheet::compile(&source(expr, "3.0"))
+                .unwrap()
+                .transform("<r/>")
+                .unwrap_err()
+                .code,
+            code,
+            "{expr}"
+        );
+    }
+    for expr in ["compare('a')", "codepoint-equal('a','a','a')"] {
+        assert_eq!(
+            Stylesheet::compile(&source(expr, "3.0")).unwrap_err().code,
+            "XPST0017"
+        );
+    }
+}

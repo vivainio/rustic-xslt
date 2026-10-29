@@ -90,6 +90,32 @@ pub(crate) fn evaluate<'a>(
         }
         return Ok(vec![Item::String(result)]);
     }
+    if matches!(name, "compare" | "codepoint-equal") {
+        let left = string(&args[0], true, backwards)?;
+        let right = string(&args[1], true, backwards)?;
+        if let Some(collation) = args.get(2)
+            && string(collation, false, backwards)?
+                != "http://www.w3.org/2005/xpath-functions/collation/codepoint"
+        {
+            return Err(Diagnostic::new("FOCH0002", "unsupported collation", "run"));
+        }
+        if args[0].is_empty() || args[1].is_empty() {
+            return Ok(vec![]);
+        }
+        for _ in left.bytes().chain(right.bytes()) {
+            budget.tick()?;
+        }
+        return Ok(vec![if name == "codepoint-equal" {
+            Item::Boolean(left == right)
+        } else {
+            let result: i32 = match left.cmp(&right) {
+                std::cmp::Ordering::Less => -1,
+                std::cmp::Ordering::Equal => 0,
+                std::cmp::Ordering::Greater => 1,
+            };
+            Item::Number(Number::Integer(result.into()))
+        }]);
+    }
     let input = string(&args[0], true, backwards)?;
     if name == "string-to-codepoints" {
         let mut result = vec![];
