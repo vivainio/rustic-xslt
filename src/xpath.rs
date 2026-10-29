@@ -274,6 +274,7 @@ pub(crate) const GLOBAL_PREFIX: &str = "\u{0}global:";
 pub(crate) struct KeyDefinition {
     pub branches: Vec<crate::pattern::Branch>,
     pub value: Expr,
+    pub backwards: bool,
 }
 /// Variable names under which `xsl:for-each-group` publishes the current group.
 pub(crate) const CURRENT_GROUP: &str = "\u{0}current-group";
@@ -2897,6 +2898,28 @@ fn higher_order<'a>(
         }
     }
 }
+/// Keys compare untyped values as strings; compatibility keys stringify every value.
+fn key_values<'a>(
+    value: Value<'a>,
+    backwards: bool,
+    budget: &mut Budget,
+) -> Result<Value<'a>, Diagnostic> {
+    flatten_arrays(value)?
+        .iter()
+        .map(|item| {
+            budget.tick()?;
+            let atomic = atomize(item);
+            Ok(if backwards {
+                Item::String(atomic.string())
+            } else if let Item::Untyped(s) = atomic {
+                Item::String(s)
+            } else {
+                atomic
+            })
+        })
+        .collect()
+}
+
 fn call_key<'a>(
     args: Vec<Value<'a>>,
     focus: &Focus<'a>,
@@ -2920,17 +2943,29 @@ fn call_key<'a>(
             _ => return Err(err("XTDE1270", "key requires a context node")),
         },
     };
-    let mut wanted = std::collections::BTreeSet::new();
-    for item in &args[1] {
-        budget.tick()?;
-        wanted.insert(atomize(item).string());
+    if !start.root().is_document() {
+        return Err(err(
+            "XTDE1270",
+            "key requires a tree rooted at a document node",
+        ));
     }
-    let mut found = vec![];
+    // Key declarations use their global lexical scope, regardless of caller locals.
+    let scope: Variables<'a> = vars
+        .iter()
+        .filter_map(|(k, v)| {
+            let plain = k.strip_prefix(GLOBAL_PREFIX)?;
+            Some([(plain.to_owned(), v.clone()), (k.clone(), v.clone())])
+        })
+        .flatten()
+        .collect();
+    let compatibility = definitions.iter().any(|definition| definition.backwards);
+    let wanted = key_values(args[1].clone(), compatibility, budget)?;
     if wanted.is_empty() {
         return Ok(vec![]);
     }
-    let mut candidates = start.root().descendants();
-    candidates.push(start.root());
+    let mut found = vec![];
+    let top = if args.len() == 3 { start } else { start.root() };
+    let mut candidates = top.descendants();
     for node in candidates.clone() {
         if node.is_element() {
             candidates.extend(node.attributes());
@@ -2941,7 +2976,7 @@ fn call_key<'a>(
         for definition in definitions {
             let mut matched = false;
             for branch in &definition.branches {
-                if crate::pattern::matches(branch, node, vars, budget, backwards)? {
+                if crate::pattern::matches(branch, node, &scope, budget, backwards)? {
                     matched = true;
                     break;
                 }
@@ -2954,8 +2989,24 @@ fn call_key<'a>(
                 position: 1,
                 size: 1,
             };
-            for value in eval(&definition.value, &at, vars, budget, 1, backwards)? {
-                if wanted.contains(&atomize(&value).string()) {
+            let values = eval(
+                &definition.value,
+                &at,
+                &scope,
+                budget,
+                1,
+                definition.backwards,
+            )?;
+            for value in key_values(values, compatibility, budget)? {
+                let mut equal = false;
+                for requested in &wanted {
+                    budget.tick()?;
+                    if crate::deep_equal::atomic_equal(&value, requested, false) {
+                        equal = true;
+                        break;
+                    }
+                }
+                if equal {
                     found.push(node);
                     break;
                 }

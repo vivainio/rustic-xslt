@@ -2638,7 +2638,10 @@ fn declarations(
                 entry.body.extend(content);
             }
             "key" => {
-                attrs(n, &["name", "match", "use", "collation", "composite"])?;
+                attrs(
+                    n,
+                    &["name", "match", "use", "collation", "composite", "version"],
+                )?;
                 let id = component_name(
                     n,
                     n.attribute("name")
@@ -2661,6 +2664,11 @@ fn declarations(
                 keys.entry(id).or_default().push(xpath::KeyDefinition {
                     branches,
                     value: expr(n, select)?,
+                    backwards: n
+                        .ancestors()
+                        .find_map(|ancestor| ancestor.attribute("version"))
+                        .and_then(|version| version.parse::<f64>().ok())
+                        .is_some_and(|version| version < 2.0),
                 });
             }
             "function" => {

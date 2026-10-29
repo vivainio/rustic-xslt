@@ -1421,3 +1421,21 @@ conformance claims. Smaller tested increments are committed independently.
   profile exclusions. All 420 previous gate cases still pass.
 - Validation: full offline Rust tests, Clippy with warnings denied, formatting,
   diff whitespace checks and the expanded pinned XSLT regression gate pass.
+
+## Increment 126: typed key values and selected subtrees
+
+- key() compares atomic values using value equality: numbers and strings stay
+  distinct, untyped values compare as strings, QNames compare by expanded name,
+  temporal values normalize timezones, and NaN never matches. Arrays atomize
+  recursively; maps/functions raise FOTY0013. Backwards-compatible declarations
+  enable string comparison for all declarations sharing the key name.
+- The third argument restricts results to its ancestor-or-self subtree, including
+  the top node and attributes. Two-argument lookups still search the document;
+  trees without document roots raise XTDE1270.
+- Key declarations evaluate in global scope so caller-local bindings cannot
+  change their match patterns or use values. Added focused regressions and fixed
+  older expectations that had incorrectly blessed subtree/type coercion bugs.
+- Pinned XSLT gate: 580 passes (five new, zero regressions), 235 engine failures,
+  195 harness errors and 149 profile exclusions across 1,159 selected cases.
+- Validation: full offline Rust tests, Clippy with warnings denied, formatting,
+  whitespace checks and the expanded XSLT regression gate pass.
