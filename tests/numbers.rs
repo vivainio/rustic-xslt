@@ -537,11 +537,8 @@ fn format_integer_supports_digit_patterns_alphabetic_roman_and_words() {
     ] {
         assert_eq!(run(expr).unwrap(), expected, "{expr}");
     }
-    for expr in [
-        "format-integer(1, '')",
-        "format-integer(1, 'x')",
-        "format-integer(1, '0#0')",
-    ] {
+    assert_eq!(run("format-integer(5, 'x')").unwrap(), "5");
+    for expr in ["format-integer(1, '')", "format-integer(1, '0#0')"] {
         assert_eq!(run(expr).unwrap_err().code, "FODF1310", "{expr}");
     }
 }

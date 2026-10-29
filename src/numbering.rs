@@ -388,12 +388,10 @@ pub(crate) fn format_integer(
         .all(|c| is_digit(*c) || *c == '#' || !c.is_alphanumeric())
         && chars.iter().any(|c| is_digit(*c) || *c == '#');
     let body = if decimal_like {
-        if chars.iter().any(|c| *c == '#') {
-            if let Some(first_digit) = chars.iter().position(|c| is_digit(*c)) {
-                if chars[first_digit..].contains(&'#') {
-                    return Err(invalid());
-                }
-            }
+        if let Some(first_digit) = chars.iter().position(|c| is_digit(*c))
+            && chars[first_digit..].contains(&'#')
+        {
+            return Err(invalid());
         }
         let digits: Vec<char> = chars.iter().copied().filter(|c| is_digit(*c)).collect();
         let zero = digits.first().and_then(|c| zero_of(*c)).unwrap_or('0');
