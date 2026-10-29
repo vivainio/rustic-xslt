@@ -148,6 +148,9 @@ pub(crate) struct KeyDefinition {
     pub branches: Vec<crate::pattern::Branch>,
     pub value: Expr,
 }
+/// Variable names under which `xsl:for-each-group` publishes the current group.
+pub(crate) const CURRENT_GROUP: &str = "\u{0}current-group";
+pub(crate) const CURRENT_KEY: &str = "\u{0}current-grouping-key";
 pub(crate) type KeyTable = std::sync::Arc<BTreeMap<String, Vec<KeyDefinition>>>;
 pub(crate) type FunctionTable = std::sync::Arc<BTreeMap<(String, usize), UserFunction>>;
 pub(crate) struct Budget {
@@ -1145,6 +1148,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "resolve-uri" => (1, 2),
         "sort" => (1, 2),
         "key" => (2, 3),
+        "current-group" | "current-grouping-key" => (0, 0),
         "path" => (0, 1),
         "matches" => (2, 3),
         "replace" => (3, 4),
@@ -1786,7 +1790,18 @@ pub(crate) fn eval<'a>(
                 .iter()
                 .map(|e| eval(e, focus, vars, budget, depth + 1, backwards))
                 .collect::<Result<Vec<_>, _>>()?;
-            if name == "key" {
+            if name == "current-group" {
+                vars.get(CURRENT_GROUP).cloned().ok_or_else(|| {
+                    err(
+                        "XTDE1061",
+                        "current-group() is used outside xsl:for-each-group",
+                    )
+                })?
+            } else if name == "current-grouping-key" {
+                vars.get(CURRENT_KEY)
+                    .cloned()
+                    .ok_or_else(|| err("XTDE1071", "there is no current grouping key"))?
+            } else if name == "key" {
                 call_key(args, focus, vars, budget, backwards)?
             } else if name.starts_with("Q{") {
                 call_user_function(name, args, vars, budget, depth, backwards)?

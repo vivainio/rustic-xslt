@@ -1005,3 +1005,13 @@ conformance claims. Smaller tested increments are committed independently.
   errors surface) but not added to the result; terminate="yes" raises XTMM9000
   carrying the message text. There is no message-delivery API yet, and error-code
   is accepted but ignored.
+
+## Increment 83: xsl:for-each-group
+
+- Added xsl:for-each-group with group-by (several keys per item, first-appearance
+  order), group-adjacent (single key per item, XTTE1100), group-starting-with and
+  group-ending-with (node patterns, XTTE1120), plus current-group() and
+  current-grouping-key() with XTDE1061/XTDE1071 outside a suitable context.
+- Exactly one grouping attribute is required (XTSE1080). Collations, composite keys
+  and xsl:sort inside groups are rejected as unimplemented; record streaming rejects
+  grouping.

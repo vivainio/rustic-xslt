@@ -1,6 +1,6 @@
 use crate::{
     Diagnostic, Stylesheet, TransformOptions,
-    compile::{Binding, BindingValue, ComputedName, Content, Instruction, Template},
+    compile::{Binding, BindingValue, ComputedName, Content, Grouping, Instruction, Template},
     result::{self, Output},
     xpath::{self, Budget, Focus, Item, Value, Variables, XNode},
 };
@@ -383,6 +383,103 @@ fn capture<'a>(
             Ok(())
         }
     }
+}
+type Group<'a> = (Option<Value<'a>>, Value<'a>);
+fn form_groups<'a>(
+    items: Value<'a>,
+    grouping: &Grouping,
+    env: &Variables<'a>,
+    budget: &mut Budget,
+    backwards: bool,
+) -> Result<Vec<Group<'a>>, Diagnostic> {
+    let size = items.len();
+    let at = |index: usize, item: &Item<'a>| Focus {
+        item: item.clone(),
+        position: index + 1,
+        size,
+    };
+    let mut groups: Vec<Group<'a>> = vec![];
+    match grouping {
+        Grouping::By(e) => {
+            for (index, item) in items.iter().enumerate() {
+                budget.tick()?;
+                let keys = xpath::eval(e, &at(index, item), env, budget, 0, backwards)?;
+                let mut seen: Vec<Item<'a>> = vec![];
+                for key in keys.iter().map(xpath::atomize) {
+                    if seen
+                        .iter()
+                        .any(|k| crate::deep_equal::atomic_equal(k, &key, true))
+                    {
+                        continue;
+                    }
+                    match groups.iter_mut().find(|(k, _)| {
+                        k.as_ref()
+                            .is_some_and(|k| crate::deep_equal::atomic_equal(&k[0], &key, true))
+                    }) {
+                        Some((_, members)) => members.push(item.clone()),
+                        None => groups.push((Some(vec![key.clone()]), vec![item.clone()])),
+                    }
+                    seen.push(key);
+                }
+            }
+        }
+        Grouping::Adjacent(e) => {
+            for (index, item) in items.iter().enumerate() {
+                budget.tick()?;
+                let keys = xpath::eval(e, &at(index, item), env, budget, 0, backwards)?;
+                let [key] = keys.as_slice() else {
+                    return Err(Diagnostic::new(
+                        "XTTE1100",
+                        "group-adjacent requires a single grouping key per item",
+                        "run",
+                    ));
+                };
+                let key = xpath::atomize(key);
+                match groups.last_mut() {
+                    Some((Some(k), members))
+                        if crate::deep_equal::atomic_equal(&k[0], &key, true) =>
+                    {
+                        members.push(item.clone());
+                    }
+                    _ => groups.push((Some(vec![key]), vec![item.clone()])),
+                }
+            }
+        }
+        Grouping::Starting(branches) | Grouping::Ending(branches) => {
+            let ending = matches!(grouping, Grouping::Ending(_));
+            let mut after_end = true;
+            for item in &items {
+                budget.tick()?;
+                let Item::Node(node) = item else {
+                    return Err(Diagnostic::new(
+                        "XTTE1120",
+                        "group-starting-with and group-ending-with require nodes",
+                        "run",
+                    ));
+                };
+                let mut hit = false;
+                for branch in branches {
+                    if crate::pattern::matches(branch, *node, env, budget, backwards)? {
+                        hit = true;
+                        break;
+                    }
+                }
+                if ending {
+                    match groups.last_mut() {
+                        Some((_, members)) if !after_end => members.push(item.clone()),
+                        _ => groups.push((None, vec![item.clone()])),
+                    }
+                    after_end = hit;
+                } else {
+                    match groups.last_mut() {
+                        Some((_, members)) if !hit => members.push(item.clone()),
+                        _ => groups.push((None, vec![item.clone()])),
+                    }
+                }
+            }
+        }
+    }
+    Ok(groups)
 }
 fn focus_sequence(value: Value<'_>) -> Vec<Focus<'_>> {
     let size = value.len();
@@ -1142,6 +1239,7 @@ fn run_tasks<'a>(
                             | Instruction::Call(..)
                             | Instruction::NextMatch(_)
                             | Instruction::ForEach(..)
+                            | Instruction::ForEachGroup(..)
                             | Instruction::If(..)
                             | Instruction::Choose(_)
                             | Instruction::Element { .. }
@@ -1498,6 +1596,37 @@ fn run_tasks<'a>(
                                 Frame {
                                     focus: f,
                                     env: env.clone(),
+                                    depth: depth + 1,
+                                    mode: mode.clone(),
+                                    tunnel: tunnel.clone(),
+                                    rule: None,
+                                },
+                            ));
+                        }
+                    }
+                    Instruction::ForEachGroup(e, grouping, body) => {
+                        let value = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
+                        let groups = form_groups(value, grouping, &env, budget, sheet.backwards)?;
+                        let size = groups.len();
+                        for (index, (key, members)) in groups.into_iter().enumerate().rev() {
+                            let mut inner = (*env).clone();
+                            let first = members[0].clone();
+                            inner.insert(xpath::CURRENT_GROUP.into(), members);
+                            if let Some(key) = key {
+                                inner.insert(xpath::CURRENT_KEY.into(), key);
+                            } else {
+                                inner.remove(xpath::CURRENT_KEY);
+                            }
+                            tasks.push(Task::Body(
+                                body,
+                                0,
+                                Frame {
+                                    focus: Focus {
+                                        item: first,
+                                        position: index + 1,
+                                        size,
+                                    },
+                                    env: Rc::new(inner),
                                     depth: depth + 1,
                                     mode: mode.clone(),
                                     tunnel: tunnel.clone(),

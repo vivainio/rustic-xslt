@@ -271,6 +271,11 @@ fn safe_global_body(body: &[Instruction]) -> Result<(), Diagnostic> {
                 }
                 content(c)?;
             }
+            Instruction::ForEachGroup(..) => {
+                return Err(unsupported(
+                    "grouping requires buffering the whole sequence",
+                ));
+            }
             Instruction::If(e, body) | Instruction::ForEach(e, _, body) => {
                 safe_expression(e, true)?;
                 safe_global_body(body)?;
@@ -422,6 +427,11 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                             }
                         }
                         bodies.push(body);
+                    }
+                    Instruction::ForEachGroup(..) => {
+                        return Err(unsupported(
+                            "grouping requires buffering the whole sequence",
+                        ));
                     }
                     Instruction::ForEach(e, _, body) | Instruction::If(e, body) => {
                         safe_expression(e, false)?;

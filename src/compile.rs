@@ -32,11 +32,19 @@ pub(crate) enum Instruction {
         body: Vec<Instruction>,
     },
     ForEach(Expr, Vec<Sort>, Vec<Instruction>),
+    ForEachGroup(Expr, Grouping, Vec<Instruction>),
     If(Expr, Vec<Instruction>),
     Choose(Vec<(Option<Expr>, Vec<Instruction>)>),
     Bind(Binding),
     Call(String, Vec<Binding>),
     NextMatch(Vec<Binding>),
+}
+#[derive(Debug)]
+pub(crate) enum Grouping {
+    By(Expr),
+    Adjacent(Expr),
+    Starting(Vec<crate::pattern::Branch>),
+    Ending(Vec<crate::pattern::Branch>),
 }
 #[derive(Debug)]
 pub(crate) struct Sort {
@@ -355,7 +363,9 @@ fn top_sequence(body: &[Instruction]) -> bool {
         | Instruction::CopyOf(..)
         | Instruction::Copy { .. }
         | Instruction::Document(_) => true,
-        Instruction::ForEach(_, _, b) | Instruction::If(_, b) => top_sequence(b),
+        Instruction::ForEach(_, _, b)
+        | Instruction::ForEachGroup(_, _, b)
+        | Instruction::If(_, b) => top_sequence(b),
         Instruction::Choose(bs) => bs.iter().any(|(_, b)| top_sequence(b)),
         _ => false,
     })
@@ -378,7 +388,9 @@ pub(crate) fn raw_result_body(body: &[Instruction]) -> bool {
         | Instruction::Message(..)
         | Instruction::Pi(..)
         | Instruction::Attribute(..) => true,
-        Instruction::ForEach(_, _, body) | Instruction::If(_, body) => raw_result_body(body),
+        Instruction::ForEach(_, _, body)
+        | Instruction::ForEachGroup(_, _, body)
+        | Instruction::If(_, body) => raw_result_body(body),
         Instruction::Choose(branches) => branches.iter().all(|(_, body)| raw_result_body(body)),
     })
 }
@@ -387,7 +399,9 @@ fn element_result_body(body: &[Instruction]) -> bool {
         Instruction::Element { .. } | Instruction::ComputedElement(..) | Instruction::Bind(_) => {
             true
         }
-        Instruction::ForEach(_, _, body) | Instruction::If(_, body) => element_result_body(body),
+        Instruction::ForEach(_, _, body)
+        | Instruction::ForEachGroup(_, _, body)
+        | Instruction::If(_, body) => element_result_body(body),
         Instruction::Choose(branches) => branches.iter().all(|(_, body)| element_result_body(body)),
         _ => false,
     })
@@ -805,6 +819,61 @@ fn body(
                         out.push(Instruction::ForEach(
                             expr(n, required(n, "select")?)?,
                             sorts(n)?,
+                            body(n, depth + 1, false)?,
+                        ));
+                    }
+                    "for-each-group" => {
+                        attrs(
+                            n,
+                            &[
+                                "select",
+                                "group-by",
+                                "group-adjacent",
+                                "group-starting-with",
+                                "group-ending-with",
+                                "composite",
+                                "collation",
+                            ],
+                        )?;
+                        if n.attribute("collation").is_some()
+                            || boolean_attribute(n, "composite", false)?
+                        {
+                            return Err(error(
+                                n,
+                                "grouping collations and composite keys are not implemented",
+                            ));
+                        }
+                        let given = [
+                            "group-by",
+                            "group-adjacent",
+                            "group-starting-with",
+                            "group-ending-with",
+                        ]
+                        .into_iter()
+                        .filter(|a| n.attribute(*a).is_some())
+                        .collect::<Vec<_>>();
+                        let [attribute] = given.as_slice() else {
+                            return Err(static_error(
+                                n,
+                                "XTSE1080",
+                                "exactly one grouping attribute is required",
+                            ));
+                        };
+                        let value = n.attribute(*attribute).unwrap();
+                        let grouping = match *attribute {
+                            "group-by" => Grouping::By(expr(n, value)?),
+                            "group-adjacent" => Grouping::Adjacent(expr(n, value)?),
+                            "group-starting-with" => {
+                                Grouping::Starting(crate::pattern::parse(value, namespaces(n))?)
+                            }
+                            _ => Grouping::Ending(crate::pattern::parse(value, namespaces(n))?),
+                        };
+                        if !sorts(n)?.is_empty() {
+                            return Err(error(n, "sorting groups is not implemented"));
+                        }
+                        out.push(Instruction::ForEachGroup(
+                            expr(n, required(n, "select")?)?,
+                            grouping,
                             body(n, depth + 1, false)?,
                         ));
                     }
@@ -1551,6 +1620,13 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 }
                 Instruction::ForEach(e, _, body) | Instruction::If(e, body) => {
                     expression(e, &scope)?;
+                    instructions(body, scope.clone(), templates)?;
+                }
+                Instruction::ForEachGroup(e, grouping, body) => {
+                    expression(e, &scope)?;
+                    if let Grouping::By(g) | Grouping::Adjacent(g) = grouping {
+                        expression(g, &scope)?;
+                    }
                     instructions(body, scope.clone(), templates)?;
                 }
                 Instruction::Choose(branches) => {
