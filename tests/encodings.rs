@@ -142,3 +142,15 @@ fn markup_like_character_map_text_in_attributes_preserves_encoding_state() {
         "<out a=\"<!--&#xE9;\"></out>"
     );
 }
+
+#[test]
+fn cdata_carriage_returns_are_serialized_outside_sections() {
+    assert_eq!(
+        run(
+            r#"omit-xml-declaration="yes" cdata-section-elements="code""#,
+            r#"<code><xsl:value-of select="codepoints-to-string((97,13,98))"/></code>"#
+        )
+        .unwrap(),
+        "<code><![CDATA[a]]>&#13;<![CDATA[b]]></code>"
+    );
+}

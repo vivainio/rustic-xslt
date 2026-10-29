@@ -2008,3 +2008,11 @@ conformance claims. Smaller tested increments are committed independently.
   ordinary attribute character under US-ASCII output.
 - Validation: encoding and character-map tests, all-target/all-feature Clippy
   and the full 882-case pinned XSLT gate pass without regressions.
+
+## Increment 173: preserve carriage returns in CDATA serialization
+
+- CDATA text emits carriage returns as references outside CDATA sections,
+  preventing XML end-of-line normalization from changing their value to LF.
+- Added a regression constructing CR text with `codepoints-to-string`.
+- Validation: nine encoding tests, all-target/all-feature Clippy and the full
+  882-case pinned XSLT gate pass without regressions.

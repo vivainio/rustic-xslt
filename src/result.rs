@@ -656,7 +656,9 @@ impl Output {
                 self.cdata.contains(&expanded)
             });
         if in_cdata && !self.text {
-            let safe = s.replace("]]>", "]]]]><![CDATA[>");
+            let safe = s
+                .replace("]]>", "]]]]><![CDATA[>")
+                .replace('\r', "]]>&#13;<![CDATA[");
             self.push(&format!("<![CDATA[{safe}]]>"))
         } else if self.text || raw {
             let map = self.char_map.clone();
