@@ -1,4 +1,5 @@
 //! Iterative deep equality for supported atomic values and untyped XDM nodes.
+use crate::collation::Collation;
 use crate::{
     Diagnostic, Limits,
     xpath::{Budget, Item, Value, XNode, atomize},
@@ -38,6 +39,15 @@ fn kind(n: XNode<'_>) -> u8 {
 }
 /// Equality for atomized values, without untyped-to-numeric conversion.
 pub(crate) fn atomic_equal(a: &Item<'_>, b: &Item<'_>, nan_equal: bool) -> bool {
+    atomic_equal_with(a, b, nan_equal, Collation::Codepoint)
+}
+/// Equality that compares strings under `collation`.
+pub(crate) fn atomic_equal_with(
+    a: &Item<'_>,
+    b: &Item<'_>,
+    nan_equal: bool,
+    collation: Collation,
+) -> bool {
     match (a, b) {
         (Item::Number(a), Item::Number(b)) => {
             a.compare(b) == Some(Ordering::Equal)
@@ -46,7 +56,7 @@ pub(crate) fn atomic_equal(a: &Item<'_>, b: &Item<'_>, nan_equal: bool) -> bool 
         (
             Item::String(a) | Item::Untyped(a) | Item::AnyUri(a) | Item::DerivedString(_, a),
             Item::String(b) | Item::Untyped(b) | Item::AnyUri(b) | Item::DerivedString(_, b),
-        ) => a == b,
+        ) => collation.equal(a, b),
         (Item::Boolean(a), Item::Boolean(b)) => a == b,
         (Item::QName(a), Item::QName(b)) => a.equal(b),
         (Item::Binary(ak, a), Item::Binary(bk, b)) => ak == bk && a == b,
@@ -64,6 +74,7 @@ pub(crate) fn atomic_equal(a: &Item<'_>, b: &Item<'_>, nan_equal: bool) -> bool 
     }
 }
 pub(crate) fn evaluate(args: &[Value<'_>], budget: &mut Budget) -> Result<bool, Diagnostic> {
+    let mut collation_used = Collation::Codepoint;
     if let Some(collation) = args.get(2) {
         let [item] = collation.as_slice() else {
             return Err(Diagnostic::new(
@@ -83,9 +94,7 @@ pub(crate) fn evaluate(args: &[Value<'_>], budget: &mut Budget) -> Result<bool, 
                 "run",
             ));
         }
-        if item.string() != "http://www.w3.org/2005/xpath-functions/collation/codepoint" {
-            return Err(Diagnostic::new("FOCH0002", "unsupported collation", "run"));
-        }
+        collation_used = Collation::parse(&item.string())?;
     }
     if args[0].len() != args[1].len() {
         return Ok(false);
@@ -98,7 +107,7 @@ pub(crate) fn evaluate(args: &[Value<'_>], budget: &mut Budget) -> Result<bool, 
                 pending.push((*a, *b));
                 true
             }
-            _ => atomic_equal(a, b, true),
+            _ => atomic_equal_with(a, b, true, collation_used),
         };
         if !equal {
             return Ok(false);

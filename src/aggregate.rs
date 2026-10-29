@@ -33,10 +33,11 @@ pub(crate) fn evaluate<'a>(
     args: &[Value<'a>],
     budget: &mut Budget,
 ) -> Result<Value<'a>, Diagnostic> {
+    let mut collation = Collation::Codepoint;
     if matches!(name, "min" | "max")
-        && let Some(collation) = args.get(1)
+        && let Some(collation_arg) = args.get(1)
     {
-        let [item] = collation.as_slice() else {
+        let [item] = collation_arg.as_slice() else {
             return Err(error("XPTY0004", "collation must be a singleton string"));
         };
         let item = atomize(item);
@@ -46,9 +47,7 @@ pub(crate) fn evaluate<'a>(
         ) {
             return Err(error("XPTY0004", "collation must be a string"));
         }
-        if item.string() != "http://www.w3.org/2005/xpath-functions/collation/codepoint" {
-            return Err(error("FOCH0002", "unsupported collation"));
-        }
+        collation = Collation::parse(&item.string())?;
     }
     let zero = if name == "sum" && args.len() == 2 {
         if args[1].len() > 1 {
@@ -165,7 +164,7 @@ pub(crate) fn evaluate<'a>(
             (
                 Item::String(a) | Item::AnyUri(a) | Item::DerivedString(_, a),
                 Item::String(b) | Item::AnyUri(b) | Item::DerivedString(_, b),
-            ) => a.cmp(b),
+            ) => collation.compare(a, b),
             (Item::Boolean(a), Item::Boolean(b)) => a.cmp(b),
             (Item::Binary(_, a), Item::Binary(_, b)) => a.cmp(b),
             (Item::Temporal(a), Item::Temporal(b)) => a.compare(b).expect("comparable temporals"),

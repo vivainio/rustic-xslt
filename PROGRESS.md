@@ -1248,3 +1248,15 @@ conformance claims. Smaller tested increments are committed independently.
   calls, doc-available() reports presence and unknown documents raise FODC0002.
   Dynamically computed URIs are not supported, and relative-URI resolution against a
   base URI is not performed (the string must match the literal).
+
+## Increment 108: UCA collation approximation
+
+- Collation URIs under http://www.w3.org/2013/collation/UCA are accepted with the
+  strength, numeric, alternate, caseFirst, caseLevel, lang and fallback parameters.
+  The ordering approximates the Unicode Collation Algorithm: symbols before digits
+  before letters, base letters at the primary level, accents at the secondary level
+  and case (lower first unless caseFirst=upper) at the tertiary level; no DUCET
+  tables, tailoring or script reordering are applied.
+- Collation-aware search (contains, starts-with, ends-with, substring-before/after,
+  contains-token), compare, min, max, index-of, distinct-values and deep-equal use
+  the selected collation.

@@ -83,7 +83,7 @@ pub(crate) fn evaluate<'a>(
             None => Collation::Codepoint,
         };
         let token = string(&args[1], false, backwards)?;
-        let token = collation.key(token.trim_matches([' ', '\t', '\r', '\n']));
+        let token = token.trim_matches([' ', '\t', '\r', '\n']).to_owned();
         let mut found = false;
         for item in &args[0] {
             let text = match xpath::atomize(item) {
@@ -99,7 +99,7 @@ pub(crate) fn evaluate<'a>(
             found |= !token.is_empty()
                 && text
                     .split([' ', '\t', '\r', '\n'])
-                    .any(|part| collation.key(part) == token);
+                    .any(|part| collation.equal(part, &token));
         }
         return Ok(vec![Item::Boolean(found)]);
     }
@@ -154,19 +154,17 @@ pub(crate) fn evaluate<'a>(
                 ),
             }]);
         }
-        let (text, needle) = (collation.key(&left), collation.key(&right));
-        let source = left.chars().collect::<Vec<_>>();
-        let found = collation.find(&text, &needle);
+        let found = collation.find(&left, &right);
+        let source = Collation::chars(&left);
+        let slice = |from: usize, to: usize| -> String { source[from..to].iter().collect() };
         return Ok(vec![match name {
             "contains" => Item::Boolean(found.is_some()),
-            "starts-with" => Item::Boolean(text.starts_with(&needle)),
-            "ends-with" => Item::Boolean(text.ends_with(&needle)),
+            "starts-with" => Item::Boolean(collation.starts_with(&left, &right)),
+            "ends-with" => Item::Boolean(collation.ends_with(&left, &right)),
             "substring-before" => {
-                Item::String(found.map_or_else(String::new, |i| source[..i].iter().collect()))
+                Item::String(found.map_or_else(String::new, |(start, _)| slice(0, start)))
             }
-            _ => Item::String(
-                found.map_or_else(String::new, |i| source[i + needle.len()..].iter().collect()),
-            ),
+            _ => Item::String(found.map_or_else(String::new, |(_, end)| slice(end, source.len()))),
         }]);
     }
     if name == "codepoints-to-string" {

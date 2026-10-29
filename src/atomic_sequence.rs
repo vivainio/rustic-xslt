@@ -1,7 +1,8 @@
 //! Atomized sequence lookup and duplicate removal with bounded comparison work.
 use crate::{
     Diagnostic,
-    deep_equal::atomic_equal,
+    collation::Collation,
+    deep_equal::atomic_equal_with,
     number::Number,
     xpath::{Budget, Item, Value, atomize},
 };
@@ -12,12 +13,10 @@ pub(crate) fn evaluate<'a>(
     budget: &mut Budget,
 ) -> Result<Value<'a>, Diagnostic> {
     let distinct = name == "distinct-values";
-    if let Some(collation) = args.get(if distinct { 1 } else { 2 }) {
-        let uri = crate::string_functions::string(collation, false, false)?;
-        if uri != "http://www.w3.org/2005/xpath-functions/collation/codepoint" {
-            return Err(Diagnostic::new("FOCH0002", "unsupported collation", "run"));
-        }
-    }
+    let collation = match args.get(if distinct { 1 } else { 2 }) {
+        Some(uri) => Collation::parse(&crate::string_functions::string(uri, false, false)?)?,
+        None => Collation::Codepoint,
+    };
     let search = if distinct {
         None
     } else {
@@ -35,14 +34,14 @@ pub(crate) fn evaluate<'a>(
         budget.tick()?;
         let value = atomize(item);
         if let Some(search) = &search {
-            if atomic_equal(&value, search, false) {
+            if atomic_equal_with(&value, search, false, collation) {
                 result.push(Item::Number(Number::from(index + 1)));
             }
         } else {
             let mut duplicate = false;
             for previous in &result {
                 budget.tick()?;
-                if atomic_equal(&value, previous, true) {
+                if atomic_equal_with(&value, previous, true, collation) {
                     duplicate = true;
                     break;
                 }

@@ -463,3 +463,70 @@ fn contains_token_matches_whitespace_separated_tokens() {
     assert!(run("contains-token('a', ())").is_err());
     assert!(run("contains-token('a', 'a', 'urn:unknown')").is_err());
 }
+#[test]
+fn uca_collations_compare_by_strength_and_support_search() {
+    let run = |expression: &str| {
+        Stylesheet::compile(&format!(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:sequence select="{expression}"/></xsl:template></xsl:stylesheet>"#))
+            .unwrap()
+            .transform("<r/>")
+    };
+    let primary = "'http://www.w3.org/2013/collation/UCA?lang=en;strength=primary'";
+    let secondary = "'http://www.w3.org/2013/collation/UCA?strength=secondary'";
+    let tertiary = "'http://www.w3.org/2013/collation/UCA'";
+    for (expression, expected) in [
+        (format!("compare('abc', 'ABC', {primary})"), "0"),
+        (format!("compare('café', 'cafe', {primary})"), "0"),
+        (format!("compare('café', 'cafe', {secondary})"), "1"),
+        (format!("compare('abc', 'ABC', {secondary})"), "0"),
+        (format!("compare('abc', 'ABC', {tertiary})"), "-1"),
+        (format!("compare('a', 'b', {tertiary})"), "-1"),
+        (format!("compare('a1', 'a-', {tertiary})"), "1"),
+        (
+            "compare('file10', 'file9', 'http://www.w3.org/2013/collation/UCA?numeric=yes')".to_string(),
+            "1",
+        ),
+        (format!("compare('file10', 'file9', {tertiary})"), "-1"),
+        (
+            "compare('a b', 'ab', 'http://www.w3.org/2013/collation/UCA?alternate=blanked;strength=primary')".to_string(),
+            "0",
+        ),
+        (
+            "compare('abc', 'ABC', 'http://www.w3.org/2013/collation/UCA?caseFirst=upper')".to_string(),
+            "1",
+        ),
+        (
+            format!("contains('Café au lait', 'CAFE', {primary})"),
+            "true",
+        ),
+        (format!("starts-with('Éclair', 'e', {primary})"), "true"),
+        (
+            format!("substring-after('Straße Hof', 'STRASSE', {primary})"),
+            "",
+        ),
+        (format!("ends-with('naïve', 'IVE', {primary})"), "true"),
+        (format!("index-of(('a', 'B', 'b'), 'b', {primary})"), "2 3"),
+        (
+            format!("count(distinct-values(('a', 'A', 'à'), {primary}))"),
+            "1",
+        ),
+        (
+            format!("deep-equal(('a', 'B'), ('A', 'b'), {primary})"),
+            "true",
+        ),
+        (format!("min(('b', 'A', 'c'), {primary})"), "A"),
+    ] {
+        assert_eq!(run(&expression).unwrap(), expected, "{expression}");
+    }
+    assert_eq!(
+        run("compare('a', 'b', 'http://www.w3.org/2013/collation/UCA?fallback=no;bogus=1')")
+            .unwrap_err()
+            .code,
+        "FOCH0002"
+    );
+    assert_eq!(
+        run("compare('a', 'b', 'http://example.com/unknown')")
+            .unwrap_err()
+            .code,
+        "FOCH0002"
+    );
+}
