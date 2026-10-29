@@ -244,7 +244,7 @@ fn parts(
         if backwards {
             v.truncate(1);
         }
-        text.push_str(&xpath::simple_string(&v, " ", usize::MAX)?);
+        text.push_str(&xpath::simple_string(&v, " ", usize::MAX, backwards)?);
     }
     Ok(text)
 }
@@ -357,7 +357,12 @@ fn capture<'a>(
             let sep = parts(sep, &frame.focus, &frame.env, budget, sheet.backwards)?;
             finish_capture(
                 kind,
-                xpath::simple_string(&v, &sep, output.max.saturating_sub(output.value.len()))?,
+                xpath::simple_string(
+                    &v,
+                    &sep,
+                    output.max.saturating_sub(output.value.len()),
+                    sheet.backwards,
+                )?,
                 output,
             )
         }
@@ -1276,6 +1281,7 @@ fn run_tasks<'a>(
                             &v,
                             &separator,
                             output.max.saturating_sub(output.value.len()),
+                            sheet.backwards,
                         )?;
                         if raw_active(&captures) {
                             captures
@@ -1412,7 +1418,7 @@ fn run_tasks<'a>(
                                     "run",
                                 ));
                             }
-                            atomic => output.atomic(&atomic.string())?,
+                            atomic => output.atomic(&atomic.string_compat(sheet.backwards))?,
                         }
                     }
                     Instruction::Document(body) => {
@@ -1584,7 +1590,12 @@ fn run_tasks<'a>(
                                 if sheet.backwards {
                                     v.truncate(1);
                                 }
-                                value.push_str(&xpath::simple_string(&v, " ", usize::MAX)?);
+                                value.push_str(&xpath::simple_string(
+                                    &v,
+                                    " ",
+                                    usize::MAX,
+                                    sheet.backwards,
+                                )?);
                             }
                             element.attributes.push((name.clone(), value));
                         }
@@ -1671,7 +1682,7 @@ fn run_tasks<'a>(
                 } else {
                     match item {
                         Item::Node(n) => tasks.push(Task::DeepCopy(n, depth + 1, namespaces)),
-                        atomic => output.atomic(&atomic.string())?,
+                        atomic => output.atomic(&atomic.string_compat(sheet.backwards))?,
                     }
                 }
             }

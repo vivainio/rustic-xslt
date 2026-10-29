@@ -93,6 +93,13 @@ impl Item<'_> {
             Self::Boolean(b) => b.to_string(),
         }
     }
+    pub fn string_compat(&self, backwards: bool) -> String {
+        if backwards && let Self::Number(n) = self {
+            n.legacy_string()
+        } else {
+            self.string()
+        }
+    }
     fn number(&self) -> f64 {
         match self {
             Self::Boolean(b) => {
@@ -154,13 +161,14 @@ pub(crate) fn simple_string(
     value: &[Item<'_>],
     separator: &str,
     max: usize,
+    backwards: bool,
 ) -> Result<String, Diagnostic> {
     let mut parts: Vec<String> = vec![];
     let mut previous_text = false;
     let mut bytes = 0usize;
     for item in value {
         let text = matches!(item,Item::Node(n) if n.is_text());
-        let value = item.string();
+        let value = item.string_compat(backwards);
         if value.len() > max.saturating_sub(bytes) {
             return Err(err("XPDY0130", "simple-content byte limit exceeded"));
         }
@@ -1673,7 +1681,8 @@ fn function<'a>(
         if v.len() > 1 && !backwards {
             return Err(err("XPTY0004", "function argument must be a singleton"));
         }
-        Ok(v.first().map_or(String::new(), Item::string))
+        Ok(v.first()
+            .map_or_else(String::new, |item| item.string_compat(backwards)))
     };
     let s = || scalar(first);
     if matches!(name, "abs" | "floor" | "ceiling") {

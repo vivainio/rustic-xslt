@@ -689,5 +689,17 @@ conformance claims. Smaller tested increments are committed independently.
 - Remaining selected floor/ceiling assertion failures include the documented
   floating-point lexical formatting gap, alongside unsupported numeric subtypes.
 
-Next: floating numeric string formatting and further XPath coverage.
+## Increment 57: floating-point string forms
+
+- Float/double strings retain signed zero, normalized E notation and shortest
+  round-tripping mantissas, using decimal form only in the specified magnitude range.
+- Legacy value-of, AVT, simple-content, atomic output, string/concat and text-sort
+  conversions retain plain notation, zero and Infinity/-Infinity spellings.
+- Modern casts remain canonical independently of legacy serialization boundaries.
+- 350 Rust integration tests, 27 harness tests and Clippy/format pass. All 381
+  XSLT gate cases remain green; QT3 gate expands by 33 to 1,950.
+- Same 3,750 QT3 cases: 1,950 pass / 1,096 engine failures / 71 harness errors /
+  633 profile exclusions. All selected floor/ceiling formatting assertions pass.
+
+Next: further XPath atomic/function coverage.
 

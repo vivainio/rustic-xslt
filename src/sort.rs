@@ -1,7 +1,7 @@
 use crate::{
     Diagnostic,
     compile::Sort,
-    xpath::{self, Budget, Focus, Item, Value, Variables},
+    xpath::{self, Budget, Focus, Value, Variables},
 };
 use std::cmp::Ordering;
 enum Key {
@@ -65,7 +65,9 @@ pub(crate) fn sort<'a>(
                     "run",
                 ));
             }
-            let s = v.first().map_or(String::new(), Item::string);
+            let s = v
+                .first()
+                .map_or_else(String::new, |item| item.string_compat(backwards));
             row.push(if key.numeric {
                 Key::Number(s.trim().parse().unwrap_or(f64::NAN))
             } else {

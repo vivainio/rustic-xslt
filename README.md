@@ -76,8 +76,10 @@ Non-terminating decimal division currently uses bigdecimal’s default precision
 (100 digits). Unicode case conversion uses the Rust standard library’s Unicode tables.
 Normalization supports NFC/NFD/NFKC/NFKD and the empty identity form using
 unicode-normalization 0.1.25 (Unicode 17.0); FULLY-NORMALIZED remains unsupported.
-Full numeric/atomic type coverage and canonical double formatting
-remain ahead. Floats and doubles have distinct type identity and numeric-promotion rules.
+Float/double strings preserve signed zero and use normalized exponent notation
+outside the ordinary decimal range. Legacy value-of/AVT/string conversions and
+text sort keys retain plain notation and legacy infinity/zero spellings.
+Full numeric/atomic type coverage remains ahead. Floats and doubles have distinct type identity and numeric-promotion rules.
 Bindings support common atomic/node sequence types, named element/attribute tests,
 document element constraints and occurrence indicators,
 atomization and function conversion. Select expressions and temporary result-tree constructor bodies work. Untyped
@@ -208,7 +210,7 @@ A pinned, partial catalog runner and a 381-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. An initial internal QT3 bridge
-also gates 1,917 passing XPath cases at the pinned XPath suite revision.
+also gates 1,950 passing XPath cases at the pinned XPath suite revision.
 The example JSON-lines driver
 and its JSON dependency are development-only.
 

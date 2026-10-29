@@ -244,3 +244,65 @@ fn unary_numeric_functions_atomize_nodes_and_reject_non_numeric_atomics() {
         "NaN"
     );
 }
+
+#[test]
+fn modern_float_strings_preserve_signed_zero_and_use_normalized_exponents() {
+    for (e, want) in [
+        ("xs:double('-0')", "-0"),
+        ("xs:float('-0')", "-0"),
+        ("1e6", "1.0E6"),
+        ("1.234e7", "1.234E7"),
+        ("-1e-7", "-1.0E-7"),
+        ("1e-6", "0.000001"),
+        ("999999e0", "999999"),
+        ("xs:float('3.4028235e38')", "3.4028235E38"),
+        ("xs:float('1e-45')", "1.0E-45"),
+        ("string(1e6)", "1.0E6"),
+        ("xs:string(1e6)", "1.0E6"),
+        ("ceiling(-0.2e0)", "-0"),
+    ] {
+        assert_eq!(evaluate(e), want, "{e}");
+    }
+}
+#[test]
+fn numeric_lexical_boundaries_preserve_round_trip_values() {
+    for lexical in [
+        "1.2345678901234567e100",
+        "5e-324",
+        "1.7976931348623157e308",
+        "0.0000009999999999999999",
+        "0.0000010000000000000002",
+    ] {
+        let e = format!("let $n := xs:double('{lexical}') return xs:double(xs:string($n)) eq $n");
+        assert_eq!(evaluate(&e), "true", "{lexical}");
+    }
+}
+#[test]
+fn legacy_numeric_strings_keep_plain_notation_and_legacy_special_values() {
+    for (e, want) in [
+        ("-0e0", "0"),
+        ("1e6", "1000000"),
+        ("1e-7", "0.0000001"),
+        ("1e0 div 0e0", "Infinity"),
+        ("-1e0 div 0e0", "-Infinity"),
+        ("string(-0e0)", "0"),
+        ("concat(1e6, ':', -0e0)", "1000000:0"),
+    ] {
+        assert_eq!(transform(&sheet("1.0", e), "<r/>").unwrap(), want, "{e}");
+    }
+    let style = r#"<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output omit-xml-declaration="yes"/><xsl:template match="/"><out a="{1e6}"><xsl:attribute name="b" select="1e-7"/><xsl:sequence select="1e6"/></out></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(
+        transform(style, "<r/>").unwrap(),
+        "<out a=\"1000000\" b=\"0.0000001\">1000000</out>"
+    );
+}
+
+#[test]
+fn text_sort_keys_use_their_stylesheets_numeric_string_rules() {
+    for (version, expected) in [("1.0", "0.0000001;0.000001;"), ("3.0", "0.000001;1.0E-7;")] {
+        let style = format!(
+            r#"<xsl:stylesheet version="{version}" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:for-each select="(1e-6,1e-7)"><xsl:sort select="." data-type="text"/><xsl:value-of select="concat(.,';')"/></xsl:for-each></xsl:template></xsl:stylesheet>"#
+        );
+        assert_eq!(transform(&style, "<r/>").unwrap(), expected);
+    }
+}

@@ -15,6 +15,29 @@ pub(crate) enum Number {
 fn error(code: &str, message: &str) -> Diagnostic {
     Diagnostic::new(code, message, "run")
 }
+fn floating_string(value: impl std::fmt::Display + std::fmt::LowerExp, number: f64) -> String {
+    if number.is_nan() {
+        return "NaN".into();
+    }
+    if number == f64::INFINITY {
+        return "INF".into();
+    }
+    if number == f64::NEG_INFINITY {
+        return "-INF".into();
+    }
+    if number == 0.0 {
+        return if number.is_sign_negative() { "-0" } else { "0" }.into();
+    }
+    if (0.000001..1000000.0).contains(&number.abs()) {
+        return value.to_string();
+    }
+    let scientific = format!("{value:e}");
+    let (mantissa, exponent) = scientific.split_once('e').unwrap();
+    format!(
+        "{mantissa}{}E{exponent}",
+        if mantissa.contains('.') { "" } else { ".0" }
+    )
+}
 impl From<usize> for Number {
     fn from(n: usize) -> Self {
         Self::Integer(n.into())
@@ -82,25 +105,26 @@ impl Number {
         match self {
             Self::Integer(n) => n.to_string(),
             Self::Decimal(n) => n.normalized().to_plain_string(),
-            Self::Float(n) => {
-                if n.is_finite() && *n != 0.0 {
-                    n.to_string()
-                } else {
-                    Self::Double(*n as f64).string()
-                }
-            }
-            Self::Double(n) => {
-                if n.is_nan() {
-                    "NaN".into()
-                } else if *n == f64::INFINITY {
-                    "INF".into()
-                } else if *n == f64::NEG_INFINITY {
-                    "-INF".into()
-                } else if *n == 0.0 {
-                    "0".into()
-                } else {
-                    n.to_string()
-                }
+            Self::Float(n) => floating_string(n, *n as f64),
+            Self::Double(n) => floating_string(n, *n),
+        }
+    }
+    pub fn legacy_string(&self) -> String {
+        let value = match self {
+            Self::Double(n) => *n,
+            Self::Float(n) => *n as f64,
+            _ => return self.string(),
+        };
+        if value == 0.0 {
+            "0".into()
+        } else if value == f64::INFINITY {
+            "Infinity".into()
+        } else if value == f64::NEG_INFINITY {
+            "-Infinity".into()
+        } else {
+            match self {
+                Self::Float(n) => n.to_string(),
+                _ => value.to_string(),
             }
         }
     }
