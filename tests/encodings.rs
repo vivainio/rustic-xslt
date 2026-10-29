@@ -133,3 +133,12 @@ fn restricted_encodings_reject_unrepresentable_doctype_identifiers() {
         .contains("café.dtd")
     );
 }
+
+#[test]
+fn markup_like_character_map_text_in_attributes_preserves_encoding_state() {
+    let sheet = Stylesheet::compile(r##"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output encoding="US-ASCII" omit-xml-declaration="yes" use-character-maps="m"/><xsl:character-map name="m"><xsl:output-character character="#" string="&lt;!--"/></xsl:character-map><xsl:template match="/"><out a="#é"/></xsl:template></xsl:stylesheet>"##).unwrap();
+    assert_eq!(
+        sheet.transform("<r/>").unwrap(),
+        "<out a=\"<!--&#xE9;\"></out>"
+    );
+}

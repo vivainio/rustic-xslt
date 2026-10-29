@@ -125,7 +125,7 @@ impl Encoding {
                     rest = &rest[3..];
                     cdata = false;
                     continue;
-                } else if !cdata {
+                } else if !cdata && !in_markup {
                     if !in_markup && rest.starts_with("<!DOCTYPE") {
                         out.push_str("<!DOCTYPE");
                         rest = &rest[9..];

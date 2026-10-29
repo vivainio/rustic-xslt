@@ -1998,3 +1998,13 @@ conformance claims. Smaller tested increments are committed independently.
 - Record streaming remains restricted to UTF-8 output.
 - Validation: all twelve streaming tests and formatting pass; all-target and
   all-feature Clippy passed during this test increment.
+
+## Increment 172: preserve quoted encoding state around markup-like text
+
+- The encoding pass recognizes comment, PI and CDATA openings only outside
+  markup tags, so marker-like text inserted into quoted attribute values by
+  character maps does not change the encoding context.
+- Added a regression combining an inserted comment marker and an unrepresentable
+  ordinary attribute character under US-ASCII output.
+- Validation: encoding and character-map tests, all-target/all-feature Clippy
+  and the full 882-case pinned XSLT gate pass without regressions.
