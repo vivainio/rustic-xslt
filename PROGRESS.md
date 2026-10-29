@@ -1923,3 +1923,12 @@ conformance claims. Smaller tested increments are committed independently.
   an implicit standalone/omitted-declaration conflict.
 - Validation: declaration and result-document tests, all-target/all-feature
   Clippy and the full 880-case pinned XSLT gate pass without regressions.
+
+## Increment 164: XML whitespace in dynamic CDATA lists
+
+- Dynamic result-document CDATA QName lists split only on XML whitespace.
+  Nonbreaking spaces remain part of a token and trigger invalid-QName errors.
+- Extended dynamic QName coverage with a nonbreaking-space input.
+- Validation: full all-feature Rust tests before this change; focused
+  result-document tests, all-target/all-feature Clippy and the full 880-case
+  pinned XSLT gate pass after the change without regressions.

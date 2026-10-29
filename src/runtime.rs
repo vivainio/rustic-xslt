@@ -2106,7 +2106,10 @@ fn run_tasks<'a>(
                         let mut extra_cdata = Vec::new();
                         if let Some((value, bindings)) = &spec.cdata {
                             let value = parts(value, &focus, &env, budget, sheet.backwards)?;
-                            for name in value.split_whitespace() {
+                            for name in value
+                                .split([' ', '\t', '\r', '\n'])
+                                .filter(|name| !name.is_empty())
+                            {
                                 extra_cdata.push(
                                     crate::qname::resolve_element(name, bindings, "XTDE0030")
                                         .map_err(|mut error| {

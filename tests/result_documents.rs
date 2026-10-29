@@ -111,6 +111,7 @@ fn dynamic_cdata_qname_errors_are_runtime_diagnostics() {
     for source in [
         r#"<r name="missing:item"/>"#,
         r#"<r name="bad:name:again"/>"#,
+        "<r name=\"a\u{a0}b\"/>",
     ] {
         let error = sheet.transform(source).unwrap_err();
         assert_eq!(error.code, "XTDE0030");
