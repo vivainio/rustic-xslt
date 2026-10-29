@@ -2249,3 +2249,12 @@ conformance claims. Smaller tested increments are committed independently.
   generated metadata declaration per result.
 - Validation: seventeen result-document tests, all-target/all-feature Clippy,
   formatting and diff checks pass. No runtime behavior changed.
+
+## Increment 199: metadata replacement across streamed records
+
+- Added a two-record regression for metadata insertion and replacement with a
+  configured media type. Disabled insertion preserves each copied declaration;
+  enabled insertion generates one declaration per record without duplicates.
+- The regression also checks preserved titles, record counts and output bytes.
+- Validation: fifteen streaming tests, all-target/all-feature Clippy, formatting
+  and diff checks pass. No runtime behavior changed.

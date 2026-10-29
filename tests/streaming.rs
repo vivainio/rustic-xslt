@@ -419,3 +419,33 @@ fn invalid_media_types_fail_before_streaming_preamble_even_without_records() {
     assert_eq!(error.code, "SEPM0016");
     assert!(output.is_empty());
 }
+
+#[test]
+fn record_metadata_settings_replace_each_records_existing_declaration() {
+    for enabled in ["yes", "no"] {
+        let source = format!(
+            r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="html" media-type="application/example" include-content-type="{enabled}"/><xsl:template name="record"><html><head><xsl:copy-of select="head/node()"/></head></html></xsl:template></xsl:stylesheet>"#
+        );
+        let sheet = Stylesheet::compile(&source).unwrap();
+        let input = "<records><record><head><meta http-equiv='Content-Type' content='old'/><title>A</title></head></record><record><head><meta http-equiv='Content-Type' content='old'/><title>B</title></head></record></records>";
+        let mut output = Vec::new();
+        let stats = sheet
+            .stream_records(Cursor::new(input), &mut output, &StreamOptions::default())
+            .unwrap();
+        assert_eq!(stats.records, 2);
+        assert_eq!(stats.output_bytes, output.len());
+        let output = String::from_utf8(output).unwrap();
+        if enabled == "yes" {
+            assert_eq!(
+                output.matches("application/example; charset=UTF-8").count(),
+                2
+            );
+            assert!(!output.contains("content=\"old\""));
+        } else {
+            assert_eq!(output.matches("content=\"old\"").count(), 2);
+            assert!(!output.contains("charset="));
+        }
+        assert!(output.contains("<title>A</title>"));
+        assert!(output.contains("<title>B</title>"));
+    }
+}
