@@ -201,16 +201,9 @@ fn raw_text<'a>(
     trees: &crate::trees::Trees<'a>,
     max: usize,
 ) -> Result<Value<'a>, Diagnostic> {
-    if text.is_empty() {
-        return Err(Diagnostic::new(
-            "RUST_XSLT_UNSUPPORTED",
-            "zero-length constructed text-node identity is not implemented",
-            "run",
-        ));
-    }
     let mut output = Output::document(max);
-    output.text(text)?;
-    trees.construct(
+    output.text(if text.is_empty() { " " } else { text })?;
+    let value = trees.construct(
         output.value,
         Some(&crate::seqtype::SequenceType {
             kind: crate::seqtype::Kind::Item,
@@ -218,7 +211,14 @@ fn raw_text<'a>(
             max: usize::MAX,
         }),
         "XTTE0570",
-    )
+    )?;
+    Ok(value
+        .into_iter()
+        .map(|item| match item {
+            Item::Node(node) if text.is_empty() => Item::Node(node.empty_text()),
+            other => other,
+        })
+        .collect())
 }
 struct Run<'a, 'r> {
     sheet: &'a Stylesheet,
@@ -1610,6 +1610,14 @@ fn run_tasks<'a>(
             }
             Task::RawCopy(item, depth, namespaces) => match item {
                 Item::Node(node) => {
+                    if node.is_text() {
+                        captures.last_mut().unwrap().items.extend(raw_text(
+                            &node.string(),
+                            trees,
+                            limits.max_output_bytes,
+                        )?);
+                        continue;
+                    }
                     if node.attribute.is_some() {
                         begin_raw_attribute(&mut output, &mut captures, &mut tasks, depth)?;
                         copied_leaf(node, &mut output)?;

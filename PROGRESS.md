@@ -538,5 +538,14 @@ conformance claims. Smaller tested increments are committed independently.
   expands to 376 (376 pass / 157 failures / 144 harness errors / 46 exclusions).
   All 989 QT3 gate cases remain green.
 
-Next: zero-length constructed text nodes and XPath grammar.
+## Increment 44: zero-length text-node identity
+
+- Raw text/value constructors retain zero-length nodes with distinct identities,
+  empty string values and parentless navigation, backed by budgeted arena nodes.
+- Raw copy/copy-of preserves empty text nodes with fresh identities; insertion
+  into element/document content still discards empty text during normalization.
+- 292 Rust integration tests, 27 harness tests and Clippy/format pass. Both pinned
+  gates retain all 376 XSLT and 989 QT3 passes without regressions.
+
+Next: XPath grammar and remaining simple-content normalization semantics.
 

@@ -7,6 +7,7 @@ pub(crate) struct XNode<'a> {
     pub attribute: Option<(&'a str, Option<&'a str>)>,
     fragment: bool,
     detached_attribute: bool,
+    empty_text: bool,
     boundary: Option<Node<'a, 'a>>,
 }
 impl<'a> XNode<'a> {
@@ -16,6 +17,7 @@ impl<'a> XNode<'a> {
             attribute: None,
             fragment: false,
             detached_attribute: false,
+            empty_text: false,
             boundary: None,
         }
     }
@@ -25,6 +27,7 @@ impl<'a> XNode<'a> {
             attribute: None,
             fragment: true,
             detached_attribute: false,
+            empty_text: false,
             boundary: None,
         }
     }
@@ -34,6 +37,7 @@ impl<'a> XNode<'a> {
             attribute: None,
             fragment: self.fragment,
             detached_attribute: false,
+            empty_text: self.empty_text && raw == self.raw,
             boundary: self.boundary,
         }
     }
@@ -41,6 +45,13 @@ impl<'a> XNode<'a> {
         self.detached_attribute = self.is_attribute();
         self.boundary = Some(self.raw);
         self.fragment = false;
+        self
+    }
+    // The parser cannot retain empty text nodes. A detached backing text node
+    // supplies identity while this flag supplies its actual XDM string value.
+    pub fn empty_text(mut self) -> Self {
+        debug_assert!(self.is_text() && self.parent().is_none());
+        self.empty_text = true;
         self
     }
     pub fn is_attribute(self) -> bool {
@@ -67,6 +78,9 @@ impl<'a> XNode<'a> {
         !self.is_attribute() && self.raw.is_pi()
     }
     pub fn string(self) -> String {
+        if self.empty_text {
+            return String::new();
+        }
         if let Some((local, uri)) = self.attribute {
             return self
                 .raw
@@ -147,6 +161,7 @@ impl<'a> XNode<'a> {
                 attribute: Some((a.name(), a.namespace())),
                 fragment: self.fragment,
                 detached_attribute: false,
+                empty_text: false,
                 boundary: self.boundary,
             })
             .collect()

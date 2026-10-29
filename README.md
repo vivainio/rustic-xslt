@@ -86,7 +86,8 @@ Sequence instructions, supported control flow and template delegation also
 retain raw values across typed bindings and returns. Mixed sequences support
 constructed elements, documents, text, comments and processing instructions;
 constructed element contents are normalized independently. Parentless attribute constructors and copies preserve expanded names and values.
-Zero-length constructed text-node identity remains incomplete.
+Zero-length constructed text nodes retain distinct identities and empty string
+values until element/document content normalization discards them.
 Raw apply-templates preserves explicit template results and built-in text/copy
 results, including parentless element/document copies.
 Selected node/attribute identity is preserved through raw sequence capture.

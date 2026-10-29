@@ -214,3 +214,18 @@ fn constructed_attributes_enforce_required_types() {
     );
     assert_eq!(s.transform("<r/>").unwrap_err().code, "XTTE0570");
 }
+
+#[test]
+fn empty_constructed_text_nodes_preserve_identity_and_navigation() {
+    let s = sheet(
+        r#"<xsl:template match="/"><xsl:variable name="v" as="text()+"><xsl:value-of select="''"/><xsl:value-of select="()"/><xsl:text/></xsl:variable><xsl:value-of select="concat(count($v), ':', string-length($v[1]), ':', string-length($v[2]), ':', string-length($v[3]), ':', $v[1] is $v[2], ':', root($v[1]) is $v[1], ':', empty($v/parent::node()), ':', empty($v/following::node()))"/></xsl:template>"#,
+    );
+    assert_eq!(s.transform("<r/>").unwrap(), "3:0:0:0:false:true:true:true");
+}
+#[test]
+fn empty_text_copies_stay_empty_and_element_content_discards_them() {
+    let s = sheet(
+        r#"<xsl:template match="/"><xsl:variable name="v" as="text()"><xsl:value-of select="''"/></xsl:variable><xsl:variable name="c" as="text()+"><xsl:copy-of select="($v, $v)"/><xsl:copy select="$v"/></xsl:variable><xsl:variable name="e" as="element()"><out><xsl:sequence select="$v"/></out></xsl:variable><xsl:value-of select="concat(count($c), ':', string-length(string-join($c, '')), ':', $c[1] is $c[2], ':', $c[1] is $v, ':', count($e/node()))"/></xsl:template>"#,
+    );
+    assert_eq!(s.transform("<r/>").unwrap(), "3:0:false:false:0");
+}
