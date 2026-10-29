@@ -12,7 +12,78 @@ fn invalid() -> Diagnostic {
     error("FORX0002", "invalid XPath regular expression")
 }
 const NAME_START: &str = r":A-Z_a-z\x{C0}-\x{D6}\x{D8}-\x{F6}\x{F8}-\x{2FF}\x{370}-\x{37D}\x{37F}-\x{1FFF}\x{200C}-\x{200D}\x{2070}-\x{218F}\x{2C00}-\x{2FEF}\x{3001}-\x{D7FF}\x{F900}-\x{FDCF}\x{FDF0}-\x{FFFD}\x{10000}-\x{EFFFF}";
-fn compile(pattern: &str, flags: &str, budget: &mut Budget) -> Result<Regex, Diagnostic> {
+/// A compiled pattern: the linear-time engine, or a backtracking matcher when the
+/// pattern uses backreferences.
+enum Compiled {
+    Fast(Regex),
+    Backtracking(crate::backtrack::Backtracking),
+}
+/// Capture spans as byte offsets into the input.
+type ByteSpans = Vec<Option<(usize, usize)>>;
+impl Compiled {
+    fn groups(&self) -> usize {
+        match self {
+            Self::Fast(re) => re.captures_len() - 1,
+            Self::Backtracking(b) => b.groups(),
+        }
+    }
+    fn find_all(&self, input: &str, budget: &mut Budget) -> Result<Vec<ByteSpans>, Diagnostic> {
+        match self {
+            Self::Fast(re) => re
+                .captures_iter(input)
+                .map(|caps| {
+                    budget.tick()?;
+                    Ok((0..caps.len())
+                        .map(|i| caps.get(i).map(|m| (m.start(), m.end())))
+                        .collect())
+                })
+                .collect(),
+            Self::Backtracking(b) => {
+                let chars: Vec<char> = input.chars().collect();
+                let mut offsets = Vec::with_capacity(chars.len() + 1);
+                let mut at = 0;
+                for c in &chars {
+                    offsets.push(at);
+                    at += c.len_utf8();
+                }
+                offsets.push(at);
+                Ok(b.find_all(&chars, budget)?
+                    .into_iter()
+                    .map(|spans| {
+                        spans
+                            .into_iter()
+                            .map(|span| span.map(|(s, e)| (offsets[s], offsets[e])))
+                            .collect()
+                    })
+                    .collect())
+            }
+        }
+    }
+    fn is_match(&self, input: &str, budget: &mut Budget) -> Result<bool, Diagnostic> {
+        match self {
+            Self::Fast(re) => Ok(re.is_match(input)),
+            Self::Backtracking(_) => Ok(!self.find_all(input, budget)?.is_empty()),
+        }
+    }
+}
+fn compile(pattern: &str, flags: &str, budget: &mut Budget) -> Result<Compiled, Diagnostic> {
+    match compile_fast(pattern, flags, budget) {
+        Err(e) if e.code == "RUST_XSLT_UNSUPPORTED" && e.message.contains("backreferences") => {
+            let atoms = |fragment: &str| {
+                compile_fast(
+                    fragment,
+                    &flags.replace(['x', 'm'], ""),
+                    &mut Budget::new(crate::Limits::default()),
+                )
+            };
+            Ok(Compiled::Backtracking(crate::backtrack::Backtracking::new(
+                pattern, flags, &atoms,
+            )?))
+        }
+        other => other.map(Compiled::Fast),
+    }
+}
+fn compile_fast(pattern: &str, flags: &str, budget: &mut Budget) -> Result<Regex, Diagnostic> {
     for flag in flags.chars() {
         budget.tick()?;
         if !"imsxq".contains(flag) {
@@ -56,6 +127,7 @@ fn compile(pattern: &str, flags: &str, budget: &mut Budget) -> Result<Regex, Dia
                         'S' => result.push_str(r"[^ \t\r\n]"),
                         'w' => result.push_str(r"[^\p{P}\p{Z}\p{C}]"),
                         'W' => result.push_str(r"[\p{P}\p{Z}\p{C}]"),
+                        '1'..='9' if class > 0 => return Err(invalid()),
                         '1'..='9' => {
                             return Err(error(
                                 "RUST_XSLT_UNSUPPORTED",
@@ -254,40 +326,47 @@ pub(crate) fn evaluate<'a>(
         .ok_or_else(|| error("XPDY0130", "regex work limit exceeded"))?;
     budget.charge(work)?;
     if name == "matches" {
-        return Ok(vec![Item::Boolean(regex.is_match(&input))]);
+        return Ok(vec![Item::Boolean(regex.is_match(&input, budget)?)]);
     }
-    if regex.is_match("") {
+    if regex.is_match("", budget)? {
         return Err(error("FORX0003", "pattern matches an empty string"));
     }
     if name == "tokenize" {
         if input.is_empty() {
             return Ok(vec![]);
         }
-        return regex
-            .split(&input)
-            .map(|part| {
-                budget.tick()?;
-                Ok(Item::String(part.into()))
-            })
-            .collect();
+        let mut parts = vec![];
+        let mut previous = 0;
+        for spans in regex.find_all(&input, budget)? {
+            let (start, end) = spans[0].unwrap();
+            budget.tick()?;
+            parts.push(Item::String(input[previous..start].into()));
+            previous = end;
+        }
+        parts.push(Item::String(input[previous..].into()));
+        return Ok(parts);
     }
     let replace = string(&args[2], false, false)?;
     budget.charge(replace.len())?;
-    let parts = replacement(&replace, regex.captures_len() - 1, flags.contains('q'))?;
+    let parts = replacement(&replace, regex.groups(), flags.contains('q'))?;
     let mut result = String::new();
     let mut previous = 0;
-    for captures in regex.captures_iter(&input) {
+    for captures in regex.find_all(&input, budget)? {
         budget.tick()?;
-        let found = captures.get(0).unwrap();
-        append(&mut result, &input[previous..found.start()], budget)?;
+        let (start, end) = captures[0].unwrap();
+        append(&mut result, &input[previous..start], budget)?;
         for part in &parts {
             let text = match part {
                 Replacement::Text(s) => s.as_str(),
-                Replacement::Group(n) => captures.get(*n).map_or("", |m| m.as_str()),
+                Replacement::Group(n) => captures
+                    .get(*n)
+                    .copied()
+                    .flatten()
+                    .map_or("", |(s, e)| &input[s..e]),
             };
             append(&mut result, text, budget)?;
         }
-        previous = found.end();
+        previous = end;
     }
     append(&mut result, &input[previous..], budget)?;
     Ok(vec![Item::String(result)])
@@ -306,7 +385,7 @@ pub(crate) fn analyze(
     budget: &mut Budget,
 ) -> Result<Vec<Segment>, Diagnostic> {
     let regex = compile(pattern, flags, budget)?;
-    if regex.is_match("") {
+    if regex.is_match("", budget)? {
         return Err(error("XTDE1150", "pattern matches an empty string"));
     }
     budget.charge(
@@ -317,18 +396,19 @@ pub(crate) fn analyze(
     )?;
     let mut segments = vec![];
     let mut previous = 0;
-    for captures in regex.captures_iter(input) {
+    for captures in regex.find_all(input, budget)? {
         budget.tick()?;
-        let found = captures.get(0).unwrap();
-        if found.start() > previous {
-            segments.push(Segment::NonMatch(input[previous..found.start()].into()));
+        let (start, end) = captures[0].unwrap();
+        if start > previous {
+            segments.push(Segment::NonMatch(input[previous..start].into()));
         }
         segments.push(Segment::Match(
-            (0..captures.len())
-                .map(|i| captures.get(i).map_or(String::new(), |m| m.as_str().into()))
+            captures
+                .iter()
+                .map(|span| span.map_or(String::new(), |(s, e)| input[s..e].into()))
                 .collect(),
         ));
-        previous = found.end();
+        previous = end;
     }
     if previous < input.len() {
         segments.push(Segment::NonMatch(input[previous..].into()));

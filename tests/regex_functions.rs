@@ -121,3 +121,31 @@ fn unicode_block_properties_match_block_ranges() {
         assert!(sheet(expr).transform("<r/>").is_err(), "{expr}");
     }
 }
+#[test]
+fn backreferences_use_the_backtracking_matcher() {
+    for (expr, expected) in [
+        ("matches('abab', '(ab)\\1')", "true"),
+        ("matches('abba', '(ab)\\1')", "false"),
+        ("matches('aa', '(.)\\1')", "true"),
+        ("matches('ab', '(.)\\1')", "false"),
+        (
+            "replace('hello world', '(\\w)\\1', '[$1$1]')",
+            "he[ll]o world",
+        ),
+        ("replace('aXbXc', '(.)X\\1', '-')", "aXbXc"),
+        ("replace('abcabc', '(a)(b)(c)\\1\\2\\3', 'Z')", "Z"),
+        ("matches('ABab', '(ab)\\1', 'i')", "true"),
+        ("string-join(tokenize('a1b1c', '(1)'), ',')", "a,b,c"),
+        ("matches('abcabc', '^(abc)\\1$')", "true"),
+        ("matches('abcabcx', '^(abc)\\1$')", "false"),
+        ("matches('aaa', '(a)\\1{2}')", "true"),
+        ("matches('xyzyz', '(?:x)(y)(z)\\1\\2')", "true"),
+        ("replace('abab', '(a|b)\\1?', 'Q')", "QQQQ"),
+        ("matches('abc', '(a)|(b)\\2')", "true"),
+        ("matches('b', '(a)?b\\1')", "false"),
+    ] {
+        assert_eq!(sheet(expr).transform("<r/>").unwrap(), expected, "{expr}");
+    }
+    assert!(sheet("matches('a', '(a)\\2')").transform("<r/>").is_err());
+    assert!(sheet("matches('a', '(a')").transform("<r/>").is_err());
+}

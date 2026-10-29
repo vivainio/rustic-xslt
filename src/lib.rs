@@ -1,6 +1,7 @@
 //! An early, deliberately limited XSLT engine. See README.md for supported syntax.
 mod aggregate;
 mod atomic_sequence;
+mod backtrack;
 mod binary;
 mod collation;
 mod compile;

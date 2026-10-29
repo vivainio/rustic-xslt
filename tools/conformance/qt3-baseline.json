@@ -14816,6 +14816,18 @@
     ],
     [
       "fn-matches",
+      "K2-MatchesFunc-10"
+    ],
+    [
+      "fn-matches",
+      "K2-MatchesFunc-11"
+    ],
+    [
+      "fn-matches",
+      "K2-MatchesFunc-12"
+    ],
+    [
+      "fn-matches",
       "K2-MatchesFunc-13"
     ],
     [
@@ -14825,6 +14837,10 @@
     [
       "fn-matches",
       "K2-MatchesFunc-15"
+    ],
+    [
+      "fn-matches",
+      "K2-MatchesFunc-17"
     ],
     [
       "fn-matches",
@@ -14841,6 +14857,14 @@
     [
       "fn-matches",
       "K2-MatchesFunc-7"
+    ],
+    [
+      "fn-matches",
+      "K2-MatchesFunc-8"
+    ],
+    [
+      "fn-matches",
+      "K2-MatchesFunc-9"
     ],
     [
       "fn-matches",
@@ -14901,6 +14925,10 @@
     [
       "fn-matches",
       "cbcl-matches-002"
+    ],
+    [
+      "fn-matches",
+      "cbcl-matches-003"
     ],
     [
       "fn-matches",
@@ -15036,6 +15064,10 @@
     ],
     [
       "fn-matches",
+      "cbcl-matches-039"
+    ],
+    [
+      "fn-matches",
       "cbcl-matches-040"
     ],
     [
@@ -15073,6 +15105,22 @@
     [
       "fn-matches",
       "cbcl-matches-049"
+    ],
+    [
+      "fn-matches",
+      "cbcl-matches-050"
+    ],
+    [
+      "fn-matches",
+      "cbcl-matches-051"
+    ],
+    [
+      "fn-matches",
+      "cbcl-matches-052"
+    ],
+    [
+      "fn-matches",
+      "cbcl-matches-053"
     ],
     [
       "fn-matches",
@@ -15156,7 +15204,15 @@
     ],
     [
       "fn-matches",
+      "fn-matches-29"
+    ],
+    [
+      "fn-matches",
       "fn-matches-3"
+    ],
+    [
+      "fn-matches",
+      "fn-matches-30"
     ],
     [
       "fn-matches",
@@ -15176,7 +15232,23 @@
     ],
     [
       "fn-matches",
+      "fn-matches-35"
+    ],
+    [
+      "fn-matches",
+      "fn-matches-36"
+    ],
+    [
+      "fn-matches",
+      "fn-matches-39"
+    ],
+    [
+      "fn-matches",
       "fn-matches-4"
+    ],
+    [
+      "fn-matches",
+      "fn-matches-40"
     ],
     [
       "fn-matches",
@@ -15220,7 +15292,15 @@
     ],
     [
       "fn-matches",
+      "fn-matches-51"
+    ],
+    [
+      "fn-matches",
       "fn-matches-52"
+    ],
+    [
+      "fn-matches",
+      "fn-matches-53"
     ],
     [
       "fn-matches",
@@ -15293,6 +15373,18 @@
     [
       "fn-matches",
       "fn-matchesErr-1"
+    ],
+    [
+      "fn-matches",
+      "fn-matchesErr-2"
+    ],
+    [
+      "fn-matches",
+      "fn-matchesErr-3"
+    ],
+    [
+      "fn-matches",
+      "fn-matchesErr-4"
     ],
     [
       "fn-matches.re",
@@ -17716,11 +17808,47 @@
     ],
     [
       "fn-matches.re",
+      "re00616"
+    ],
+    [
+      "fn-matches.re",
       "re00617"
     ],
     [
       "fn-matches.re",
+      "re00618"
+    ],
+    [
+      "fn-matches.re",
+      "re00619"
+    ],
+    [
+      "fn-matches.re",
+      "re00620"
+    ],
+    [
+      "fn-matches.re",
+      "re00621"
+    ],
+    [
+      "fn-matches.re",
+      "re00622"
+    ],
+    [
+      "fn-matches.re",
+      "re00623"
+    ],
+    [
+      "fn-matches.re",
       "re00624"
+    ],
+    [
+      "fn-matches.re",
+      "re00625"
+    ],
+    [
+      "fn-matches.re",
+      "re00626"
     ],
     [
       "fn-matches.re",
@@ -18408,7 +18536,47 @@
     ],
     [
       "fn-matches.re",
+      "re00820"
+    ],
+    [
+      "fn-matches.re",
+      "re00821"
+    ],
+    [
+      "fn-matches.re",
+      "re00822"
+    ],
+    [
+      "fn-matches.re",
+      "re00823"
+    ],
+    [
+      "fn-matches.re",
+      "re00824"
+    ],
+    [
+      "fn-matches.re",
       "re00825"
+    ],
+    [
+      "fn-matches.re",
+      "re00826"
+    ],
+    [
+      "fn-matches.re",
+      "re00827"
+    ],
+    [
+      "fn-matches.re",
+      "re00828"
+    ],
+    [
+      "fn-matches.re",
+      "re00829"
+    ],
+    [
+      "fn-matches.re",
+      "re00830"
     ],
     [
       "fn-matches.re",
@@ -18536,6 +18704,10 @@
     ],
     [
       "fn-matches.re",
+      "re00862"
+    ],
+    [
+      "fn-matches.re",
       "re00863"
     ],
     [
@@ -18597,6 +18769,10 @@
     [
       "fn-matches.re",
       "re00878"
+    ],
+    [
+      "fn-matches.re",
+      "re00879"
     ],
     [
       "fn-matches.re",
@@ -18692,6 +18868,14 @@
     ],
     [
       "fn-matches.re",
+      "re00903"
+    ],
+    [
+      "fn-matches.re",
+      "re00904"
+    ],
+    [
+      "fn-matches.re",
       "re00905"
     ],
     [
@@ -18748,6 +18932,54 @@
     ],
     [
       "fn-matches.re",
+      "re00920"
+    ],
+    [
+      "fn-matches.re",
+      "re00921"
+    ],
+    [
+      "fn-matches.re",
+      "re00922"
+    ],
+    [
+      "fn-matches.re",
+      "re00923"
+    ],
+    [
+      "fn-matches.re",
+      "re00924"
+    ],
+    [
+      "fn-matches.re",
+      "re00925"
+    ],
+    [
+      "fn-matches.re",
+      "re00926"
+    ],
+    [
+      "fn-matches.re",
+      "re00927"
+    ],
+    [
+      "fn-matches.re",
+      "re00928"
+    ],
+    [
+      "fn-matches.re",
+      "re00929"
+    ],
+    [
+      "fn-matches.re",
+      "re00930"
+    ],
+    [
+      "fn-matches.re",
+      "re00931"
+    ],
+    [
+      "fn-matches.re",
       "re00932"
     ],
     [
@@ -18765,6 +18997,14 @@
     [
       "fn-matches.re",
       "re00936"
+    ],
+    [
+      "fn-matches.re",
+      "re00937"
+    ],
+    [
+      "fn-matches.re",
+      "re00938"
     ],
     [
       "fn-matches.re",
@@ -18840,6 +19080,10 @@
     ],
     [
       "fn-matches.re",
+      "re00957"
+    ],
+    [
+      "fn-matches.re",
       "re00958"
     ],
     [
@@ -18892,6 +19136,38 @@
     ],
     [
       "fn-matches.re",
+      "re00971"
+    ],
+    [
+      "fn-matches.re",
+      "re00972"
+    ],
+    [
+      "fn-matches.re",
+      "re00973"
+    ],
+    [
+      "fn-matches.re",
+      "re00974"
+    ],
+    [
+      "fn-matches.re",
+      "re00975"
+    ],
+    [
+      "fn-matches.re",
+      "re00976"
+    ],
+    [
+      "fn-matches.re",
+      "re00976a"
+    ],
+    [
+      "fn-matches.re",
+      "re00976b"
+    ],
+    [
+      "fn-matches.re",
       "re00977"
     ],
     [
@@ -18929,6 +19205,26 @@
     [
       "fn-matches.re",
       "re00991"
+    ],
+    [
+      "fn-matches.re",
+      "re00992"
+    ],
+    [
+      "fn-matches.re",
+      "re00993"
+    ],
+    [
+      "fn-matches.re",
+      "re00994"
+    ],
+    [
+      "fn-matches.re",
+      "re00995"
+    ],
+    [
+      "fn-matches.re",
+      "re00996"
     ],
     [
       "fn-matches.re",
@@ -23709,6 +24005,18 @@
     [
       "fn-replace",
       "K2-ReplaceFunc-2"
+    ],
+    [
+      "fn-replace",
+      "K2-ReplaceFunc-3"
+    ],
+    [
+      "fn-replace",
+      "K2-ReplaceFunc-4"
+    ],
+    [
+      "fn-replace",
+      "K2-ReplaceFunc-5"
     ],
     [
       "fn-replace",

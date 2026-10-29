@@ -1167,3 +1167,14 @@ conformance claims. Smaller tested increments are committed independently.
   (built-in rules otherwise) and accepts with-param.
 - Not covered: imports inside included modules, precedence for keys, attribute sets
   and decimal formats (they merge), and use-package.
+
+## Increment 99: regular-expression backreferences
+
+- Patterns with \1-\9 style backreferences now run on a bounded backtracking matcher
+  (capturing and non-capturing groups, alternation, greedy and lazy quantifiers,
+  counted repeats, anchors, the i/m/x flags); single-character atoms still use the
+  linear-time engine. References must name closed groups (FORX0002 otherwise),
+  non-participating groups fail the reference, empty loop iterations are cut off, and
+  matching consumes the shared work budget. matches, replace, tokenize and
+  xsl:analyze-string all go through the same abstraction.
+- fn-matches/fn-matches.re/fn-replace/fn-tokenize: 1,268 of 1,333 QT3 cases pass.
