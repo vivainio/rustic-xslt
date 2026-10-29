@@ -1767,3 +1767,13 @@ conformance claims. Smaller tested increments are committed independently.
   264 harness errors and 153 profile exclusions across 1,572 selected cases.
 - Validation: all-feature Rust tests, all-target/all-feature Clippy, 43 Python
   harness tests and both pinned XSLT and QT3 gates pass.
+
+## Increment 148: result-document DOCTYPE overrides
+
+- `xsl:result-document` accepts `doctype-public` and `doctype-system` AVTs and
+  applies them to secondary results and href-less principal results. Public
+  identifiers are ignored when the resulting system identifier is absent.
+- The result-document selection gained eight passes; the full pinned XSLT gate
+  now has 840 passing cases (eight new, zero regressions), 315 engine failures,
+  264 harness errors and 153 profile exclusions across 1,572 selected cases.
+- Validation: focused result-document tests and the pinned XSLT gate pass.

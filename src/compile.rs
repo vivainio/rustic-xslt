@@ -95,6 +95,8 @@ pub(crate) struct ResultDocumentSpec {
     pub byte_order_mark: Option<bool>,
     pub indent: Option<bool>,
     pub encoding: Option<crate::result::Encoding>,
+    pub doctype_public: Option<Vec<Expr>>,
+    pub doctype_system: Option<Vec<Expr>>,
     pub body: Vec<Instruction>,
 }
 pub(crate) const ERROR_NAMESPACE: &str = "http://www.w3.org/2005/xqt-errors";
@@ -1265,6 +1267,8 @@ fn body(
                                 "byte-order-mark",
                                 "indent",
                                 "encoding",
+                                "doctype-public",
+                                "doctype-system",
                                 "validation",
                                 "type",
                             ],
@@ -1310,6 +1314,14 @@ fn body(
                             byte_order_mark: flag("byte-order-mark")?,
                             indent: flag("indent")?,
                             encoding,
+                            doctype_public: n
+                                .attribute("doctype-public")
+                                .map(|value| avt(n, value))
+                                .transpose()?,
+                            doctype_system: n
+                                .attribute("doctype-system")
+                                .map(|value| avt(n, value))
+                                .transpose()?,
                             body: body(n, depth + 1, false)?,
                         })));
                     }

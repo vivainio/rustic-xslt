@@ -27,6 +27,26 @@ fn result_document_methods_and_indentation_apply_per_document() {
     assert_eq!(result.documents[0].content, "hello");
     assert_eq!(result.documents[1].content, "<html><br></html>");
     assert_eq!(result.documents[2].content, "<a>\n  <b></b>\n</a>");
+    let doctype = Stylesheet::compile(
+        r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output omit-xml-declaration="yes"/><xsl:template match="/"><xsl:result-document href="d.xml" doctype-public="PUB" doctype-system="SYS"><root/></xsl:result-document></xsl:template></xsl:stylesheet>"#,
+    )
+    .unwrap()
+    .transform_with_documents("<r/>", &TransformOptions::default())
+    .unwrap();
+    assert_eq!(
+        doctype.documents[0].content,
+        "<!DOCTYPE root PUBLIC \"PUB\" \"SYS\">\n<root></root>"
+    );
+    let principal_doctype = Stylesheet::compile(
+        r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output omit-xml-declaration="yes"/><xsl:template match="/"><xsl:result-document doctype-system="principal.dtd"><root/></xsl:result-document></xsl:template></xsl:stylesheet>"#,
+    )
+    .unwrap()
+    .transform("<r/>")
+    .unwrap();
+    assert_eq!(
+        principal_doctype,
+        "<!DOCTYPE root SYSTEM \"principal.dtd\">\n<root></root>"
+    );
 }
 #[test]
 fn duplicate_hrefs_are_errors_and_missing_href_writes_to_the_principal_result() {

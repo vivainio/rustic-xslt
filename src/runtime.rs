@@ -2110,19 +2110,58 @@ fn run_tasks<'a>(
                             }
                             budget.principal_output_claimed = true;
                             let inner = Frame {
-                                focus,
-                                env,
+                                focus: focus.clone(),
+                                env: env.clone(),
                                 depth: depth + 1,
                                 mode,
                                 tunnel: tunnel.clone(),
                                 rule: None,
                             };
                             {
-                                let principal =
-                                    Output::new(limits.max_output_bytes, sheet.text_output)
-                                        .with_serialization(sheet.markup, sheet.doctype.clone())
-                                        .with_cdata(sheet.cdata_elements.clone())
-                                        .with_char_map(sheet.char_map.clone());
+                                let method =
+                                    spec.method.as_deref().unwrap_or(if sheet.text_output {
+                                        "text"
+                                    } else {
+                                        match sheet.markup {
+                                            Markup::Html => "html",
+                                            Markup::Xhtml => "xhtml",
+                                            Markup::Xml => "xml",
+                                        }
+                                    });
+                                let text_method = method == "text";
+                                let markup = match method {
+                                    "html" => Markup::Html,
+                                    "xhtml" => Markup::Xhtml,
+                                    _ => Markup::Xml,
+                                };
+                                let mut doctype = sheet.doctype.clone();
+                                if spec.doctype_public.is_some() || spec.doctype_system.is_some() {
+                                    let inherited = doctype.unwrap_or_default();
+                                    let system = spec
+                                        .doctype_system
+                                        .as_ref()
+                                        .map(|value| {
+                                            parts(value, &focus, &env, budget, sheet.backwards)
+                                        })
+                                        .transpose()?
+                                        .or(inherited.system);
+                                    let public = if system.is_some() {
+                                        spec.doctype_public
+                                            .as_ref()
+                                            .map(|value| {
+                                                parts(value, &focus, &env, budget, sheet.backwards)
+                                            })
+                                            .transpose()?
+                                            .or(inherited.public)
+                                    } else {
+                                        None
+                                    };
+                                    doctype = Some(crate::result::Doctype { public, system });
+                                }
+                                let principal = Output::new(limits.max_output_bytes, text_method)
+                                    .with_serialization(markup, doctype)
+                                    .with_cdata(sheet.cdata_elements.clone())
+                                    .with_char_map(sheet.char_map.clone());
                                 TRY_DEPTH.with(|d| d.set(d.get() + 1));
                                 let output = run_tasks(
                                     run,
@@ -2197,8 +2236,30 @@ fn run_tasks<'a>(
                         };
                         let encoding = spec.encoding.unwrap_or(settings.encoding);
                         let indent = spec.indent.unwrap_or(settings.indent);
+                        let mut doctype = settings.doctype.clone();
+                        if spec.doctype_public.is_some() || spec.doctype_system.is_some() {
+                            let inherited = doctype.unwrap_or_default();
+                            let system = spec
+                                .doctype_system
+                                .as_ref()
+                                .map(|value| parts(value, &focus, &env, budget, sheet.backwards))
+                                .transpose()?
+                                .or(inherited.system);
+                            let public = if system.is_some() {
+                                spec.doctype_public
+                                    .as_ref()
+                                    .map(|value| {
+                                        parts(value, &focus, &env, budget, sheet.backwards)
+                                    })
+                                    .transpose()?
+                                    .or(inherited.public)
+                            } else {
+                                None
+                            };
+                            doctype = Some(crate::result::Doctype { public, system });
+                        }
                         let nested = Output::new(limits.max_output_bytes, text_method)
-                            .with_serialization(markup, settings.doctype.clone())
+                            .with_serialization(markup, doctype)
                             .with_cdata(settings.cdata_elements.clone())
                             .with_char_map(settings.char_map.clone());
                         let inner = Frame {
