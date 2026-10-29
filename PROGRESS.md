@@ -1278,3 +1278,12 @@ conformance claims. Smaller tested increments are committed independently.
 - Added system-property(), element-available(), function-available() and
   type-available() (no static parameters supplied from the API, and no
   available-system-properties()).
+
+## Increment 111: richer match patterns
+
+- Match patterns now support `//` separators (a//b, //p, /doc//p), parenthesized
+  unions in any step (chap/(p|q), (a|b)//c) and key()/id()/doc() patterns that match
+  the nodes the call selects. Default priorities treat any multi-step, `//` or
+  call-based pattern as 0.5. Reverse axes other than the child/attribute pair are still
+  rejected as unsupported patterns; record streaming keeps requiring single-step
+  patterns.

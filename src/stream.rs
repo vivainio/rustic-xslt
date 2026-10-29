@@ -457,6 +457,8 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                                     !b.steps.is_empty()
                                         && (b.absolute
                                             || b.steps.len() != 1
+                                            || b.selected.is_some()
+                                            || b.gaps.iter().any(|g| *g)
                                             || !b.steps[0].predicates.is_empty())
                                 }) {
                                     return Err(unsupported(
