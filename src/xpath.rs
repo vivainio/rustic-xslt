@@ -238,6 +238,8 @@ pub(crate) struct Budget {
     pub decimal_formats: DecimalFormats,
     /// Secondary results (href, serialized content) created by `xsl:result-document`.
     pub secondary: Vec<(String, String)>,
+    /// Text of the non-terminating `xsl:message` instructions, in order.
+    pub messages: Vec<String>,
     remaining: u64,
     pub max_depth: usize,
     pub now: crate::temporal::Temporal,
@@ -249,6 +251,7 @@ impl Budget {
             keys: KeyTable::default(),
             decimal_formats: DecimalFormats::default(),
             secondary: vec![],
+            messages: vec![],
             remaining: limits.max_steps,
             max_depth: limits.max_depth,
             now: crate::temporal::Temporal::now(),

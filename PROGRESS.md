@@ -1227,3 +1227,8 @@ conformance claims. Smaller tested increments are committed independently.
   Plain transform() ignores secondary results. Duplicate or missing hrefs raise
   XTDE1490; named output definitions (format), other encodings and nested streaming
   are not implemented.
+
+## Increment 105: collected messages
+
+- xsl:message texts are now collected and returned in TransformResult::messages by
+  transform_with_documents(); terminate="yes" still raises XTMM9000 with the text.

@@ -379,7 +379,12 @@ fn computed_name(
         uri: if uri.is_empty() { None } else { Some(uri) },
     })
 }
-fn finish_capture(kind: Capture, value: String, output: &mut Output) -> Result<(), Diagnostic> {
+fn finish_capture(
+    kind: Capture,
+    value: String,
+    output: &mut Output,
+    budget: &mut Budget,
+) -> Result<(), Diagnostic> {
     match kind {
         Capture::Attribute(name) => output.attribute(name, value),
         Capture::Namespace(prefix) => output.namespace(&prefix, &value),
@@ -397,6 +402,7 @@ fn finish_capture(kind: Capture, value: String, output: &mut Output) -> Result<(
             if terminate {
                 Err(Diagnostic::new("XTMM9000", value, "run"))
             } else {
+                budget.messages.push(value);
                 Ok(())
             }
         }
@@ -425,6 +431,7 @@ fn capture<'a>(
                     sheet.backwards,
                 )?,
                 output,
+                budget,
             )
         }
         Content::Body(body, sep) => {
@@ -762,12 +769,14 @@ fn focus_sequence(value: Value<'_>) -> Vec<Focus<'_>> {
         })
         .collect()
 }
+/// Principal result, secondary documents (href, content) and message texts.
+type AllResults = (String, Vec<(String, String)>, Vec<String>);
 /// Transform and also return the documents created by `xsl:result-document`.
 pub(crate) fn transform_all(
     sheet: &Stylesheet,
     source: &str,
     options: &TransformOptions,
-) -> Result<(String, Vec<(String, String)>), Diagnostic> {
+) -> Result<AllResults, Diagnostic> {
     let prepared = crate::whitespace::prepare(sheet, source, false)?;
     let source = prepared.as_deref().unwrap_or(source);
     let absent = source.is_empty() && options.initial_template.is_some();
@@ -786,7 +795,11 @@ pub(crate) fn transform_all(
     let trees = crate::trees::Trees::new(&sources, &documents, options.limits.max_temporary_bytes);
     let mut budget = Budget::new(options.limits);
     let principal = execute(sheet, root, options, &mut budget, true, &trees)?;
-    Ok((principal, std::mem::take(&mut budget.secondary)))
+    Ok((
+        principal,
+        std::mem::take(&mut budget.secondary),
+        std::mem::take(&mut budget.messages),
+    ))
 }
 pub(crate) fn transform(
     sheet: &Stylesheet,
@@ -2625,7 +2638,7 @@ fn run_tasks<'a>(
             }
             Task::FinishCapture(kind, saved) => {
                 let value = std::mem::replace(&mut output, saved).finish_simple()?;
-                finish_capture(kind, value, &mut output)?;
+                finish_capture(kind, value, &mut output, budget)?;
             }
             Task::Close => output.end()?,
             Task::Iterate(instruction, items, index, params, frame) => {

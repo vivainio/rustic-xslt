@@ -150,6 +150,8 @@ pub struct ResultDocument {
 pub struct TransformResult {
     pub principal: String,
     pub documents: Vec<ResultDocument>,
+    /// Text of each `xsl:message` that did not terminate the transformation.
+    pub messages: Vec<String>,
 }
 /// Immutable compiled instructions, reusable across threads and transformations.
 #[derive(Debug)]
@@ -203,9 +205,10 @@ impl Stylesheet {
         source: &str,
         options: &TransformOptions,
     ) -> Result<TransformResult, Diagnostic> {
-        let (principal, documents) = runtime::transform_all(self, source, options)?;
+        let (principal, documents, messages) = runtime::transform_all(self, source, options)?;
         Ok(TransformResult {
             principal,
+            messages,
             documents: documents
                 .into_iter()
                 .map(|(href, content)| ResultDocument { href, content })

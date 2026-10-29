@@ -20,3 +20,12 @@ fn terminating_messages_stop_the_transformation_with_their_text() {
     assert!(error.message.contains("stop v"), "{}", error.message);
     assert!(run("<xsl:message terminate='maybe'/>").is_err());
 }
+#[test]
+fn messages_are_collected_in_order_for_callers_that_ask() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:message>first</xsl:message>x<xsl:message select="1 + 1"/><xsl:message terminate="no">third <xsl:value-of select="'!'"/></xsl:message></xsl:template></xsl:stylesheet>"#).unwrap();
+    let result = sheet
+        .transform_with_documents("<r/>", &rust_xslt::TransformOptions::default())
+        .unwrap();
+    assert_eq!(result.principal, "x");
+    assert_eq!(result.messages, vec!["first", "2", "third !"]);
+}
