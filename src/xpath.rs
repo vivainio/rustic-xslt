@@ -240,6 +240,7 @@ pub(crate) struct Budget {
     pub secondary: Vec<(String, String)>,
     /// Text of the non-terminating `xsl:message` instructions, in order.
     pub messages: Vec<String>,
+    pub resolver: Option<crate::ResourceResolver>,
     remaining: u64,
     pub max_depth: usize,
     pub now: crate::temporal::Temporal,
@@ -252,6 +253,7 @@ impl Budget {
             decimal_formats: DecimalFormats::default(),
             secondary: vec![],
             messages: vec![],
+            resolver: None,
             remaining: limits.max_steps,
             max_depth: limits.max_depth,
             now: crate::temporal::Temporal::now(),
@@ -1528,6 +1530,9 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "format-number" => (2, 3),
         "parse-json" => (1, 2),
         "format-integer" => (2, 3),
+        "unparsed-text" | "unparsed-text-available" => (1, 2),
+        "unparsed-text-lines" => (1, 2),
+        "json-doc" => (1, 2),
         "format-dateTime" | "format-date" | "format-time" => (2, 5),
         "math:pi" => (0, 0),
         "math:exp" | "math:exp10" | "math:log" | "math:log10" | "math:sqrt" | "math:sin"
@@ -3346,6 +3351,45 @@ fn function<'a>(
         return Ok(vec![Item::String(crate::format_datetime::format(
             &value, &picture,
         )?)]);
+    }
+    if matches!(
+        name,
+        "unparsed-text" | "unparsed-text-available" | "unparsed-text-lines" | "json-doc"
+    ) {
+        let href = match args[0].as_slice() {
+            [] => return Ok(vec![]),
+            _ => crate::string_functions::string(&args[0], false, backwards)?,
+        };
+        let load = || -> Result<String, Diagnostic> {
+            let resolver = budget
+                .resolver
+                .clone()
+                .ok_or_else(|| err("FOUT1170", "no resource resolver is configured"))?;
+            (resolver.0)(&href)
+        };
+        if name == "unparsed-text-available" {
+            return Ok(vec![Item::Boolean(load().is_ok())]);
+        }
+        let text = load().map_err(|mut e| {
+            e.code = "FOUT1170".into();
+            e
+        })?;
+        budget.charge(text.len())?;
+        return match name {
+            "unparsed-text" => Ok(vec![Item::String(text)]),
+            "unparsed-text-lines" => Ok(text
+                .lines()
+                .map(|line| Item::String(line.to_owned()))
+                .collect()),
+            _ => {
+                let options = crate::json::Options {
+                    duplicates: crate::json::Duplicates::UseFirst,
+                    liberal: false,
+                    escape: false,
+                };
+                crate::json::parse(&text, &options)
+            }
+        };
     }
     if name == "format-integer" {
         let value = match args[0].as_slice() {

@@ -846,6 +846,7 @@ pub(crate) fn transform<R: BufRead, W: Write>(
                     max_output_bytes: remaining,
                     ..options.limits
                 },
+                resolver: None,
             };
             let text = runtime::transform_record(
                 sheet,

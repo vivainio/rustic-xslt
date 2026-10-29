@@ -908,6 +908,7 @@ fn execute<'a>(
     budget.functions = sheet.functions.clone();
     budget.keys = sheet.keys.clone();
     budget.decimal_formats = sheet.decimal_formats.clone();
+    budget.resolver = options.resolver.clone();
     let mut parameters = Variables::new();
     for (name, value) in &options.parameters {
         budget.tick()?;

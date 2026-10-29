@@ -1,0 +1,64 @@
+use rust_xslt::{Diagnostic, ResourceResolver, Stylesheet, TransformOptions};
+fn options() -> TransformOptions {
+    TransformOptions {
+        resolver: Some(ResourceResolver::new(|href| match href {
+            "a.txt" => Ok("line one\nline two\n".to_owned()),
+            "data.json" => Ok(r#"{"k": [1, 2, 3]}"#.to_owned()),
+            _ => Err(Diagnostic {
+                code: "XTRE0000".into(),
+                message: format!("not found: {href}"),
+                phase: "run",
+                line: 0,
+                column: 0,
+            }),
+        })),
+        ..TransformOptions::default()
+    }
+}
+fn run(expr: &str, options: &TransformOptions) -> Result<String, Diagnostic> {
+    Stylesheet::compile(&format!(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:sequence select="{expr}"/></xsl:template></xsl:stylesheet>"#))?
+        .transform_with_options("<r/>", options)
+}
+#[test]
+fn unparsed_text_and_json_doc_use_the_resolver() {
+    let o = options();
+    assert_eq!(
+        run("unparsed-text('a.txt')", &o).unwrap(),
+        "line one\nline two\n"
+    );
+    assert_eq!(
+        run("unparsed-text-lines('a.txt')", &o).unwrap(),
+        "line one line two"
+    );
+    assert_eq!(run("count(unparsed-text-lines('a.txt'))", &o).unwrap(), "2");
+    assert_eq!(run("unparsed-text-available('a.txt')", &o).unwrap(), "true");
+    assert_eq!(
+        run("unparsed-text-available('missing.txt')", &o).unwrap(),
+        "false"
+    );
+    assert_eq!(run("json-doc('data.json')?k?2", &o).unwrap(), "2");
+    assert_eq!(run("empty(unparsed-text(()))", &o).unwrap(), "true");
+}
+#[test]
+fn missing_resources_and_resolvers_are_errors() {
+    assert_eq!(
+        run("unparsed-text('missing.txt')", &options())
+            .unwrap_err()
+            .code,
+        "FOUT1170"
+    );
+    assert_eq!(
+        run("unparsed-text('a.txt')", &TransformOptions::default())
+            .unwrap_err()
+            .code,
+        "FOUT1170"
+    );
+    assert_eq!(
+        run(
+            "unparsed-text-available('a.txt')",
+            &TransformOptions::default()
+        )
+        .unwrap(),
+        "false"
+    );
+}

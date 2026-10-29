@@ -1232,3 +1232,10 @@ conformance claims. Smaller tested increments are committed independently.
 
 - xsl:message texts are now collected and returned in TransformResult::messages by
   transform_with_documents(); terminate="yes" still raises XTMM9000 with the text.
+
+## Increment 106: resource functions
+
+- TransformOptions::resolver (a ResourceResolver closure) now backs
+  unparsed-text(), unparsed-text-lines(), unparsed-text-available() and json-doc();
+  failures and a missing resolver report FOUT1170 (availability tests return false).
+  doc()/document() still need document loading into the temporary tree arena.
