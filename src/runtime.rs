@@ -2144,6 +2144,18 @@ fn run_tasks<'a>(
                                 "run",
                             )
                         })?;
+                        let mut character_map = (*settings.char_map).clone();
+                        for name in &spec.character_maps {
+                            let map = sheet.character_maps.get(name).ok_or_else(|| {
+                                Diagnostic::new(
+                                    "XTSE1590",
+                                    format!("unknown character map: {name}"),
+                                    "compile",
+                                )
+                            })?;
+                            character_map
+                                .extend(map.iter().map(|(key, value)| (*key, value.clone())));
+                        }
                         let default_method = if settings.text_output {
                             "text"
                         } else {
@@ -2194,7 +2206,7 @@ fn run_tasks<'a>(
                                     .chain(extra_cdata.iter().cloned())
                                     .collect(),
                             ))
-                            .with_char_map(settings.char_map.clone());
+                            .with_char_map(std::sync::Arc::new(character_map));
                         let inner = Frame {
                             focus,
                             env,

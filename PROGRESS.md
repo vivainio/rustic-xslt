@@ -1798,3 +1798,13 @@ conformance claims. Smaller tested increments are committed independently.
   291 engine failures, 264 harness errors and 153 profile exclusions.
 - Validation: all-feature Rust tests, all-target/all-feature Clippy, formatting
   and the full pinned XSLT gate pass.
+
+## Increment 151: result-document character maps
+
+- Result-document instructions accept `use-character-maps`, supplementing the
+  selected output definition and overriding inherited mappings for the same
+  character. Referenced map composition uses the existing cycle checks.
+- The pinned XSLT gate has 868 passing cases (four new, zero regressions),
+  287 engine failures, 264 harness errors and 153 profile exclusions.
+- Validation: character-map and result-document tests, all-target/all-feature
+  Clippy and the full pinned XSLT gate pass.

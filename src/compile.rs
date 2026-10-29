@@ -96,6 +96,7 @@ pub(crate) struct ResultDocumentSpec {
     pub indent: Option<bool>,
     pub encoding: Option<crate::result::Encoding>,
     pub cdata: Option<(Vec<Expr>, BTreeMap<String, String>)>,
+    pub character_maps: Vec<String>,
     pub doctype_public: Option<Vec<Expr>>,
     pub doctype_system: Option<Vec<Expr>>,
     pub body: Vec<Instruction>,
@@ -1271,6 +1272,7 @@ fn body(
                                 "doctype-public",
                                 "doctype-system",
                                 "cdata-section-elements",
+                                "use-character-maps",
                                 "validation",
                                 "type",
                             ],
@@ -1330,6 +1332,12 @@ fn body(
                                     avt(n, value).map(|parts| (parts, bindings))
                                 })
                                 .transpose()?,
+                            character_maps: n
+                                .attribute("use-character-maps")
+                                .unwrap_or("")
+                                .split_whitespace()
+                                .map(|name| component_name(n, name))
+                                .collect::<Result<Vec<_>, _>>()?,
                             doctype_public: n
                                 .attribute("doctype-public")
                                 .map(|value| avt(n, value))
@@ -3032,6 +3040,7 @@ pub(crate) fn compile(
         markup: crate::result::Markup::Xml,
         encoding: Default::default(),
         cdata_elements: Default::default(),
+        character_maps: Default::default(),
         char_map: Default::default(),
         doctype: None,
         text_output: false,
@@ -3069,6 +3078,12 @@ pub(crate) fn compile(
         0,
         None,
     )?;
+    for name in character_maps.keys() {
+        sheet.character_maps.insert(
+            name.clone(),
+            resolve_character_maps(&character_maps, std::slice::from_ref(name))?,
+        );
+    }
     output_properties.entry(String::new()).or_default();
     for (name, group) in output_properties {
         let mut settings = crate::result::Serialization::default();

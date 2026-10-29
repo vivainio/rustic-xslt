@@ -183,6 +183,7 @@ pub struct Stylesheet {
     markup: result::Markup,
     encoding: result::Encoding,
     cdata_elements: std::sync::Arc<Vec<String>>,
+    character_maps: std::collections::BTreeMap<String, std::collections::BTreeMap<char, String>>,
     char_map: std::sync::Arc<std::collections::BTreeMap<char, String>>,
     doctype: Option<result::Doctype>,
     text_output: bool,
