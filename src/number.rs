@@ -219,6 +219,69 @@ impl Number {
             }),
         }
     }
+    pub fn round(&self, precision: &BigInt, even: bool) -> Result<Self, Diagnostic> {
+        if matches!(self, Self::Float(n) if !n.is_finite() || *n == 0.0)
+            || matches!(self, Self::Double(n) if !n.is_finite() || *n == 0.0)
+        {
+            return Ok(self.clone());
+        }
+        let zero = || match self {
+            Self::Integer(_) => Self::Integer(BigInt::from(0)),
+            Self::Decimal(_) => Self::Decimal(BigDecimal::from(0)),
+            Self::Float(n) => Self::Float(0.0f32.copysign(*n)),
+            Self::Double(n) => Self::Double(0.0f64.copysign(*n)),
+        };
+        let Some(precision) = precision.to_i64() else {
+            return Ok(if precision.is_negative() {
+                zero()
+            } else {
+                self.clone()
+            });
+        };
+        let value = self.decimal()?;
+        if precision >= value.fractional_digit_count() {
+            return Ok(self.clone());
+        }
+        if precision < -(MAX_DIGITS as i64) {
+            return Ok(zero());
+        }
+        let mode = if even {
+            bigdecimal::RoundingMode::HalfEven
+        } else if value.is_negative() {
+            bigdecimal::RoundingMode::HalfDown
+        } else {
+            bigdecimal::RoundingMode::HalfUp
+        };
+        let rounded = value.with_scale_round(precision, mode);
+        let result = match self {
+            Self::Integer(_) => Self::Integer(rounded.with_scale(0).into_bigint_and_scale().0),
+            Self::Decimal(_) => Self::Decimal(rounded),
+            Self::Float(n) => {
+                let v = rounded.to_f32().unwrap_or_else(|| {
+                    if rounded.is_negative() {
+                        f32::NEG_INFINITY
+                    } else {
+                        f32::INFINITY
+                    }
+                });
+                Self::Float(if v == 0.0 { 0.0f32.copysign(*n) } else { v })
+            }
+            Self::Double(n) => {
+                let v = rounded.to_f64().unwrap_or_else(|| {
+                    if rounded.is_negative() {
+                        f64::NEG_INFINITY
+                    } else {
+                        f64::INFINITY
+                    }
+                });
+                Self::Double(if v == 0.0 { 0.0f64.copysign(*n) } else { v })
+            }
+        };
+        if result.string().len() > MAX_DIGITS {
+            return Err(error("XPDY0130", "numeric digit limit exceeded"));
+        }
+        Ok(result)
+    }
     fn integer_division(&self, rhs: &Self) -> Result<Self, Diagnostic> {
         let limit = || error("XPDY0130", "numeric digit limit exceeded");
         let quotient = if matches!(self, Self::Double(_) | Self::Float(_))

@@ -1038,6 +1038,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "codepoint-equal" => (2, 2),
         "normalize-unicode" => (1, 2),
         "abs" | "floor" | "ceiling" => (1, 1),
+        "round" | "round-half-to-even" => (1, 2),
         "codepoints-to-string" | "string-to-codepoints" => (1, 1),
         "translate" => (3, 3),
         "remove" => (2, 2),
@@ -1815,6 +1816,33 @@ fn function<'a>(
         return Ok(vec![Item::QName(crate::qname::AtomicQName::new(
             &uri, &lexical,
         )?)]);
+    }
+    if matches!(name, "round" | "round-half-to-even") {
+        let precision = match args.get(1).map(Vec::as_slice) {
+            None => num_bigint::BigInt::from(0),
+            Some([item]) => match atomize(item) {
+                Item::Number(Number::Integer(n)) => n,
+                Item::Untyped(s) => {
+                    let Number::Integer(n) = Number::cast("integer", &s)? else {
+                        unreachable!()
+                    };
+                    n
+                }
+                _ => return Err(err("XPTY0004", "rounding precision must be an integer")),
+            },
+            _ => {
+                return Err(err(
+                    "XPTY0004",
+                    "rounding precision must be a singleton integer",
+                ));
+            }
+        };
+        if first.is_empty() && !backwards {
+            return Ok(vec![]);
+        }
+        return Ok(vec![Item::Number(
+            numeric(first, backwards)?.round(&precision, name == "round-half-to-even")?,
+        )]);
     }
     if matches!(name, "abs" | "floor" | "ceiling") {
         if first.is_empty() && !backwards {

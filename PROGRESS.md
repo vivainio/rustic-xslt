@@ -756,5 +756,19 @@ conformance claims. Smaller tested increments are committed independently.
 - All selected anyURI constructor/comparison cases pass. A legacy XPath namespace
   conversion error-code distinction remains a named version-semantics gap.
 
-Next: numeric rounding and further XPath coverage.
+## Increment 62: precision-aware numeric rounding
+
+- round uses ties toward positive infinity; round-half-to-even uses even ties.
+  Both accept optional integer precision and preserve numeric result types.
+- Integer/decimal rounding remains exact. Floating inputs round their exact binary
+  values via decimal representations, preserving signed zero and non-finite values.
+- Extreme precisions short-circuit to unchanged/zero values without allocating
+  unbounded powers of ten; numeric digit limits still apply.
+- 372 Rust integration tests, 27 harness tests and Clippy/format pass. All 381 XSLT
+  and previous QT3 gate cases remain green.
+- Fifty-two QT3 sets: 4,398 cases, 2,529 pass / 1,126 engine failures / 72 harness
+  errors / 671 profile exclusions. Rounding adds 310 gate cases; remaining failures
+  primarily require numeric subtypes, plus an older-XPath arity distinction.
+
+Next: derived atomic types and further XPath coverage.
 

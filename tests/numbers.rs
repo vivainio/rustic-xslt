@@ -306,3 +306,82 @@ fn text_sort_keys_use_their_stylesheets_numeric_string_rules() {
         assert_eq!(transform(&style, "<r/>").unwrap(), expected);
     }
 }
+
+#[test]
+fn rounding_uses_distinct_tie_rules_without_losing_decimal_precision() {
+    for (e, want) in [
+        ("round(2.5)", "3"),
+        ("round(-2.5)", "-2"),
+        ("round-half-to-even(2.5)", "2"),
+        ("round-half-to-even(3.5)", "4"),
+        ("round-half-to-even(-2.5)", "-2"),
+        ("round(9007199254740993.5)", "9007199254740994"),
+        ("round-half-to-even(9007199254740992.5)", "9007199254740992"),
+        ("round(12.345,2)", "12.35"),
+        ("round(-12.345,2)", "-12.34"),
+        ("round-half-to-even(12.345,2)", "12.34"),
+        ("round(125,-1)", "130"),
+        ("round-half-to-even(125,-1)", "120"),
+        ("round-half-to-even(135,-1)", "140"),
+    ] {
+        assert_eq!(evaluate(e), want, "{e}");
+    }
+}
+#[test]
+fn rounding_preserves_numeric_types_and_floating_special_values() {
+    for (e, want) in [
+        ("round(12,-1) instance of xs:integer", "true"),
+        ("round(12.1) instance of xs:decimal", "true"),
+        ("round(xs:float('1.5')) instance of xs:float", "true"),
+        ("round-half-to-even(1.5e0) instance of xs:double", "true"),
+        ("round(-0.5e0)", "-0"),
+        ("round-half-to-even(-0.2e0)", "-0"),
+        ("round(xs:double('INF'))", "INF"),
+        ("round-half-to-even(xs:float('-INF'))", "-INF"),
+        ("round(xs:double('NaN'))", "NaN"),
+        (
+            "round-half-to-even(xs:float('150.015'),2) eq xs:float('150.01')",
+            "true",
+        ),
+    ] {
+        assert_eq!(evaluate(e), want, "{e}");
+    }
+}
+#[test]
+fn extreme_rounding_precisions_do_not_allocate_huge_powers_of_ten() {
+    for (e, want) in [
+        ("round(1.234,999999999999999999999999)", "1.234"),
+        ("round-half-to-even(123,-999999999999999999999999)", "0"),
+        ("round(-1e0,-999999999999999999999999)", "-0"),
+        ("round(1.234,1000000000)", "1.234"),
+        ("round-half-to-even(123,-1000000000)", "0"),
+        ("empty(round(())) and empty(round-half-to-even(()))", "true"),
+    ] {
+        assert_eq!(evaluate(e), want, "{e}");
+    }
+}
+#[test]
+fn rounding_validates_precision_cardinality_and_numeric_arguments() {
+    for e in [
+        "round('1')",
+        "round(1,())",
+        "round-half-to-even(1,2.0)",
+        "round(1,'2')",
+        "round((),())",
+        "round((1,2))",
+    ] {
+        assert_eq!(
+            transform(&sheet("3.0", e), "<r/>").unwrap_err().code,
+            "XPTY0004",
+            "{e}"
+        );
+    }
+    assert_eq!(
+        transform(&sheet("3.0", "round(r/@a,r/@p)"), "<r a='1.234' p='2'/>").unwrap(),
+        "1.23"
+    );
+    assert_eq!(
+        transform(&sheet("1.0", "round(-0.5)"), "<r/>").unwrap(),
+        "0"
+    );
+}
