@@ -408,3 +408,33 @@ fn uri_escaping_uses_utf8_bytes_and_function_specific_ascii_sets() {
         "XPTY0004"
     );
 }
+#[test]
+fn ascii_case_insensitive_and_caseblind_collations_fold_search_and_compare() {
+    let html = "'http://www.w3.org/2005/xpath-functions/collation/html-ascii-case-insensitive'";
+    let blind = "'http://www.w3.org/2010/09/qt-fots-catalog/collation/caseblind'";
+    let run = |expression: String| {
+        Stylesheet::compile(&format!(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:sequence select="{expression}"/></xsl:template></xsl:stylesheet>"#))
+            .unwrap()
+            .transform("<r/>")
+    };
+    for (expression, expected) in [
+        (format!("contains('Hello', 'ELL', {html})"), "true"),
+        (format!("starts-with('Hello', 'hE', {html})"), "true"),
+        (format!("ends-with('Hello', 'LO', {blind})"), "true"),
+        (
+            format!("substring-before('Hello World', 'WOR', {html})"),
+            "Hello ",
+        ),
+        (
+            format!("substring-after('Hello World', 'O W', {blind})"),
+            "orld",
+        ),
+        (format!("compare('abc', 'ABD', {html})"), "-1"),
+        (format!("compare('ABC', 'abc', {blind})"), "0"),
+        (format!("contains('é', 'É', {html})"), "false"),
+        (format!("contains('é', 'É', {blind})"), "true"),
+    ] {
+        assert_eq!(run(expression.clone()).unwrap(), expected, "{expression}");
+    }
+    assert!(run("contains('a', 'a', 'urn:unknown')".into()).is_err());
+}

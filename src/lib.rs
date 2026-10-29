@@ -2,6 +2,7 @@
 mod aggregate;
 mod atomic_sequence;
 mod binary;
+mod collation;
 mod compile;
 mod deep_equal;
 mod integer_type;

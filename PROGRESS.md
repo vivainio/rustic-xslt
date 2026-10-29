@@ -899,3 +899,14 @@ conformance claims. Smaller tested increments are committed independently.
 - QT3 at the pinned revision (clone at /tmp/rustic-qt3): 5,750 cases, 4,256 pass /
   368 engine failures / 229 harness errors / 897 profile exclusions. No regressions
   against the previous 4,245-case gate; the gate now records 4,256.
+
+## Increment 74: ASCII case-insensitive and case-blind collations
+
+- Added a shared collation module with the codepoint, html-ascii-case-insensitive
+  and QT3 case-blind collations; unknown URIs still raise FOCH0002 (UCA collations
+  remain unsupported).
+- contains, starts-with, ends-with, substring-before/after and compare honour the
+  collation argument; folded keys map one-to-one to source characters so
+  substring results preserve original text.
+- QT3: 5,750 cases, 4,268 pass / 356 engine failures / 229 harness errors / 897
+  exclusions; the gate records 4,268 with no regressions.

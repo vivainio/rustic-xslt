@@ -1,6 +1,7 @@
 //! Unicode string operations with XPath function conversion and shared budgets.
 use crate::{
     Diagnostic,
+    collation::Collation,
     number::Number,
     xpath::{self, Budget, Item, Value},
 };
@@ -105,24 +106,40 @@ pub(crate) fn evaluate<'a>(
     ) {
         let left = string(&args[0], true, backwards)?;
         let right = string(&args[1], true, backwards)?;
-        if let Some(collation) = args.get(2)
-            && string(collation, false, backwards)?
-                != "http://www.w3.org/2005/xpath-functions/collation/codepoint"
-        {
-            return Err(Diagnostic::new("FOCH0002", "unsupported collation", "run"));
-        }
+        let collation = match args.get(2) {
+            Some(uri) => Collation::parse(&string(uri, false, backwards)?)?,
+            None => Collation::Codepoint,
+        };
         for _ in left.bytes().chain(right.bytes()) {
             budget.tick()?;
         }
+        if collation == Collation::Codepoint {
+            return Ok(vec![match name {
+                "contains" => Item::Boolean(left.contains(&right)),
+                "starts-with" => Item::Boolean(left.starts_with(&right)),
+                "ends-with" => Item::Boolean(left.ends_with(&right)),
+                "substring-before" => {
+                    Item::String(left.find(&right).map_or("", |i| &left[..i]).into())
+                }
+                _ => Item::String(
+                    left.find(&right)
+                        .map_or("", |i| &left[i + right.len()..])
+                        .into(),
+                ),
+            }]);
+        }
+        let (text, needle) = (collation.key(&left), collation.key(&right));
+        let source = left.chars().collect::<Vec<_>>();
+        let found = collation.find(&text, &needle);
         return Ok(vec![match name {
-            "contains" => Item::Boolean(left.contains(&right)),
-            "starts-with" => Item::Boolean(left.starts_with(&right)),
-            "ends-with" => Item::Boolean(left.ends_with(&right)),
-            "substring-before" => Item::String(left.find(&right).map_or("", |i| &left[..i]).into()),
+            "contains" => Item::Boolean(found.is_some()),
+            "starts-with" => Item::Boolean(text.starts_with(&needle)),
+            "ends-with" => Item::Boolean(text.ends_with(&needle)),
+            "substring-before" => {
+                Item::String(found.map_or_else(String::new, |i| source[..i].iter().collect()))
+            }
             _ => Item::String(
-                left.find(&right)
-                    .map_or("", |i| &left[i + right.len()..])
-                    .into(),
+                found.map_or_else(String::new, |i| source[i + needle.len()..].iter().collect()),
             ),
         }]);
     }
@@ -155,12 +172,10 @@ pub(crate) fn evaluate<'a>(
     if matches!(name, "compare" | "codepoint-equal") {
         let left = string(&args[0], true, backwards)?;
         let right = string(&args[1], true, backwards)?;
-        if let Some(collation) = args.get(2)
-            && string(collation, false, backwards)?
-                != "http://www.w3.org/2005/xpath-functions/collation/codepoint"
-        {
-            return Err(Diagnostic::new("FOCH0002", "unsupported collation", "run"));
-        }
+        let collation = match args.get(2) {
+            Some(uri) => Collation::parse(&string(uri, false, backwards)?)?,
+            None => Collation::Codepoint,
+        };
         if args[0].is_empty() || args[1].is_empty() {
             return Ok(vec![]);
         }
@@ -170,7 +185,7 @@ pub(crate) fn evaluate<'a>(
         return Ok(vec![if name == "codepoint-equal" {
             Item::Boolean(left == right)
         } else {
-            let result: i32 = match left.cmp(&right) {
+            let result: i32 = match collation.compare(&left, &right) {
                 std::cmp::Ordering::Less => -1,
                 std::cmp::Ordering::Equal => 0,
                 std::cmp::Ordering::Greater => 1,

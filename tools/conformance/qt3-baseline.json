@@ -2828,6 +2828,22 @@
       "fn-contains2args-5"
     ],
     [
+      "fn-contains",
+      "liam-contains-001"
+    ],
+    [
+      "fn-contains",
+      "liam-contains-002"
+    ],
+    [
+      "fn-contains",
+      "liam-contains-003"
+    ],
+    [
+      "fn-contains",
+      "liam-contains-004"
+    ],
+    [
       "fn-deep-equal",
       "K-SeqDeepEqualFunc-1"
     ],
@@ -10237,7 +10253,39 @@
     ],
     [
       "fn-starts-with",
+      "fn-starts-with-34"
+    ],
+    [
+      "fn-starts-with",
+      "fn-starts-with-35"
+    ],
+    [
+      "fn-starts-with",
+      "fn-starts-with-36"
+    ],
+    [
+      "fn-starts-with",
+      "fn-starts-with-37"
+    ],
+    [
+      "fn-starts-with",
+      "fn-starts-with-38"
+    ],
+    [
+      "fn-starts-with",
+      "fn-starts-with-39"
+    ],
+    [
+      "fn-starts-with",
       "fn-starts-with-4"
+    ],
+    [
+      "fn-starts-with",
+      "fn-starts-with-40"
+    ],
+    [
+      "fn-starts-with",
+      "fn-starts-with-41"
     ],
     [
       "fn-starts-with",
