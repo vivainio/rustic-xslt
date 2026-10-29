@@ -1913,3 +1913,13 @@ conformance claims. Smaller tested increments are committed independently.
 - Added coverage for malformed dynamic QNames and undeclared dynamic prefixes.
 - Validation: eight result-document tests, all-target/all-feature Clippy and
   the full 880-case pinned XSLT regression gate pass without regressions.
+
+## Increment 163: defer implicit declaration serialization
+
+- The implicit principal preamble is serialized after execution only when no
+  explicit principal result was selected. Explicit result-document overrides
+  can therefore replace otherwise-conflicting implicit declaration settings.
+- Prefix bytes remain included in output limits. Added a regression overriding
+  an implicit standalone/omitted-declaration conflict.
+- Validation: declaration and result-document tests, all-target/all-feature
+  Clippy and the full 880-case pinned XSLT gate pass without regressions.

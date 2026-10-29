@@ -1063,25 +1063,10 @@ fn execute<'a>(
         pending = remaining;
     }
     let globals = Rc::new(globals);
-    let mut output = Output::new(limits.max_output_bytes, sheet.text_output)
+    let output = Output::new(limits.max_output_bytes, sheet.text_output)
         .with_serialization(sheet.markup, sheet.doctype.clone())
         .with_cdata(sheet.cdata_elements.clone())
         .with_char_map(sheet.char_map.clone());
-    if declaration {
-        if sheet.byte_order_mark && sheet.encoding == crate::result::Encoding::Utf8 {
-            output.push("\u{feff}")?;
-        }
-        if !sheet.text_output
-            && sheet.markup != crate::result::Markup::Html
-            && let Some(header) = crate::result::xml_declaration(
-                sheet.encoding,
-                sheet.omit_declaration,
-                sheet.standalone,
-            )?
-        {
-            output.push(&header)?;
-        }
-    }
     let initial_mode = options
         .initial_mode
         .as_deref()
@@ -1157,7 +1142,7 @@ fn execute<'a>(
         globals,
     };
     let principal_prefix_len = output.value.len();
-    let result = run_tasks(&run, budget, tasks, output, None)?;
+    let mut result = run_tasks(&run, budget, tasks, output, None)?;
     if budget.principal_output_claimed && result.len() > principal_prefix_len {
         return Err(Diagnostic::new(
             "XTDE1490",
@@ -1167,6 +1152,30 @@ fn execute<'a>(
     }
     if budget.principal_output_claimed {
         return Ok(std::mem::take(&mut budget.principal_output));
+    }
+    if declaration {
+        let mut prefix = String::new();
+        if sheet.byte_order_mark && sheet.encoding == crate::result::Encoding::Utf8 {
+            prefix.push('\u{feff}');
+        }
+        if !sheet.text_output
+            && sheet.markup != crate::result::Markup::Html
+            && let Some(header) = crate::result::xml_declaration(
+                sheet.encoding,
+                sheet.omit_declaration,
+                sheet.standalone,
+            )?
+        {
+            prefix.push_str(&header);
+        }
+        if prefix.len() > limits.max_output_bytes.saturating_sub(result.len()) {
+            return Err(Diagnostic::new(
+                "XPDY0130",
+                "output byte limit exceeded",
+                "run",
+            ));
+        }
+        result.insert_str(0, &prefix);
     }
     let result = if sheet.indent && declaration && !sheet.text_output {
         crate::indent::indent(&result, sheet.markup == crate::result::Markup::Html)

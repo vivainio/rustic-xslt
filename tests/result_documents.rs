@@ -117,3 +117,9 @@ fn dynamic_cdata_qname_errors_are_runtime_diagnostics() {
         assert_eq!(error.phase, "run");
     }
 }
+
+#[test]
+fn explicit_principal_serialization_overrides_implicit_declaration_conflicts() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output standalone="yes" omit-xml-declaration="yes"/><xsl:template match="/"><xsl:result-document standalone="omit"><out/></xsl:result-document></xsl:template></xsl:stylesheet>"#).unwrap();
+    assert_eq!(sheet.transform("<r/>").unwrap(), "<out></out>");
+}
