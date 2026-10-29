@@ -83,6 +83,66 @@ fn compile(pattern: &str, flags: &str, budget: &mut Budget) -> Result<Compiled, 
         other => other.map(Compiled::Fast),
     }
 }
+/// XPath forbids stacked quantifiers such as `a**` or `a{2}+`.
+fn reject_repeated_quantifiers(chars: &[char]) -> Result<(), Diagnostic> {
+    let mut quantified = 0u8; // 1 after a quantifier, 2 after a lazy one
+    let mut class = 0usize;
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if class > 0 {
+            match c {
+                '\\' => i += 1,
+                '[' => class += 1,
+                ']' => class -= 1,
+                _ => {}
+            }
+            i += 1;
+            continue;
+        }
+        match c {
+            '\\' => {
+                i += 1;
+                if matches!(chars.get(i), Some('p' | 'P')) && chars.get(i + 1) == Some(&'{') {
+                    while i < chars.len() && chars[i] != '}' {
+                        i += 1;
+                    }
+                }
+                quantified = 0;
+            }
+            '[' => {
+                class = 1;
+                quantified = 0;
+            }
+            '*' | '+' | '?' => {
+                if c == '?' && quantified == 1 {
+                    quantified = 2;
+                } else if quantified != 0 {
+                    return Err(invalid());
+                } else {
+                    quantified = 1;
+                }
+            }
+            '{' => {
+                let close = chars[i..].iter().position(|c| *c == '}').map(|p| i + p);
+                let valid = close.is_some_and(|end| {
+                    chars[i + 1..end]
+                        .iter()
+                        .all(|c| c.is_ascii_digit() || *c == ',')
+                        && end > i + 1
+                });
+                if !valid || quantified != 0 {
+                    return Err(invalid());
+                }
+                quantified = 1;
+                i = close.unwrap();
+            }
+            _ => quantified = 0,
+        }
+        i += 1;
+    }
+    Ok(())
+}
 fn compile_fast(pattern: &str, flags: &str, budget: &mut Budget) -> Result<Regex, Diagnostic> {
     for flag in flags.chars() {
         budget.tick()?;
@@ -97,6 +157,7 @@ fn compile_fast(pattern: &str, flags: &str, budget: &mut Budget) -> Result<Regex
         regex::escape(pattern)
     } else {
         let chars = pattern.chars().collect::<Vec<_>>();
+        reject_repeated_quantifiers(&chars)?;
         let mut result = String::new();
         let mut i = 0;
         let mut class = 0usize;
@@ -179,6 +240,10 @@ fn compile_fast(pattern: &str, flags: &str, budget: &mut Budget) -> Result<Regex
                     }
                 }
                 '[' => {
+                    // A nested class is only valid as the subtrahend of `-[...]`.
+                    if class > 0 && (i < 2 || chars[i - 2] != '-') {
+                        return Err(invalid());
+                    }
                     class += 1;
                     result.push(c);
                 }
@@ -189,7 +254,19 @@ fn compile_fast(pattern: &str, flags: &str, budget: &mut Budget) -> Result<Regex
                     class -= 1;
                     result.push(c);
                 }
-                '-' if class > 0 && chars.get(i) == Some(&'[') => result.push_str("--"),
+                '-' if class > 0 && chars.get(i) == Some(&'[') => {
+                    // Subtraction needs a minuend inside the class.
+                    if i < 2 || matches!(chars[i - 2], '[' | '^') {
+                        return Err(invalid());
+                    }
+                    result.push_str("--");
+                }
+                '-' if class > 0
+                    && chars.get(i) == Some(&'-')
+                    && chars.get(i + 1) != Some(&'[') =>
+                {
+                    return Err(invalid());
+                }
                 '&' | '~' if class > 0 => {
                     result.push('\\');
                     result.push(c);

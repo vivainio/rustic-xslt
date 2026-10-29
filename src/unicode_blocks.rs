@@ -78,6 +78,7 @@ const BLOCKS: &[(&str, u32, u32)] = &[
     ("YiRadicals", 0xA490, 0xA4CF),
     ("HangulSyllables", 0xAC00, 0xD7AF),
     ("PrivateUse", 0xE000, 0xF8FF),
+    ("PrivateUseArea", 0xE000, 0xF8FF),
     ("CJKCompatibilityIdeographs", 0xF900, 0xFAFF),
     ("AlphabeticPresentationForms", 0xFB00, 0xFB4F),
     ("ArabicPresentationForms-A", 0xFB50, 0xFDFF),

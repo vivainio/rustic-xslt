@@ -14936,6 +14936,10 @@
     ],
     [
       "fn-matches",
+      "cbcl-matches-005"
+    ],
+    [
+      "fn-matches",
       "cbcl-matches-006b"
     ],
     [
@@ -15661,6 +15665,14 @@
     [
       "fn-matches.re",
       "re00070"
+    ],
+    [
+      "fn-matches.re",
+      "re00071"
+    ],
+    [
+      "fn-matches.re",
+      "re00072"
     ],
     [
       "fn-matches.re",
@@ -16512,6 +16524,10 @@
     ],
     [
       "fn-matches.re",
+      "re00288"
+    ],
+    [
+      "fn-matches.re",
       "re00288a"
     ],
     [
@@ -16837,6 +16853,10 @@
     [
       "fn-matches.re",
       "re00368"
+    ],
+    [
+      "fn-matches.re",
+      "re00370"
     ],
     [
       "fn-matches.re",
@@ -17912,6 +17932,10 @@
     ],
     [
       "fn-matches.re",
+      "re00642"
+    ],
+    [
+      "fn-matches.re",
       "re00643"
     ],
     [
@@ -18033,6 +18057,66 @@
     [
       "fn-matches.re",
       "re00673"
+    ],
+    [
+      "fn-matches.re",
+      "re00674"
+    ],
+    [
+      "fn-matches.re",
+      "re00675"
+    ],
+    [
+      "fn-matches.re",
+      "re00676"
+    ],
+    [
+      "fn-matches.re",
+      "re00677"
+    ],
+    [
+      "fn-matches.re",
+      "re00678"
+    ],
+    [
+      "fn-matches.re",
+      "re00679"
+    ],
+    [
+      "fn-matches.re",
+      "re00680"
+    ],
+    [
+      "fn-matches.re",
+      "re00681"
+    ],
+    [
+      "fn-matches.re",
+      "re00682"
+    ],
+    [
+      "fn-matches.re",
+      "re00683"
+    ],
+    [
+      "fn-matches.re",
+      "re00684"
+    ],
+    [
+      "fn-matches.re",
+      "re00685"
+    ],
+    [
+      "fn-matches.re",
+      "re00686"
+    ],
+    [
+      "fn-matches.re",
+      "re00687"
+    ],
+    [
+      "fn-matches.re",
+      "re00688"
     ],
     [
       "fn-matches.re",
@@ -18272,6 +18356,10 @@
     ],
     [
       "fn-matches.re",
+      "re00750"
+    ],
+    [
+      "fn-matches.re",
       "re00751"
     ],
     [
@@ -18281,6 +18369,10 @@
     [
       "fn-matches.re",
       "re00753"
+    ],
+    [
+      "fn-matches.re",
+      "re00754"
     ],
     [
       "fn-matches.re",
@@ -18313,6 +18405,10 @@
     [
       "fn-matches.re",
       "re00762"
+    ],
+    [
+      "fn-matches.re",
+      "re00763"
     ],
     [
       "fn-matches.re",
@@ -18525,6 +18621,10 @@
     [
       "fn-matches.re",
       "re00816"
+    ],
+    [
+      "fn-matches.re",
+      "re00817"
     ],
     [
       "fn-matches.re",
@@ -18900,6 +19000,10 @@
     ],
     [
       "fn-matches.re",
+      "re00911"
+    ],
+    [
+      "fn-matches.re",
       "re00912"
     ],
     [
@@ -19197,6 +19301,14 @@
     [
       "fn-matches.re",
       "re00985"
+    ],
+    [
+      "fn-matches.re",
+      "re00988"
+    ],
+    [
+      "fn-matches.re",
+      "re00989"
     ],
     [
       "fn-matches.re",
