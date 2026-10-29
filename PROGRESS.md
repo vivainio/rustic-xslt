@@ -1846,3 +1846,13 @@ conformance claims. Smaller tested increments are committed independently.
 - Added a dynamic US-ASCII regression that verifies character-reference output.
 - Validation: result-document tests, all-target/all-feature Clippy and the full
   874-case pinned XSLT regression gate pass without regressions.
+
+## Increment 156: result-document method AVTs
+
+- Result-document `method` accepts AVTs and selects the supported XML, HTML,
+  XHTML or text serializer from the evaluated value. Expressions participate
+  in static scope checks. Added a dynamic text-method regression.
+- The pinned XSLT gate has 875 passing cases (one new, zero regressions),
+  280 engine failures, 264 harness errors and 153 profile exclusions.
+- Validation: result-document tests, all-target/all-feature Clippy and the full
+  pinned XSLT regression gate pass.

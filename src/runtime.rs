@@ -2165,7 +2165,22 @@ fn run_tasks<'a>(
                                 Markup::Xml => "xml",
                             }
                         };
-                        let method = spec.method.as_deref().unwrap_or(default_method);
+                        let method_override = spec
+                            .method
+                            .as_ref()
+                            .map(|value| parts(value, &focus, &env, budget, sheet.backwards))
+                            .transpose()?;
+                        let method = method_override
+                            .as_deref()
+                            .map(str::trim)
+                            .unwrap_or(default_method);
+                        if !matches!(method, "xml" | "html" | "xhtml" | "text") {
+                            return Err(Diagnostic::new(
+                                "RUST_XSLT_UNSUPPORTED",
+                                format!("unsupported result document method: {method}"),
+                                "run",
+                            ));
+                        }
                         let text_method = method == "text";
                         let markup = match method {
                             "html" => Markup::Html,

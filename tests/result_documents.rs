@@ -83,3 +83,9 @@ fn result_document_encoding_is_evaluated_in_the_caller_context() {
     let result = run(r#"<xsl:variable name="encoding" select="'US-ASCII'"/><xsl:result-document encoding="{$encoding}"><out>é</out></xsl:result-document>"#).unwrap();
     assert_eq!(result.principal, "<out>&#xE9;</out>");
 }
+
+#[test]
+fn result_document_method_is_evaluated_in_the_caller_context() {
+    let result = run(r#"<xsl:variable name="method" select="'text'"/><xsl:result-document method="{$method}"><out>a &amp; b</out></xsl:result-document>"#).unwrap();
+    assert_eq!(result.principal, "a & b");
+}

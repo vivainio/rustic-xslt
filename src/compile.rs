@@ -88,7 +88,7 @@ pub(crate) struct Catch {
 #[derive(Debug)]
 pub(crate) struct ResultDocumentSpec {
     pub href: Vec<Expr>,
-    pub method: Option<String>,
+    pub method: Option<Vec<Expr>>,
     pub format: Option<(Vec<Expr>, BTreeMap<String, String>)>,
     pub omit_declaration: Option<Vec<Expr>>,
     pub standalone: Option<Vec<Expr>>,
@@ -1294,7 +1294,9 @@ fn body(
                             .transpose()?;
                         let method = n.attribute("method");
                         if method.is_some_and(|method| {
-                            !matches!(method, "xml" | "html" | "xhtml" | "text")
+                            !method.contains('{')
+                                && !method.contains('}')
+                                && !matches!(method, "xml" | "html" | "xhtml" | "text")
                         }) {
                             return Err(error(n, "unsupported result document method"));
                         }
@@ -1314,7 +1316,7 @@ fn body(
                                 .map(|h| avt(n, h))
                                 .transpose()?
                                 .unwrap_or_default(),
-                            method: method.map(str::to_owned),
+                            method: method.map(|value| avt(n, value)).transpose()?,
                             format: n
                                 .attribute("format")
                                 .map(|value| avt(n, value).map(|parts| (parts, namespaces(n))))
@@ -3370,6 +3372,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                         &spec.byte_order_mark,
                         &spec.standalone,
                         &spec.encoding,
+                        &spec.method,
                     ]
                     .into_iter()
                     .flatten()
