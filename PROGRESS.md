@@ -2120,3 +2120,13 @@ conformance claims. Smaller tested increments are committed independently.
   undeclared variables inside an unexecuted branch.
 - Validation: thirteen result-document tests, all-target/all-feature Clippy,
   formatting and diff checks pass. Serialization behavior is unchanged.
+
+## Increment 185: HTML metadata implementation requirements
+
+- Inspected remaining metadata fixtures and the delayed-start-tag serializer.
+  Recorded insertion, existing-meta replacement, namespace, capture and output
+  limit requirements in tools/conformance/HTML_METADATA.md using the W3C rules.
+- Metadata insertion must use node-aware suppression of existing direct child
+  declarations rather than broad serialized-string replacement. Default-method
+  detection remains separate from explicit HTML/XHTML serialization.
+- No runtime behavior changed in this increment.
