@@ -103,3 +103,34 @@ fn nan_survives_min_max_and_common_numeric_promotion() {
         assert_eq!(sheet(expr).transform("<r/>").unwrap(), "NaN");
     }
 }
+
+#[test]
+fn min_max_retain_selected_integer_restriction_types_without_primitive_promotion() {
+    for (expr, expected) in [
+        ("min((xs:byte(1),xs:int(2))) instance of xs:byte", "true"),
+        ("max((xs:byte(1),xs:int(2))) instance of xs:int", "true"),
+        ("min((xs:byte(1),2.0)) instance of xs:byte", "true"),
+        ("max((1.0,xs:short(2))) instance of xs:short", "true"),
+        ("min((xs:byte(1),xs:float(2))) instance of xs:float", "true"),
+        ("max((xs:byte(2),1e0)) instance of xs:double", "true"),
+    ] {
+        assert_eq!(sheet(expr).transform("<r/>").unwrap(), expected, "{expr}");
+    }
+}
+#[test]
+fn min_max_retain_uri_type_unless_mixed_with_string_values() {
+    for (expr, expected) in [
+        (
+            "min((xs:anyURI('a'),xs:anyURI('b'))) instance of xs:anyURI",
+            "true",
+        ),
+        (
+            "max((xs:anyURI('a'),xs:anyURI('b'))) instance of xs:anyURI",
+            "true",
+        ),
+        ("min((xs:anyURI('a'),'b')) instance of xs:string", "true"),
+        ("max(('a',xs:anyURI('b'))) instance of xs:string", "true"),
+    ] {
+        assert_eq!(sheet(expr).transform("<r/>").unwrap(), expected, "{expr}");
+    }
+}

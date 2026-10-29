@@ -786,5 +786,16 @@ conformance claims. Smaller tested increments are committed independently.
   671 profile exclusions. All selected floor, ceiling, round-half-to-even and
   integer-divide applicable cases pass; older-XPath round arity remains named.
 
+## Increment 64: subtype-preserving extrema
+
+- min/max retain selected integer restriction and decimal/integer values when
+  no primitive promotion is needed; float/double mixtures still promote.
+- Homogeneous URI extrema retain anyURI type; URI/string mixtures promote to
+  strings. Equal extrema may retain either selected input type as permitted.
+- 380 Rust integration tests, 27 harness tests and Clippy/format pass. All 382
+  XSLT cases remain green; QT3 gate grows by two to 3,384.
+- Same 4,398 QT3 cases: 3,384 pass / 271 engine failures / 72 harness errors /
+  671 profile exclusions. No previous passes regress.
+
 Next: derived string types and QName accessors.
 

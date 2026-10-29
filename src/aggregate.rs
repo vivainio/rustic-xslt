@@ -64,7 +64,6 @@ pub(crate) fn evaluate<'a>(
         budget.tick()?;
         values.push(match atomize(item) {
             Item::Untyped(s) => Item::Number(Number::cast("double", &s)?),
-            Item::AnyUri(s) => Item::String(s),
             other => other,
         });
     }
@@ -86,7 +85,11 @@ pub(crate) fn evaluate<'a>(
             let Item::Number(n) = value else {
                 unreachable!()
             };
-            numbers.push(promoted(&n, target)?);
+            numbers.push(if matches!(name, "min" | "max") && target <= 1 {
+                n
+            } else {
+                promoted(&n, target)?
+            });
         }
         let mut result = numbers[0].clone();
         for number in numbers.iter().skip(1) {
@@ -120,7 +123,19 @@ pub(crate) fn evaluate<'a>(
             "aggregate requires supported numeric values",
         ));
     }
-    let strings = values.iter().all(|v| matches!(v, Item::String(_)));
+    if values.iter().any(|v| matches!(v, Item::AnyUri(_)))
+        && values.iter().any(|v| matches!(v, Item::String(_)))
+    {
+        for value in &mut values {
+            budget.tick()?;
+            if let Item::AnyUri(text) = value {
+                *value = Item::String(std::mem::take(text));
+            }
+        }
+    }
+    let strings = values
+        .iter()
+        .all(|v| matches!(v, Item::String(_) | Item::AnyUri(_)));
     let booleans = values.iter().all(|v| matches!(v, Item::Boolean(_)));
     if !strings && !booleans {
         return Err(error(
@@ -132,7 +147,7 @@ pub(crate) fn evaluate<'a>(
     for value in values.into_iter().skip(1) {
         budget.tick()?;
         let order = match (&result, &value) {
-            (Item::String(a), Item::String(b)) => a.cmp(b),
+            (Item::String(a) | Item::AnyUri(a), Item::String(b) | Item::AnyUri(b)) => a.cmp(b),
             (Item::Boolean(a), Item::Boolean(b)) => a.cmp(b),
             _ => unreachable!(),
         };

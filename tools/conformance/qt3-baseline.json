@@ -5001,6 +5001,10 @@
     ],
     [
       "fn-max",
+      "fn-max-17"
+    ],
+    [
+      "fn-max",
       "cbcl-max-019"
     ],
     [
@@ -5706,6 +5710,10 @@
     [
       "fn-min",
       "fn-min-16"
+    ],
+    [
+      "fn-min",
+      "fn-min-17"
     ],
     [
       "fn-namespace-uri-from-QName",
