@@ -114,9 +114,11 @@ pub(crate) fn indent(xml: &str) -> String {
                 out.push_str(text);
             }
             Token::Text(text) => {
-                if stack.is_empty() || parent_flat {
-                    out.push_str(text);
-                } else if !text.trim_matches([' ', '\t', '\r', '\n']).is_empty() {
+                // Whitespace-only text inside element-only content is replaced by indentation.
+                if stack.is_empty()
+                    || parent_flat
+                    || !text.trim_matches([' ', '\t', '\r', '\n']).is_empty()
+                {
                     out.push_str(text);
                 }
             }

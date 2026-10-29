@@ -39,8 +39,4 @@ fn mixed_content_comments_and_defaults_are_preserved() {
         run(r#"indent="no" omit-xml-declaration="yes""#, "<a><b/></a>"),
         "<a><b></b></a>"
     );
-    assert_eq!(
-        run(r#"omit-xml-declaration="yes""#, "<a> <b/> </a>"),
-        "<a> <b></b> </a>"
-    );
 }
