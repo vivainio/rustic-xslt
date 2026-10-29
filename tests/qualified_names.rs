@@ -293,3 +293,48 @@ fn malformed_avt_braces_report_standard_errors() {
         );
     }
 }
+
+#[test]
+fn unicode_component_names_and_xpath_tokens() {
+    let source = sheet(
+        r##"
+      <xsl:variable name="a:é" select="'global'"/>
+      <xsl:function name="a:名"><xsl:param name="é"/><xsl:sequence select="$é"/></xsl:function>
+      <xsl:template match="/">
+        <xsl:variable name="Q{urn:a}名" select="Q{urn:a}名($b:é)"/>
+        <xsl:value-of select="($Q{urn:a}名, Q{urn:doc}根/Q{urn:doc}é, *:根/*:é, Q{urn:doc}根/@*:名)" separator=":"/>
+      </xsl:template>
+    "##,
+    );
+    assert_eq!(
+        Stylesheet::compile(&source)
+            .unwrap()
+            .transform("<根 xmlns='urn:doc' 名='attribute'><é>node</é></根>")
+            .unwrap(),
+        "global:node:node:attribute"
+    );
+}
+
+#[test]
+fn unicode_external_template_names() {
+    let source = sheet(r##"<xsl:template name="a:名">ok</xsl:template>"##);
+    let options = TransformOptions {
+        initial_template: Some("Q{urn:a}名".into()),
+        ..Default::default()
+    };
+    assert_eq!(
+        Stylesheet::compile(&source)
+            .unwrap()
+            .transform_with_options("", &options)
+            .unwrap(),
+        "ok"
+    );
+}
+
+#[test]
+fn unicode_name_continuations_cannot_start_names() {
+    for name in ["Q{urn:a}́bad", "Q{urn:a}·bad", "a:́bad"] {
+        let source = sheet(&format!(r##"<xsl:variable name="{name}"/>"##));
+        assert!(Stylesheet::compile(&source).is_err(), "{name}");
+    }
+}

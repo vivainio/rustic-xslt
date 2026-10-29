@@ -1396,3 +1396,14 @@ conformance claims. Smaller tested increments are committed independently.
   All passing cases are recorded in the regression baseline.
 - Validation: full offline Rust tests, Clippy with warnings denied, formatting,
   all 29 Python harness tests and the full pinned QT3 regression gate pass.
+
+## Increment 124: Unicode component and XPath names
+
+- Component declarations, external entry names and XPath name tokens now use the
+  existing XML NCName rules consistently, including non-ASCII letters, combining
+  marks in continuations, and Unicode URIQualifiedName local names.
+- Added regressions for Unicode variable/function names, external named-template
+  entry, expanded-name paths and local-name wildcards, plus invalid name starts.
+- Validation: full offline Rust suite, Clippy with warnings denied, formatting,
+  diff whitespace checks and all 29 Python harness tests pass. External W3C
+  conformance gates were not rerun for this increment.

@@ -509,9 +509,7 @@ fn tokenize(s: &str) -> Result<Vec<Token>, Diagnostic> {
                 return Err(syntax("unterminated URIQualifiedName"));
             }
             i += 1;
-            while i < chars.len()
-                && (chars[i].is_ascii_alphanumeric() || matches!(chars[i], '_' | '-' | '.'))
-            {
+            while i < chars.len() && crate::qname::xml_ncname_char(chars[i]) {
                 i += 1;
             }
             let wildcard = chars.get(i) == Some(&'*');
@@ -526,12 +524,10 @@ fn tokenize(s: &str) -> Result<Vec<Token>, Diagnostic> {
             };
             crate::qname::resolve(&validation, &BTreeMap::new(), "XPST0003")?;
             out.push(Token::Name(text));
-        } else if c.is_alphabetic() || c == '_' {
+        } else if crate::qname::xml_ncname_start(c) {
             let start = i;
             i += 1;
-            while i < chars.len()
-                && (chars[i].is_alphanumeric() || matches!(chars[i], '_' | '-' | '.'))
-            {
+            while i < chars.len() && crate::qname::xml_ncname_char(chars[i]) {
                 i += 1;
             }
             if chars.get(i) == Some(&':') && !matches!(chars.get(i + 1), Some(':' | '=')) {
@@ -541,16 +537,17 @@ fn tokenize(s: &str) -> Result<Vec<Token>, Diagnostic> {
                     out.push(Token::Name(chars[start..i].iter().collect()));
                     continue;
                 }
-                if !chars.get(i).is_some_and(|c| c.is_alphabetic() || *c == '_') {
+                if !chars
+                    .get(i)
+                    .is_some_and(|c| crate::qname::xml_ncname_start(*c))
+                {
                     // A lone colon (as in `map{$k:1}`) is a separate token.
                     i -= 1;
                     out.push(Token::Name(chars[start..i].iter().collect()));
                     continue;
                 }
                 i += 1;
-                while i < chars.len()
-                    && (chars[i].is_alphanumeric() || matches!(chars[i], '_' | '-' | '.'))
-                {
+                while i < chars.len() && crate::qname::xml_ncname_char(chars[i]) {
                     i += 1;
                 }
             }
@@ -558,13 +555,14 @@ fn tokenize(s: &str) -> Result<Vec<Token>, Diagnostic> {
         } else if c == '*' && chars.get(i + 1) == Some(&':') {
             let start = i;
             i += 2;
-            if !chars.get(i).is_some_and(|c| c.is_alphabetic() || *c == '_') {
+            if !chars
+                .get(i)
+                .is_some_and(|c| crate::qname::xml_ncname_start(*c))
+            {
                 return Err(syntax("expected wildcard local name"));
             }
             i += 1;
-            while i < chars.len()
-                && (chars[i].is_alphanumeric() || matches!(chars[i], '_' | '-' | '.'))
-            {
+            while i < chars.len() && crate::qname::xml_ncname_char(chars[i]) {
                 i += 1;
             }
             out.push(Token::Name(chars[start..i].iter().collect()));
