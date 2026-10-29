@@ -89,3 +89,9 @@ fn result_document_method_is_evaluated_in_the_caller_context() {
     let result = run(r#"<xsl:variable name="method" select="'text'"/><xsl:result-document method="{$method}"><out>a &amp; b</out></xsl:result-document>"#).unwrap();
     assert_eq!(result.principal, "a & b");
 }
+
+#[test]
+fn nested_result_documents_cannot_reuse_an_open_destination() {
+    let error = run(r#"<xsl:result-document href="same.xml"><outer/><xsl:result-document href="same.xml"><inner/></xsl:result-document></xsl:result-document>"#).unwrap_err();
+    assert_eq!(error.code, "XTDE1490");
+}

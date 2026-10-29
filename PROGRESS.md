@@ -1856,3 +1856,12 @@ conformance claims. Smaller tested increments are committed independently.
   280 engine failures, 264 harness errors and 153 profile exclusions.
 - Validation: result-document tests, all-target/all-feature Clippy and the full
   pinned XSLT regression gate pass.
+
+## Increment 157: reserve result destinations before evaluation
+
+- Secondary result URIs are reserved before their bodies execute, so a nested
+  result-document instruction cannot reuse its still-open parent destination.
+  Duplicate destinations report `XTDE1490` without waiting for serialization.
+- Added a regression for nested result documents targeting the same URI.
+- Validation: all six result-document tests, all-target/all-feature Clippy and
+  the full 875-case pinned XSLT regression gate pass without regressions.

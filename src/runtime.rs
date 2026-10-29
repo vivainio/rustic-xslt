@@ -2113,11 +2113,7 @@ fn run_tasks<'a>(
                             }
                             budget.principal_output_claimed = true;
                         }
-                        if budget
-                            .secondary
-                            .iter()
-                            .any(|(existing, _)| *existing == href)
-                        {
+                        if !href.is_empty() && !budget.result_destinations.insert(href.clone()) {
                             return Err(Diagnostic::new(
                                 "XTDE1490",
                                 format!("two result documents for {href}"),

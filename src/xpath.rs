@@ -325,6 +325,7 @@ pub(crate) struct Budget {
     pub decimal_formats: DecimalFormats,
     /// Secondary results (href, serialized content) created by `xsl:result-document`.
     pub secondary: Vec<(String, String)>,
+    pub result_destinations: std::collections::BTreeSet<String>,
     /// Principal-result content emitted by a no-href result document nested in a secondary result.
     pub principal_output: String,
     pub principal_output_claimed: bool,
@@ -346,6 +347,7 @@ impl Budget {
             key_indexes: BTreeMap::new(),
             decimal_formats: DecimalFormats::default(),
             secondary: vec![],
+            result_destinations: Default::default(),
             principal_output: String::new(),
             principal_output_claimed: false,
             secondary_depth: 0,
