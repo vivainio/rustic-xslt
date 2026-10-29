@@ -132,7 +132,19 @@ pub(crate) struct Focus<'a> {
     pub position: usize,
     pub size: usize,
 }
+/// A stylesheet function whose body is a chain of `let` bindings ending in an expression.
+#[derive(Debug)]
+pub(crate) struct UserFunction {
+    pub params: Vec<(String, Option<crate::seqtype::SequenceType>)>,
+    pub body: Expr,
+    pub result: Option<crate::seqtype::SequenceType>,
+}
+/// Global variables are also bound under this prefix so function bodies can reach
+/// them even when a caller's local variable shadows the plain name.
+pub(crate) const GLOBAL_PREFIX: &str = "\u{0}global:";
+pub(crate) type FunctionTable = std::sync::Arc<BTreeMap<(String, usize), UserFunction>>;
 pub(crate) struct Budget {
+    pub functions: FunctionTable,
     remaining: u64,
     pub max_depth: usize,
     pub now: crate::temporal::Temporal,
@@ -140,6 +152,7 @@ pub(crate) struct Budget {
 impl Budget {
     pub fn new(limits: Limits) -> Self {
         Self {
+            functions: FunctionTable::default(),
             remaining: limits.max_steps,
             max_depth: limits.max_depth,
             now: crate::temporal::Temporal::now(),
@@ -804,6 +817,9 @@ impl Parser {
                         None if !n.starts_with("Q{") => name.local,
                         Some("http://www.w3.org/2005/xpath-functions") => name.local,
                         Some("http://www.w3.org/2001/XMLSchema") => format!("xs:{}", name.local),
+                        Some(uri) if !uri.is_empty() => {
+                            return Ok(Expr::Call(format!("Q{{{uri}}}{}", name.local), args));
+                        }
                         _ => {
                             return Err(Diagnostic::new(
                                 "XPST0017",
@@ -1750,10 +1766,64 @@ pub(crate) fn eval<'a>(
                 .iter()
                 .map(|e| eval(e, focus, vars, budget, depth + 1, backwards))
                 .collect::<Result<Vec<_>, _>>()?;
-            function(name, &args, focus, budget, backwards)?
+            if name.starts_with("Q{") {
+                call_user_function(name, args, vars, budget, depth, backwards)?
+            } else {
+                function(name, &args, focus, budget, backwards)?
+            }
         }
     };
     Ok(result)
+}
+fn call_user_function<'a>(
+    name: &str,
+    args: Vec<Value<'a>>,
+    vars: &Variables<'a>,
+    budget: &mut Budget,
+    depth: usize,
+    backwards: bool,
+) -> Result<Value<'a>, Diagnostic> {
+    let functions = budget.functions.clone();
+    let function = functions
+        .get(&(name.to_owned(), args.len()))
+        .ok_or_else(|| {
+            err(
+                "XPST0017",
+                format!("unknown function: {name}#{}", args.len()),
+            )
+        })?;
+    let mut scope: Variables<'a> = vars
+        .iter()
+        .filter_map(|(k, v)| {
+            let plain = k.strip_prefix(GLOBAL_PREFIX)?;
+            Some([(plain.to_owned(), v.clone()), (k.clone(), v.clone())])
+        })
+        .flatten()
+        .collect();
+    for ((param, ty), value) in function.params.iter().zip(args) {
+        let value = match ty {
+            Some(ty) => ty.convert(value, "XTTE0790")?,
+            None => value,
+        };
+        scope.insert(param.clone(), value);
+    }
+    let absent = Focus {
+        item: Item::Absent,
+        position: 0,
+        size: 0,
+    };
+    let result = eval(
+        &function.body,
+        &absent,
+        &scope,
+        budget,
+        depth + 1,
+        backwards,
+    )?;
+    match &function.result {
+        Some(ty) => ty.convert(result, "XTTE0780"),
+        None => Ok(result),
+    }
 }
 fn temporal_arithmetic<'a>(
     op: &str,

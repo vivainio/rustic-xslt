@@ -977,3 +977,15 @@ conformance claims. Smaller tested increments are committed independently.
 - Added fn:path() producing Q{uri}name[position] steps, @attribute steps, text(),
   comment() and processing-instruction() steps, and the root() prefix for
   parentless trees.
+
+## Increment 80: xsl:function
+
+- Added top-level xsl:function declarations: namespaced names (XTSE0080), typed
+  parameters and results (XTTE0790/XTTE0780), arity overloading, duplicate
+  detection (XTSE0770), recursion within the XPath depth limit, and static checks of
+  body variables.
+- Bodies are limited to xsl:variable declarations followed by one xsl:sequence;
+  richer sequence constructors are reported as unsupported rather than guessed.
+- Function bodies see global variables and their own parameters only; globals are
+  also bound under a reserved prefix so a caller's local variable cannot shadow them.
+- Calls to unknown stylesheet functions fail at run time with XPST0017.

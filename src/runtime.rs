@@ -426,6 +426,7 @@ pub(crate) fn transform_record(
     position: usize,
     inherited_preserve: bool,
 ) -> Result<String, Diagnostic> {
+    budget.functions = sheet.functions.clone();
     let prepared = crate::whitespace::prepare(sheet, source, inherited_preserve)?;
     let source = prepared.as_deref().unwrap_or(source);
     let doc = crate::parse(source, "parse")?;
@@ -489,6 +490,7 @@ fn execute<'a>(
     declaration: bool,
     trees: &crate::trees::Trees<'a>,
 ) -> Result<String, Diagnostic> {
+    budget.functions = sheet.functions.clone();
     let mut parameters = Variables::new();
     for (name, value) in &options.parameters {
         budget.tick()?;
@@ -528,6 +530,7 @@ fn execute<'a>(
                 if let Some(ty) = &b.ty {
                     v = ty.convert(v, "XTTE0590")?;
                 }
+                globals.insert(format!("{}{}", xpath::GLOBAL_PREFIX, b.name), v.clone());
                 globals.insert(b.name.clone(), v);
                 continue;
             }
@@ -611,6 +614,7 @@ fn execute<'a>(
                     if let Some(ty) = &b.ty {
                         v = ty.convert(v, if b.parameter { "XTTE0600" } else { "XTTE0570" })?;
                     }
+                    globals.insert(format!("{}{}", xpath::GLOBAL_PREFIX, b.name), v.clone());
                     globals.insert(b.name.clone(), v);
                 }
                 Err(e) if e.code == "XPST0008" => remaining.push(b),

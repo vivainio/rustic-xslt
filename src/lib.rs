@@ -143,6 +143,7 @@ pub struct Stylesheet {
     default_mode: String,
     modes: std::collections::BTreeMap<String, mode::Mode>,
     globals: Vec<compile::Binding>,
+    functions: xpath::FunctionTable,
     space_rules: Vec<whitespace::Rule>,
 }
 impl Stylesheet {

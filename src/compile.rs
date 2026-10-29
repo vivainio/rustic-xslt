@@ -946,6 +946,7 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
     let mut sheet = Stylesheet {
         templates: vec![],
         globals: vec![],
+        functions: Default::default(),
         space_rules: vec![],
         default_mode: default_mode(root)?,
         modes: BTreeMap::new(),
@@ -959,6 +960,7 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
         },
     };
     let mut output_seen = false;
+    let mut functions: BTreeMap<(String, usize), xpath::UserFunction> = BTreeMap::new();
     for n in root.children() {
         if n.is_text() && !xml_space(n.text().unwrap_or_default()) {
             return Err(error(n, "unexpected top-level text"));
@@ -1240,9 +1242,115 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
                     _ => return Err(error(n, "invalid omit-xml-declaration")),
                 };
             }
+            "function" => {
+                attrs(
+                    n,
+                    &[
+                        "name",
+                        "as",
+                        "visibility",
+                        "override",
+                        "override-extension-function",
+                        "new-each-time",
+                        "cache",
+                    ],
+                )?;
+                let id = component_name(
+                    n,
+                    n.attribute("name")
+                        .ok_or_else(|| static_error(n, "XTSE0010", "function requires a name"))?,
+                )?;
+                if crate::qname::parts(&id).0.is_none_or(str::is_empty) {
+                    return Err(static_error(
+                        n,
+                        "XTSE0080",
+                        "function names need a namespace",
+                    ));
+                }
+                check_component_namespace(n, &id, false)?;
+                let result = n
+                    .attribute("as")
+                    .map(|s| crate::seqtype::SequenceType::parse(s, &namespaces(n)))
+                    .transpose()?;
+                let mut params: Vec<(String, Option<crate::seqtype::SequenceType>)> = vec![];
+                let mut content = false;
+                for c in n.children() {
+                    if c.is_element()
+                        && c.tag_name().namespace() == Some(XSL)
+                        && c.tag_name().name() == "param"
+                    {
+                        if content {
+                            return Err(error(c, "function parameters must precede the body"));
+                        }
+                        attrs(c, &["name", "as"])?;
+                        let name = component_name(
+                            c,
+                            c.attribute("name").ok_or_else(|| {
+                                static_error(c, "XTSE0010", "param requires a name")
+                            })?,
+                        )?;
+                        if params.iter().any(|(p, _)| *p == name) {
+                            return Err(static_error(
+                                c,
+                                "XTSE0580",
+                                "duplicate function parameter",
+                            ));
+                        }
+                        let ty = c
+                            .attribute("as")
+                            .map(|s| crate::seqtype::SequenceType::parse(s, &namespaces(c)))
+                            .transpose()?;
+                        empty(c)?;
+                        params.push((name, ty));
+                    } else if c.is_element()
+                        || c.is_text() && !xml_space(c.text().unwrap_or_default())
+                    {
+                        content = true;
+                    }
+                }
+                let mut bindings = vec![];
+                let mut result_expr = None;
+                for instruction in body(n, 1, true)? {
+                    match instruction {
+                        Instruction::Bind(Binding {
+                            name,
+                            value: BindingValue::Select(select),
+                            ..
+                        }) if result_expr.is_none() => bindings.push((name, select)),
+                        Instruction::Sequence(e) if result_expr.is_none() => result_expr = Some(e),
+                        _ => {
+                            return Err(error(
+                                n,
+                                "function bodies are limited to variables followed by xsl:sequence",
+                            ));
+                        }
+                    }
+                }
+                let mut function_body = result_expr.unwrap_or(Expr::Sequence(vec![]));
+                for (name, select) in bindings.into_iter().rev() {
+                    function_body = Expr::Let(name, Box::new(select), Box::new(function_body));
+                }
+                let key = (id, params.len());
+                if functions.contains_key(&key) {
+                    return Err(static_error(
+                        n,
+                        "XTSE0770",
+                        "duplicate function declaration",
+                    ));
+                }
+                functions.insert(
+                    key,
+                    xpath::UserFunction {
+                        params,
+                        body: function_body,
+                        result,
+                    },
+                );
+            }
             other => return Err(error(n, format!("unsupported declaration: {other}"))),
         }
     }
+    sheet.functions = std::sync::Arc::new(functions);
     validate(&sheet)?;
     Ok(sheet)
 }
@@ -1477,6 +1585,11 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 instructions(body, globals.clone(), &templates)?
             }
         }
+    }
+    for function in sheet.functions.values() {
+        let mut scope = globals.clone();
+        scope.extend(function.params.iter().map(|(p, _)| p.clone()));
+        expression(&function.body, &scope)?;
     }
     for t in &sheet.templates {
         if let Some(branches) = &t.pattern {
