@@ -1075,3 +1075,10 @@ conformance claims. Smaller tested increments are committed independently.
   pictures such as 9.9999e999, NaN and infinity, and FODF1310 for invalid pictures.
 - Named decimal formats (xsl:decimal-format) are not implemented and raise XTDE1280.
 - 198 of the 269 fn-format-number cases pass and are in the gate.
+
+## Increment 90: xsl:analyze-string
+
+- Added xsl:analyze-string with matching and non-matching bodies, AVT regex and
+  flags, regex-group() (unmatched and out-of-range groups are empty strings),
+  XTDE1150 for patterns that match the empty string and XTSE1130 for a missing
+  body. The fn:analyze-string function still needs element construction in XPath.

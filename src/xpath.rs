@@ -218,6 +218,7 @@ pub(crate) struct KeyDefinition {
 }
 /// Variable names under which `xsl:for-each-group` publishes the current group.
 pub(crate) const CURRENT_GROUP: &str = "\u{0}current-group";
+pub(crate) const REGEX_GROUPS: &str = "\u{0}regex-groups";
 pub(crate) const CURRENT_KEY: &str = "\u{0}current-grouping-key";
 pub(crate) type KeyTable = std::sync::Arc<BTreeMap<String, Vec<KeyDefinition>>>;
 pub(crate) type FunctionTable = std::sync::Arc<BTreeMap<(String, usize), UserFunction>>;
@@ -1509,6 +1510,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         name if crate::maps::arity(name).is_some() => crate::maps::arity(name).unwrap(),
         "key" => (2, 3),
         "current-group" | "current-grouping-key" => (0, 0),
+        "regex-group" => (1, 1),
         "path" => (0, 1),
         "matches" => (2, 3),
         "replace" => (3, 4),
@@ -2272,6 +2274,16 @@ fn call_named<'a>(
         vars.get(CURRENT_KEY)
             .cloned()
             .ok_or_else(|| err("XTDE1071", "there is no current grouping key"))?
+    } else if name == "regex-group" {
+        let index = match args[0].as_slice() {
+            [Item::Number(n)] => n.double(),
+            _ => return Err(err("XPTY0004", "regex-group requires an integer")),
+        };
+        let groups = vars.get(REGEX_GROUPS);
+        match groups.and_then(|g| g.get(index as usize).filter(|_| index >= 0.0)) {
+            Some(group) => vec![group.clone()],
+            None => vec![Item::String(String::new())],
+        }
     } else if name == "key" {
         call_key(args, focus, vars, budget, backwards)?
     } else if name.starts_with("Q{") {

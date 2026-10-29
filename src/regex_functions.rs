@@ -292,3 +292,46 @@ pub(crate) fn evaluate<'a>(
     append(&mut result, &input[previous..], budget)?;
     Ok(vec![Item::String(result)])
 }
+
+/// One piece of `xsl:analyze-string` input: a match with its capture groups
+/// (index 0 is the whole match; unmatched groups are empty) or the text between matches.
+pub(crate) enum Segment {
+    Match(Vec<String>),
+    NonMatch(String),
+}
+pub(crate) fn analyze(
+    input: &str,
+    pattern: &str,
+    flags: &str,
+    budget: &mut Budget,
+) -> Result<Vec<Segment>, Diagnostic> {
+    let regex = compile(pattern, flags, budget)?;
+    if regex.is_match("") {
+        return Err(error("XTDE1150", "pattern matches an empty string"));
+    }
+    budget.charge(
+        input
+            .len()
+            .saturating_add(1)
+            .saturating_mul(pattern.len().saturating_add(1)),
+    )?;
+    let mut segments = vec![];
+    let mut previous = 0;
+    for captures in regex.captures_iter(input) {
+        budget.tick()?;
+        let found = captures.get(0).unwrap();
+        if found.start() > previous {
+            segments.push(Segment::NonMatch(input[previous..found.start()].into()));
+        }
+        segments.push(Segment::Match(
+            (0..captures.len())
+                .map(|i| captures.get(i).map_or(String::new(), |m| m.as_str().into()))
+                .collect(),
+        ));
+        previous = found.end();
+    }
+    if previous < input.len() {
+        segments.push(Segment::NonMatch(input[previous..].into()));
+    }
+    Ok(segments)
+}

@@ -39,6 +39,13 @@ pub(crate) enum Instruction {
     Call(String, Vec<Binding>),
     NextMatch(Vec<Binding>),
     UseSets(Vec<String>),
+    AnalyzeString {
+        select: Expr,
+        regex: Vec<Expr>,
+        flags: Vec<Expr>,
+        matching: Vec<Instruction>,
+        non_matching: Vec<Instruction>,
+    },
     LiteralAttributes(Vec<(crate::result::Name, Vec<Expr>)>),
 }
 #[derive(Debug, Default)]
@@ -394,6 +401,7 @@ pub(crate) fn raw_result_body(body: &[Instruction]) -> bool {
         | Instruction::Comment(_)
         | Instruction::Message(..)
         | Instruction::UseSets(_)
+        | Instruction::AnalyzeString { .. }
         | Instruction::LiteralAttributes(_)
         | Instruction::Pi(..)
         | Instruction::Attribute(..) => true,
@@ -796,6 +804,68 @@ fn body(
                     "comment" => {
                         attrs(n, &["select"])?;
                         out.push(Instruction::Comment(content(n, depth + 1)?));
+                    }
+                    "analyze-string" => {
+                        attrs(n, &["select", "regex", "flags"])?;
+                        let mut matching = None;
+                        let mut non_matching = None;
+                        for c in n.children() {
+                            if c.is_text() && !xml_space(c.text().unwrap_or_default()) {
+                                return Err(static_error(
+                                    c,
+                                    "XTSE0010",
+                                    "unexpected text in xsl:analyze-string",
+                                ));
+                            }
+                            if !c.is_element() {
+                                continue;
+                            }
+                            if c.tag_name().namespace() != Some(XSL) {
+                                return Err(static_error(
+                                    c,
+                                    "XTSE0010",
+                                    "unexpected element in xsl:analyze-string",
+                                ));
+                            }
+                            match c.tag_name().name() {
+                                "matching-substring"
+                                    if matching.is_none() && non_matching.is_none() =>
+                                {
+                                    attrs(c, &[])?;
+                                    matching = Some(body(c, depth + 1, false)?);
+                                }
+                                "non-matching-substring" if non_matching.is_none() => {
+                                    attrs(c, &[])?;
+                                    non_matching = Some(body(c, depth + 1, false)?);
+                                }
+                                "fallback" => {}
+                                _ => {
+                                    return Err(static_error(
+                                        c,
+                                        "XTSE0010",
+                                        "invalid child of xsl:analyze-string",
+                                    ));
+                                }
+                            }
+                        }
+                        if matching.is_none() && non_matching.is_none() {
+                            return Err(static_error(
+                                n,
+                                "XTSE1130",
+                                "xsl:analyze-string needs a matching or non-matching child",
+                            ));
+                        }
+                        out.push(Instruction::AnalyzeString {
+                            select: expr(n, required(n, "select")?)?,
+                            regex: avt(n, required(n, "regex")?)?,
+                            flags: n
+                                .attribute("flags")
+                                .map(|f| avt(n, f))
+                                .transpose()?
+                                .unwrap_or_default(),
+                            matching: matching.unwrap_or_default(),
+                            non_matching: non_matching.unwrap_or_default(),
+                        });
                     }
                     "message" => {
                         attrs(n, &["select", "terminate", "error-code"])?;
@@ -1728,6 +1798,19 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 Instruction::Attribute(n, c) => {
                     cname(n, &scope)?;
                     value(c, &scope, templates)?;
+                }
+                Instruction::AnalyzeString {
+                    select,
+                    regex,
+                    flags,
+                    matching,
+                    non_matching,
+                } => {
+                    expression(select, &scope)?;
+                    parts(regex, &scope)?;
+                    parts(flags, &scope)?;
+                    instructions(matching, scope.clone(), templates)?;
+                    instructions(non_matching, scope.clone(), templates)?;
                 }
                 Instruction::UseSets(names) => {
                     for name in names {

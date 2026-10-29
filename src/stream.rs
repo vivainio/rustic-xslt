@@ -256,6 +256,11 @@ fn safe_global_body(body: &[Instruction]) -> Result<(), Diagnostic> {
                 }
                 safe_global_body(body)?;
             }
+            Instruction::AnalyzeString { .. } => {
+                return Err(unsupported(
+                    "xsl:analyze-string is not supported when streaming",
+                ));
+            }
             Instruction::UseSets(_) => {
                 return Err(unsupported(
                     "attribute sets are not supported when streaming",
@@ -439,6 +444,11 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                             }
                         }
                         bodies.push(body);
+                    }
+                    Instruction::AnalyzeString { .. } => {
+                        return Err(unsupported(
+                            "xsl:analyze-string is not supported when streaming",
+                        ));
                     }
                     Instruction::UseSets(_) => {
                         return Err(unsupported(

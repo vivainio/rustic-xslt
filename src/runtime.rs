@@ -1240,6 +1240,7 @@ fn run_tasks<'a>(
                             | Instruction::NextMatch(_)
                             | Instruction::ForEach(..)
                             | Instruction::ForEachGroup(..)
+                            | Instruction::AnalyzeString { .. }
                             | Instruction::If(..)
                             | Instruction::Choose(_)
                             | Instruction::Element { .. }
@@ -1596,6 +1597,61 @@ fn run_tasks<'a>(
                                 Frame {
                                     focus: f,
                                     env: env.clone(),
+                                    depth: depth + 1,
+                                    mode: mode.clone(),
+                                    tunnel: tunnel.clone(),
+                                    rule: None,
+                                },
+                            ));
+                        }
+                    }
+                    Instruction::AnalyzeString {
+                        select,
+                        regex,
+                        flags,
+                        matching,
+                        non_matching,
+                    } => {
+                        let value = xpath::eval(select, &focus, &env, budget, 0, sheet.backwards)?;
+                        let input = match value.as_slice() {
+                            [] => String::new(),
+                            [item] => xpath::atomize(item).string(),
+                            _ => {
+                                return Err(Diagnostic::new(
+                                    "XTTE1540",
+                                    "xsl:analyze-string requires a single string",
+                                    "run",
+                                ));
+                            }
+                        };
+                        let pattern = parts(regex, &focus, &env, budget, sheet.backwards)?;
+                        let flags = parts(flags, &focus, &env, budget, sheet.backwards)?;
+                        let segments =
+                            crate::regex_functions::analyze(&input, &pattern, &flags, budget)?;
+                        for segment in segments.into_iter().rev() {
+                            let (body, text, groups) = match segment {
+                                crate::regex_functions::Segment::Match(groups) => {
+                                    (matching, groups[0].clone(), groups)
+                                }
+                                crate::regex_functions::Segment::NonMatch(text) => {
+                                    (non_matching, text, vec![])
+                                }
+                            };
+                            let mut inner = (*env).clone();
+                            inner.insert(
+                                xpath::REGEX_GROUPS.into(),
+                                groups.into_iter().map(Item::String).collect(),
+                            );
+                            tasks.push(Task::Body(
+                                body,
+                                0,
+                                Frame {
+                                    focus: Focus {
+                                        item: Item::String(text),
+                                        position: 1,
+                                        size: 1,
+                                    },
+                                    env: Rc::new(inner),
                                     depth: depth + 1,
                                     mode: mode.clone(),
                                     tunnel: tunnel.clone(),
