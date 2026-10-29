@@ -1716,3 +1716,16 @@ conformance claims. Smaller tested increments are committed independently.
   descendant patterns also require a document-rooted input tree.
 - Validation: the focused pattern suite and the pinned XSLT gate pass without
   losing any of the 775 recorded cases.
+
+## Increment 144: catalog initial-template entry
+
+- When a catalog test has no source and no explicit initial-template selection,
+  the harness now starts the stylesheet's `xsl:initial-template`, if present.
+  It leaves source-backed cases and explicit entry selections unchanged.
+- Mode declarations now accept and validate `warning-on-multiple-match`; issuing
+  that optional warning remains disabled. Added harness and mode-boolean tests.
+- The expanded pinned XSLT gate now has 808 passing cases (33 new, zero regressions),
+  347 engine failures, 264 harness errors and 153 profile exclusions across 1,572
+  selected cases.
+- Validation: all 43 Python harness tests, mode and pattern suites and the pinned
+  XSLT gate pass.

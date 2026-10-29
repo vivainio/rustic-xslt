@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 import xml.etree.ElementTree as ET
-from run import NS, HarnessError, assertion, canonical, environment, fragment, parameters, preflight
+from run import NS, HarnessError, assertion, canonical, environment, fragment, infer_initial_template, parameters, preflight
 
 def node(xml):
     return ET.fromstring(xml)
@@ -11,6 +11,20 @@ class BaselineSelection(unittest.TestCase):
         from run import baseline_sets
         baseline = {"selected_sets": ["passing", "no-passes-yet"], "passing_cases": [["passing", "case"]]}
         self.assertEqual(baseline_sets(baseline), {"passing", "no-passes-yet"})
+
+    def test_empty_source_uses_xsl_initial_template_when_present(self):
+        request = {"source": "", "stylesheet": '<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template name="xsl:initial-template"/></xsl:stylesheet>'}
+        infer_initial_template(request)
+        self.assertEqual(request["initialTemplate"], "Q{http://www.w3.org/1999/XSL/Transform}initial-template")
+
+    def test_initial_template_inference_respects_source_and_explicit_choice(self):
+        stylesheet = '<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template name="xsl:initial-template"/></xsl:stylesheet>'
+        request = {"source": "<r/>", "stylesheet": stylesheet}
+        infer_initial_template(request)
+        self.assertNotIn("initialTemplate", request)
+        request = {"source": "", "stylesheet": stylesheet, "initialTemplate": "main"}
+        infer_initial_template(request)
+        self.assertEqual(request["initialTemplate"], "main")
 
 class Assertions(unittest.TestCase):
     def test_namespace_attributes_compare_without_python_none_ordering(self):

@@ -19,6 +19,7 @@ from urllib.parse import urljoin
 from xml.sax.saxutils import quoteattr
 
 NS = "{http://www.w3.org/2012/10/xslt-test-catalog}"
+XSL = "{http://www.w3.org/1999/XSL/Transform}"
 PIN = "fddf1cf920087e791f13315d68dfbe874d97dc56"
 ROOT = Path(__file__).resolve().parents[2]
 NAMESPACES = {}
@@ -426,9 +427,23 @@ def run_case(case, base, registry, driver):
             raise HarnessError(f"unsupported test entry component: {kind}")
     if "stylesheet" not in request:
         raise HarnessError("no stylesheet")
+    infer_initial_template(request)
     response = driver.call(request)
     answers = [assertion(a, response, base, driver) for a in result]
     return ("pass", "") if all(r[0] for r in answers) else ("fail", "; ".join(r[1] for r in answers if not r[0]))
+
+def infer_initial_template(request):
+    if request.get("source") or "initialTemplate" in request:
+        return
+    try:
+        stylesheet = ET.fromstring(request.get("stylesheet", ""))
+    except ET.ParseError:
+        return
+    if any(
+        template.get("name") == "xsl:initial-template"
+        for template in stylesheet.findall(f".//{XSL}template")
+    ):
+        request["initialTemplate"] = "Q{http://www.w3.org/1999/XSL/Transform}initial-template"
 
 def baseline_sets(baseline):
     # Keep surveyed sets that currently have no passing cases in reports too.

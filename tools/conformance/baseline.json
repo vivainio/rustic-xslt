@@ -184,6 +184,10 @@
     ],
     [
       "call-template",
+      "call-template-0110"
+    ],
+    [
+      "call-template",
       "call-template-0111"
     ],
     [
@@ -297,6 +301,10 @@
     [
       "choose",
       "choose-0201"
+    ],
+    [
+      "choose",
+      "choose-0202"
     ],
     [
       "choose",
@@ -1131,6 +1139,18 @@
       "key-095"
     ],
     [
+      "key",
+      "key-096"
+    ],
+    [
+      "key",
+      "key-098"
+    ],
+    [
+      "key",
+      "key-099"
+    ],
+    [
       "match",
       "match-001"
     ],
@@ -1532,6 +1552,10 @@
     ],
     [
       "match",
+      "match-132"
+    ],
+    [
+      "match",
       "match-134"
     ],
     [
@@ -1592,6 +1616,10 @@
     ],
     [
       "match",
+      "match-241"
+    ],
+    [
+      "match",
       "match-245"
     ],
     [
@@ -1636,6 +1664,10 @@
     ],
     [
       "match",
+      "match-256"
+    ],
+    [
+      "match",
       "match-257"
     ],
     [
@@ -1649,6 +1681,74 @@
     [
       "match",
       "match-261"
+    ],
+    [
+      "match",
+      "match-264"
+    ],
+    [
+      "match",
+      "match-265"
+    ],
+    [
+      "match",
+      "match-266"
+    ],
+    [
+      "match",
+      "match-267"
+    ],
+    [
+      "match",
+      "match-268"
+    ],
+    [
+      "match",
+      "match-269"
+    ],
+    [
+      "match",
+      "match-270"
+    ],
+    [
+      "match",
+      "match-272"
+    ],
+    [
+      "match",
+      "match-274"
+    ],
+    [
+      "match",
+      "match-276"
+    ],
+    [
+      "match",
+      "match-277"
+    ],
+    [
+      "match",
+      "match-279"
+    ],
+    [
+      "match",
+      "match-280"
+    ],
+    [
+      "match",
+      "match-281"
+    ],
+    [
+      "match",
+      "match-282"
+    ],
+    [
+      "match",
+      "match-283"
+    ],
+    [
+      "match",
+      "match-284"
     ],
     [
       "mode",
@@ -1733,6 +1833,18 @@
     [
       "mode",
       "mode-0801c"
+    ],
+    [
+      "mode",
+      "mode-0803"
+    ],
+    [
+      "mode",
+      "mode-0805"
+    ],
+    [
+      "mode",
+      "mode-0806"
     ],
     [
       "mode",
@@ -1984,11 +2096,23 @@
     ],
     [
       "next-match",
+      "next-match-027"
+    ],
+    [
+      "next-match",
+      "next-match-028"
+    ],
+    [
+      "next-match",
       "next-match-030"
     ],
     [
       "next-match",
       "next-match-031"
+    ],
+    [
+      "next-match",
+      "next-match-032"
     ],
     [
       "next-match",
@@ -2413,6 +2537,14 @@
     [
       "output",
       "output-0601"
+    ],
+    [
+      "output",
+      "output-0723"
+    ],
+    [
+      "output",
+      "output-0724"
     ],
     [
       "param",

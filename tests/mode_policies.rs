@@ -91,3 +91,18 @@ fn grounded_record_dispatch_obeys_mode_policy() {
         "<record v=\"1\"><changed></changed></record>"
     );
 }
+
+#[test]
+fn warning_on_multiple_match_is_validated_as_a_mode_boolean() {
+    let sheet = Stylesheet::compile(&source(
+        r#"<xsl:mode warning-on-multiple-match="no"/><xsl:template match="r">ok</xsl:template>"#,
+    ))
+    .unwrap();
+    assert_eq!(sheet.transform("<r/>").unwrap(), "ok");
+    assert_eq!(
+        Stylesheet::compile(&source(r#"<xsl:mode warning-on-multiple-match="maybe"/>"#))
+            .unwrap_err()
+            .code,
+        "XTSE0020"
+    );
+}

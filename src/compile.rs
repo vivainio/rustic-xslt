@@ -2205,6 +2205,7 @@ fn declarations(
                         "name",
                         "on-no-match",
                         "on-multiple-match",
+                        "warning-on-multiple-match",
                         "streamable",
                         "use-accumulators",
                         "visibility",
@@ -2257,6 +2258,8 @@ fn declarations(
                         )),
                     })
                     .transpose()?;
+                let _warning_on_multiple_match =
+                    boolean_attribute(n, "warning-on-multiple-match", true)?;
                 let visibility = n
                     .attribute("visibility")
                     .map(|s| match s.trim() {
