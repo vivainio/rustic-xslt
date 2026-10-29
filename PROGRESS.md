@@ -2034,3 +2034,14 @@ conformance claims. Smaller tested increments are committed independently.
   containing both quote delimiters, including runtime diagnostic phases.
 - Validation: result-document and HTML/XML serializer tests, all-target/all-feature
   Clippy and the full 882-case pinned XSLT gate pass without regressions.
+
+## Increment 176: serializer regression audit
+
+- Rechecked the accumulated CDATA, encoding, output-limit and DOCTYPE changes
+  against the full all-feature Rust test suite and pinned QT3 workload.
+- All 18,735 recorded QT3 cases remain green across 26,966 selected cases
+  (390 engine failures, 764 harness errors and 7,077 profile exclusions).
+- All 43 Python harness tests, formatting and diff checks pass. The worktree
+  was clean before recording this audit. The XSLT baseline remains 882 cases.
+- Remaining result-document serialization gaps include URI-attribute escaping
+  and HTML content-type metadata settings.
