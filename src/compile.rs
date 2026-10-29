@@ -55,6 +55,15 @@ pub(crate) enum Instruction {
         catches: Vec<Catch>,
     },
     WherePopulated(Vec<Instruction>),
+    /// `xsl:on-empty` / `xsl:on-non-empty` markers, consumed when the body is assembled.
+    OnEmpty(Vec<Instruction>),
+    OnNonEmpty(Vec<Instruction>),
+    /// A sequence constructor with conditional fallbacks: the main part runs first.
+    Populated {
+        main: Vec<Instruction>,
+        on_empty: Vec<Instruction>,
+        on_non_empty: Vec<Instruction>,
+    },
     ResultDocument(Box<ResultDocumentSpec>),
     Namespace(Vec<Expr>, Content),
     Break(Vec<Instruction>),
@@ -480,6 +489,9 @@ pub(crate) fn raw_result_body(body: &[Instruction]) -> bool {
         | Instruction::Break(_)
         | Instruction::Number(_)
         | Instruction::WherePopulated(_)
+        | Instruction::OnEmpty(_)
+        | Instruction::OnNonEmpty(_)
+        | Instruction::Populated { .. }
         | Instruction::Namespace(..)
         | Instruction::ResultDocument(_)
         | Instruction::Try { .. }
@@ -1188,6 +1200,21 @@ fn body(
                             body: body(n, depth + 1, false)?,
                         })));
                     }
+                    "on-empty" | "on-non-empty" => {
+                        attrs(n, &["select"])?;
+                        let content = match n.attribute("select") {
+                            Some(s) => {
+                                empty(n)?;
+                                vec![Instruction::Sequence(expr(n, s)?)]
+                            }
+                            None => body(n, depth + 1, false)?,
+                        };
+                        out.push(if n.tag_name().name() == "on-empty" {
+                            Instruction::OnEmpty(content)
+                        } else {
+                            Instruction::OnNonEmpty(content)
+                        });
+                    }
                     "where-populated" => {
                         attrs(n, &[])?;
                         out.push(Instruction::WherePopulated(body(n, depth + 1, false)?));
@@ -1623,6 +1650,24 @@ fn body(
                 });
             }
         }
+    }
+    if out
+        .iter()
+        .any(|i| matches!(i, Instruction::OnEmpty(_) | Instruction::OnNonEmpty(_)))
+    {
+        let (mut main, mut on_empty, mut on_non_empty) = (vec![], vec![], vec![]);
+        for instruction in out {
+            match instruction {
+                Instruction::OnEmpty(body) => on_empty.extend(body),
+                Instruction::OnNonEmpty(body) => on_non_empty.extend(body),
+                other => main.push(other),
+            }
+        }
+        return Ok(vec![Instruction::Populated {
+            main,
+            on_empty,
+            on_non_empty,
+        }]);
     }
     Ok(out)
 }
@@ -2823,8 +2868,19 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     parts(&spec.grouping_separator, &scope)?;
                     parts(&spec.grouping_size, &scope)?;
                 }
-                Instruction::WherePopulated(body) => {
+                Instruction::WherePopulated(body)
+                | Instruction::OnEmpty(body)
+                | Instruction::OnNonEmpty(body) => {
                     instructions(body, scope.clone(), templates)?;
+                }
+                Instruction::Populated {
+                    main,
+                    on_empty,
+                    on_non_empty,
+                } => {
+                    instructions(main, scope.clone(), templates)?;
+                    instructions(on_empty, scope.clone(), templates)?;
+                    instructions(on_non_empty, scope.clone(), templates)?;
                 }
                 Instruction::ResultDocument(spec) => {
                     parts(&spec.href, &scope)?;

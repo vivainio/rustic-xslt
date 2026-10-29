@@ -1591,6 +1591,9 @@ fn run_tasks<'a>(
                             | Instruction::Break(_)
                             | Instruction::Number(_)
                             | Instruction::WherePopulated(_)
+                            | Instruction::OnEmpty(_)
+                            | Instruction::OnNonEmpty(_)
+                            | Instruction::Populated { .. }
                             | Instruction::Namespace(..)
                             | Instruction::ResultDocument(_)
                             | Instruction::If(..)
@@ -2061,6 +2064,60 @@ fn run_tasks<'a>(
                             }
                         }
                         budget.secondary.push((href, content));
+                    }
+                    Instruction::OnEmpty(_) | Instruction::OnNonEmpty(_) => {
+                        return Err(Diagnostic::new(
+                            "XTSE3185",
+                            "xsl:on-empty and xsl:on-non-empty must be siblings in a sequence constructor",
+                            "run",
+                        ));
+                    }
+                    Instruction::Populated {
+                        main,
+                        on_empty,
+                        on_non_empty,
+                    } => {
+                        if TRY_DEPTH.with(|d| d.get()) >= 32 {
+                            return Err(limit());
+                        }
+                        let nested = Output::new(
+                            output.max.saturating_sub(output.value.len()),
+                            sheet.text_output,
+                        )
+                        .with_serialization(output.serialization().0, None);
+                        let inner = Frame {
+                            focus: focus.clone(),
+                            env: env.clone(),
+                            depth: depth + 1,
+                            mode: mode.clone(),
+                            tunnel: tunnel.clone(),
+                            rule: None,
+                        };
+                        TRY_DEPTH.with(|d| d.set(d.get() + 1));
+                        let result =
+                            run_tasks(run, budget, vec![Task::Body(main, 0, inner)], nested, None);
+                        TRY_DEPTH.with(|d| d.set(d.get() - 1));
+                        let text = result?;
+                        let fallback = if text.is_empty() {
+                            on_empty
+                        } else {
+                            output.splice(&text)?;
+                            on_non_empty
+                        };
+                        if !fallback.is_empty() {
+                            tasks.push(Task::Body(
+                                fallback,
+                                0,
+                                Frame {
+                                    focus,
+                                    env,
+                                    depth: depth + 1,
+                                    mode,
+                                    tunnel: tunnel.clone(),
+                                    rule,
+                                },
+                            ));
+                        }
                     }
                     Instruction::WherePopulated(content) => {
                         if TRY_DEPTH.with(|d| d.get()) >= 32 {

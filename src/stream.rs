@@ -285,6 +285,11 @@ fn safe_global_body(body: &[Instruction]) -> Result<(), Diagnostic> {
                     "xsl:result-document is not supported when streaming",
                 ));
             }
+            Instruction::OnEmpty(_)
+            | Instruction::OnNonEmpty(_)
+            | Instruction::Populated { .. } => {
+                return Err(unsupported("xsl:on-empty is not supported when streaming"));
+            }
             Instruction::UseSets(_) => {
                 return Err(unsupported(
                     "attribute sets are not supported when streaming",
@@ -504,6 +509,11 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                         return Err(unsupported(
                             "xsl:result-document is not supported when streaming",
                         ));
+                    }
+                    Instruction::OnEmpty(_)
+                    | Instruction::OnNonEmpty(_)
+                    | Instruction::Populated { .. } => {
+                        return Err(unsupported("xsl:on-empty is not supported when streaming"));
                     }
                     Instruction::UseSets(_) => {
                         return Err(unsupported(
