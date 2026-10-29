@@ -33,7 +33,6 @@ fn builtin_rules_and_escaping() {
 #[test]
 fn compile_rejects_unimplemented_semantics() {
     for body in [
-        r#"<xsl:template match="/"><xsl:message/></xsl:template>"#,
         r#"<xsl:template match="/"><xsl:value-of select="unknown-function()"/></xsl:template>"#,
         r#"<xsl:template match="/"><out xsl:use-attribute-sets="missing"/></xsl:template>"#,
     ] {

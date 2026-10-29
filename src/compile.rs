@@ -24,6 +24,7 @@ pub(crate) enum Instruction {
     ComputedElement(ComputedName, bool, Vec<Instruction>),
     Attribute(ComputedName, Content),
     Comment(Content),
+    Message(Content, bool),
     Pi(Vec<Expr>, Content),
     Element {
         element: crate::result::Element,
@@ -374,6 +375,7 @@ pub(crate) fn raw_result_body(body: &[Instruction]) -> bool {
         | Instruction::Text(_)
         | Instruction::Value(..)
         | Instruction::Comment(_)
+        | Instruction::Message(..)
         | Instruction::Pi(..)
         | Instruction::Attribute(..) => true,
         Instruction::ForEach(_, _, body) | Instruction::If(_, body) => raw_result_body(body),
@@ -756,6 +758,13 @@ fn body(
                     "comment" => {
                         attrs(n, &["select"])?;
                         out.push(Instruction::Comment(content(n, depth + 1)?));
+                    }
+                    "message" => {
+                        attrs(n, &["select", "terminate", "error-code"])?;
+                        out.push(Instruction::Message(
+                            content(n, depth + 1)?,
+                            boolean_attribute(n, "terminate", false)?,
+                        ));
                     }
                     "processing-instruction" => {
                         attrs(n, &["name", "select"])?;
@@ -1502,7 +1511,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     cname(n, &scope)?;
                     value(c, &scope, templates)?;
                 }
-                Instruction::Comment(c) => value(c, &scope, templates)?,
+                Instruction::Comment(c) | Instruction::Message(c, _) => {
+                    value(c, &scope, templates)?
+                }
                 Instruction::Pi(n, c) => {
                     parts(n, &scope)?;
                     value(c, &scope, templates)?;

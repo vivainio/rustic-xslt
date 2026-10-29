@@ -998,3 +998,10 @@ conformance claims. Smaller tested increments are committed independently.
 - Lookup scans the context tree (elements and attributes) without an index, so
   repeated key() calls over large documents are linear each; collations, composite
   keys and body-style use are rejected explicitly. Record streaming rejects key().
+
+## Increment 82: xsl:message
+
+- Added xsl:message with select or body content: the message is evaluated (so
+  errors surface) but not added to the result; terminate="yes" raises XTMM9000
+  carrying the message text. There is no message-delivery API yet, and error-code
+  is accepted but ignored.

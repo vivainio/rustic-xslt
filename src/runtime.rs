@@ -229,6 +229,7 @@ struct Run<'a, 'r> {
 enum Capture {
     Attribute(result::Name),
     Comment,
+    Message(bool),
     Pi(String),
 }
 fn parts(
@@ -338,6 +339,13 @@ fn finish_capture(kind: Capture, value: String, output: &mut Output) -> Result<(
                 value.push(' ');
             }
             output.comment(&value)
+        }
+        Capture::Message(terminate) => {
+            if terminate {
+                Err(Diagnostic::new("XTMM9000", value, "run"))
+            } else {
+                Ok(())
+            }
         }
         Capture::Pi(name) => output.pi(&name, &value.replace("?>", "? >")),
     }
@@ -1214,6 +1222,24 @@ fn run_tasks<'a>(
                         capture(
                             content,
                             Capture::Comment,
+                            Frame {
+                                focus,
+                                env,
+                                depth: depth + 1,
+                                mode,
+                                tunnel: tunnel.clone(),
+                                rule,
+                            },
+                            sheet,
+                            budget,
+                            &mut output,
+                            &mut tasks,
+                        )?;
+                    }
+                    Instruction::Message(content, terminate) => {
+                        capture(
+                            content,
+                            Capture::Message(*terminate),
                             Frame {
                                 focus,
                                 env,
