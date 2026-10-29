@@ -46,6 +46,10 @@ pub(crate) enum Instruction {
         body: Vec<Instruction>,
     },
     NextIteration(Vec<Binding>),
+    Try {
+        body: Vec<Instruction>,
+        catches: Vec<Catch>,
+    },
     Break(Vec<Instruction>),
     AnalyzeString {
         select: Expr,
@@ -56,6 +60,22 @@ pub(crate) enum Instruction {
     },
     LiteralAttributes(Vec<(crate::result::Name, Vec<Expr>)>),
 }
+/// An `xsl:catch` clause; `errors` holds (namespace, local) name tests where `None` is a wildcard.
+#[derive(Debug)]
+pub(crate) struct Catch {
+    pub errors: Vec<(Option<String>, Option<String>)>,
+    pub body: Vec<Instruction>,
+}
+pub(crate) const ERROR_NAMESPACE: &str = "http://www.w3.org/2005/xqt-errors";
+pub(crate) const ERROR_VARIABLES: [&str; 7] = [
+    "code",
+    "description",
+    "value",
+    "module",
+    "line-number",
+    "column-number",
+    "additional",
+];
 #[derive(Debug, Default)]
 pub(crate) struct AttributeSet {
     pub uses: Vec<String>,
@@ -412,6 +432,7 @@ pub(crate) fn raw_result_body(body: &[Instruction]) -> bool {
         | Instruction::Iterate { .. }
         | Instruction::NextIteration(_)
         | Instruction::Break(_)
+        | Instruction::Try { .. }
         | Instruction::AnalyzeString { .. }
         | Instruction::LiteralAttributes(_)
         | Instruction::Pi(..)
@@ -782,6 +803,12 @@ fn body(
                     {
                         continue;
                     }
+                    "catch"
+                        if parent.tag_name().namespace() == Some(XSL)
+                            && parent.tag_name().name() == "try" =>
+                    {
+                        continue;
+                    }
                     "sort"
                         if parent.tag_name().namespace() == Some(XSL)
                             && matches!(
@@ -886,6 +913,79 @@ fn body(
                             }
                         };
                         out.push(Instruction::Sequence(Expr::Sorted(Box::new(source), keys)));
+                    }
+                    "try" => {
+                        attrs(n, &["select", "rollback-output"])?;
+                        boolean_attribute(n, "rollback-output", true)?;
+                        let mut catches = vec![];
+                        let mut seen_catch = false;
+                        for c in n.children() {
+                            if c.is_text() && !xml_space(c.text().unwrap_or_default()) {
+                                if seen_catch {
+                                    return Err(static_error(
+                                        c,
+                                        "XTSE0010",
+                                        "text after xsl:catch in xsl:try",
+                                    ));
+                                }
+                                continue;
+                            }
+                            if !c.is_element() {
+                                continue;
+                            }
+                            let is_catch = c.tag_name().namespace() == Some(XSL)
+                                && c.tag_name().name() == "catch";
+                            if is_catch {
+                                attrs(c, &["errors", "select"])?;
+                                seen_catch = true;
+                                let mut errors = vec![];
+                                for token in c.attribute("errors").unwrap_or("*").split_whitespace()
+                                {
+                                    errors.push(error_test(c, token)?);
+                                }
+                                let content = match c.attribute("select") {
+                                    Some(s) => {
+                                        empty(c)?;
+                                        vec![Instruction::Sequence(expr(c, s)?)]
+                                    }
+                                    None => body(c, depth + 1, false)?,
+                                };
+                                catches.push(Catch {
+                                    errors,
+                                    body: content,
+                                });
+                            } else if seen_catch {
+                                return Err(static_error(
+                                    c,
+                                    "XTSE0010",
+                                    "xsl:catch must follow the body of xsl:try",
+                                ));
+                            }
+                        }
+                        if catches.is_empty() {
+                            return Err(static_error(n, "XTSE0010", "xsl:try needs a xsl:catch"));
+                        }
+                        let content = match n.attribute("select") {
+                            Some(s) => {
+                                if n.children().any(|c| {
+                                    c.is_element()
+                                        && !(c.tag_name().namespace() == Some(XSL)
+                                            && c.tag_name().name() == "catch")
+                                }) {
+                                    return Err(static_error(
+                                        n,
+                                        "XTSE3140",
+                                        "xsl:try with select cannot have a body",
+                                    ));
+                                }
+                                vec![Instruction::Sequence(expr(n, s)?)]
+                            }
+                            None => body(n, depth + 1, false)?,
+                        };
+                        out.push(Instruction::Try {
+                            body: content,
+                            catches,
+                        });
                     }
                     "iterate" => {
                         attrs(n, &["select"])?;
@@ -1353,6 +1453,34 @@ fn map_nodes(children: &[Node<'_, '_>], depth: usize) -> Result<Vec<Expr>, Diagn
         }
     }
     Ok(parts)
+}
+fn error_test(
+    n: Node<'_, '_>,
+    token: &str,
+) -> Result<(Option<String>, Option<String>), Diagnostic> {
+    if token == "*" {
+        return Ok((None, None));
+    }
+    if let Some(local) = token.strip_prefix("*:") {
+        return Ok((None, Some(local.to_owned())));
+    }
+    if let Some(rest) = token.strip_prefix("Q{") {
+        let (uri, local) = rest
+            .split_once('}')
+            .ok_or_else(|| static_error(n, "XTSE0020", "invalid error name test"))?;
+        return Ok((
+            Some(uri.to_owned()),
+            (local != "*").then(|| local.to_owned()),
+        ));
+    }
+    if let Some((prefix, local)) = token.split_once(':') {
+        let uri = namespaces(n)
+            .get(prefix)
+            .cloned()
+            .ok_or_else(|| static_error(n, "XTSE0280", format!("unbound prefix: {prefix}")))?;
+        return Ok((Some(uri), (local != "*").then(|| local.to_owned())));
+    }
+    Ok((Some(String::new()), Some(token.to_owned())))
 }
 fn set_names(n: Node<'_, '_>, value: &str) -> Result<Vec<String>, Diagnostic> {
     value
@@ -2105,6 +2233,16 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     }
                     instructions(on_completion, inner.clone(), templates)?;
                     instructions(body, inner, templates)?;
+                }
+                Instruction::Try { body, catches } => {
+                    instructions(body, scope.clone(), templates)?;
+                    for catch in catches {
+                        let mut inner = scope.clone();
+                        for name in ERROR_VARIABLES {
+                            inner.insert(format!("Q{{{ERROR_NAMESPACE}}}{name}"));
+                        }
+                        instructions(&catch.body, inner, templates)?;
+                    }
                 }
                 Instruction::NextIteration(params) => {
                     for p in params {

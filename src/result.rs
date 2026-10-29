@@ -113,6 +113,22 @@ impl Output {
         value.document = true;
         value
     }
+    /// Append already serialized content (the result of a nested transformation).
+    pub fn splice(&mut self, s: &str) -> Result<(), Diagnostic> {
+        if s.is_empty() {
+            return Ok(());
+        }
+        if self.simple.is_some() {
+            return Err(Diagnostic::new(
+                "RUST_XSLT_UNSUPPORTED",
+                "xsl:try inside simple content constructors is not implemented",
+                "run",
+            ));
+        }
+        self.adjacent_atomic = false;
+        self.flush_start()?;
+        self.push(s)
+    }
     pub fn push(&mut self, s: &str) -> Result<(), Diagnostic> {
         if s.len() > self.max.saturating_sub(self.value.len()) {
             return Err(Diagnostic::new("XPDY0130", "output limit exceeded", "run"));

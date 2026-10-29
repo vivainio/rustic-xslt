@@ -5,6 +5,26 @@ use crate::{
     xpath::{self, Budget, Focus, Item, Value, Variables, XNode},
 };
 use std::rc::Rc;
+thread_local! {
+    static TRY_DEPTH: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+/// Split an error code into its namespace and local part.
+fn error_name(code: &str) -> (String, String) {
+    match code
+        .strip_prefix("Q{")
+        .and_then(|rest| rest.split_once('}'))
+    {
+        Some((uri, local)) => (uri.to_owned(), local.to_owned()),
+        None => (crate::compile::ERROR_NAMESPACE.to_owned(), code.to_owned()),
+    }
+}
+fn catch_matches(catch: &crate::compile::Catch, error: &Diagnostic) -> bool {
+    let (uri, local) = error_name(&error.code);
+    catch.errors.iter().any(|(test_uri, test_local)| {
+        test_uri.as_ref().is_none_or(|u| *u == uri)
+            && test_local.as_ref().is_none_or(|l| *l == local)
+    })
+}
 fn limit() -> Diagnostic {
     Diagnostic::new("XPDY0130", "execution depth limit exceeded", "run")
 }
@@ -1631,6 +1651,89 @@ fn run_tasks<'a>(
                                     rule: None,
                                 },
                             ));
+                        }
+                    }
+                    Instruction::Try {
+                        body: try_body,
+                        catches,
+                    } => {
+                        if TRY_DEPTH.with(|d| d.get()) >= 32 {
+                            return Err(limit());
+                        }
+                        let nested = Output::new(
+                            output.max.saturating_sub(output.value.len()),
+                            sheet.text_output,
+                        );
+                        let try_frame = Frame {
+                            focus: focus.clone(),
+                            env: env.clone(),
+                            depth: depth + 1,
+                            mode: mode.clone(),
+                            tunnel: tunnel.clone(),
+                            rule: None,
+                        };
+                        TRY_DEPTH.with(|d| d.set(d.get() + 1));
+                        let result = run_tasks(
+                            run,
+                            budget,
+                            vec![Task::Body(try_body, 0, try_frame)],
+                            nested,
+                            None,
+                        );
+                        TRY_DEPTH.with(|d| d.set(d.get() - 1));
+                        match result {
+                            Ok(text) => output.splice(&text)?,
+                            Err(error) => {
+                                // Resource limits are not recoverable errors.
+                                let Some(catch) = catches
+                                    .iter()
+                                    .find(|c| error.code != "XPDY0130" && catch_matches(c, &error))
+                                else {
+                                    return Err(error);
+                                };
+                                let (uri, local) = error_name(&error.code);
+                                let mut inner = (*env).clone();
+                                let name = |n: &str| {
+                                    format!("Q{{{}}}{n}", crate::compile::ERROR_NAMESPACE)
+                                };
+                                inner.insert(
+                                    name("code"),
+                                    vec![Item::QName(crate::qname::AtomicQName::new(
+                                        &uri, &local,
+                                    )?)],
+                                );
+                                inner.insert(
+                                    name("description"),
+                                    vec![Item::String(error.message.clone())],
+                                );
+                                inner.insert(name("value"), vec![]);
+                                inner.insert(name("module"), vec![]);
+                                inner.insert(
+                                    name("line-number"),
+                                    vec![Item::Number(crate::number::Number::from(
+                                        error.line as usize,
+                                    ))],
+                                );
+                                inner.insert(
+                                    name("column-number"),
+                                    vec![Item::Number(crate::number::Number::from(
+                                        error.column as usize,
+                                    ))],
+                                );
+                                inner.insert(name("additional"), vec![]);
+                                tasks.push(Task::Body(
+                                    &catch.body,
+                                    0,
+                                    Frame {
+                                        focus,
+                                        env: Rc::new(inner),
+                                        depth: depth + 1,
+                                        mode,
+                                        tunnel,
+                                        rule,
+                                    },
+                                ));
+                            }
                         }
                     }
                     Instruction::Iterate { select, params, .. } => {

@@ -1109,3 +1109,15 @@ conformance claims. Smaller tested increments are committed independently.
   inside xsl:map and map-entry bodies beyond one xsl:sequence are rejected.
 - xsl:perform-sort orders a select expression or a single-xsl:sequence body by its
   xsl:sort keys.
+
+## Increment 94: xsl:try and xsl:catch
+
+- Added xsl:try with xsl:catch clauses selected by error name tests (`*`, `*:local`,
+  `prefix:*`, `Q{uri}local`), error variables err:code/description/value/module/
+  line-number/column-number/additional, select or body forms, and error rethrow
+  from catch blocks.
+- The try body runs as a nested evaluation with its own output, so partial output is
+  discarded on error and spliced into the result on success. Resource-limit errors
+  are never caught, nesting is capped, and try inside attribute or other
+  simple-content constructors, raw sequence variables and record streaming is
+  rejected.
