@@ -1066,3 +1066,12 @@ conformance claims. Smaller tested increments are committed independently.
 - Added math:pi, exp, exp10, log, log10, pow, sqrt, sin, cos, tan, asin, acos, atan
   and atan2 with IEEE semantics, empty-sequence handling and function references.
   All 149 selected QT3 math cases pass and are in the gate.
+
+## Increment 89: fn:format-number
+
+- Added format-number() with the default decimal format: positive/negative
+  subpictures, prefix/suffix text, grouping (regular and explicit positions),
+  percent and per-mille, minimum/maximum digits with round-half-even, exponent
+  pictures such as 9.9999e999, NaN and infinity, and FODF1310 for invalid pictures.
+- Named decimal formats (xsl:decimal-format) are not implemented and raise XTDE1280.
+- 198 of the 269 fn-format-number cases pass and are in the gate.

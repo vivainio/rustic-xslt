@@ -1499,6 +1499,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "sort" => (1, 3),
         "for-each" | "filter" => (2, 2),
         "fold-left" | "fold-right" | "for-each-pair" => (3, 3),
+        "format-number" => (2, 3),
         "math:pi" => (0, 0),
         "math:exp" | "math:exp10" | "math:log" | "math:log10" | "math:sqrt" | "math:sin"
         | "math:cos" | "math:tan" | "math:asin" | "math:acos" | "math:atan" => (1, 1),
@@ -3209,6 +3210,27 @@ fn function<'a>(
             path.push_str(step);
         }
         return Ok(vec![Item::String(path)]);
+    }
+    if name == "format-number" {
+        if args.len() == 3 && !args[2].is_empty() {
+            return Err(err("XTDE1280", "named decimal formats are not implemented"));
+        }
+        let number = match args[0].as_slice() {
+            [] => Number::Double(f64::NAN),
+            [item] => match atomize(item) {
+                Item::Number(n) => n,
+                Item::Untyped(s) => Number::cast("double", &s)?,
+                _ => return Err(err("XPTY0004", "format-number requires a numeric value")),
+            },
+            _ => return Err(err("XPTY0004", "format-number requires an optional number")),
+        };
+        let picture = crate::string_functions::string(&args[1], false, backwards)?;
+        for _ in picture.bytes() {
+            budget.tick()?;
+        }
+        return Ok(vec![Item::String(crate::format_number::format(
+            &number, &picture,
+        )?)]);
     }
     if let Some(op) = name.strip_prefix("math:") {
         if op == "pi" {

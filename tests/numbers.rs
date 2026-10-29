@@ -411,3 +411,40 @@ fn math_namespace_functions_follow_ieee_semantics() {
         assert_eq!(run(expr), expected, "{expr}");
     }
 }
+#[test]
+fn format_number_applies_pictures_grouping_percent_and_exponents() {
+    let run = |expr: &str| {
+        Stylesheet::compile(&format!(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:sequence select="{expr}"/></xsl:template></xsl:stylesheet>"#))
+            .unwrap()
+            .transform("<r/>")
+    };
+    for (expr, expected) in [
+        ("format-number(1234567.891, '#,##0.00')", "1,234,567.89"),
+        ("format-number(0.5, '#,##0.00')", "0.50"),
+        ("format-number(12, '0000')", "0012"),
+        ("format-number(-1234.5, '#,##0.0')", "-1,234.5"),
+        ("format-number(-1234.5, '#,##0.0;(#,##0.0)')", "(1,234.5)"),
+        ("format-number(0.25, '0%')", "25%"),
+        ("format-number(0.256, '0.0%')", "25.6%"),
+        ("format-number(2.5, '0')", "2"),
+        ("format-number(3.5, '0')", "4"),
+        ("format-number(0, '#.#')", ".0"),
+        ("format-number(xs:double('NaN'), '0')", "NaN"),
+        ("format-number(xs:double('INF'), '0')", "Infinity"),
+        ("format-number(xs:double('-INF'), '0')", "-Infinity"),
+        ("format-number((), '0')", "NaN"),
+        ("format-number(12345.678, '9.9999e999')", "1.2346e004"),
+        ("format-number(42, 'EUR #0.00 net')", "EUR 42.00 net"),
+        ("format-number(123456789, '###,##,00')", "12345,67,89"),
+    ] {
+        assert_eq!(run(expr).unwrap(), expected, "{expr}");
+    }
+    for expr in [
+        "format-number(1, '')",
+        "format-number(1, 'abc')",
+        "format-number(1, '0.0.0')",
+        "format-number(1, '0;0;0')",
+    ] {
+        assert_eq!(run(expr).unwrap_err().code, "FODF1310", "{expr}");
+    }
+}

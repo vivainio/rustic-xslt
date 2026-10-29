@@ -5,6 +5,7 @@ mod binary;
 mod collation;
 mod compile;
 mod deep_equal;
+mod format_number;
 mod integer_type;
 mod maps;
 mod mode;

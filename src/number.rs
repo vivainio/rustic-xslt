@@ -175,6 +175,15 @@ impl Number {
             Self::Float(n) => Self::Float(-n),
         }
     }
+    /// The shortest decimal expansion of a finite number, for formatting.
+    pub fn shortest_decimal(&self) -> Option<BigDecimal> {
+        match self {
+            Self::Double(n) if n.is_finite() => BigDecimal::from_str(&format!("{n}")).ok(),
+            Self::Float(n) if n.is_finite() => BigDecimal::from_str(&format!("{n}")).ok(),
+            Self::Double(_) | Self::Float(_) => None,
+            other => other.decimal().ok(),
+        }
+    }
     fn decimal(&self) -> Result<BigDecimal, Diagnostic> {
         match self {
             Self::Integer(n) | Self::DerivedInteger(_, n) => Ok(BigDecimal::from(n.clone())),
