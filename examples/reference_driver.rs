@@ -51,7 +51,25 @@ fn run(req: Value) -> Value {
     if string("operation") == "compile" {
         return json!({"diagnostics":[]});
     }
+    let resources: std::collections::BTreeMap<String, String> = req
+        .get("resources")
+        .and_then(Value::as_object)
+        .map(|m| {
+            m.iter()
+                .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_owned())))
+                .collect()
+        })
+        .unwrap_or_default();
     let mut options = TransformOptions {
+        resolver: Some(rust_xslt::ResourceResolver::new(move |href| {
+            resources.get(href).cloned().ok_or_else(|| Diagnostic {
+                code: "FODC0002".into(),
+                message: format!("resource not found: {href}"),
+                phase: "run",
+                line: 0,
+                column: 0,
+            })
+        })),
         initial_template: req
             .get("initialTemplate")
             .and_then(Value::as_str)

@@ -1341,3 +1341,9 @@ conformance claims. Smaller tested increments are committed independently.
   the UCA approximation), default-language() ("en"), environment-variable(),
   available-environment-variables(), static-base-uri() and base-uri()/document-uri()
   (always empty: source documents carry no URI in this API).
+
+## Increment 120: QT3 driver resources
+
+- The development driver accepts a `resources` map backing the resolver, and the QT3
+  bridge binds `<source role="$var">` environments through doc() and `<resource>`
+  entries by URI. Counts were not refreshed after this change.

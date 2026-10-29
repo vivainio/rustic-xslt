@@ -46,7 +46,7 @@ def dependencies(node):
             raise HarnessError(f"unsupported QT3 dependency: {kind}={value}")
 
 def environment(node, registry, seen=()):
-    result = {"source": "", "namespaces": {}, "decimal_formats": [], "params": []}
+    result = {"source": "", "namespaces": {}, "decimal_formats": [], "params": [], "resources": {}, "source_variables": []}
     if node is None:
         return result
     reference = node.get("ref")
@@ -63,11 +63,22 @@ def environment(node, registry, seen=()):
                 raise HarnessError("QT3 default element/type namespace")
             result["namespaces"][prefix] = part.get("uri", "")
         elif kind == "source":
-            if part.get("role") != "." or part.get("validation", "skip") != "skip":
-                raise HarnessError("QT3 source variable or validation")
+            role = part.get("role", "")
+            if not (role == "." or role.startswith("$")) or part.get("validation", "skip") != "skip":
+                raise HarnessError("QT3 source role or validation")
             if not part.get("file") or "://" in part.get("file"):
                 raise HarnessError("QT3 source requires a local file")
-            result["source"] = (base / part.get("file")).read_text(encoding="utf-8-sig")
+            text = (base / part.get("file")).read_text(encoding="utf-8-sig")
+            if role == ".":
+                result["source"] = text
+            else:
+                uri = part.get("uri") or part.get("file")
+                result.setdefault("resources", {})[uri] = text
+                result.setdefault("source_variables", []).append((role[1:], uri))
+        elif kind == "resource":
+            if not part.get("file") or not part.get("uri") or "://" in part.get("file"):
+                raise HarnessError("QT3 resource requires a local file and a URI")
+            result.setdefault("resources", {})[part.get("uri")] = (base / part.get("file")).read_text(encoding="utf-8-sig")
         elif kind == "param":
             if part.get("source") or part.get("declared", "false") == "true":
                 raise HarnessError("QT3 external parameter binding")
@@ -90,7 +101,7 @@ STANDARD_NAMESPACES = {
     "err": "http://www.w3.org/2005/xqt-errors",
 }
 
-def stylesheet(expression, bindings, assertion="count($result)", decimal_formats=(), params=()):
+def stylesheet(expression, bindings, assertion="count($result)", decimal_formats=(), params=(), source_variables=()):
     # The query is global; assertion-only $result cannot satisfy a free query
     # variable. Generated namespace prefixes cannot appear in the query.
     xsl, value = "_qt3_xsl", "_qt3_value"
@@ -106,6 +117,8 @@ def stylesheet(expression, bindings, assertion="count($result)", decimal_formats
         f"<{xsl}:decimal-format " + " ".join(f"{k}={quoteattr(v)}" for k, v in fmt.items()) + "/>"
         for fmt in decimal_formats)
     variables = "".join(
+        f'<{xsl}:variable name="{name}" select={quoteattr("doc(" + literal(uri) + ")")}/>'
+        for name, uri in source_variables) + "".join(
         f'<{xsl}:variable name="{p["name"]}"'
         + (f' as={quoteattr(p["as"])}' if p.get("as") else "")
         + f' select={quoteattr(p.get("select", "()"))}/>'
@@ -154,9 +167,9 @@ def assertion(a, probe, expression, env, driver):
                      "(every $_item in ($result, $_expected) satisfies "
                      "count($result[deep-equal(., $_item)]) eq "
                      "count($_expected[deep-equal(., $_item)]))")
-        style = stylesheet(expression, env["namespaces"], assertion=condition, decimal_formats=env.get("decimal_formats", ()), params=env.get("params", ()))
+        style = stylesheet(expression, env["namespaces"], assertion=condition, decimal_formats=env.get("decimal_formats", ()), params=env.get("params", ()), source_variables=env.get("source_variables", ()))
     elif kind == "assert-deep-eq":
-        style = stylesheet(expression, env["namespaces"], assertion=f"deep-equal($result, ({value}))", decimal_formats=env.get("decimal_formats", ()), params=env.get("params", ()))
+        style = stylesheet(expression, env["namespaces"], assertion=f"deep-equal($result, ({value}))", decimal_formats=env.get("decimal_formats", ()), params=env.get("params", ()), source_variables=env.get("source_variables", ()))
     else:
         condition = {
             "assert": f"boolean(({value}))",
@@ -172,8 +185,8 @@ def assertion(a, probe, expression, env, driver):
             if a.get("normalize-space") == "true":
                 actual, value = f"normalize-space({actual})", " ".join(re.findall(r"[^ \t\r\n]+", value))
             condition = f"{actual} eq {literal(value)}"
-        style = stylesheet(expression, env["namespaces"], assertion=condition, decimal_formats=env.get("decimal_formats", ()), params=env.get("params", ()))
-    response = driver.call({"stylesheet": style, "source": env["source"], "initialTemplate": "entry"})
+        style = stylesheet(expression, env["namespaces"], assertion=condition, decimal_formats=env.get("decimal_formats", ()), params=env.get("params", ()), source_variables=env.get("source_variables", ()))
+    response = driver.call({"stylesheet": style, "source": env["source"], "resources": env.get("resources", {}), "initialTemplate": "entry"})
     if response.get("diagnostics"):
         raise HarnessError("QT3 assertion evaluator: " + "; ".join(e.get("message", "") for e in response["diagnostics"]))
     output = response.get("output", "")
@@ -196,7 +209,7 @@ def run_case(case, base, registry, driver):
     if test is None:
         raise HarnessError("missing QT3 test expression")
     expression = (base / test.get("file")).read_text() if test.get("file") else text(test)
-    probe = driver.call({"stylesheet": stylesheet(expression, env["namespaces"], decimal_formats=env.get("decimal_formats", ()), params=env.get("params", ())), "source": env["source"], "initialTemplate": "entry"})
+    probe = driver.call({"stylesheet": stylesheet(expression, env["namespaces"], decimal_formats=env.get("decimal_formats", ()), params=env.get("params", ()), source_variables=env.get("source_variables", ())), "source": env["source"], "resources": env.get("resources", {}), "initialTemplate": "entry"})
     answers = [assertion(a, probe, expression, env, driver) for a in result]
     reason = "; ".join(e.get("code", "") + ": " + e.get("message", "") for e in probe.get("diagnostics", []))
     return ("pass", "") if all(answers) else ("fail", reason or "QT3 assertion is false")
