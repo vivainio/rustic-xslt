@@ -1157,7 +1157,7 @@ fn execute<'a>(
         globals,
     };
     let principal_prefix_len = output.value.len();
-    let mut result = run_tasks(&run, budget, tasks, output, None)?;
+    let result = run_tasks(&run, budget, tasks, output, None)?;
     if budget.principal_output_claimed && result.len() > principal_prefix_len {
         return Err(Diagnostic::new(
             "XTDE1490",
@@ -1165,15 +1165,9 @@ fn execute<'a>(
             "run",
         ));
     }
-    if budget.principal_output.len() > options.limits.max_output_bytes.saturating_sub(result.len())
-    {
-        return Err(Diagnostic::new(
-            "XPDY0130",
-            "output byte limit exceeded",
-            "run",
-        ));
+    if budget.principal_output_claimed {
+        return Ok(std::mem::take(&mut budget.principal_output));
     }
-    result.push_str(&budget.principal_output);
     let result = if sheet.indent && declaration && !sheet.text_output {
         crate::indent::indent(&result, sheet.markup == crate::result::Markup::Html)
     } else {
@@ -2118,90 +2112,6 @@ fn run_tasks<'a>(
                                 ));
                             }
                             budget.principal_output_claimed = true;
-                            let inner = Frame {
-                                focus: focus.clone(),
-                                env: env.clone(),
-                                depth: depth + 1,
-                                mode,
-                                tunnel: tunnel.clone(),
-                                rule: None,
-                            };
-                            {
-                                let method =
-                                    spec.method.as_deref().unwrap_or(if sheet.text_output {
-                                        "text"
-                                    } else {
-                                        match sheet.markup {
-                                            Markup::Html => "html",
-                                            Markup::Xhtml => "xhtml",
-                                            Markup::Xml => "xml",
-                                        }
-                                    });
-                                let text_method = method == "text";
-                                let markup = match method {
-                                    "html" => Markup::Html,
-                                    "xhtml" => Markup::Xhtml,
-                                    _ => Markup::Xml,
-                                };
-                                let mut doctype = sheet.doctype.clone();
-                                if spec.doctype_public.is_some() || spec.doctype_system.is_some() {
-                                    let inherited = doctype.unwrap_or_default();
-                                    let system = spec
-                                        .doctype_system
-                                        .as_ref()
-                                        .map(|value| {
-                                            parts(value, &focus, &env, budget, sheet.backwards)
-                                        })
-                                        .transpose()?
-                                        .or(inherited.system);
-                                    let public = if system.is_some() {
-                                        spec.doctype_public
-                                            .as_ref()
-                                            .map(|value| {
-                                                parts(value, &focus, &env, budget, sheet.backwards)
-                                            })
-                                            .transpose()?
-                                            .or(inherited.public)
-                                    } else {
-                                        None
-                                    };
-                                    doctype = Some(crate::result::Doctype { public, system });
-                                }
-                                let principal = Output::new(limits.max_output_bytes, text_method)
-                                    .with_serialization(markup, doctype)
-                                    .with_cdata(std::sync::Arc::new(
-                                        sheet
-                                            .cdata_elements
-                                            .iter()
-                                            .cloned()
-                                            .chain(extra_cdata.iter().cloned())
-                                            .collect(),
-                                    ))
-                                    .with_char_map(sheet.char_map.clone());
-                                TRY_DEPTH.with(|d| d.set(d.get() + 1));
-                                let output = run_tasks(
-                                    run,
-                                    budget,
-                                    vec![Task::Body(&spec.body, 0, inner)],
-                                    principal,
-                                    None,
-                                );
-                                TRY_DEPTH.with(|d| d.set(d.get() - 1));
-                                let output = output?;
-                                if output.len()
-                                    > limits
-                                        .max_output_bytes
-                                        .saturating_sub(budget.principal_output.len())
-                                {
-                                    return Err(Diagnostic::new(
-                                        "XPDY0130",
-                                        "output byte limit exceeded",
-                                        "run",
-                                    ));
-                                }
-                                budget.principal_output.push_str(&output);
-                            }
-                            continue;
                         }
                         if budget
                             .secondary
@@ -2338,7 +2248,11 @@ fn run_tasks<'a>(
                                 "run",
                             ));
                         }
-                        budget.secondary.push((href, content));
+                        if href.is_empty() {
+                            budget.principal_output = content;
+                        } else {
+                            budget.secondary.push((href, content));
+                        }
                     }
                     Instruction::OnEmpty(_) | Instruction::OnNonEmpty(_) => {
                         return Err(Diagnostic::new(

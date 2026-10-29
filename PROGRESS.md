@@ -1788,3 +1788,13 @@ conformance claims. Smaller tested increments are committed independently.
 - Validation: focused result-document tests, all-target/all-feature Clippy and
   the full pinned XSLT gate pass. Named-format selection on href-less results
   remains a separate serialization gap.
+
+## Increment 150: unified result-document serialization
+
+- Principal and secondary result documents now share named-format resolution,
+  serialization overrides, encoding, declarations, indentation and CDATA merging.
+  Explicit principal results bypass the implicit result serializer.
+- The pinned XSLT gate has 864 passing cases (22 new, zero regressions),
+  291 engine failures, 264 harness errors and 153 profile exclusions.
+- Validation: all-feature Rust tests, all-target/all-feature Clippy, formatting
+  and the full pinned XSLT gate pass.
