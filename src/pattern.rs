@@ -101,9 +101,6 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
             let mut bases = vec![];
             collect(*base, &mut bases)?;
             for mut parts in bases {
-                if parts.selected.is_some() {
-                    return Err(unsupported());
-                }
                 append(&mut parts, steps.clone())?;
                 out.push(parts);
             }
@@ -116,14 +113,14 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
             collect(*right, &mut rights)?;
             for left in &lefts {
                 for right in &rights {
-                    if right.absolute || right.selected.is_some() || left.selected.is_some() {
+                    if right.absolute || right.selected.is_some() {
                         return Err(unsupported());
                     }
                     let mut parts = Parts {
                         absolute: left.absolute,
                         steps: left.steps.clone(),
                         gaps: left.gaps.clone(),
-                        selected: None,
+                        selected: left.selected.clone(),
                     };
                     parts.steps.extend(right.steps.iter().cloned());
                     parts.gaps.extend(right.gaps.iter().copied());
@@ -194,18 +191,12 @@ fn matches_inner<'a>(
     budget: &mut Budget,
     backwards: bool,
 ) -> Result<bool, Diagnostic> {
-    if let Some(selected) = &branch.selected {
-        let focus = Focus {
-            item: Item::Node(node),
-            position: 1,
-            size: 1,
-        };
-        return Ok(xpath::eval(selected, &focus, vars, budget, 0, backwards)?
-            .iter()
-            .any(|item| matches!(item, Item::Node(n) if *n == node)));
-    }
     if branch.steps.is_empty() {
-        return Ok(node.is_document());
+        return if let Some(selected) = &branch.selected {
+            selection_contains(selected, node, vars, budget, backwards)
+        } else {
+            Ok(node.is_document())
+        };
     }
     step_matches(
         branch,
@@ -215,6 +206,24 @@ fn matches_inner<'a>(
         budget,
         backwards,
     )
+}
+
+/// Evaluate a selection anchor in the candidate's document and preserve node identity.
+fn selection_contains<'a>(
+    selected: &Expr,
+    node: XNode<'a>,
+    vars: &Variables<'a>,
+    budget: &mut Budget,
+    backwards: bool,
+) -> Result<bool, Diagnostic> {
+    let focus = Focus {
+        item: Item::Node(node),
+        position: 1,
+        size: 1,
+    };
+    Ok(xpath::eval(selected, &focus, vars, budget, 0, backwards)?
+        .iter()
+        .any(|item| matches!(item, Item::Node(n) if *n == node)))
 }
 
 /// Whether `node` matches step `index` and the steps before it match its ancestry.
@@ -269,6 +278,20 @@ fn step_matches<'a>(
     }
     let gap = branch.gaps[index];
     if index == 0 {
+        if let Some(selected) = &branch.selected {
+            let mut ancestor = parent;
+            while let Some(candidate) = ancestor {
+                budget.tick()?;
+                if selection_contains(selected, candidate, vars, budget, backwards)? {
+                    return Ok(true);
+                }
+                if !gap {
+                    break;
+                }
+                ancestor = candidate.parent();
+            }
+            return Ok(false);
+        }
         return Ok(match (branch.absolute, gap) {
             // `/p` needs the document node as parent; `//p` any node of a document tree.
             (true, false) => parent.is_some_and(|p| p.is_document()),

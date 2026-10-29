@@ -1407,3 +1407,17 @@ conformance claims. Smaller tested increments are committed independently.
 - Validation: full offline Rust suite, Clippy with warnings denied, formatting,
   diff whitespace checks and all 29 Python harness tests pass. External W3C
   conformance gates were not rerun for this increment.
+
+## Increment 125: selection-anchored match paths
+
+- Match patterns now support child/descendant paths after key(), id(), and
+  document selection anchors. Reverse ancestry matching checks the selected
+  anchor by node identity; parenthesized unions retain their anchors.
+- Added focused regressions for child versus descendant distance, attributes,
+  union paths, default priorities and xml:id anchors. W3C key-033, key-038 through
+  key-041 and key-049 now pass in the surveyed key set.
+- Surveyed match/key/id and expanded the XSLT gate to all 575 passing cases out of
+  1,159 selected cases: 240 engine failures, 195 harness errors and 149 optional
+  profile exclusions. All 420 previous gate cases still pass.
+- Validation: full offline Rust tests, Clippy with warnings denied, formatting,
+  diff whitespace checks and the expanded pinned XSLT regression gate pass.

@@ -33,3 +33,38 @@ fn default_priorities_account_for_path_shape() {
     assert!(run(r#"<xsl:template match="a/following::b"/>"#).is_err());
     assert!(run(r#"<xsl:template match="a//"/>"#).is_err());
 }
+
+#[test]
+fn key_anchored_paths_match_children_descendants_and_attributes() {
+    let templates = r#"<xsl:template match="/"><xsl:apply-templates select="//p | //chap/@id"/></xsl:template>
+      <xsl:template match="key('k', 'c1')/p">C</xsl:template>
+      <xsl:template match="key('k', 'c1')//p" priority="0">D</xsl:template>
+      <xsl:template match="key('k', 'c2')/@id">A</xsl:template>"#;
+    assert_eq!(run(templates).unwrap(), "c1CDDA");
+}
+
+#[test]
+fn selection_anchors_survive_parenthesized_path_unions() {
+    let templates = r#"<xsl:template match="/"><xsl:apply-templates select="//p | //q"/></xsl:template>
+      <xsl:template match="key('k', 'c1')/(p | sec/p)">X</xsl:template>
+      <xsl:template match="(key('k', 'c1') | key('k', 'c2'))/q">Q</xsl:template>"#;
+    assert_eq!(run(templates).unwrap(), "XXXQ");
+}
+
+#[test]
+fn id_anchored_paths_require_identity_and_the_correct_distance() {
+    let sheet = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+      <xsl:output method="text"/>
+      <xsl:template match="/"><xsl:apply-templates select="//p"/></xsl:template>
+      <xsl:template match="p">N</xsl:template>
+      <xsl:template match="id('anchor')/p">C</xsl:template>
+      <xsl:template match="id('anchor')//p" priority="0.25">D</xsl:template>
+    </xsl:stylesheet>"#;
+    assert_eq!(
+        Stylesheet::compile(sheet)
+            .unwrap()
+            .transform("<r><s xml:id='anchor'><p/><s><p/></s></s><s><p/></s></r>")
+            .unwrap(),
+        "CDN"
+    );
+}
