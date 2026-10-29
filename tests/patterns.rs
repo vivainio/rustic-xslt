@@ -50,6 +50,25 @@ fn intersect_and_except_patterns_constrain_candidate_nodes() {
         "IE"
     );
 }
+
+#[test]
+fn root_function_patterns_can_filter_a_parentless_element() {
+    let sheet = Stylesheet::compile(
+        r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:variable name="data" as="element(A)"><A/></xsl:variable><xsl:template name="main"><xsl:apply-templates select="$data"/></xsl:template><xsl:template match="root()[self::A]">R</xsl:template></xsl:stylesheet>"#,
+    ).unwrap();
+    assert_eq!(
+        sheet
+            .transform_with_options(
+                "<source/>",
+                &rust_xslt::TransformOptions {
+                    initial_template: Some("main".into()),
+                    ..Default::default()
+                },
+            )
+            .unwrap(),
+        "R"
+    );
+}
 #[test]
 fn parenthesized_unions_expand_into_alternatives() {
     let templates = r#"<xsl:template match="/"><xsl:apply-templates select="//*"/></xsl:template><xsl:template match="chap/(p|q)">X</xsl:template><xsl:template match="(sec|doc)/p">Y</xsl:template>"#;

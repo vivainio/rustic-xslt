@@ -1692,3 +1692,16 @@ conformance claims. Smaller tested increments are committed independently.
   selected cases.
 - Validation: focused pattern suites, all-target/all-feature Clippy and the full
   pinned XSLT gate pass.
+
+## Increment 142: self-axis and descendant-axis predicates
+
+- Match patterns now support `self::` steps at the start, middle or end of a path.
+  Descendant and descendant-or-self steps evaluate their predicates over the
+  selected axis sequence, preserving `position()` and `last()` behavior.
+- Root-function selection anchors can be filtered, including parentless element
+  roots. Added regression coverage for self-axis matching and `root()[…]`.
+- Expanded the pinned XSLT gate to 775 passing cases (nine new, zero regressions),
+  380 engine failures, 264 harness errors and 153 profile exclusions across 1,572
+  selected cases.
+- Validation: all-feature Rust tests, all-target/all-feature Clippy, 41 Python
+  harness tests and both pinned gates pass.

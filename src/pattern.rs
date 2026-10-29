@@ -49,28 +49,27 @@ fn is_descendant_separator(step: &Step) -> bool {
 
 fn append(parts: &mut Parts, steps: Vec<Step>) -> Result<(), Diagnostic> {
     let mut gap = false;
-    for mut step in steps {
+    for step in steps {
         if is_descendant_separator(&step) {
             gap = true;
             continue;
         }
         if matches!(step.axis, Axis::Descendant | Axis::DescendantOrSelf) {
-            if matches!(step.axis, Axis::Descendant) && matches!(step.test, Test::AttributeKind(_))
-            {
+            if matches!(step.test, Test::AttributeKind(_)) {
                 return Err(unsupported());
             }
             gap = true;
-            // The reverse matcher uses the separator to express the axis relation.
-            // Keep the step's axis for node tests and predicate evaluation.
-            if step.predicates.is_empty() {
-                step.axis = if matches!(step.test, Test::AttributeKind(_)) {
-                    Axis::Attribute
-                } else {
-                    Axis::Child
-                };
-            }
         }
-        if !matches!(step.axis, Axis::Child | Axis::Attribute) {
+        if matches!(step.axis, Axis::SelfNode) {
+            parts.steps.push(step);
+            parts.gaps.push(gap);
+            gap = false;
+            continue;
+        }
+        if !matches!(
+            step.axis,
+            Axis::Child | Axis::Attribute | Axis::Descendant | Axis::DescendantOrSelf
+        ) {
             return Err(unsupported());
         }
         parts.steps.push(step);
@@ -170,7 +169,7 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
         Expr::Call(name, args)
             if matches!(
                 name.as_str(),
-                "key" | "id" | "element-with-id" | "doc" | "document"
+                "key" | "id" | "element-with-id" | "doc" | "document" | "root"
             ) =>
         {
             out.push(Parts {
@@ -271,6 +270,20 @@ pub(crate) fn parse(
 fn into_branch(p: Parts) -> Branch {
     let priority = if let Some(predicates) = &p.predicate {
         if predicates.is_empty() { -1.0 } else { 1.0 }
+    } else if p.steps.len() == 1 && matches!(p.steps[0].axis, Axis::SelfNode) {
+        if !p.steps[0].predicates.is_empty() {
+            0.5
+        } else if matches!(
+            p.steps[0].test,
+            Test::Name(_)
+                | Test::Pi(Some(_))
+                | Test::Element(Some(_))
+                | Test::AttributeKind(Some(_))
+        ) {
+            0.0
+        } else {
+            -0.5
+        }
     } else if p.absolute && p.steps.is_empty() && p.selected.is_none() {
         -0.5
     } else if p.absolute
@@ -455,7 +468,45 @@ fn step_matches<'a>(
 ) -> Result<bool, Diagnostic> {
     budget.tick()?;
     let step = &branch.steps[index];
-    if matches!(step.axis, Axis::Attribute) != node.is_attribute() {
+    if matches!(step.axis, Axis::Descendant | Axis::DescendantOrSelf) {
+        if index == 0 {
+            if let Some(selected) = &branch.selected {
+                let expression = Expr::Path(Box::new(selected.clone()), vec![step.clone()]);
+                let focus = Focus {
+                    item: Item::Node(node),
+                    position: 1,
+                    size: 1,
+                };
+                return Ok(
+                    xpath::eval(&expression, &focus, vars, budget, 1, backwards)?
+                        .iter()
+                        .any(|item| matches!(item, Item::Node(candidate) if *candidate == node)),
+                );
+            }
+            return axis_contains(
+                step,
+                node.parent().unwrap_or_else(|| node.root()),
+                node,
+                vars,
+                budget,
+                backwards,
+            );
+        }
+        let mut context = Some(node);
+        while let Some(candidate) = context {
+            budget.tick()?;
+            if step_matches(branch, index - 1, candidate, vars, budget, backwards)?
+                && axis_contains(step, candidate, node, vars, budget, backwards)?
+            {
+                return Ok(true);
+            }
+            context = candidate.parent();
+        }
+        return Ok(false);
+    }
+    if !matches!(step.axis, Axis::SelfNode)
+        && matches!(step.axis, Axis::Attribute) != node.is_attribute()
+    {
         return Ok(false);
     }
     if !xpath::test_node(&step.test, node, step.axis) {
@@ -463,7 +514,11 @@ fn step_matches<'a>(
     }
     let parent = node.parent();
     if !step.predicates.is_empty() {
-        match parent {
+        match if matches!(step.axis, Axis::SelfNode) {
+            Some(node)
+        } else {
+            parent
+        } {
             Some(parent) => {
                 let e = Expr::Path(Box::new(Expr::Context), vec![step.clone()]);
                 let focus = Focus {
@@ -493,6 +548,30 @@ fn step_matches<'a>(
                 }
             }
         }
+    }
+    if matches!(step.axis, Axis::SelfNode) {
+        if index == 0 {
+            if let Some(selected) = &branch.selected {
+                return selection_contains(selected, node, vars, budget, backwards);
+            }
+            return Ok(if branch.absolute {
+                node.is_document()
+            } else {
+                true
+            });
+        }
+        if branch.gaps[index] {
+            let mut candidate = Some(node);
+            while let Some(ancestor) = candidate {
+                budget.tick()?;
+                if step_matches(branch, index - 1, ancestor, vars, budget, backwards)? {
+                    return Ok(true);
+                }
+                candidate = ancestor.parent();
+            }
+            return Ok(false);
+        }
+        return step_matches(branch, index - 1, node, vars, budget, backwards);
     }
     let gap = branch.gaps[index];
     if index == 0 {
@@ -536,4 +615,25 @@ fn step_matches<'a>(
             None => Ok(false),
         }
     }
+}
+
+fn axis_contains<'a>(
+    step: &Step,
+    context: XNode<'a>,
+    candidate: XNode<'a>,
+    vars: &Variables<'a>,
+    budget: &mut Budget,
+    backwards: bool,
+) -> Result<bool, Diagnostic> {
+    let expression = Expr::Path(Box::new(Expr::Context), vec![step.clone()]);
+    let focus = Focus {
+        item: Item::Node(context),
+        position: 1,
+        size: 1,
+    };
+    Ok(
+        xpath::eval(&expression, &focus, vars, budget, 1, backwards)?
+            .iter()
+            .any(|item| matches!(item, Item::Node(node) if *node == candidate)),
+    )
 }
