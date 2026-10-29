@@ -77,3 +77,9 @@ fn duplicate_hrefs_are_errors_and_missing_href_writes_to_the_principal_result() 
     let plain = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output omit-xml-declaration="yes"/><xsl:template match="/"><p/><xsl:result-document href="z"><q/></xsl:result-document></xsl:template></xsl:stylesheet>"#).unwrap();
     assert_eq!(plain.transform("<r/>").unwrap(), "<p></p>");
 }
+
+#[test]
+fn result_document_encoding_is_evaluated_in_the_caller_context() {
+    let result = run(r#"<xsl:variable name="encoding" select="'US-ASCII'"/><xsl:result-document encoding="{$encoding}"><out>é</out></xsl:result-document>"#).unwrap();
+    assert_eq!(result.principal, "<out>&#xE9;</out>");
+}

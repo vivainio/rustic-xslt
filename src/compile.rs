@@ -94,7 +94,7 @@ pub(crate) struct ResultDocumentSpec {
     pub standalone: Option<Vec<Expr>>,
     pub byte_order_mark: Option<Vec<Expr>>,
     pub indent: Option<Vec<Expr>>,
-    pub encoding: Option<crate::result::Encoding>,
+    pub encoding: Option<Vec<Expr>>,
     pub cdata: Option<(Vec<Expr>, BTreeMap<String, String>)>,
     pub character_maps: Vec<String>,
     pub doctype_public: Option<Vec<Expr>>,
@@ -1277,17 +1277,21 @@ fn body(
                                 "type",
                             ],
                         )?;
-                        let encoding = match n.attribute("encoding") {
-                            Some(name) => {
-                                Some(crate::result::Encoding::parse(name).ok_or_else(|| {
-                                    error(
+                        let encoding = n
+                            .attribute("encoding")
+                            .map(|value| {
+                                if !value.contains('{')
+                                    && !value.contains('}')
+                                    && crate::result::Encoding::parse(value).is_none()
+                                {
+                                    return Err(error(
                                         n,
                                         "only UTF-8, ISO-8859-1 and US-ASCII results are supported",
-                                    )
-                                })?)
-                            }
-                            None => None,
-                        };
+                                    ));
+                                }
+                                avt(n, value)
+                            })
+                            .transpose()?;
                         let method = n.attribute("method");
                         if method.is_some_and(|method| {
                             !matches!(method, "xml" | "html" | "xhtml" | "text")
@@ -3365,6 +3369,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                         &spec.omit_declaration,
                         &spec.byte_order_mark,
                         &spec.standalone,
+                        &spec.encoding,
                     ]
                     .into_iter()
                     .flatten()

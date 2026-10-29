@@ -2211,7 +2211,21 @@ fn run_tasks<'a>(
                                 }
                             })
                             .transpose()?;
-                        let encoding = spec.encoding.unwrap_or(settings.encoding);
+                        let encoding = spec
+                            .encoding
+                            .as_ref()
+                            .map(|value| {
+                                let value = parts(value, &focus, &env, budget, sheet.backwards)?;
+                                crate::result::Encoding::parse(value.trim()).ok_or_else(|| {
+                                    Diagnostic::new(
+                                        "RUST_XSLT_UNSUPPORTED",
+                                        "only UTF-8, ISO-8859-1 and US-ASCII results are supported",
+                                        "run",
+                                    )
+                                })
+                            })
+                            .transpose()?
+                            .unwrap_or(settings.encoding);
                         let indent = indent_override.unwrap_or(settings.indent);
                         let mut doctype = settings.doctype.clone();
                         if spec.doctype_public.is_some() || spec.doctype_system.is_some() {

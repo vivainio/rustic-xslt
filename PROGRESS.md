@@ -1837,3 +1837,12 @@ conformance claims. Smaller tested increments are committed independently.
   281 engine failures, 264 harness errors and 153 profile exclusions.
 - Validation: result-document tests, all-target/all-feature Clippy and the full
   pinned XSLT regression gate pass.
+
+## Increment 155: result-document encoding AVTs
+
+- Result-document `encoding` accepts AVTs and evaluates them in the caller's
+  context before serialization. Encoding expressions participate in static
+  variable-scope checks; supported literal encodings retain early validation.
+- Added a dynamic US-ASCII regression that verifies character-reference output.
+- Validation: result-document tests, all-target/all-feature Clippy and the full
+  874-case pinned XSLT regression gate pass without regressions.
