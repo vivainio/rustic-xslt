@@ -86,8 +86,9 @@ Sequence instructions, supported control flow and template delegation also
 retain raw values across typed bindings and returns. Mixed sequences support
 constructed elements, documents, text, comments and processing instructions;
 constructed element contents are normalized independently. Standalone attribute
-constructors, raw built-in dispatch paths and zero-length constructed
-text-node identity remain incomplete.
+constructors and zero-length constructed text-node identity remain incomplete.
+Raw apply-templates preserves explicit template results and built-in text/copy
+results, including parentless element/document copies.
 Selected node/attribute identity is preserved through raw sequence capture.
 Raw xsl:copy-of allocates fresh node identities; xsl:copy constructs shallow
 element/document results. Parentless copied attributes remain unsupported.

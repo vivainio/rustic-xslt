@@ -157,3 +157,23 @@ fn raw_shallow_copy_grounds_only_its_constructor_body() {
         "4:r:v:1:true:true"
     );
 }
+
+#[test]
+fn raw_apply_templates_collects_explicit_and_builtin_results() {
+    let s = sheet(
+        r#"<xsl:template match="/"><xsl:variable name="v" as="item()*"><xsl:apply-templates select="r/*"/></xsl:variable><xsl:value-of select="concat(count($v), ':', $v[1] instance of xs:integer, ':', $v[2] instance of text(), ':', string($v[2]))"/></xsl:template><xsl:template match="a"><xsl:sequence select="7"/></xsl:template>"#,
+    );
+    assert_eq!(
+        s.transform("<r><a/><b>text</b></r>").unwrap(),
+        "2:true:true:text"
+    );
+}
+#[test]
+fn raw_builtin_copy_policies_keep_node_kinds() {
+    for policy in ["shallow-copy", "deep-copy"] {
+        let s = sheet(&format!(
+            r#"<xsl:mode name="m" on-no-match="{policy}"/><xsl:template match="/"><xsl:variable name="v" as="item()*"><xsl:apply-templates select="r" mode="m"/></xsl:variable><xsl:value-of select="concat(count($v), ':', $v[1] instance of element(r), ':', empty($v[1]/parent::node()), ':', string($v[1]/@a), ':', count($v[1]/n))"/></xsl:template>"#
+        ));
+        assert_eq!(s.transform("<r a='v'><n/></r>").unwrap(), "1:true:true:v:1");
+    }
+}

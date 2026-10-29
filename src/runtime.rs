@@ -984,13 +984,6 @@ fn run_tasks<'a>(
                         Some(rule),
                     ));
                 } else {
-                    if raw_active(&captures) {
-                        return Err(Diagnostic::new(
-                            "RUST_XSLT_UNSUPPORTED",
-                            "raw built-in node result collection is not implemented",
-                            "run",
-                        ));
-                    }
                     use crate::mode::OnNoMatch as P;
                     let policy = definition.policy();
                     if policy == P::Fail {
@@ -1001,7 +994,11 @@ fn run_tasks<'a>(
                         ));
                     }
                     if policy == P::DeepCopy {
-                        tasks.push(Task::DeepCopy(node, depth, true));
+                        if raw_active(&captures) {
+                            tasks.push(Task::RawCopy(Item::Node(node), depth, true));
+                        } else {
+                            tasks.push(Task::DeepCopy(node, depth, true));
+                        }
                         continue;
                     }
                     // Even deep-skip descends through a document node.
@@ -1009,6 +1006,15 @@ fn run_tasks<'a>(
                         continue;
                     }
                     if node.is_document() || node.is_element() {
+                        if policy == P::ShallowCopy && raw_active(&captures) {
+                            begin_raw_node(
+                                &mut output,
+                                &mut captures,
+                                &mut tasks,
+                                depth,
+                                node.is_document(),
+                            );
+                        }
                         if policy == P::ShallowCopy && node.is_element() {
                             output.start(result::source_element(node.raw, false))?;
                             tasks.push(Task::Close);
@@ -1042,9 +1048,21 @@ fn run_tasks<'a>(
                             }
                         }
                     } else if policy == P::ShallowCopy {
-                        copied_leaf(node, &mut output)?;
+                        if raw_active(&captures) {
+                            tasks.push(Task::RawCopy(Item::Node(node), depth, true));
+                        } else {
+                            copied_leaf(node, &mut output)?;
+                        }
                     } else if policy == P::TextOnlyCopy && (node.is_text() || node.is_attribute()) {
-                        output.text(&node.string())?;
+                        if raw_active(&captures) {
+                            captures.last_mut().unwrap().items.extend(raw_text(
+                                &node.string(),
+                                trees,
+                                limits.max_output_bytes,
+                            )?);
+                        } else {
+                            output.text(&node.string())?;
+                        }
                     }
                 }
             }
@@ -1069,6 +1087,7 @@ fn run_tasks<'a>(
                         Instruction::Sequence(_)
                             | Instruction::CopyOf(..)
                             | Instruction::Copy { .. }
+                            | Instruction::Apply(..)
                             | Instruction::Call(..)
                             | Instruction::NextMatch(_)
                             | Instruction::ForEach(..)

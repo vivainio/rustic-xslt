@@ -519,5 +519,13 @@ conformance claims. Smaller tested increments are committed independently.
   (375 pass / 158 failures / 144 harness errors / 46 exclusions); all 989 QT3
   passes remain green.
 
-Next: raw built-in dispatch, then standalone attributes and XPath grammar.
+## Increment 42: raw template dispatch
+
+- Typed collectors accept apply-templates and preserve explicit template results.
+- Built-in text-only-copy creates text nodes; shallow/deep-copy preserve node
+  kinds and parentless result boundaries, grounding nested content independently.
+- 286 Rust integration tests, 27 harness tests and Clippy/format pass. Both pinned
+  gates retain all 375 XSLT and 989 QT3 passes without regressions.
+
+Next: standalone attributes and XPath grammar.
 

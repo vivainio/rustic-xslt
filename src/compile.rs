@@ -364,6 +364,7 @@ pub(crate) fn raw_result_body(body: &[Instruction]) -> bool {
         Instruction::Sequence(_)
         | Instruction::CopyOf(..)
         | Instruction::Copy { .. }
+        | Instruction::Apply(..)
         | Instruction::Call(..)
         | Instruction::NextMatch(_)
         | Instruction::Bind(_)
