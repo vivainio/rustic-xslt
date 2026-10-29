@@ -2054,3 +2054,14 @@ conformance claims. Smaller tested increments are committed independently.
   tools/conformance/URI_SERIALIZATION.md for the next implementation slice.
 - No runtime behavior changed. The implementation must propagate settings
   through both named output definitions and result-document AVTs.
+
+## Increment 178: HTML and XHTML URI attribute escaping
+
+- URI attributes apply NFC normalization and UTF-8 percent encoding before
+  markup escaping. Settings propagate through output definitions, result-document
+  boolean AVTs and nested captures; URI escaping suppresses character maps.
+- Ordinary input values remain text; URL input values use URI escaping.
+- The pinned XSLT gate has 896 passes (14 new, zero regressions), 259 failures,
+  264 harness errors and 153 exclusions.
+- Validation: HTML and result-document tests, all-target/all-feature Clippy and
+  the full pinned XSLT regression gate pass.

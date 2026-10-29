@@ -94,6 +94,7 @@ pub(crate) struct ResultDocumentSpec {
     pub standalone: Option<Vec<Expr>>,
     pub byte_order_mark: Option<Vec<Expr>>,
     pub indent: Option<Vec<Expr>>,
+    pub escape_uri_attributes: Option<Vec<Expr>>,
     pub encoding: Option<Vec<Expr>>,
     pub output_version: Option<Vec<Expr>>,
     pub cdata: Option<(Vec<Expr>, BTreeMap<String, String>)>,
@@ -1269,6 +1270,7 @@ fn body(
                                 "standalone",
                                 "byte-order-mark",
                                 "indent",
+                                "escape-uri-attributes",
                                 "encoding",
                                 "output-version",
                                 "doctype-public",
@@ -1335,6 +1337,7 @@ fn body(
                                 .transpose()?,
                             byte_order_mark: flag("byte-order-mark")?,
                             indent: flag("indent")?,
+                            escape_uri_attributes: flag("escape-uri-attributes")?,
                             encoding,
                             output_version: n
                                 .attribute("output-version")
@@ -2133,6 +2136,7 @@ fn apply_output_properties(
         .and_then(crate::result::Encoding::parse)
         .unwrap_or_default();
     sheet.indent = get("indent") == Some("yes");
+    sheet.escape_uri_attributes = get("escape-uri-attributes") != Some("no");
     sheet.byte_order_mark = get("byte-order-mark") == Some("yes");
     sheet.omit_specified = properties.contains_key("omit-xml-declaration");
     sheet.omit_declaration =
@@ -3060,6 +3064,7 @@ pub(crate) fn compile(
         byte_order_mark: false,
         indent: false,
         markup: crate::result::Markup::Xml,
+        escape_uri_attributes: true,
         encoding: Default::default(),
         cdata_elements: Default::default(),
         character_maps: Default::default(),
@@ -3120,6 +3125,7 @@ pub(crate) fn compile(
     let primary = &sheet.outputs[""];
     sheet.text_output = primary.text_output;
     sheet.markup = primary.markup;
+    sheet.escape_uri_attributes = primary.escape_uri_attributes;
     sheet.encoding = primary.encoding;
     sheet.omit_declaration = primary.omit_declaration;
     sheet.standalone = primary.standalone;
@@ -3374,6 +3380,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                         &spec.doctype_public,
                         &spec.doctype_system,
                         &spec.indent,
+                        &spec.escape_uri_attributes,
                         &spec.omit_declaration,
                         &spec.byte_order_mark,
                         &spec.standalone,

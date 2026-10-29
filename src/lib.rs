@@ -181,6 +181,7 @@ pub struct Stylesheet {
     byte_order_mark: bool,
     indent: bool,
     markup: result::Markup,
+    escape_uri_attributes: bool,
     encoding: result::Encoding,
     cdata_elements: std::sync::Arc<Vec<String>>,
     character_maps: std::collections::BTreeMap<String, std::collections::BTreeMap<char, String>>,

@@ -216,6 +216,7 @@ pub(crate) struct Serialization {
     pub standalone: Option<bool>,
     pub byte_order_mark: bool,
     pub indent: bool,
+    pub escape_uri_attributes: bool,
     pub doctype: Option<Doctype>,
     pub cdata_elements: std::sync::Arc<Vec<String>>,
     pub char_map: std::sync::Arc<BTreeMap<char, String>>,
@@ -238,6 +239,7 @@ pub(crate) struct Output {
     simple: Option<Simple>,
     adjacent_atomic: bool,
     markup: Markup,
+    escape_uri_attributes: bool,
     doctype: Option<Doctype>,
     /// Expanded names of elements whose text is written as CDATA sections.
     cdata: std::sync::Arc<Vec<String>>,
@@ -245,6 +247,14 @@ pub(crate) struct Output {
     char_map: std::sync::Arc<BTreeMap<char, String>>,
 }
 impl Output {
+    pub fn with_uri_escaping(mut self, enabled: bool) -> Self {
+        self.escape_uri_attributes = enabled;
+        self
+    }
+    pub fn uri_escaping(&self) -> bool {
+        self.escape_uri_attributes
+    }
+
     pub fn with_char_map(mut self, map: std::sync::Arc<BTreeMap<char, String>>) -> Self {
         self.char_map = map;
         self
@@ -296,6 +306,7 @@ impl Output {
             simple: None,
             adjacent_atomic: false,
             markup: Markup::Xml,
+            escape_uri_attributes: true,
             doctype: None,
             cdata: Default::default(),
             char_map: Default::default(),
@@ -470,10 +481,46 @@ impl Output {
                 continue;
             }
             self.push("=\"")?;
+            let input_value_uri = !name.local.eq_ignore_ascii_case("value")
+                || e.attributes.iter().any(|(attribute, value)| {
+                    attribute.uri.is_none()
+                        && attribute.local.eq_ignore_ascii_case("type")
+                        && value.eq_ignore_ascii_case("url")
+                });
+            let uri = input_value_uri
+                && self.escape_uri_attributes
+                && name.uri.is_none()
+                && html_element.as_deref().is_some_and(|element| {
+                    uri_attribute(element, &name.local.to_ascii_lowercase())
+                });
+            let encoded;
+            let value =
+                if uri {
+                    use std::fmt::Write;
+                    use unicode_normalization::UnicodeNormalization;
+                    encoded = value.nfc().collect::<String>().bytes().fold(
+                        String::new(),
+                        |mut out, byte| {
+                            if (0x20..=0x7e).contains(&byte) {
+                                out.push(char::from(byte));
+                            } else {
+                                write!(out, "%{byte:02X}").unwrap();
+                            }
+                            out
+                        },
+                    );
+                    &encoded
+                } else {
+                    value
+                };
             if markup == Markup::Html {
                 self.push(&value.replace('&', "&amp;").replace('"', "&quot;"))?;
             } else {
-                let escaped = self.escape_mapped(value, true);
+                let escaped = if uri {
+                    escape(value, true)
+                } else {
+                    self.escape_mapped(value, true)
+                };
                 self.push(&escaped)?;
             }
             self.push("\"")?;
@@ -833,4 +880,31 @@ pub(crate) fn source_element(node: roxmltree::Node<'_, '_>, attributes: bool) ->
             vec![]
         },
     }
+}
+
+fn uri_attribute(element: &str, attribute: &str) -> bool {
+    let elements = match attribute {
+        "action" => "form",
+        "archive" | "classid" | "data" => "object",
+        "background" => "body",
+        "cite" => "blockquote del ins q",
+        "codebase" => "applet object",
+        "datasrc" => "button div input object select span table textarea",
+        "for" => "script",
+        "formaction" => "button input",
+        "href" => "a area base link",
+        "icon" => "command",
+        "longdesc" => "frame iframe img",
+        "manifest" => "html",
+        "name" => "a",
+        "poster" => "video",
+        "profile" => "head",
+        "src" => "audio embed frame iframe img input script source track video",
+        "usemap" => "img input object",
+        "value" => "input",
+        _ => return false,
+    };
+    elements
+        .split_ascii_whitespace()
+        .any(|candidate| candidate == element)
 }

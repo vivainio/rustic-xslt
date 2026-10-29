@@ -1065,6 +1065,7 @@ fn execute<'a>(
     let globals = Rc::new(globals);
     let output = Output::new(limits.max_output_bytes, sheet.text_output)
         .with_serialization(sheet.markup, sheet.doctype.clone())
+        .with_uri_escaping(sheet.escape_uri_attributes)
         .with_cdata(sheet.cdata_elements.clone())
         .with_char_map(sheet.char_map.clone());
     let initial_mode = options
@@ -2238,6 +2239,7 @@ fn run_tasks<'a>(
                                     .transpose()
                             };
                         let indent_override = flag(&spec.indent)?;
+                        let uri_override = flag(&spec.escape_uri_attributes)?;
                         let omit_override = flag(&spec.omit_declaration)?;
                         let bom_override = flag(&spec.byte_order_mark)?;
                         let standalone_override = spec
@@ -2292,6 +2294,9 @@ fn run_tasks<'a>(
                         }
                         let nested = Output::new(limits.max_output_bytes, text_method)
                             .with_serialization(markup, doctype)
+                            .with_uri_escaping(
+                                uri_override.unwrap_or(settings.escape_uri_attributes),
+                            )
                             .with_cdata(std::sync::Arc::new(
                                 settings
                                     .cdata_elements
@@ -2377,6 +2382,7 @@ fn run_tasks<'a>(
                             sheet.text_output,
                         )
                         .with_serialization(output.serialization().0, None)
+                        .with_uri_escaping(output.uri_escaping())
                         .with_cdata(output.cdata())
                         .with_char_map(output.char_map());
                         let inner = Frame {
@@ -2422,6 +2428,7 @@ fn run_tasks<'a>(
                             sheet.text_output,
                         )
                         .with_serialization(output.serialization().0, None)
+                        .with_uri_escaping(output.uri_escaping())
                         .with_cdata(output.cdata())
                         .with_char_map(output.char_map());
                         let inner = Frame {
@@ -2471,6 +2478,7 @@ fn run_tasks<'a>(
                             sheet.text_output,
                         )
                         .with_serialization(output.serialization().0, None)
+                        .with_uri_escaping(output.uri_escaping())
                         .with_cdata(output.cdata())
                         .with_char_map(output.char_map());
                         let try_frame = Frame {
