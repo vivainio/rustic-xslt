@@ -744,6 +744,7 @@ impl Parser {
             None if !n.starts_with("Q{") => name.local,
             Some("http://www.w3.org/2005/xpath-functions") => name.local,
             Some("http://www.w3.org/2001/XMLSchema") => format!("xs:{}", name.local),
+            Some("http://www.w3.org/2005/xpath-functions/math") => format!("math:{}", name.local),
             Some("http://www.w3.org/2005/xpath-functions/map") => format!("map:{}", name.local),
             Some("http://www.w3.org/2005/xpath-functions/array") => {
                 format!("array:{}", name.local)
@@ -1498,6 +1499,10 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "sort" => (1, 3),
         "for-each" | "filter" => (2, 2),
         "fold-left" | "fold-right" | "for-each-pair" => (3, 3),
+        "math:pi" => (0, 0),
+        "math:exp" | "math:exp10" | "math:log" | "math:log10" | "math:sqrt" | "math:sin"
+        | "math:cos" | "math:tan" | "math:asin" | "math:acos" | "math:atan" => (1, 1),
+        "math:pow" | "math:atan2" => (2, 2),
         "function-arity" | "function-name" => (1, 1),
         "function-lookup" | "apply" => (2, 2),
         name if crate::maps::arity(name).is_some() => crate::maps::arity(name).unwrap(),
@@ -2475,6 +2480,18 @@ fn higher_order<'a>(
             let known = match uri {
                 "" => None,
                 "http://www.w3.org/2005/xpath-functions" => fits(local).then(|| local.to_owned()),
+                "http://www.w3.org/2005/xpath-functions/math" => {
+                    let math = format!("math:{local}");
+                    fits(&math).then_some(math)
+                }
+                "http://www.w3.org/2005/xpath-functions/map" => {
+                    let map = format!("map:{local}");
+                    fits(&map).then_some(map)
+                }
+                "http://www.w3.org/2005/xpath-functions/array" => {
+                    let array = format!("array:{local}");
+                    fits(&array).then_some(array)
+                }
                 "http://www.w3.org/2001/XMLSchema" => {
                     let xs = format!("xs:{local}");
                     // xs:QName needs the static namespaces of the call site.
@@ -2944,6 +2961,7 @@ fn function<'a>(
             "current-date",
             "current-time",
             "implicit-timezone",
+            "math:pi",
         ]
         .contains(&name)
     {
@@ -3191,6 +3209,46 @@ fn function<'a>(
             path.push_str(step);
         }
         return Ok(vec![Item::String(path)]);
+    }
+    if let Some(op) = name.strip_prefix("math:") {
+        if op == "pi" {
+            return Ok(vec![Item::Number(Number::Double(std::f64::consts::PI))]);
+        }
+        let mut operands = [0.0f64; 2];
+        for (slot, value) in operands.iter_mut().zip(args) {
+            *slot = match value.as_slice() {
+                [] => return Ok(vec![]),
+                [item] => match atomize(item) {
+                    Item::Number(n) => n.double(),
+                    Item::Untyped(s) => Number::cast("double", &s)?.double(),
+                    _ => return Err(err("XPTY0004", "math functions require numeric arguments")),
+                },
+                _ => {
+                    return Err(err(
+                        "XPTY0004",
+                        "math functions require singleton arguments",
+                    ));
+                }
+            };
+        }
+        let [x, y] = operands;
+        let result = match op {
+            "exp" => x.exp(),
+            "exp10" => 10f64.powf(x),
+            "log" => x.ln(),
+            "log10" => x.log10(),
+            "sqrt" => x.sqrt(),
+            "sin" => x.sin(),
+            "cos" => x.cos(),
+            "tan" => x.tan(),
+            "asin" => x.asin(),
+            "acos" => x.acos(),
+            "atan" => x.atan(),
+            "pow" => x.powf(y),
+            "atan2" => x.atan2(y),
+            _ => unreachable!("{op}"),
+        };
+        return Ok(vec![Item::Number(Number::Double(result))]);
     }
     if crate::maps::arity(name).is_some() && !crate::maps::higher_order(name) {
         return crate::maps::evaluate(name, args, budget);

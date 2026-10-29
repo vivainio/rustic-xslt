@@ -1,4 +1,4 @@
-use rust_xslt::transform;
+use rust_xslt::{Stylesheet, transform};
 fn sheet(version: &str, e: &str) -> String {
     format!(
         r##"<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:xs="http://www.w3.org/2001/XMLSchema" version="{version}"><xsl:output method="text"/><xsl:template match="/"><xsl:value-of select="{e}"/></xsl:template></xsl:stylesheet>"##
@@ -384,4 +384,30 @@ fn rounding_validates_precision_cardinality_and_numeric_arguments() {
         transform(&sheet("1.0", "round(-0.5)"), "<r/>").unwrap(),
         "0"
     );
+}
+#[test]
+fn math_namespace_functions_follow_ieee_semantics() {
+    let run = |expr: &str| {
+        Stylesheet::compile(&format!(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:math="http://www.w3.org/2005/xpath-functions/math"><xsl:output method="text"/><xsl:template match="/"><xsl:sequence select="{expr}"/></xsl:template></xsl:stylesheet>"#))
+            .unwrap()
+            .transform("<r/>")
+            .unwrap()
+    };
+    for (expr, expected) in [
+        ("math:pi()", "3.141592653589793"),
+        ("math:sqrt(16)", "4"),
+        ("math:sqrt(-1)", "NaN"),
+        ("math:pow(2, 10)", "1024"),
+        ("math:pow(xs:double('NaN'), 0)", "1"),
+        ("math:exp10(2)", "100"),
+        ("math:log10(1000)", "3"),
+        ("math:log(0)", "-INF"),
+        ("math:sin(0)", "0"),
+        ("math:cos(0)", "1"),
+        ("math:atan2(0, -1)", "3.141592653589793"),
+        ("empty(math:sqrt(()))", "true"),
+        ("math:exp(0)", "1"),
+    ] {
+        assert_eq!(run(expr), expected, "{expr}");
+    }
 }

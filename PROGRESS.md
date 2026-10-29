@@ -1060,3 +1060,9 @@ conformance claims. Smaller tested increments are committed independently.
   expect `[` and `[]` to be syntax errors were dropped from the gate on purpose.
 - Pinned QT3 over 26,002 cases: 17,321+ pass (from 15,999), 798 engine failures,
   890 harness errors, 6,993 profile exclusions.
+
+## Increment 88: math namespace
+
+- Added math:pi, exp, exp10, log, log10, pow, sqrt, sin, cos, tan, asin, acos, atan
+  and atan2 with IEEE semantics, empty-sequence handling and function references.
+  All 149 selected QT3 math cases pass and are in the gate.
