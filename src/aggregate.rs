@@ -9,7 +9,7 @@ fn error(code: &str, message: &str) -> Diagnostic {
 }
 fn rank(number: &Number) -> u8 {
     match number {
-        Number::Integer(_) => 0,
+        Number::Integer(_) | Number::DerivedInteger(_, _) => 0,
         Number::Decimal(_) => 1,
         Number::Float(_) => 2,
         Number::Double(_) => 3,

@@ -48,7 +48,8 @@ Supported so far:
   sequences, budgeted exact integer ranges, focus-aware simple maps (`!`),
   lexical for/let bindings, some/every quantified expressions, lazy if/then/else, bounded nested XPath comments, string concatenation (`||`),
   instance-of/treat-as/cast/castable;
-- exact integer/decimal arithmetic and integer division (`idiv`), numeric promotion, general/value comparisons,
+- exact integer/decimal arithmetic and integer division (`idiv`), integer subtype
+  constructors/bounds/hierarchy, numeric promotion, general/value comparisons,
   basic xs constructors, QName/anyURI atomic values and error(), atomization and string/node/sequence functions, including
   reverse/head/tail, exactly-one/zero-or-one/one-or-more, remove/insert-before, subsequence, numeric sum/avg/min/max, exact abs/floor/ceiling and precision-aware rounding,
   Unicode upper/lower case, translate/substring, codepoint conversion/comparison, Unicode normalization,
@@ -216,7 +217,7 @@ A pinned, partial catalog runner and a 382-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. An initial internal QT3 bridge
-also gates 2,529 passing XPath cases at the pinned XPath suite revision.
+also gates 3,382 passing XPath cases at the pinned XPath suite revision.
 The example JSON-lines driver
 and its JSON dependency are development-only.
 

@@ -23,6 +23,7 @@ pub(crate) enum Kind {
     Boolean,
     QName,
     Integer,
+    DerivedInteger(crate::integer_type::IntegerType),
     Decimal,
     Float,
     Double,
@@ -147,6 +148,9 @@ impl SequenceType {
                     "double" => Kind::Double,
                     "anyAtomicType" => Kind::Atomic,
                     "numeric" => Kind::Numeric,
+                    name if crate::integer_type::IntegerType::parse(name).is_some() => {
+                        Kind::DerivedInteger(crate::integer_type::IntegerType::parse(name).unwrap())
+                    }
                     _ => {
                         return Err(Diagnostic::new(
                             "XPST0051",
@@ -168,6 +172,7 @@ impl SequenceType {
                 | Kind::Boolean
                 | Kind::QName
                 | Kind::Integer
+                | Kind::DerivedInteger(_)
                 | Kind::Decimal
                 | Kind::Float
                 | Kind::Double
@@ -209,8 +214,18 @@ impl SequenceType {
             | (Kind::AnyUri, Item::AnyUri(_))
             | (Kind::Boolean, Item::Boolean(_))
             | (Kind::QName, Item::QName(_)) => true,
-            (Kind::Integer, Item::Number(Number::Integer(_))) => true,
-            (Kind::Decimal, Item::Number(Number::Integer(_) | Number::Decimal(_))) => true,
+            (Kind::Integer, Item::Number(Number::Integer(_) | Number::DerivedInteger(_, _))) => {
+                true
+            }
+            (Kind::DerivedInteger(target), Item::Number(Number::DerivedInteger(actual, _))) => {
+                actual.subtype_of(*target)
+            }
+            (
+                Kind::Decimal,
+                Item::Number(
+                    Number::Integer(_) | Number::DerivedInteger(_, _) | Number::Decimal(_),
+                ),
+            ) => true,
             (Kind::Float, Item::Number(Number::Float(_)))
             | (Kind::Double, Item::Number(Number::Double(_)))
             | (Kind::Numeric, Item::Number(_)) => true,
@@ -259,9 +274,17 @@ impl SequenceType {
                         _ => return Err(failure()),
                     })
                 }
-                (Kind::Integer | Kind::Decimal | Kind::Float | Kind::Double, Item::Untyped(s)) => {
+                (
+                    Kind::Integer
+                    | Kind::DerivedInteger(_)
+                    | Kind::Decimal
+                    | Kind::Float
+                    | Kind::Double,
+                    Item::Untyped(s),
+                ) => {
                     let kind = match self.kind {
                         Kind::Integer => "integer",
+                        Kind::DerivedInteger(kind) => kind.name(),
                         Kind::Decimal => "decimal",
                         Kind::Float => "float",
                         _ => "double",

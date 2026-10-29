@@ -81,7 +81,7 @@ pub(crate) fn evaluate<'a>(
         for item in &args[0] {
             budget.tick()?;
             let integer = match xpath::atomize(item) {
-                Item::Number(Number::Integer(n)) => n,
+                Item::Number(Number::Integer(n) | Number::DerivedInteger(_, n)) => n,
                 Item::Untyped(s) => {
                     let Number::Integer(n) = Number::cast("integer", &s)? else {
                         unreachable!()

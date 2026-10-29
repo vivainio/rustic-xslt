@@ -1047,6 +1047,13 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "contains" | "starts-with" | "ends-with" | "substring-before" | "substring-after"
         | "string-join" => (2, 2),
         "concat" => (2, usize::MAX),
+        name if name
+            .strip_prefix("xs:")
+            .and_then(crate::integer_type::IntegerType::parse)
+            .is_some() =>
+        {
+            (1, 1)
+        }
         _ => return None,
     })
 }
@@ -1264,6 +1271,7 @@ pub(crate) fn eval<'a>(
                             crate::seqtype::Kind::AnyUri => "anyURI",
                             crate::seqtype::Kind::Boolean => "boolean",
                             crate::seqtype::Kind::Integer => "integer",
+                            crate::seqtype::Kind::DerivedInteger(kind) => kind.name(),
                             crate::seqtype::Kind::Decimal => "decimal",
                             crate::seqtype::Kind::Float => "float",
                             crate::seqtype::Kind::Double => "double",
@@ -1517,7 +1525,9 @@ pub(crate) fn eval<'a>(
                         match value {
                             [] => Ok(None),
                             [item] => match atomize(item) {
-                                Item::Number(Number::Integer(n)) => Ok(Some(n)),
+                                Item::Number(Number::Integer(n) | Number::DerivedInteger(_, n)) => {
+                                    Ok(Some(n))
+                                }
                                 Item::Untyped(s) => {
                                     let Number::Integer(n) = Number::cast("integer", &s)? else {
                                         unreachable!()
@@ -1821,7 +1831,7 @@ fn function<'a>(
         let precision = match args.get(1).map(Vec::as_slice) {
             None => num_bigint::BigInt::from(0),
             Some([item]) => match atomize(item) {
-                Item::Number(Number::Integer(n)) => n,
+                Item::Number(Number::Integer(n) | Number::DerivedInteger(_, n)) => n,
                 Item::Untyped(s) => {
                     let Number::Integer(n) = Number::cast("integer", &s)? else {
                         unreachable!()
@@ -1959,7 +1969,7 @@ fn function<'a>(
         fn integer(value: &[Item<'_>]) -> Result<num_bigint::BigInt, Diagnostic> {
             match value {
                 [item] => match atomize(item) {
-                    Item::Number(Number::Integer(n)) => Ok(n),
+                    Item::Number(Number::Integer(n) | Number::DerivedInteger(_, n)) => Ok(n),
                     Item::Untyped(s) => {
                         let Number::Integer(n) = Number::cast("integer", &s)? else {
                             unreachable!()

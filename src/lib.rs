@@ -2,6 +2,7 @@
 mod aggregate;
 mod compile;
 mod deep_equal;
+mod integer_type;
 mod mode;
 mod node;
 mod number;

@@ -771,5 +771,20 @@ conformance claims. Smaller tested increments are committed independently.
   errors / 671 profile exclusions. Rounding adds 310 gate cases; remaining failures
   primarily require numeric subtypes, plus an older-XPath arity distinction.
 
-Next: derived atomic types and further XPath coverage.
+## Increment 63: integer restriction types
+
+- Added signed byte/short/int/long, unsigned byte/short/int/long, nonpositive,
+  negative, nonnegative and positive integer types with exact bounds and hierarchy.
+- Constructors/casts preserve subtype identity and distinguish lexical/facet
+  FORG0001 errors from numeric-cast FOCA0002 bounds errors.
+- Sequence types, function conversion, raw bindings/template results, arithmetic,
+  aggregates, ranges, positions, codepoints and rounding accept integer subtypes.
+  Arithmetic can produce unrestricted integers beyond the source subtype bounds.
+- 378 Rust integration tests, 27 harness tests and Clippy/format pass. All 382
+  XSLT gate cases remain green; QT3 gate grows by 853 to 3,382.
+- Same 4,398 QT3 cases: 3,382 pass / 273 engine failures / 72 harness errors /
+  671 profile exclusions. All selected floor, ceiling, round-half-to-even and
+  integer-divide applicable cases pass; older-XPath round arity remains named.
+
+Next: derived string types and QName accessors.
 

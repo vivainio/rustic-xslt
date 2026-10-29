@@ -8,6 +8,7 @@ const MAX_DIGITS: usize = 10_000;
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Number {
     Integer(BigInt),
+    DerivedInteger(crate::integer_type::IntegerType, BigInt),
     Decimal(BigDecimal),
     Double(f64),
     Float(f32),
@@ -66,6 +67,16 @@ impl Number {
             return Err(error("XPDY0130", "numeric digit limit exceeded"));
         }
         let invalid = || error("FORG0001", "invalid numeric lexical value");
+        if let Some(kind) = crate::integer_type::IntegerType::parse(kind) {
+            let Self::Integer(value) = Self::cast("integer", s)? else {
+                unreachable!()
+            };
+            return if kind.accepts(&value) {
+                Ok(Self::DerivedInteger(kind, value))
+            } else {
+                Err(invalid())
+            };
+        }
         match kind {
             "double" | "float" => {
                 let n = match s {
@@ -103,7 +114,7 @@ impl Number {
     }
     pub fn string(&self) -> String {
         match self {
-            Self::Integer(n) => n.to_string(),
+            Self::Integer(n) | Self::DerivedInteger(_, n) => n.to_string(),
             Self::Decimal(n) => n.normalized().to_plain_string(),
             Self::Float(n) => floating_string(n, *n as f64),
             Self::Double(n) => floating_string(n, *n),
@@ -132,7 +143,7 @@ impl Number {
         match self {
             Self::Double(n) => *n,
             Self::Float(n) => *n as f64,
-            Self::Integer(n) => n.to_f64().unwrap_or_else(|| {
+            Self::Integer(n) | Self::DerivedInteger(_, n) => n.to_f64().unwrap_or_else(|| {
                 if n < &BigInt::zero() {
                     f64::NEG_INFINITY
                 } else {
@@ -150,7 +161,7 @@ impl Number {
     }
     pub fn boolean(&self) -> bool {
         match self {
-            Self::Integer(n) => !n.is_zero(),
+            Self::Integer(n) | Self::DerivedInteger(_, n) => !n.is_zero(),
             Self::Decimal(n) => !n.is_zero(),
             Self::Double(n) => *n != 0.0 && !n.is_nan(),
             Self::Float(n) => *n != 0.0 && !n.is_nan(),
@@ -158,7 +169,7 @@ impl Number {
     }
     pub fn negate(&self) -> Self {
         match self {
-            Self::Integer(n) => Self::Integer(-n),
+            Self::Integer(n) | Self::DerivedInteger(_, n) => Self::Integer(-n),
             Self::Decimal(n) => Self::Decimal(-n),
             Self::Double(n) => Self::Double(-n),
             Self::Float(n) => Self::Float(-n),
@@ -166,7 +177,7 @@ impl Number {
     }
     fn decimal(&self) -> Result<BigDecimal, Diagnostic> {
         match self {
-            Self::Integer(n) => Ok(BigDecimal::from(n.clone())),
+            Self::Integer(n) | Self::DerivedInteger(_, n) => Ok(BigDecimal::from(n.clone())),
             Self::Decimal(n) => Ok(n.clone()),
             Self::Float(n) => BigDecimal::from_f32(*n)
                 .ok_or_else(|| error("FOCA0002", "non-finite number cannot become decimal")),
@@ -175,6 +186,19 @@ impl Number {
         }
     }
     pub fn convert(&self, kind: &str) -> Result<Self, Diagnostic> {
+        if let Some(kind) = crate::integer_type::IntegerType::parse(kind) {
+            let Self::Integer(value) = self.convert("integer")? else {
+                unreachable!()
+            };
+            return if kind.accepts(&value) {
+                Ok(Self::DerivedInteger(kind, value))
+            } else {
+                Err(error(
+                    "FOCA0002",
+                    "numeric value is outside the integer subtype bounds",
+                ))
+            };
+        }
         match kind {
             "integer" => {
                 let d = self.decimal()?;
@@ -198,7 +222,9 @@ impl Number {
     pub fn unary_function(&self, name: &str) -> Self {
         use bigdecimal::RoundingMode;
         match self {
-            Self::Integer(n) => Self::Integer(if name == "abs" { n.abs() } else { n.clone() }),
+            Self::Integer(n) | Self::DerivedInteger(_, n) => {
+                Self::Integer(if name == "abs" { n.abs() } else { n.clone() })
+            }
             Self::Decimal(n) => Self::Decimal(match name {
                 "abs" => n.abs(),
                 "floor" => n.with_scale_round(0, RoundingMode::Floor),
@@ -226,7 +252,7 @@ impl Number {
             return Ok(self.clone());
         }
         let zero = || match self {
-            Self::Integer(_) => Self::Integer(BigInt::from(0)),
+            Self::Integer(_) | Self::DerivedInteger(_, _) => Self::Integer(BigInt::from(0)),
             Self::Decimal(_) => Self::Decimal(BigDecimal::from(0)),
             Self::Float(n) => Self::Float(0.0f32.copysign(*n)),
             Self::Double(n) => Self::Double(0.0f64.copysign(*n)),
@@ -254,7 +280,9 @@ impl Number {
         };
         let rounded = value.with_scale_round(precision, mode);
         let result = match self {
-            Self::Integer(_) => Self::Integer(rounded.with_scale(0).into_bigint_and_scale().0),
+            Self::Integer(_) | Self::DerivedInteger(_, _) => {
+                Self::Integer(rounded.with_scale(0).into_bigint_and_scale().0)
+            }
             Self::Decimal(_) => Self::Decimal(rounded),
             Self::Float(n) => {
                 let v = rounded.to_f32().unwrap_or_else(|| {
@@ -361,7 +389,10 @@ impl Number {
             return Err(error("FOAR0001", "division by zero"));
         }
         let result = match (self, rhs) {
-            (Self::Integer(a), Self::Integer(b)) if op != "div" => Self::Integer(match op {
+            (
+                Self::Integer(a) | Self::DerivedInteger(_, a),
+                Self::Integer(b) | Self::DerivedInteger(_, b),
+            ) if op != "div" => Self::Integer(match op {
                 "+" => a + b,
                 "-" => a - b,
                 "*" => a * b,
