@@ -76,6 +76,56 @@ pub(crate) fn evaluate<'a>(
     budget: &mut Budget,
     backwards: bool,
 ) -> Result<Value<'a>, Diagnostic> {
+    if name == "string-join" {
+        let separator = args
+            .get(1)
+            .map(|v| string(v, false, backwards))
+            .transpose()?
+            .unwrap_or_default();
+        let mut result = String::new();
+        for (index, item) in args[0].iter().enumerate() {
+            budget.tick()?;
+            let text = xpath::atomize(item).string_compat(backwards);
+            for _ in text.bytes() {
+                budget.tick()?;
+            }
+            if index != 0 {
+                for _ in separator.bytes() {
+                    budget.tick()?;
+                }
+                result.push_str(&separator);
+            }
+            result.push_str(&text);
+        }
+        return Ok(vec![Item::String(result)]);
+    }
+    if matches!(
+        name,
+        "contains" | "starts-with" | "ends-with" | "substring-before" | "substring-after"
+    ) {
+        let left = string(&args[0], true, backwards)?;
+        let right = string(&args[1], true, backwards)?;
+        if let Some(collation) = args.get(2)
+            && string(collation, false, backwards)?
+                != "http://www.w3.org/2005/xpath-functions/collation/codepoint"
+        {
+            return Err(Diagnostic::new("FOCH0002", "unsupported collation", "run"));
+        }
+        for _ in left.bytes().chain(right.bytes()) {
+            budget.tick()?;
+        }
+        return Ok(vec![match name {
+            "contains" => Item::Boolean(left.contains(&right)),
+            "starts-with" => Item::Boolean(left.starts_with(&right)),
+            "ends-with" => Item::Boolean(left.ends_with(&right)),
+            "substring-before" => Item::String(left.find(&right).map_or("", |i| &left[..i]).into()),
+            _ => Item::String(
+                left.find(&right)
+                    .map_or("", |i| &left[i + right.len()..])
+                    .into(),
+            ),
+        }]);
+    }
     if name == "codepoints-to-string" {
         let mut result = String::new();
         for item in &args[0] {
@@ -136,6 +186,24 @@ pub(crate) fn evaluate<'a>(
             result.push(Item::Number(Number::from(c as usize)));
         }
         return Ok(result);
+    }
+    if matches!(name, "encode-for-uri" | "iri-to-uri" | "escape-html-uri") {
+        use std::fmt::Write;
+        let mut result = String::new();
+        for byte in input.bytes() {
+            budget.tick()?;
+            let preserve = match name {
+                "encode-for-uri" => byte.is_ascii_alphanumeric() || b"-_.~".contains(&byte),
+                "iri-to-uri" => (0x21..=0x7e).contains(&byte) && !b"<>\\\"{}|^`".contains(&byte),
+                _ => (0x20..=0x7e).contains(&byte),
+            };
+            if preserve {
+                result.push(char::from(byte));
+            } else {
+                write!(result, "%{byte:02X}").unwrap();
+            }
+        }
+        return Ok(vec![Item::String(result)]);
     }
     let mut result = String::new();
     match name {

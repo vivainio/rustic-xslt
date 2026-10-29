@@ -69,14 +69,14 @@ python3 tools/conformance/qt3.py /path/to/qt3tests \
   --baseline tools/conformance/qt3-baseline.json
 ```
 
-The current selection contains 4,460 cases: 3,427 pass, 272 engine failures, 73
-harness errors and 688 profile exclusions. All 3,427 passing cases are recorded
+The current selection contains 5,517 cases: 4,024 pass, 383 engine failures, 235
+harness errors and 875 profile exclusions. All 4,024 passing cases are recorded
 in a gate.
 Counts describe this selected development workload, not a conformance rate.
 
 The bridge supports absent/local XML context, named environment references and
 namespace declarations. It handles scalar/type/count/empty/string assertions,
-atomic/node deep equality, XPath assertions, exact error codes and composite assertions.
+atomic/node deep equality, permutation assertions with duplicate counts, XPath assertions, exact error codes and composite assertions.
 Queries bind their result outside assertion scope, so assertion `$result` cannot
 satisfy a query's undeclared variable. Unsupported assertion expressions, setup and dependencies are reported as harness errors. Schema-aware and
 XQuery-only profiles are excluded explicitly. Queries are reevaluated for assertions;

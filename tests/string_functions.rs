@@ -340,3 +340,71 @@ fn unicode_normalization_consumes_shared_budget() {
         "XPDY0130"
     );
 }
+
+#[test]
+fn substring_search_uses_unicode_codepoints_and_explicit_collations() {
+    for (expr, expected) in [
+        ("contains('a🙂b', '🙂')", "true"),
+        ("starts-with((), ())", "true"),
+        ("ends-with('abc', ())", "true"),
+        ("substring-before('a🙂b', '🙂')", "a"),
+        ("substring-after('a🙂b', '🙂')", "b"),
+        ("substring-after('abc', '')", "abc"),
+        ("substring-before('abc', '')", ""),
+        (
+            "contains('abc','b','http://www.w3.org/2005/xpath-functions/collation/codepoint')",
+            "true",
+        ),
+        ("string-join((1, 2.5, true()))", "12.5true"),
+        ("string-join((), '-')", ""),
+    ] {
+        assert_eq!(evaluate(expr), expected, "{expr}");
+    }
+    for (expr, code) in [
+        ("contains(1, '1')", "XPTY0004"),
+        ("substring-after('a',true())", "XPTY0004"),
+        ("string-join(('a','b'), ())", "XPTY0004"),
+        ("contains('', '', 'urn:unsupported')", "FOCH0002"),
+    ] {
+        assert_eq!(
+            Stylesheet::compile(&source(expr, "3.0"))
+                .unwrap()
+                .transform("<r/>")
+                .unwrap_err()
+                .code,
+            code,
+            "{expr}"
+        );
+    }
+}
+
+#[test]
+fn uri_escaping_uses_utf8_bytes_and_function_specific_ascii_sets() {
+    for (expr, expected) in [
+        (
+            "encode-for-uri('a/b c%é🙂')",
+            "a%2Fb%20c%25%C3%A9%F0%9F%99%82",
+        ),
+        ("encode-for-uri('AZaz09-_.~')", "AZaz09-_.~"),
+        (
+            "iri-to-uri('https://ex/é?q=x y%20z#f')",
+            "https://ex/%C3%A9?q=x%20y%20z#f",
+        ),
+        ("iri-to-uri('[]{}|^`')", "[]%7B%7D%7C%5E%60"),
+        ("escape-html-uri('a b/é')", "a b/%C3%A9"),
+        ("escape-html-uri('a&#x9;b')", "a%09b"),
+        ("encode-for-uri(())", ""),
+        ("iri-to-uri(())", ""),
+        ("escape-html-uri(())", ""),
+    ] {
+        assert_eq!(evaluate(expr), expected, "{expr}");
+    }
+    assert_eq!(
+        Stylesheet::compile(&source("encode-for-uri(1)", "3.0"))
+            .unwrap()
+            .transform("<r/>")
+            .unwrap_err()
+            .code,
+        "XPTY0004"
+    );
+}

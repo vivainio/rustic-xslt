@@ -143,3 +143,94 @@ fn cardinality_functions_report_distinct_errors_and_validate_arity() {
         assert_eq!(Stylesheet::compile(&style).unwrap_err().code, "XPST0017");
     }
 }
+
+#[test]
+fn distinct_values_atomizes_without_erasing_selected_atomic_types() {
+    for (expr, expected) in [
+        ("distinct-values((1, 2.0, 1, 2, 3))", "1 2 3"),
+        (
+            "count(distinct-values((xs:float('NaN'), xs:double('NaN'))))",
+            "1",
+        ),
+        ("count(distinct-values((0, xs:double('-0'))))", "1"),
+        (
+            "count(distinct-values((1, '1', true(), xs:untypedAtomic('1'))))",
+            "3",
+        ),
+        (
+            "distinct-values((xs:byte(1), 1)) instance of xs:byte",
+            "true",
+        ),
+        (
+            "distinct-values(xs:untypedAtomic('x')) instance of xs:untypedAtomic",
+            "true",
+        ),
+        (
+            "count(distinct-values((QName('u','p:n'), QName('u','q:n'))))",
+            "1",
+        ),
+        ("empty(distinct-values(()))", "true"),
+    ] {
+        assert_eq!(sheet(expr).transform("<r/>").unwrap(), expected, "{expr}");
+    }
+    assert_eq!(
+        sheet("distinct-values(r/n)")
+            .transform("<r><n>a</n><n>a</n><n>b</n></r>")
+            .unwrap(),
+        "a b"
+    );
+}
+
+#[test]
+fn index_of_uses_atomic_equality_and_one_based_positions() {
+    for (expr, expected) in [
+        ("index-of((1, 2, 1.0), 1)", "1 3"),
+        ("index-of((1, '1', xs:untypedAtomic('1')), 1)", "1"),
+        ("index-of((1, '1', xs:untypedAtomic('1')), '1')", "2 3"),
+        (
+            "empty(index-of(xs:double('NaN'), xs:double('NaN')))",
+            "true",
+        ),
+        ("index-of((QName('u','p:n'), 'n'), QName('u','q:n'))", "1"),
+        ("empty(index-of((), 'x'))", "true"),
+    ] {
+        assert_eq!(sheet(expr).transform("<r/>").unwrap(), expected, "{expr}");
+    }
+    assert_eq!(
+        sheet("index-of(r/n, r/@search)")
+            .transform("<r search='a'><n>a</n><n>b</n><n>a</n></r>")
+            .unwrap(),
+        "1 3"
+    );
+}
+
+#[test]
+fn atomic_sequence_functions_check_collations_cardinality_and_budgets() {
+    for (expr, code) in [
+        ("index-of((), ())", "XPTY0004"),
+        ("index-of(1, (1,2))", "XPTY0004"),
+        ("distinct-values((), 'urn:unknown')", "FOCH0002"),
+        ("index-of((), 1, 'urn:unknown')", "FOCH0002"),
+        ("distinct-values(1, ())", "XPTY0004"),
+    ] {
+        assert_eq!(
+            sheet(expr).transform("<r/>").unwrap_err().code,
+            code,
+            "{expr}"
+        );
+    }
+    let opts = TransformOptions {
+        limits: Limits {
+            max_steps: 500,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(
+        sheet("distinct-values(1 to 50)")
+            .transform_with_options("<r/>", &opts)
+            .unwrap_err()
+            .code,
+        "XPDY0130"
+    );
+}

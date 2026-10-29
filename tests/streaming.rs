@@ -66,7 +66,13 @@ fn static_stream_rejection_happens_before_any_input_or_output() {
             panic!()
         }
     }
-    for expression in ["../secret", "/records/record", "last()"] {
+    for expression in [
+        "../secret",
+        "/records/record",
+        "last()",
+        "lang('en')",
+        "generate-id()",
+    ] {
         let s = sheet(&format!(
             r#"<xsl:template name="record"><xsl:value-of select="{expression}"/></xsl:template>"#
         ));

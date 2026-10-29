@@ -77,6 +77,7 @@ pub(crate) enum Item<'a> {
     Number(Number),
     Boolean(bool),
     QName(crate::qname::AtomicQName),
+    Binary(crate::binary::BinaryType, Vec<u8>),
 }
 pub(crate) type Value<'a> = Vec<Item<'a>>;
 pub(crate) type Variables<'a> = BTreeMap<String, Value<'a>>;
@@ -98,6 +99,7 @@ impl Item<'_> {
             Self::Number(n) => n.string(),
             Self::Boolean(b) => b.to_string(),
             Self::QName(name) => name.lexical(),
+            Self::Binary(kind, bytes) => kind.encode(bytes),
         }
     }
     pub fn string_compat(&self, backwards: bool) -> String {
@@ -117,7 +119,7 @@ impl Item<'_> {
                 }
             }
             Self::Number(n) => n.double(),
-            Self::AnyUri(_) | Self::QName(_) => f64::NAN,
+            Self::AnyUri(_) | Self::QName(_) | Self::Binary(_, _) => f64::NAN,
             _ => self.string().trim().parse().unwrap_or(f64::NAN),
         }
     }
@@ -138,6 +140,15 @@ impl Budget {
             remaining: limits.max_steps,
             max_depth: limits.max_depth,
         }
+    }
+    pub fn charge(&mut self, steps: usize) -> Result<(), Diagnostic> {
+        let steps =
+            u64::try_from(steps).map_err(|_| err("XPDY0130", "execution limit exceeded"))?;
+        self.remaining = self
+            .remaining
+            .checked_sub(steps)
+            .ok_or_else(|| err("XPDY0130", "execution limit exceeded"))?;
+        Ok(())
     }
     pub fn tick(&mut self) -> Result<(), Diagnostic> {
         if self.remaining == 0 {
@@ -202,13 +213,6 @@ pub(crate) fn simple_string(
         return Err(err("XPDY0130", "simple-content byte limit exceeded"));
     }
     Ok(parts.join(separator))
-}
-pub(crate) fn string(value: &[Item<'_>], separator: &str) -> String {
-    value
-        .iter()
-        .map(Item::string)
-        .collect::<Vec<_>>()
-        .join(separator)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1025,17 +1029,21 @@ impl Parser {
 fn function_arity(name: &str) -> Option<(usize, usize)> {
     Some(match name {
         "xs:string" | "xs:untypedAtomic" | "xs:integer" | "xs:decimal" | "xs:double"
-        | "xs:float" | "xs:boolean" | "xs:QName" | "xs:anyURI" => (1, 1),
+        | "xs:float" | "xs:boolean" | "xs:QName" | "xs:anyURI" | "xs:hexBinary"
+        | "xs:base64Binary" => (1, 1),
         "true" | "false" | "position" | "last" => (0, 0),
         "error" => (0, 3),
         "QName" => (2, 2),
         "namespace-uri-from-QName" | "prefix-from-QName" | "local-name-from-QName" => (1, 1),
+        "namespace-uri-for-prefix" | "resolve-QName" => (2, 2),
+        "lang" => (1, 2),
+        "in-scope-prefixes" | "innermost" | "outermost" | "unordered" => (1, 1),
         "string" | "number" | "normalize-space" | "string-length" | "name" | "local-name"
-        | "namespace-uri" | "root" => (0, 1),
+        | "namespace-uri" | "node-name" | "has-children" | "generate-id" | "root" => (0, 1),
         "count" | "boolean" | "not" | "exists" | "empty" | "data" | "reverse" | "head" | "tail" => {
             (1, 1)
         }
-        "sum" | "min" | "max" => (1, 2),
+        "sum" | "min" | "max" | "distinct-values" => (1, 2),
         "avg" | "exactly-one" | "zero-or-one" | "one-or-more" | "upper-case" | "lower-case" => {
             (1, 1)
         }
@@ -1044,13 +1052,20 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "normalize-unicode" => (1, 2),
         "abs" | "floor" | "ceiling" => (1, 1),
         "round" | "round-half-to-even" => (1, 2),
-        "codepoints-to-string" | "string-to-codepoints" => (1, 1),
+        "codepoints-to-string"
+        | "string-to-codepoints"
+        | "encode-for-uri"
+        | "iri-to-uri"
+        | "escape-html-uri" => (1, 1),
         "translate" => (3, 3),
         "remove" => (2, 2),
         "insert-before" => (3, 3),
-        "subsequence" | "deep-equal" => (2, 3),
-        "contains" | "starts-with" | "ends-with" | "substring-before" | "substring-after"
-        | "string-join" => (2, 2),
+        "subsequence" | "deep-equal" | "index-of" => (2, 3),
+        "contains" | "starts-with" | "ends-with" | "substring-before" | "substring-after" => (2, 3),
+        "string-join" => (1, 2),
+        "matches" => (2, 3),
+        "replace" => (3, 4),
+        "tokenize" => (1, 3),
         "concat" => (2, usize::MAX),
         name if name
             .strip_prefix("xs:")
@@ -1283,6 +1298,7 @@ pub(crate) fn eval<'a>(
                             crate::seqtype::Kind::Untyped => "untypedAtomic",
                             crate::seqtype::Kind::AnyUri => "anyURI",
                             crate::seqtype::Kind::Boolean => "boolean",
+                            crate::seqtype::Kind::Binary(kind) => kind.name(),
                             crate::seqtype::Kind::Integer => "integer",
                             crate::seqtype::Kind::DerivedInteger(kind) => kind.name(),
                             crate::seqtype::Kind::Decimal => "decimal",
@@ -1745,6 +1761,7 @@ fn compare(a: &Item<'_>, b: &Item<'_>, op: &str, backwards: bool) -> Result<bool
             };
             Ok(match other {
                 Item::Number(_) => Item::Number(Number::cast("double", &s)?),
+                Item::Binary(kind, _) => Item::Binary(*kind, kind.decode(&s)?),
                 Item::Boolean(_) => Item::Boolean(match s.trim_matches([' ', '\t', '\r', '\n']) {
                     "true" | "1" => true,
                     "false" | "0" => false,
@@ -1759,6 +1776,7 @@ fn compare(a: &Item<'_>, b: &Item<'_>, op: &str, backwards: bool) -> Result<bool
             (Item::Number(a), Item::Number(b)) => a.compare(b),
             (Item::String(a), Item::String(b)) => Some(a.cmp(b)),
             (Item::Boolean(a), Item::Boolean(b)) => Some(a.cmp(b)),
+            (Item::Binary(ak, a), Item::Binary(bk, b)) if ak == bk => Some(a.cmp(b)),
             _ => return Err(err("XPTY0004", "incomparable atomic types")),
         }
     };
@@ -1855,6 +1873,225 @@ fn function<'a>(
             )],
         });
     }
+    if matches!(name, "matches" | "replace" | "tokenize") {
+        return crate::regex_functions::evaluate(name, args, budget);
+    }
+    if name == "generate-id" {
+        return match first.as_slice() {
+            [] => Ok(vec![Item::String(String::new())]),
+            [Item::Node(node)] => {
+                let (document, index, attribute, local, uri) = node.order();
+                let mut id = format!("d{document:x}n{index}");
+                if attribute {
+                    use std::fmt::Write;
+                    id.push('a');
+                    for byte in local.bytes() {
+                        budget.tick()?;
+                        write!(id, "{byte:02x}").unwrap();
+                    }
+                    id.push('u');
+                    for byte in uri.unwrap_or("").bytes() {
+                        budget.tick()?;
+                        write!(id, "{byte:02x}").unwrap();
+                    }
+                }
+                Ok(vec![Item::String(id)])
+            }
+            _ => Err(err("XPTY0004", "generate-id requires zero or one node")),
+        };
+    }
+    if name == "lang" {
+        let language = crate::string_functions::string(first, true, false)?.to_ascii_lowercase();
+        let target = args.get(1).unwrap_or(&context);
+        if args.len() == 1 && matches!(focus.item, Item::Absent) {
+            return Err(err("XPDY0002", "lang requires a context node"));
+        }
+        let [Item::Node(node)] = target.as_slice() else {
+            return Err(err("XPTY0004", "lang requires a singleton node"));
+        };
+        let mut current = Some(*node);
+        while let Some(node) = current {
+            budget.tick()?;
+            if node.is_element()
+                && let Some(value) = node
+                    .raw
+                    .attribute(("http://www.w3.org/XML/1998/namespace", "lang"))
+            {
+                let value = value.to_ascii_lowercase();
+                return Ok(vec![Item::Boolean(
+                    value == language
+                        || value
+                            .strip_prefix(&language)
+                            .is_some_and(|suffix| suffix.starts_with('-')),
+                )]);
+            }
+            current = node.parent();
+        }
+        return Ok(vec![Item::Boolean(false)]);
+    }
+    if name == "unordered" {
+        for _ in first {
+            budget.tick()?;
+        }
+        return Ok(first.clone());
+    }
+    if name == "has-children" {
+        return match first.as_slice() {
+            [] => Ok(vec![Item::Boolean(false)]),
+            [Item::Node(node)] => Ok(vec![Item::Boolean(node.children().next().is_some())]),
+            _ => Err(err("XPTY0004", "has-children requires zero or one node")),
+        };
+    }
+    if matches!(name, "innermost" | "outermost") {
+        let mut nodes = vec![];
+        for item in first {
+            budget.tick()?;
+            let Item::Node(node) = item else {
+                return Err(err(
+                    "XPTY0004",
+                    "node selection requires a sequence of nodes",
+                ));
+            };
+            nodes.push(*node);
+        }
+        let selected = nodes
+            .iter()
+            .copied()
+            .collect::<std::collections::HashSet<_>>();
+        let mut ancestors = std::collections::HashSet::new();
+        let mut result = vec![];
+        for node in &nodes {
+            let mut parent = node.parent();
+            let mut contained = false;
+            while let Some(ancestor) = parent {
+                budget.tick()?;
+                if name == "innermost" {
+                    ancestors.insert(ancestor);
+                }
+                if selected.contains(&ancestor) {
+                    contained = true;
+                }
+                parent = ancestor.parent();
+            }
+            if name == "outermost" && !contained {
+                result.push(*node);
+            }
+        }
+        if name == "innermost" {
+            result.extend(nodes.into_iter().filter(|node| !ancestors.contains(node)));
+        }
+        return Ok(ordered(result));
+    }
+    if name == "node-name" {
+        return match first.as_slice() {
+            [] => Ok(vec![]),
+            [Item::Node(n)] => {
+                let (uri, local) = n.name();
+                if local.is_empty() {
+                    return Ok(vec![]);
+                }
+                let prefix = uri
+                    .and_then(|u| {
+                        if u == "http://www.w3.org/XML/1998/namespace" {
+                            Some("xml")
+                        } else {
+                            n.raw.lookup_prefix(u)
+                        }
+                    })
+                    .filter(|p| !p.is_empty());
+                let lexical = prefix.map_or_else(|| local.to_owned(), |p| format!("{p}:{local}"));
+                Ok(vec![Item::QName(crate::qname::AtomicQName::new(
+                    uri.unwrap_or(""),
+                    &lexical,
+                )?)])
+            }
+            _ => Err(err("XPTY0004", "node-name requires zero or one node")),
+        };
+    }
+    if name == "namespace-uri-for-prefix" {
+        let prefix = crate::string_functions::string(&args[0], true, false)?;
+        let [Item::Node(n)] = args[1].as_slice() else {
+            return Err(err(
+                "XPTY0004",
+                "namespace-uri-for-prefix requires an element node",
+            ));
+        };
+        if !n.is_element() {
+            return Err(err(
+                "XPTY0004",
+                "namespace-uri-for-prefix requires an element node",
+            ));
+        }
+        let uri = if prefix == "xml" {
+            Some("http://www.w3.org/XML/1998/namespace")
+        } else {
+            n.raw.lookup_namespace_uri(if prefix.is_empty() {
+                None
+            } else {
+                Some(&prefix)
+            })
+        };
+        return Ok(uri
+            .filter(|u| !u.is_empty())
+            .map(|u| vec![Item::AnyUri(u.to_owned())])
+            .unwrap_or_default());
+    }
+    if name == "in-scope-prefixes" {
+        let [Item::Node(n)] = first.as_slice() else {
+            return Err(err(
+                "XPTY0004",
+                "in-scope-prefixes requires an element node",
+            ));
+        };
+        if !n.is_element() {
+            return Err(err(
+                "XPTY0004",
+                "in-scope-prefixes requires an element node",
+            ));
+        }
+        let mut prefixes = n
+            .raw
+            .namespaces()
+            .filter(|ns| !ns.uri().is_empty())
+            .map(|ns| ns.name().unwrap_or("").to_owned())
+            .collect::<Vec<_>>();
+        prefixes.push("xml".into());
+        prefixes.sort();
+        prefixes.dedup();
+        return Ok(prefixes.into_iter().map(Item::String).collect());
+    }
+    if name == "resolve-QName" {
+        let lexical = crate::string_functions::string(&args[0], true, false)?;
+        let [Item::Node(n)] = args[1].as_slice() else {
+            return Err(err("XPTY0004", "resolve-QName requires an element node"));
+        };
+        if !n.is_element() {
+            return Err(err("XPTY0004", "resolve-QName requires an element node"));
+        }
+        if args[0].is_empty() {
+            return Ok(vec![]);
+        }
+        let trimmed = lexical.trim_matches([' ', '\t', '\n', '\r']);
+        let _ = crate::qname::AtomicQName::new("urn:validation", trimmed)?;
+        let (prefix, _) = trimmed
+            .split_once(':')
+            .map_or((None, trimmed), |(p, l)| (Some(p), l));
+        let binding = if prefix == Some("xml") {
+            Some("http://www.w3.org/XML/1998/namespace")
+        } else {
+            n.raw.lookup_namespace_uri(prefix)
+        };
+        let uri = match binding {
+            Some(uri) => uri,
+            None if prefix.is_some() => {
+                return Err(err("FONS0004", "resolve-QName prefix is not bound"));
+            }
+            None => "",
+        };
+        return Ok(vec![Item::QName(crate::qname::AtomicQName::new(
+            uri, trimmed,
+        )?)]);
+    }
     if name == "QName" {
         let uri = crate::string_functions::string(&args[0], true, false)?;
         let lexical = crate::string_functions::string(&args[1], false, false)?;
@@ -1938,6 +2175,15 @@ fn function<'a>(
             | "compare"
             | "codepoint-equal"
             | "normalize-unicode"
+            | "encode-for-uri"
+            | "iri-to-uri"
+            | "escape-html-uri"
+            | "contains"
+            | "starts-with"
+            | "ends-with"
+            | "substring-before"
+            | "substring-after"
+            | "string-join"
     ) {
         return crate::string_functions::evaluate(name, args, budget, backwards);
     }
@@ -1952,6 +2198,30 @@ fn function<'a>(
             return Err(err("XPTY0004", "constructor requires a singleton"));
         }
         let item = &first[0];
+        if let Some(kind) = crate::binary::BinaryType::parse(kind) {
+            let bytes = match atomize(item) {
+                Item::Binary(_, bytes) => bytes,
+                Item::String(text) | Item::Untyped(text) | Item::DerivedString(_, text) => {
+                    for _ in text.bytes() {
+                        budget.tick()?;
+                    }
+                    kind.decode(&text)?
+                }
+                _ => {
+                    return Err(err(
+                        "XPTY0004",
+                        "binary constructor requires a string or binary value",
+                    ));
+                }
+            };
+            return Ok(vec![Item::Binary(kind, bytes)]);
+        }
+        if matches!(item, Item::Binary(_, _))
+            && !matches!(kind, "string" | "untypedAtomic")
+            && crate::string_type::StringType::parse(kind).is_none()
+        {
+            return Err(err("XPTY0004", "binary value cannot be cast to this type"));
+        }
         if let Some(kind) = crate::string_type::StringType::parse(kind) {
             let text = item.string();
             for _ in text.bytes() {
@@ -2001,6 +2271,9 @@ fn function<'a>(
                 _ => Number::cast(kind, &item.string())?,
             }),
         }]);
+    }
+    if matches!(name, "distinct-values" | "index-of") {
+        return crate::atomic_sequence::evaluate(name, args, budget);
     }
     if name == "deep-equal" {
         return Ok(vec![Item::Boolean(crate::deep_equal::evaluate(
@@ -2137,18 +2410,6 @@ fn function<'a>(
                 s.push_str(&scalar(a)?);
             }
             Item::String(s)
-        }
-        "string-join" => Item::String(string(first, &scalar(&args[1])?)),
-        "contains" | "starts-with" | "ends-with" | "substring-before" | "substring-after" => {
-            let a = s()?;
-            let b = scalar(&args[1])?;
-            match name {
-                "contains" => Item::Boolean(a.contains(&b)),
-                "starts-with" => Item::Boolean(a.starts_with(&b)),
-                "ends-with" => Item::Boolean(a.ends_with(&b)),
-                "substring-before" => Item::String(a.find(&b).map_or("", |i| &a[..i]).into()),
-                _ => Item::String(a.find(&b).map_or("", |i| &a[i + b.len()..]).into()),
-            }
         }
         "name" | "local-name" | "namespace-uri" => {
             let text = match first.as_slice() {

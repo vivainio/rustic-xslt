@@ -16,6 +16,7 @@ num-traits = "=0.2.19"
 
 typed-arena = "=2.0.2"
 unicode-normalization = "=0.1.25"
+regex = "=1.12.3"
 
 [dev-dependencies]
 serde_json = "=1.0.154"

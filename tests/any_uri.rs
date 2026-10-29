@@ -100,3 +100,46 @@ fn uri_invalid_casts_and_boolean_use_report_type_errors() {
     }
     assert_eq!(evaluate("xs:anyURI('1') castable as xs:integer"), "false");
 }
+
+#[test]
+fn node_names_and_element_namespace_lookup() {
+    for (expr, expected) in [
+        ("node-name(r) eq QName('', 'r')", "true"),
+        ("empty(node-name(()))", "true"),
+        ("empty(node-name(/))", "true"),
+        ("namespace-uri-for-prefix('p', r)", "urn:p"),
+        ("empty(namespace-uri-for-prefix('missing', r))", "true"),
+        ("exists(in-scope-prefixes(r)[. = 'xml'])", "true"),
+        ("resolve-QName('p:n', r) eq QName('urn:p', 'n')", "true"),
+        ("empty(resolve-QName((), r))", "true"),
+    ] {
+        assert_eq!(evaluate(expr), expected, "{expr}");
+    }
+}
+
+#[test]
+fn namespace_lookup_rejects_invalid_names_and_argument_types() {
+    for (expr, code) in [
+        ("resolve-QName('missing:n', r)", "FONS0004"),
+        ("resolve-QName('bad::name', r)", "FOCA0002"),
+        ("resolve-QName('', r)", "FOCA0002"),
+        ("resolve-QName(1, r)", "XPTY0004"),
+        ("namespace-uri-for-prefix(1, r)", "XPTY0004"),
+        ("in-scope-prefixes(/)", "XPTY0004"),
+        ("node-name('r')", "XPTY0004"),
+    ] {
+        assert_eq!(
+            Stylesheet::compile(&source(expr))
+                .unwrap()
+                .transform("<r/>")
+                .unwrap_err()
+                .code,
+            code,
+            "{expr}"
+        );
+    }
+    assert_eq!(
+        evaluate("namespace-uri-for-prefix('xml', r)"),
+        "http://www.w3.org/XML/1998/namespace"
+    );
+}

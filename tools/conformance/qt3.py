@@ -83,7 +83,7 @@ def stylesheet(expression, bindings, assertion="count($result)"):
     start += f'<{xsl}:value-of select={quoteattr(assertion)}/>'
     return start + f'</{xsl}:template></{xsl}:stylesheet>'
 
-LEAVES = {"error", "assert", "assert-eq", "assert-deep-eq", "assert-string-value", "assert-empty", "assert-true", "assert-false", "assert-count", "assert-type"}
+LEAVES = {"error", "assert", "assert-eq", "assert-deep-eq", "assert-permutation", "assert-string-value", "assert-empty", "assert-true", "assert-false", "assert-count", "assert-type"}
 
 def preflight(node):
     kind = tag(node)
@@ -114,7 +114,14 @@ def assertion(a, probe, expression, env, driver):
     if codes:
         return False
     value = text(a)
-    if kind == "assert-deep-eq":
+    if kind == "assert-permutation":
+        condition = (f"let $_expected := ({value}) return "
+                     "count($result) eq count($_expected) and "
+                     "(every $_item in ($result, $_expected) satisfies "
+                     "count($result[deep-equal(., $_item)]) eq "
+                     "count($_expected[deep-equal(., $_item)]))")
+        style = stylesheet(expression, env["namespaces"], assertion=condition)
+    elif kind == "assert-deep-eq":
         style = stylesheet(expression, env["namespaces"], assertion=f"deep-equal($result, ({value}))")
     else:
         condition = {

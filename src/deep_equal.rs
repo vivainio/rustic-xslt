@@ -19,6 +19,23 @@ fn kind(n: XNode<'_>) -> u8 {
         5
     }
 }
+/// Equality for atomized values, without untyped-to-numeric conversion.
+pub(crate) fn atomic_equal(a: &Item<'_>, b: &Item<'_>, nan_equal: bool) -> bool {
+    match (a, b) {
+        (Item::Number(a), Item::Number(b)) => {
+            a.compare(b) == Some(Ordering::Equal)
+                || nan_equal && a.compare(a).is_none() && b.compare(b).is_none()
+        }
+        (
+            Item::String(a) | Item::Untyped(a) | Item::AnyUri(a) | Item::DerivedString(_, a),
+            Item::String(b) | Item::Untyped(b) | Item::AnyUri(b) | Item::DerivedString(_, b),
+        ) => a == b,
+        (Item::Boolean(a), Item::Boolean(b)) => a == b,
+        (Item::QName(a), Item::QName(b)) => a.equal(b),
+        (Item::Binary(ak, a), Item::Binary(bk, b)) => ak == bk && a == b,
+        _ => false,
+    }
+}
 pub(crate) fn evaluate(args: &[Value<'_>], budget: &mut Budget) -> Result<bool, Diagnostic> {
     if let Some(collation) = args.get(2) {
         let [item] = collation.as_slice() else {
@@ -54,17 +71,7 @@ pub(crate) fn evaluate(args: &[Value<'_>], budget: &mut Budget) -> Result<bool, 
                 pending.push((*a, *b));
                 true
             }
-            (Item::Number(a), Item::Number(b)) => {
-                a.compare(b) == Some(Ordering::Equal)
-                    || a.compare(a).is_none() && b.compare(b).is_none()
-            }
-            (
-                Item::String(a) | Item::Untyped(a) | Item::AnyUri(a) | Item::DerivedString(_, a),
-                Item::String(b) | Item::Untyped(b) | Item::AnyUri(b) | Item::DerivedString(_, b),
-            ) => a == b,
-            (Item::Boolean(a), Item::Boolean(b)) => a == b,
-            (Item::QName(a), Item::QName(b)) => a.equal(b),
-            _ => false,
+            _ => atomic_equal(a, b, true),
         };
         if !equal {
             return Ok(false);

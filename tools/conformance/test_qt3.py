@@ -19,7 +19,7 @@ class QT3Assertions(unittest.TestCase):
         self.assertFalse(assertion(node('<root><error code="*"/></root>'), {"diagnostics": [{"code": "RUST_XSLT_UNSUPPORTED"}]}, "bad", {}, None))
 
     def test_preflight_does_not_skip_unsupported_assertions_or_attributes(self):
-        for xml in ['<any-of><assert-true/><assert-permutation>1,2</assert-permutation></any-of>', '<assert-string-value ignored="yes">x</assert-string-value>', '<assert-string-value normalize-space="maybe">x</assert-string-value>']:
+        for xml in ['<any-of><assert-true/><assert-serialization>1,2</assert-serialization></any-of>', '<assert-string-value ignored="yes">x</assert-string-value>', '<assert-string-value normalize-space="maybe">x</assert-string-value>']:
             with self.assertRaises(HarnessError):
                 preflight(node('<root>' + xml + '</root>'))
 

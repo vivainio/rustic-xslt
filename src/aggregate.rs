@@ -145,7 +145,8 @@ pub(crate) fn evaluate<'a>(
         )
     });
     let booleans = values.iter().all(|v| matches!(v, Item::Boolean(_)));
-    if !strings && !booleans {
+    let binaries = matches!(&values[0], Item::Binary(kind, _) if values.iter().all(|v| matches!(v, Item::Binary(other, _) if kind == other)));
+    if !strings && !booleans && !binaries {
         return Err(error(
             "FORG0006",
             "min/max values must have comparable types",
@@ -160,6 +161,7 @@ pub(crate) fn evaluate<'a>(
                 Item::String(b) | Item::AnyUri(b) | Item::DerivedString(_, b),
             ) => a.cmp(b),
             (Item::Boolean(a), Item::Boolean(b)) => a.cmp(b),
+            (Item::Binary(_, a), Item::Binary(_, b)) => a.cmp(b),
             _ => unreachable!(),
         };
         if name == "min" && order.is_gt() || name == "max" && order.is_lt() {

@@ -126,6 +126,16 @@ fn safe_expression(e: &Expr, global: bool) -> Result<(), Diagnostic> {
             }
             Expr::Sequence(es) => pending.extend(es),
             Expr::Call(name, args) => {
+                if name == "generate-id" {
+                    return Err(unsupported(
+                        "generate-id() requires node identities across streamed records",
+                    ));
+                }
+                if name == "lang" {
+                    return Err(unsupported(
+                        "lang() can depend on ancestors outside the streamed record",
+                    ));
+                }
                 if name == "root" {
                     return Err(unsupported("root() can escape the streamed record focus"));
                 }

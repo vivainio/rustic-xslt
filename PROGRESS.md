@@ -810,5 +810,83 @@ conformance claims. Smaller tested increments are committed independently.
   XSLT gate cases remain green; fifty-five QT3 sets: 4,460 cases, 3,427 pass /
   272 engine failures / 73 harness errors / 688 profile exclusions. Gate adds 43.
 
-Next: node-name and further namespace functions.
+## Increment 66: node names and namespace lookup
 
+- Added node-name() returning a QName with the node's expanded name and an
+  in-scope prefix when one is available; absent input and unnamed nodes return
+  the empty sequence.
+- Added namespace-uri-for-prefix(), in-scope-prefixes() and resolve-QName()
+  for element nodes, including namespace-sensitive unbound-prefix errors.
+- Corrected function registration, optional QName resolution, string argument
+  conversion, lexical validation and the implicit xml prefix.
+- Namespace lookup handles the implicit xml binding and excludes undeclared
+  empty namespace bindings; regression checks cover invalid names and types.
+- Full offline Rust tests, formatting and Clippy pass. Full conformance counts
+  are not refreshed.
+
+
+
+## Increment 67: QT3 permutation assertions and namespace gate
+
+- Added unordered sequence assertions using deep equality with duplicate
+  multiplicities, rather than membership-only comparison. Empty and mismatched
+  sequences were checked through the development driver.
+- Surveyed four namespace function sets and expanded the QT3 gate to 3,458
+  passing cases with no regressions among the previous 3,427 cases.
+- Selection: 4,626 cases, 3,458 pass / 272 engine failures / 78 harness errors /
+  818 profile exclusions at the unchanged pinned revision.
+- Remaining namespace failures name older-XPath node-name arity and DTD-supplied
+  namespace declarations. XML 1.1 dependency handling remains a harness gap.
+- All 27 harness unit tests pass. The prior full Rust checks remain green.
+
+
+
+## Increment 68: atomic sequence lookup
+
+- Added index-of() and distinct-values() with atomization, numeric promotion,
+  string/untyped/URI equivalence and expanded QName equality. Incomparable types
+  remain distinct; NaN collapses only for distinct-values.
+- Selected atomic subtypes survive duplicate removal. Optional codepoint
+  collations and index-of search cardinality are validated even for empty input.
+- Shared deep-equality atomic comparison avoids inconsistent equality rules;
+  duplicate scans consume the shared execution budget.
+- The two QT3 sets contribute 138 passes; remaining failures require temporal
+  or binary atomic types.
+
+## Increment 69: node sequence selection
+
+- Added has-children(), innermost(), outermost() and unordered(). Node extrema
+  remove duplicates and return document order while respecting detached roots.
+- Ancestry checks include attribute owners and consume shared work budgets.
+- Four QT3 sets contribute 69 passes; many remaining cases require source-variable
+  environments, function items or namespace-axis support in the harness/engine.
+
+## Increment 70: node languages and generated identifiers
+
+- Added lang() with nearest inherited xml:lang, ASCII case folding and sublanguage
+  matching, plus generate-id() for supported node identities.
+- Identifier strings distinguish documents, elements and expanded attribute names;
+  empty inputs return the empty string.
+- Record streaming rejects both functions before I/O: inherited languages and
+  identities across records require additional streaming support.
+- Two QT3 sets contribute 42 passes; a remaining identifier assertion needs regex.
+
+## Increment 71: string search and joins
+
+- String search functions accept optional codepoint collations, enforce function
+  conversion and charge string traversal to the shared budget.
+- string-join() accepts its one-argument form and converts supported atomic values
+  while validating singleton separators.
+- Six QT3 sets contribute 206 passes. Other collations, temporal values and older
+  XPath arity/type rules remain explicit failures.
+
+## Increment 72: URI escaping
+
+- Added encode-for-uri(), iri-to-uri() and escape-html-uri() using uppercase
+  percent escapes of UTF-8 bytes and their distinct ASCII preservation sets.
+- Optional strings, function conversion and shared work budgets are retained.
+- Three QT3 sets contribute 106 passes; the three remaining failures require
+  current-time().
+- Combined selection: 5,517 cases, 4,024 pass / 383 engine failures / 235 harness
+  errors / 875 profile exclusions. All prior passing cases remain green.
+- All 399 Rust tests, 27 harness tests, formatting and Clippy pass.

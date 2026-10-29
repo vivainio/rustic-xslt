@@ -1,5 +1,7 @@
 //! An early, deliberately limited XSLT engine. See README.md for supported syntax.
 mod aggregate;
+mod atomic_sequence;
+mod binary;
 mod compile;
 mod deep_equal;
 mod integer_type;
@@ -8,6 +10,7 @@ mod node;
 mod number;
 mod pattern;
 mod qname;
+mod regex_functions;
 mod result;
 mod runtime;
 mod seqtype;

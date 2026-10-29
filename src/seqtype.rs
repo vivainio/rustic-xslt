@@ -23,6 +23,7 @@ pub(crate) enum Kind {
     AnyUri,
     Boolean,
     QName,
+    Binary(crate::binary::BinaryType),
     Integer,
     DerivedInteger(crate::integer_type::IntegerType),
     Decimal,
@@ -143,6 +144,9 @@ impl SequenceType {
                     "anyURI" => Kind::AnyUri,
                     "boolean" => Kind::Boolean,
                     "QName" => Kind::QName,
+                    name if crate::binary::BinaryType::parse(name).is_some() => {
+                        Kind::Binary(crate::binary::BinaryType::parse(name).unwrap())
+                    }
                     "integer" => Kind::Integer,
                     "decimal" => Kind::Decimal,
                     "float" => Kind::Float,
@@ -176,6 +180,7 @@ impl SequenceType {
                 | Kind::AnyUri
                 | Kind::Boolean
                 | Kind::QName
+                | Kind::Binary(_)
                 | Kind::Integer
                 | Kind::DerivedInteger(_)
                 | Kind::Decimal
@@ -223,6 +228,7 @@ impl SequenceType {
             | (Kind::AnyUri, Item::AnyUri(_))
             | (Kind::Boolean, Item::Boolean(_))
             | (Kind::QName, Item::QName(_)) => true,
+            (Kind::Binary(target), Item::Binary(actual, _)) => target == actual,
             (Kind::Integer, Item::Number(Number::Integer(_) | Number::DerivedInteger(_, _))) => {
                 true
             }
@@ -246,7 +252,8 @@ impl SequenceType {
                 | Item::Untyped(_)
                 | Item::Boolean(_)
                 | Item::Number(_)
-                | Item::QName(_),
+                | Item::QName(_)
+                | Item::Binary(_, _),
             ) => true,
             _ => false,
         }
@@ -279,6 +286,9 @@ impl SequenceType {
                 }
                 (Kind::AnyUri, Item::Untyped(s)) => {
                     Item::AnyUri(crate::string_functions::collapse_xml_whitespace(&s))
+                }
+                (Kind::Binary(kind), Item::Untyped(s)) => {
+                    Item::Binary(*kind, kind.decode(&s).map_err(|_| failure())?)
                 }
                 (Kind::Boolean, Item::Untyped(s)) => {
                     Item::Boolean(match s.trim_matches([' ', '\t', '\r', '\n']) {
