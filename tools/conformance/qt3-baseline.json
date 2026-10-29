@@ -12488,6 +12488,22 @@
     ],
     [
       "fn-function-lookup",
+      "fn-function-lookup-744"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-745"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-746"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-747"
+    ],
+    [
+      "fn-function-lookup",
       "fn-function-lookup-752"
     ],
     [
@@ -66285,6 +66301,18 @@
     [
       "prod-Lookup",
       "Lookup-231"
+    ],
+    [
+      "prod-Lookup",
+      "Lookup-232"
+    ],
+    [
+      "prod-Lookup",
+      "Lookup-233"
+    ],
+    [
+      "prod-Lookup",
+      "Lookup-234"
     ],
     [
       "prod-MapConstructor",
