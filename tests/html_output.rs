@@ -197,3 +197,34 @@ fn metadata_replacement_survives_try_capture_inside_head() {
     assert!(!output.contains("content=\"old\""));
     assert!(output.contains("<title>T</title>"));
 }
+
+#[test]
+fn copied_content_type_metadata_discards_its_entire_subtree() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="html"/><xsl:template match="/"><html><head><xsl:copy-of select="r/meta"/></head></html></xsl:template></xsl:stylesheet>"#).unwrap();
+    let output = sheet.transform("<r><meta http-equiv='Content-Type' content='old'><child>discard</child></meta><meta name='keep' content='yes'/></r>").unwrap();
+    assert!(!output.contains("old"));
+    assert!(!output.contains("discard"));
+    assert!(!output.contains("child"));
+    assert!(output.contains("name=\"keep\""));
+    assert_eq!(output.matches("charset=").count(), 1);
+}
+
+#[test]
+fn generated_metadata_counts_toward_output_limits() {
+    let options = rust_xslt::TransformOptions {
+        limits: rust_xslt::Limits {
+            max_output_bytes: 40,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    for (enabled, expected_error) in [("yes", true), ("no", false)] {
+        let sheet = Stylesheet::compile(&format!(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="html" include-content-type="{enabled}"/><xsl:template match="/"><html><head/></html></xsl:template></xsl:stylesheet>"#)).unwrap();
+        let result = sheet.transform_with_options("<r/>", &options);
+        if expected_error {
+            assert_eq!(result.unwrap_err().code, "XPDY0130");
+        } else {
+            assert_eq!(result.unwrap(), "<html><head></head></html>");
+        }
+    }
+}

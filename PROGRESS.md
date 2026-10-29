@@ -2177,3 +2177,12 @@ conformance claims. Smaller tested increments are committed independently.
 - Added a regression for a mapped character in a generated media-type value.
 - Validation: character-map and serializer tests, all-target/all-feature Clippy
   and the full 928-case pinned XSLT gate pass without regressions.
+
+## Increment 191: metadata subtree and byte-limit regressions
+
+- Added copied-node coverage proving replacement discards the complete subtree
+  of an existing Content-Type meta while preserving unrelated metadata.
+- Added an output-limit comparison showing generated metadata bytes trigger
+  `XPDY0130` while the same document fits when insertion is disabled.
+- Validation: eighteen serializer tests, all-target/all-feature Clippy,
+  formatting and diff checks pass. No runtime behavior changed.
