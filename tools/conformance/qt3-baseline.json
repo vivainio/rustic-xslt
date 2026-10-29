@@ -6,6 +6,7 @@
     "fn-exactly-one",
     "fn-head",
     "fn-insert-before",
+    "fn-lower-case",
     "fn-max",
     "fn-min",
     "fn-one-or-more",
@@ -13,8 +14,11 @@
     "fn-reverse",
     "fn-root",
     "fn-subsequence",
+    "fn-substring",
     "fn-sum",
     "fn-tail",
+    "fn-translate",
+    "fn-upper-case",
     "fn-zero-or-one",
     "op-bang",
     "op-concat",
@@ -3097,6 +3101,150 @@
       "bang-14"
     ],
     [
+      "op-concat",
+      "op-concatintg2args-1"
+    ],
+    [
+      "op-concat",
+      "op-concatintg2args-2"
+    ],
+    [
+      "op-concat",
+      "op-concatintg2args-3"
+    ],
+    [
+      "op-concat",
+      "op-concatintg2args-4"
+    ],
+    [
+      "op-concat",
+      "op-concatintg2args-5"
+    ],
+    [
+      "op-concat",
+      "op-concatdec2args-1"
+    ],
+    [
+      "op-concat",
+      "op-concatdec2args-2"
+    ],
+    [
+      "op-concat",
+      "op-concatdec2args-3"
+    ],
+    [
+      "op-concat",
+      "op-concatdec2args-4"
+    ],
+    [
+      "op-concat",
+      "op-concatdec2args-5"
+    ],
+    [
+      "op-concat",
+      "op-concat-1"
+    ],
+    [
+      "op-concat",
+      "op-concat-2"
+    ],
+    [
+      "op-concat",
+      "op-concat-3"
+    ],
+    [
+      "op-concat",
+      "op-concat-4"
+    ],
+    [
+      "op-concat",
+      "op-concat-5"
+    ],
+    [
+      "op-concat",
+      "op-concat-6"
+    ],
+    [
+      "op-concat",
+      "op-concat-7"
+    ],
+    [
+      "op-concat",
+      "op-concat-8"
+    ],
+    [
+      "op-concat",
+      "op-concat-9"
+    ],
+    [
+      "op-concat",
+      "op-concat-10"
+    ],
+    [
+      "op-concat",
+      "op-concat-11"
+    ],
+    [
+      "op-concat",
+      "op-concat-12"
+    ],
+    [
+      "op-concat",
+      "op-concat-13"
+    ],
+    [
+      "op-concat",
+      "op-concat-14"
+    ],
+    [
+      "op-concat",
+      "op-concat-15"
+    ],
+    [
+      "op-concat",
+      "op-concat-16"
+    ],
+    [
+      "op-concat",
+      "op-concat-17"
+    ],
+    [
+      "op-concat",
+      "op-concat-19"
+    ],
+    [
+      "op-concat",
+      "op-concat-20"
+    ],
+    [
+      "op-concat",
+      "K-ConcatOp-3"
+    ],
+    [
+      "op-concat",
+      "K-ConcatOp-4"
+    ],
+    [
+      "op-concat",
+      "K-ConcatOp-5"
+    ],
+    [
+      "op-concat",
+      "K-ConcatOp-6"
+    ],
+    [
+      "op-concat",
+      "K-ConcatOp-7"
+    ],
+    [
+      "op-concat",
+      "K-ConcatOp-8"
+    ],
+    [
+      "op-concat",
+      "K-ConcatOp-9"
+    ],
+    [
       "op-except",
       "fn-except-node-args-001"
     ],
@@ -5429,144 +5577,552 @@
       "sequence-type-21"
     ],
     [
-      "op-concat",
-      "op-concatintg2args-1"
+      "fn-lower-case",
+      "fn-lower-case1args-1"
     ],
     [
-      "op-concat",
-      "op-concatintg2args-2"
+      "fn-lower-case",
+      "fn-lower-case1args-2"
     ],
     [
-      "op-concat",
-      "op-concatintg2args-3"
+      "fn-lower-case",
+      "fn-lower-case1args-3"
     ],
     [
-      "op-concat",
-      "op-concatintg2args-4"
+      "fn-lower-case",
+      "fn-lower-case-1"
     ],
     [
-      "op-concat",
-      "op-concatintg2args-5"
+      "fn-lower-case",
+      "fn-lower-case-2"
     ],
     [
-      "op-concat",
-      "op-concatdec2args-1"
+      "fn-lower-case",
+      "fn-lower-case-3"
     ],
     [
-      "op-concat",
-      "op-concatdec2args-2"
+      "fn-lower-case",
+      "fn-lower-case-4"
     ],
     [
-      "op-concat",
-      "op-concatdec2args-3"
+      "fn-lower-case",
+      "fn-lower-case-5"
     ],
     [
-      "op-concat",
-      "op-concatdec2args-4"
+      "fn-lower-case",
+      "fn-lower-case-6"
     ],
     [
-      "op-concat",
-      "op-concatdec2args-5"
+      "fn-lower-case",
+      "fn-lower-case-7"
     ],
     [
-      "op-concat",
-      "op-concat-1"
+      "fn-lower-case",
+      "fn-lower-case-8"
     ],
     [
-      "op-concat",
-      "op-concat-2"
+      "fn-lower-case",
+      "fn-lower-case-9"
     ],
     [
-      "op-concat",
-      "op-concat-3"
+      "fn-lower-case",
+      "fn-lower-case-10"
     ],
     [
-      "op-concat",
-      "op-concat-4"
+      "fn-lower-case",
+      "fn-lower-case-11"
     ],
     [
-      "op-concat",
-      "op-concat-5"
+      "fn-lower-case",
+      "fn-lower-case-12"
     ],
     [
-      "op-concat",
-      "op-concat-6"
+      "fn-lower-case",
+      "fn-lower-case-13"
     ],
     [
-      "op-concat",
-      "op-concat-7"
+      "fn-lower-case",
+      "fn-lower-case-14"
     ],
     [
-      "op-concat",
-      "op-concat-8"
+      "fn-lower-case",
+      "fn-lower-case-15"
     ],
     [
-      "op-concat",
-      "op-concat-10"
+      "fn-lower-case",
+      "fn-lower-case-16"
     ],
     [
-      "op-concat",
-      "op-concat-11"
+      "fn-lower-case",
+      "fn-lower-case-17"
     ],
     [
-      "op-concat",
-      "op-concat-12"
+      "fn-lower-case",
+      "K-LowerCaseFunc-1"
     ],
     [
-      "op-concat",
-      "op-concat-13"
+      "fn-lower-case",
+      "K-LowerCaseFunc-2"
     ],
     [
-      "op-concat",
-      "op-concat-14"
+      "fn-lower-case",
+      "K-LowerCaseFunc-3"
     ],
     [
-      "op-concat",
-      "op-concat-15"
+      "fn-lower-case",
+      "K-LowerCaseFunc-4"
     ],
     [
-      "op-concat",
-      "op-concat-16"
+      "fn-substring",
+      "fn-substring-1"
     ],
     [
-      "op-concat",
-      "op-concat-17"
+      "fn-substring",
+      "fn-substring-2"
     ],
     [
-      "op-concat",
-      "op-concat-19"
+      "fn-substring",
+      "fn-substring-3"
     ],
     [
-      "op-concat",
-      "op-concat-20"
+      "fn-substring",
+      "fn-substring-4"
     ],
     [
-      "op-concat",
-      "K-ConcatOp-3"
+      "fn-substring",
+      "fn-substring-5"
     ],
     [
-      "op-concat",
-      "K-ConcatOp-4"
+      "fn-substring",
+      "fn-substring-6"
     ],
     [
-      "op-concat",
-      "K-ConcatOp-5"
+      "fn-substring",
+      "fn-substring-7"
     ],
     [
-      "op-concat",
-      "K-ConcatOp-6"
+      "fn-substring",
+      "fn-substring-8"
     ],
     [
-      "op-concat",
-      "K-ConcatOp-7"
+      "fn-substring",
+      "fn-substring-9"
     ],
     [
-      "op-concat",
-      "K-ConcatOp-8"
+      "fn-substring",
+      "fn-substring-10"
     ],
     [
-      "op-concat",
-      "K-ConcatOp-9"
+      "fn-substring",
+      "fn-substring-11"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-12"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-13"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-14"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-15"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-16"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-17"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-18"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-19"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-20"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-21"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-22"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-23"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-24"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-25"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-26"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-27"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-28"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-29"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-30"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-31"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-1"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-2"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-3"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-4"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-5"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-6"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-7"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-8"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-9"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-10"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-11"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-12"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-13"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-14"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-15"
+    ],
+    [
+      "fn-substring",
+      "cbcl-substring-001"
+    ],
+    [
+      "fn-substring",
+      "cbcl-substring-002"
+    ],
+    [
+      "fn-translate",
+      "fn-translate3args-1"
+    ],
+    [
+      "fn-translate",
+      "fn-translate3args-2"
+    ],
+    [
+      "fn-translate",
+      "fn-translate3args-3"
+    ],
+    [
+      "fn-translate",
+      "fn-translate3args-4"
+    ],
+    [
+      "fn-translate",
+      "fn-translate3args-5"
+    ],
+    [
+      "fn-translate",
+      "fn-translate3args-6"
+    ],
+    [
+      "fn-translate",
+      "fn-translate3args-7"
+    ],
+    [
+      "fn-translate",
+      "fn-translate3args-8"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-1"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-2"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-3"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-4"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-5"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-6"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-7"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-8"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-9"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-10"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-11"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-12"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-13"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-14"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-15"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-16"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-17"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-18"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-19"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-20"
+    ],
+    [
+      "fn-translate",
+      "K-TranslateFunc-1"
+    ],
+    [
+      "fn-translate",
+      "K-TranslateFunc-2"
+    ],
+    [
+      "fn-translate",
+      "K-TranslateFunc-3"
+    ],
+    [
+      "fn-translate",
+      "K-TranslateFunc-4"
+    ],
+    [
+      "fn-translate",
+      "K-TranslateFunc-5"
+    ],
+    [
+      "fn-translate",
+      "K-TranslateFunc-6"
+    ],
+    [
+      "fn-translate",
+      "K-TranslateFunc-7"
+    ],
+    [
+      "fn-translate",
+      "K-TranslateFunc-8"
+    ],
+    [
+      "fn-translate",
+      "K-TranslateFunc-9"
+    ],
+    [
+      "fn-translate",
+      "K-TranslateFunc-10"
+    ],
+    [
+      "fn-translate",
+      "K2-TranslateFunc-1"
+    ],
+    [
+      "fn-translate",
+      "K2-TranslateFunc-2"
+    ],
+    [
+      "fn-translate",
+      "cbcl-fn-translate-001"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case1args-1"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case1args-2"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case1args-3"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-1"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-2"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-3"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-4"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-5"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-6"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-7"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-8"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-9"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-10"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-11"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-12"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-13"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-14"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-15"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-16"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-17"
+    ],
+    [
+      "fn-upper-case",
+      "K-UpperCaseFunc-1"
+    ],
+    [
+      "fn-upper-case",
+      "K-UpperCaseFunc-2"
+    ],
+    [
+      "fn-upper-case",
+      "K-UpperCaseFunc-3"
+    ],
+    [
+      "fn-upper-case",
+      "K-UpperCaseFunc-4"
     ]
   ]
 }

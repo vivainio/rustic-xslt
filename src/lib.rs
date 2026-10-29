@@ -12,6 +12,7 @@ mod runtime;
 mod seqtype;
 mod sort;
 mod stream;
+mod string_functions;
 mod trees;
 mod whitespace;
 mod xpath;

@@ -615,5 +615,18 @@ conformance claims. Smaller tested increments are committed independently.
 - Twenty-nine QT3 sets: 2,886 cases, 1,384 pass / 867 engine failures / 42 harness
   errors / 593 profile exclusions. Previous passes remain; QT3 gate grows by 36.
 
-Next: remaining XPath grammar and function coverage.
+## Increment 51: Unicode string functions
+
+- upper-case/lower-case use full locale-independent Unicode mapping, including
+  expansions; translate uses first-match codepoints and removes unmapped suffixes.
+- substring uses Unicode scalar positions, XPath rounding, NaN/infinity rules,
+  strict modern function conversion and selected backwards-compatible conversions.
+- Traversals consume the shared budget. 331 Rust integration tests, 27 harness
+  tests and Clippy/format pass; all prior gate cases remain green.
+- XSLT gate expands to 381 (381 pass / 150 failures / 146 harness errors / 46
+  exclusions); new assertion reachability exposes two further harness gaps.
+- Thirty-three QT3 sets: 3,035 cases, 1,522 pass / 876 engine failures / 44 harness
+  errors / 593 profile exclusions. All 48 selected substring cases pass.
+
+Next: Unicode codepoint conversion and remaining XPath grammar.
 

@@ -1,0 +1,117 @@
+//! Unicode string operations with XPath function conversion and shared budgets.
+use crate::{
+    Diagnostic,
+    number::Number,
+    xpath::{self, Budget, Item, Value},
+};
+use std::collections::BTreeMap;
+fn type_error() -> Diagnostic {
+    Diagnostic::new(
+        "XPTY0004",
+        "string function argument has an invalid type or cardinality",
+        "run",
+    )
+}
+fn string(value: &[Item<'_>], optional: bool, backwards: bool) -> Result<String, Diagnostic> {
+    if value.is_empty() {
+        return if optional || backwards {
+            Ok(String::new())
+        } else {
+            Err(type_error())
+        };
+    }
+    if value.len() > 1 && !backwards {
+        return Err(type_error());
+    }
+    match xpath::atomize(&value[0]) {
+        Item::String(s) | Item::Untyped(s) => Ok(s),
+        item if backwards => Ok(item.string()),
+        _ => Err(type_error()),
+    }
+}
+fn number(value: &[Item<'_>], backwards: bool) -> Result<f64, Diagnostic> {
+    if backwards {
+        return match value.first().map(xpath::atomize) {
+            Some(Item::Number(n)) => Ok(n.double()),
+            Some(Item::Boolean(b)) => Ok(if b { 1.0 } else { 0.0 }),
+            Some(item) => {
+                Ok(Number::cast("double", &item.string()).map_or(f64::NAN, |n| n.double()))
+            }
+            None => Ok(f64::NAN),
+        };
+    }
+    let [item] = value else {
+        return Err(type_error());
+    };
+    match xpath::atomize(item) {
+        Item::Number(n) => Ok(n.double()),
+        Item::Untyped(s) => Ok(Number::cast("double", &s)?.double()),
+        _ => Err(type_error()),
+    }
+}
+fn round(value: f64) -> f64 {
+    let floor = value.floor();
+    if value - floor < 0.5 {
+        floor
+    } else {
+        value.ceil()
+    }
+}
+pub(crate) fn evaluate<'a>(
+    name: &str,
+    args: &[Value<'a>],
+    budget: &mut Budget,
+    backwards: bool,
+) -> Result<Value<'a>, Diagnostic> {
+    let input = string(&args[0], true, backwards)?;
+    let mut result = String::new();
+    match name {
+        "upper-case" | "lower-case" => {
+            for _ in input.bytes() {
+                budget.tick()?;
+            }
+            result = if name == "upper-case" {
+                input.to_uppercase()
+            } else {
+                input.to_lowercase()
+            };
+            for _ in result.bytes() {
+                budget.tick()?;
+            }
+        }
+        "translate" => {
+            let map = string(&args[1], false, backwards)?;
+            let replacement = string(&args[2], false, backwards)?;
+            let mut replacement = replacement.chars();
+            let mut table = BTreeMap::new();
+            for c in map.chars() {
+                budget.tick()?;
+                let value = replacement.next();
+                table.entry(c).or_insert(value);
+            }
+            for c in input.chars() {
+                budget.tick()?;
+                if let Some(c) = table.get(&c).copied().unwrap_or(Some(c)) {
+                    result.push(c);
+                }
+            }
+        }
+        "substring" => {
+            let start = round(number(&args[1], backwards)?);
+            let end = if args.len() == 3 {
+                start + round(number(&args[2], backwards)?)
+            } else {
+                f64::INFINITY
+            };
+            for (index, c) in input.chars().enumerate() {
+                budget.tick()?;
+                let position = (index + 1) as f64;
+                if position >= start && position < end {
+                    result.push(c);
+                }
+            }
+        }
+        _ => unreachable!(),
+    }
+    Ok(vec![Item::String(result)])
+}

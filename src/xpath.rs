@@ -994,7 +994,11 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
             (1, 1)
         }
         "sum" | "min" | "max" => (1, 2),
-        "avg" | "exactly-one" | "zero-or-one" | "one-or-more" => (1, 1),
+        "avg" | "exactly-one" | "zero-or-one" | "one-or-more" | "upper-case" | "lower-case" => {
+            (1, 1)
+        }
+        "substring" => (2, 3),
+        "translate" => (3, 3),
         "remove" => (2, 2),
         "insert-before" => (3, 3),
         "subsequence" | "deep-equal" => (2, 3),
@@ -1693,6 +1697,12 @@ fn function<'a>(
             result.push(item.clone());
         }
         return Ok(result);
+    }
+    if matches!(
+        name,
+        "upper-case" | "lower-case" | "translate" | "substring"
+    ) {
+        return crate::string_functions::evaluate(name, args, budget, backwards);
     }
     if name == "data" {
         return Ok(first.iter().map(atomize).collect());
