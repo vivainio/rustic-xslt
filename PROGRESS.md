@@ -1885,3 +1885,13 @@ conformance claims. Smaller tested increments are committed independently.
   and secondary serialization, and corrected the principal-output state comment.
 - Validation: full all-feature Rust tests, all-target/all-feature Clippy,
   formatting, 43 Python harness tests and the pinned QT3 gate pass.
+
+## Increment 160: XML public-only DOCTYPE handling
+
+- XML and XHTML output ignore a public DOCTYPE identifier when there is no
+  system identifier. HTML retains its public-only declaration behavior.
+- Added a regression comparing XML and HTML output for this parameter pair.
+- The pinned XSLT gate has 880 passing cases (two new, zero regressions),
+  275 engine failures, 264 harness errors and 153 profile exclusions.
+- Validation: HTML/XML serializer tests, all-target/all-feature Clippy and the
+  full pinned XSLT regression gate pass.

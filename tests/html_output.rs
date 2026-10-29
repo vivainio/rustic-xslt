@@ -76,3 +76,18 @@ fn indentation_keeps_html_void_elements_balanced() {
         "<html>\n  <body>\n    <br>\n    <p>t<b>x</b></p>\n    <img src=\"a\">\n    <div>\n      <hr>\n    </div>\n  </body>\n</html>"
     );
 }
+
+#[test]
+fn xml_public_doctype_without_system_is_ignored() {
+    assert_eq!(
+        run(
+            r#"method="xml" omit-xml-declaration="yes" doctype-public="PUBLIC""#,
+            "<root/>"
+        ),
+        "<root></root>"
+    );
+    assert_eq!(
+        run(r#"method="html" doctype-public="PUBLIC""#, "<html/>"),
+        "<!DOCTYPE html PUBLIC \"PUBLIC\">\n<html></html>"
+    );
+}

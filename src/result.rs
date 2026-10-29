@@ -421,9 +421,11 @@ impl Output {
             };
             let declaration = match (&doctype.public, &doctype.system) {
                 (Some(p), Some(s)) => format!("<!DOCTYPE {name} PUBLIC \"{p}\" \"{s}\">\n"),
-                (Some(p), None) => format!("<!DOCTYPE {name} PUBLIC \"{p}\">\n"),
+                (Some(p), None) if self.markup == Markup::Html => {
+                    format!("<!DOCTYPE {name} PUBLIC \"{p}\">\n")
+                }
                 (None, Some(s)) => format!("<!DOCTYPE {name} SYSTEM \"{s}\">\n"),
-                (None, None) => String::new(),
+                (_, None) => String::new(),
             };
             self.push(&declaration)?;
         }
