@@ -1960,3 +1960,12 @@ conformance claims. Smaller tested increments are committed independently.
 - Added US-ASCII failure cases and a representable Latin-1 comment regression.
 - Validation: encoding and result-document tests, all-target/all-feature Clippy
   and the full 882-case pinned XSLT gate pass without regressions.
+
+## Increment 168: restricted encodings in markup names
+
+- The encoding pass distinguishes markup names from quoted attribute values.
+  Unrepresentable element and attribute names report `SERE0008`, while attribute
+  values retain character-reference serialization.
+- Added regressions for non-ASCII element names, attribute names and values.
+- Validation: encoding and result-document tests, all-target/all-feature Clippy
+  and the full 882-case pinned XSLT gate pass without regressions.

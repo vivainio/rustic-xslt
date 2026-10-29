@@ -78,3 +78,21 @@ fn restricted_encodings_reject_unrepresentable_comment_and_pi_content() {
         "<!--é-->"
     );
 }
+
+#[test]
+fn restricted_encodings_reject_unrepresentable_markup_names() {
+    for body in ["<é/>", "<out é='value'/>"] {
+        assert_eq!(
+            run(r#"encoding="US-ASCII""#, body).unwrap_err().code,
+            "SERE0008"
+        );
+    }
+    assert_eq!(
+        run(
+            r#"encoding="US-ASCII" omit-xml-declaration="yes""#,
+            "<out attr='é'/>"
+        )
+        .unwrap(),
+        "<out attr=\"&#xE9;\"></out>"
+    );
+}

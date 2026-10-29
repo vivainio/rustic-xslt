@@ -108,6 +108,8 @@ impl Encoding {
         let mut rest = text;
         let mut cdata = false;
         let mut opaque_end: Option<&str> = None;
+        let mut in_markup = false;
+        let mut quote = None;
         while !rest.is_empty() {
             if references {
                 if let Some(end) = opaque_end {
@@ -146,9 +148,22 @@ impl Encoding {
             }
             let c = rest.chars().next().unwrap();
             rest = &rest[c.len_utf8()..];
+            if references && opaque_end.is_none() && !cdata {
+                if let Some(delimiter) = quote {
+                    if c == delimiter {
+                        quote = None;
+                    }
+                } else if in_markup && matches!(c, '\'' | '"') {
+                    quote = Some(c);
+                } else if c == '<' {
+                    in_markup = true;
+                } else if c == '>' {
+                    in_markup = false;
+                }
+            }
             if (c as u32) <= self.limit() {
                 out.push(c);
-            } else if references && opaque_end.is_none() {
+            } else if references && opaque_end.is_none() && (!in_markup || quote.is_some()) {
                 if cdata {
                     out.push_str("]]>");
                 }
