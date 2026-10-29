@@ -25,6 +25,8 @@ pub(crate) enum Kind {
     QName,
     Binary(crate::binary::BinaryType),
     Function(Option<usize>),
+    Map,
+    Array,
     Temporal(crate::temporal::TemporalType),
     Integer,
     DerivedInteger(crate::integer_type::IntegerType),
@@ -106,6 +108,21 @@ impl SequenceType {
                     min: 0,
                     max: 0,
                 });
+            }
+            name if name.starts_with("map(") && name.ends_with(')') => {
+                // map(*) or map(KeyType, ValueType)
+                let inner = name[4..name.len() - 1].trim();
+                if inner != "*" && !inner.contains(',') {
+                    return Err(Diagnostic::new("XPST0003", "invalid map type", "compile"));
+                }
+                Kind::Map
+            }
+            name if name.starts_with("array(") && name.ends_with(')') => {
+                let inner = name[6..name.len() - 1].trim();
+                if inner.is_empty() {
+                    return Err(Diagnostic::new("XPST0003", "invalid array type", "compile"));
+                }
+                Kind::Array
             }
             name if name.starts_with("function(") && name.ends_with(')') => {
                 let inner = name[9..name.len() - 1].trim();
@@ -256,6 +273,8 @@ impl SequenceType {
             | (Kind::QName, Item::QName(_)) => true,
             (Kind::Binary(target), Item::Binary(actual, _)) => target == actual,
             (Kind::Function(arity), Item::Function(f)) => arity.is_none_or(|a| a == f.arity()),
+            (Kind::Function(arity), Item::Map(_) | Item::Array(_)) => arity.is_none_or(|a| a == 1),
+            (Kind::Map, Item::Map(_)) | (Kind::Array, Item::Array(_)) => true,
             (Kind::Temporal(target), Item::Temporal(actual)) => target.accepts(actual.kind),
             (Kind::Integer, Item::Number(Number::Integer(_) | Number::DerivedInteger(_, _))) => {
                 true

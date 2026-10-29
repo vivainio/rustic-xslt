@@ -109,7 +109,7 @@ impl Number {
                     .map(Self::Decimal)
                     .map_err(|_| invalid())
             }
-            _ => unreachable!(),
+            _ => Err(error("XPTY0004", "unsupported numeric cast target")),
         }
     }
     pub fn string(&self) -> String {

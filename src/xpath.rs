@@ -68,6 +68,12 @@ pub(crate) enum Expr {
     InlineFunction(std::sync::Arc<InlineFunction>),
     FunctionRef(String, usize),
     DynamicCall(Box<Expr>, Vec<Expr>),
+    Partial(Box<Expr>, Vec<Option<Expr>>),
+    MapConstructor(Vec<(Expr, Expr)>),
+    ArraySquare(Vec<Expr>),
+    ArrayCurly(Box<Expr>),
+    /// `base?key`; `None` is the wildcard `?*`.
+    Lookup(Box<Expr>, Option<Box<Expr>>),
 }
 #[derive(Debug)]
 pub(crate) struct InlineFunction {
@@ -75,16 +81,46 @@ pub(crate) struct InlineFunction {
     pub ret: Option<crate::seqtype::SequenceType>,
     pub body: Expr,
 }
+/// A map keeps insertion order; keys are atomic values compared with `op:same-key`.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct MapValue<'a> {
+    pub entries: Vec<(Item<'a>, Value<'a>)>,
+}
+impl<'a> MapValue<'a> {
+    pub fn get(&self, key: &Item<'_>) -> Option<&Value<'a>> {
+        self.entries
+            .iter()
+            .find(|(k, _)| crate::deep_equal::atomic_equal(k, key, true))
+            .map(|(_, v)| v)
+    }
+    pub fn insert(&mut self, key: Item<'a>, value: Value<'a>) {
+        match self
+            .entries
+            .iter_mut()
+            .find(|(k, _)| crate::deep_equal::atomic_equal(k, &key, true))
+        {
+            Some((_, v)) => *v = value,
+            None => self.entries.push((key, value)),
+        }
+    }
+}
 #[derive(Debug, Clone)]
 pub(crate) enum FunctionValue<'a> {
     Inline(std::sync::Arc<InlineFunction>, Variables<'a>),
     Named(String, usize),
+    /// A map or array used where a function item is expected.
+    Map(std::rc::Rc<MapValue<'a>>),
+    Array(std::rc::Rc<Vec<Value<'a>>>),
+    /// A function with some arguments fixed; `None` slots are still open.
+    Partial(std::rc::Rc<FunctionValue<'a>>, Vec<Option<Value<'a>>>),
 }
 impl FunctionValue<'_> {
     pub fn arity(&self) -> usize {
         match self {
             Self::Inline(def, _) => def.params.len(),
             Self::Named(_, arity) => *arity,
+            Self::Map(_) | Self::Array(_) => 1,
+            Self::Partial(_, slots) => slots.iter().filter(|s| s.is_none()).count(),
         }
     }
 }
@@ -102,6 +138,8 @@ pub(crate) enum Item<'a> {
     Binary(crate::binary::BinaryType, Vec<u8>),
     Temporal(crate::temporal::Temporal),
     Function(std::rc::Rc<FunctionValue<'a>>),
+    Map(std::rc::Rc<MapValue<'a>>),
+    Array(std::rc::Rc<Vec<Value<'a>>>),
 }
 pub(crate) type Value<'a> = Vec<Item<'a>>;
 pub(crate) type Variables<'a> = BTreeMap<String, Value<'a>>;
@@ -125,7 +163,7 @@ impl Item<'_> {
             Self::QName(name) => name.lexical(),
             Self::Binary(kind, bytes) => kind.encode(bytes),
             Self::Temporal(t) => t.string(),
-            Self::Function(_) => String::new(),
+            Self::Function(_) | Self::Map(_) | Self::Array(_) => String::new(),
         }
     }
     pub fn string_compat(&self, backwards: bool) -> String {
@@ -149,7 +187,9 @@ impl Item<'_> {
             | Self::QName(_)
             | Self::Binary(_, _)
             | Self::Temporal(_)
-            | Self::Function(_) => f64::NAN,
+            | Self::Function(_)
+            | Self::Map(_)
+            | Self::Array(_) => f64::NAN,
             _ => self.string().trim().parse().unwrap_or(f64::NAN),
         }
     }
@@ -415,7 +455,10 @@ fn tokenize(s: &str) -> Result<Vec<Token>, Diagnostic> {
                     continue;
                 }
                 if !chars.get(i).is_some_and(|c| c.is_alphabetic() || *c == '_') {
-                    return Err(syntax("expected local name after prefix"));
+                    // A lone colon (as in `map{$k:1}`) is a separate token.
+                    i -= 1;
+                    out.push(Token::Name(chars[start..i].iter().collect()));
+                    continue;
                 }
                 i += 1;
                 while i < chars.len()
@@ -446,7 +489,7 @@ fn tokenize(s: &str) -> Result<Vec<Token>, Diagnostic> {
             ) {
                 out.push(Token::Symbol(pair));
                 i += 2;
-            } else if "/.@[](),$+-*=<>|?!{}#".contains(c) {
+            } else if "/.@[](),$+-*=<>|?!{}#:".contains(c) {
                 out.push(Token::Symbol(c.to_string()));
                 i += 1;
             } else {
@@ -701,6 +744,10 @@ impl Parser {
             None if !n.starts_with("Q{") => name.local,
             Some("http://www.w3.org/2005/xpath-functions") => name.local,
             Some("http://www.w3.org/2001/XMLSchema") => format!("xs:{}", name.local),
+            Some("http://www.w3.org/2005/xpath-functions/map") => format!("map:{}", name.local),
+            Some("http://www.w3.org/2005/xpath-functions/array") => {
+                format!("array:{}", name.local)
+            }
             Some(uri) if !uri.is_empty() => {
                 return Ok(Expr::Call(format!("Q{{{uri}}}{}", name.local), args));
             }
@@ -841,6 +888,44 @@ impl Parser {
             Ok(callee) => Ok(Expr::DynamicCall(Box::new(callee), args)),
         }
     }
+    /// Call arguments after `(`; a bare `?` is a placeholder for partial application.
+    fn arguments(&mut self) -> Result<Vec<Option<Expr>>, Diagnostic> {
+        let mut args = vec![];
+        if self.eat(")") {
+            return Ok(args);
+        }
+        loop {
+            let placeholder = self.peek() == &Token::Symbol("?".into())
+                && matches!(self.tokens.get(self.index + 1), Some(Token::Symbol(s)) if s == "," || s == ")");
+            if placeholder {
+                self.next();
+                args.push(None);
+            } else {
+                args.push(Some(self.expression(2)?));
+            }
+            if self.eat(")") {
+                break;
+            }
+            self.expect(",")?;
+        }
+        Ok(args)
+    }
+    /// The key specifier after `?`: a name, integer, wildcard or parenthesized expression.
+    fn lookup_key(&mut self) -> Result<Option<Box<Expr>>, Diagnostic> {
+        Ok(match self.next() {
+            Token::Name(n) if !n.contains(':') && !n.starts_with("Q{") => {
+                Some(Box::new(Expr::String(n)))
+            }
+            Token::Number(n @ Number::Integer(_)) => Some(Box::new(Expr::Number(n))),
+            Token::Symbol(s) if s == "*" => None,
+            Token::Symbol(s) if s == "(" => {
+                let inner = self.expression(0)?;
+                self.expect(")")?;
+                Some(Box::new(inner))
+            }
+            _ => return Err(syntax("invalid lookup key")),
+        })
+    }
     fn path_rhs(&mut self, base: Expr) -> Result<Expr, Diagnostic> {
         let binding = matches!(self.peek(), Token::Name(n) if ["for", "let", "some", "every"].contains(&n.as_str()))
             && self.tokens.get(self.index + 1) == Some(&Token::Symbol("$".into()));
@@ -927,6 +1012,60 @@ impl Parser {
                 {
                     self.next();
                     self.binding_expression(&n)?
+                }
+                Token::Name(n)
+                    if n == "map"
+                        && self.tokens.get(self.index + 1) == Some(&Token::Symbol("{".into())) =>
+                {
+                    self.next();
+                    self.next();
+                    let mut entries = vec![];
+                    if !self.eat("}") {
+                        loop {
+                            let key = self.expression(2)?;
+                            self.expect(":")?;
+                            let value = self.expression(2)?;
+                            entries.push((key, value));
+                            if self.eat("}") {
+                                break;
+                            }
+                            self.expect(",")?;
+                        }
+                    }
+                    Expr::MapConstructor(entries)
+                }
+                Token::Name(n)
+                    if n == "array"
+                        && self.tokens.get(self.index + 1) == Some(&Token::Symbol("{".into())) =>
+                {
+                    self.next();
+                    self.next();
+                    if self.eat("}") {
+                        Expr::ArrayCurly(Box::new(Expr::Sequence(vec![])))
+                    } else {
+                        let inner = self.expression(0)?;
+                        self.expect("}")?;
+                        Expr::ArrayCurly(Box::new(inner))
+                    }
+                }
+                Token::Symbol(s) if s == "[" => {
+                    self.next();
+                    let mut members = vec![];
+                    if !self.eat("]") {
+                        loop {
+                            members.push(self.expression(2)?);
+                            if self.eat("]") {
+                                break;
+                            }
+                            self.expect(",")?;
+                        }
+                    }
+                    Expr::ArraySquare(members)
+                }
+                Token::Symbol(s) if s == "?" => {
+                    self.next();
+                    let key = self.lookup_key()?;
+                    Expr::Lookup(Box::new(Expr::Context), key)
                 }
                 Token::Name(n)
                     if n == "function"
@@ -1030,17 +1169,16 @@ impl Parser {
                 {
                     self.next();
                     self.expect("(")?;
-                    let mut args = vec![];
-                    if !self.eat(")") {
-                        loop {
-                            args.push(self.expression(2)?);
-                            if self.eat(")") {
-                                break;
-                            }
-                            self.expect(",")?;
-                        }
+                    let arguments = self.arguments()?;
+                    if arguments.iter().any(Option::is_none) {
+                        let arity = arguments.len();
+                        let Expr::Call(name, _) = self.call(n, vec![Expr::Context; arity])? else {
+                            return Err(syntax("unsupported partial function application"));
+                        };
+                        Expr::Partial(Box::new(Expr::FunctionRef(name, arity)), arguments)
+                    } else {
+                        self.call(n, arguments.into_iter().flatten().collect())?
                     }
-                    self.call(n, args)?
                 }
                 _ if self.step_start() => Expr::Path(Box::new(Expr::Context), vec![self.step()?]),
                 _ => return Err(syntax("expected XPath expression")),
@@ -1048,7 +1186,14 @@ impl Parser {
         };
         if matches!(
             e,
-            Expr::InlineFunction(_) | Expr::FunctionRef(..) | Expr::Call(..)
+            Expr::InlineFunction(_)
+                | Expr::FunctionRef(..)
+                | Expr::Call(..)
+                | Expr::MapConstructor(_)
+                | Expr::ArraySquare(_)
+                | Expr::ArrayCurly(_)
+                | Expr::Lookup(..)
+                | Expr::Partial(..)
         ) {
             callable = true;
         }
@@ -1070,21 +1215,24 @@ impl Parser {
                         | Expr::If(..)
                         | Expr::Path(..)
                         | Expr::Binary(..)
+                        | Expr::MapConstructor(_)
+                        | Expr::ArraySquare(_)
+                        | Expr::ArrayCurly(_)
+                        | Expr::Lookup(..)
+                        | Expr::Partial(..)
                 )
                 && self.peek() == &Token::Symbol("(".into())
             {
                 self.next();
-                let mut args = vec![];
-                if !self.eat(")") {
-                    loop {
-                        args.push(self.expression(2)?);
-                        if self.eat(")") {
-                            break;
-                        }
-                        self.expect(",")?;
-                    }
-                }
-                e = Expr::DynamicCall(Box::new(e), args);
+                let arguments = self.arguments()?;
+                e = if arguments.iter().any(Option::is_none) {
+                    Expr::Partial(Box::new(e), arguments)
+                } else {
+                    Expr::DynamicCall(Box::new(e), arguments.into_iter().flatten().collect())
+                };
+            } else if self.eat("?") {
+                let key = self.lookup_key()?;
+                e = Expr::Lookup(Box::new(e), key);
             } else if self.eat("[") {
                 let p = self.expression(0)?;
                 self.expect("]")?;
@@ -1350,8 +1498,9 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "sort" => (1, 3),
         "for-each" | "filter" => (2, 2),
         "fold-left" | "fold-right" | "for-each-pair" => (3, 3),
-        "function-arity" => (1, 1),
-        "function-lookup" => (2, 2),
+        "function-arity" | "function-name" => (1, 1),
+        "function-lookup" | "apply" => (2, 2),
+        name if crate::maps::arity(name).is_some() => crate::maps::arity(name).unwrap(),
         "key" => (2, 3),
         "current-group" | "current-grouping-key" => (0, 0),
         "path" => (0, 1),
@@ -1825,6 +1974,30 @@ pub(crate) fn eval<'a>(
                 return Ok(vec![Item::Boolean(true)]);
             }
             let b = eval(b, focus, vars, budget, depth + 1, backwards)?;
+            let (a, b) = if matches!(
+                op.as_str(),
+                "=" | "!="
+                    | "<"
+                    | ">"
+                    | "<="
+                    | ">="
+                    | "eq"
+                    | "ne"
+                    | "lt"
+                    | "le"
+                    | "gt"
+                    | "ge"
+                    | "+"
+                    | "-"
+                    | "*"
+                    | "div"
+                    | "idiv"
+                    | "mod"
+            ) {
+                (flatten_arrays(a)?, flatten_arrays(b)?)
+            } else {
+                (a, b)
+            };
             match op.as_str() {
                 "and" | "or" => vec![Item::Boolean(boolean(&b)?)],
                 "||" => {
@@ -1997,6 +2170,40 @@ pub(crate) fn eval<'a>(
                 .collect::<Result<Vec<_>, _>>()?;
             call_named(name, args, focus, vars, budget, depth, backwards)?
         }
+        Expr::MapConstructor(entries) => {
+            let mut map = MapValue::default();
+            for (key, value) in entries {
+                let key = eval(key, focus, vars, budget, depth + 1, backwards)?;
+                let key = crate::maps::key(&key)?;
+                if map.get(&key).is_some() {
+                    return Err(err("XQDY0137", "duplicate key in map constructor"));
+                }
+                let value = eval(value, focus, vars, budget, depth + 1, backwards)?;
+                map.entries.push((key, value));
+            }
+            vec![Item::Map(std::rc::Rc::new(map))]
+        }
+        Expr::ArraySquare(members) => {
+            let mut array = Vec::with_capacity(members.len());
+            for member in members {
+                array.push(eval(member, focus, vars, budget, depth + 1, backwards)?);
+            }
+            vec![Item::Array(std::rc::Rc::new(array))]
+        }
+        Expr::ArrayCurly(inner) => {
+            let items = eval(inner, focus, vars, budget, depth + 1, backwards)?;
+            vec![Item::Array(std::rc::Rc::new(
+                items.into_iter().map(|i| vec![i]).collect(),
+            ))]
+        }
+        Expr::Lookup(base, key) => {
+            let base = eval(base, focus, vars, budget, depth + 1, backwards)?;
+            let keys = match key {
+                Some(key) => Some(eval(key, focus, vars, budget, depth + 1, backwards)?),
+                None => None,
+            };
+            crate::maps::lookup(&base, keys.as_deref(), budget)?
+        }
         Expr::InlineFunction(def) => vec![Item::Function(std::rc::Rc::new(FunctionValue::Inline(
             def.clone(),
             vars.clone(),
@@ -2007,19 +2214,34 @@ pub(crate) fn eval<'a>(
                 *arity,
             )))]
         }
+        Expr::Partial(callee, slots) => {
+            let callee = eval(callee, focus, vars, budget, depth + 1, backwards)?;
+            let base = function_arg(&callee)?;
+            if base.arity() != slots.len() {
+                return Err(err(
+                    "XPTY0004",
+                    "partial application has the wrong number of arguments",
+                ));
+            }
+            let mut fixed = Vec::with_capacity(slots.len());
+            for slot in slots {
+                fixed.push(match slot {
+                    Some(e) => Some(eval(e, focus, vars, budget, depth + 1, backwards)?),
+                    None => None,
+                });
+            }
+            vec![Item::Function(std::rc::Rc::new(FunctionValue::Partial(
+                base, fixed,
+            )))]
+        }
         Expr::DynamicCall(callee, args) => {
             let callee = eval(callee, focus, vars, budget, depth + 1, backwards)?;
             let args = args
                 .iter()
                 .map(|e| eval(e, focus, vars, budget, depth + 1, backwards))
                 .collect::<Result<Vec<_>, _>>()?;
-            let [Item::Function(f)] = callee.as_slice() else {
-                return Err(err(
-                    "XPTY0004",
-                    "dynamic call requires a single function item",
-                ));
-            };
-            call_function_item(f, args, focus, vars, budget, depth, backwards)?
+            let f = function_arg(&callee)?;
+            call_function_item(&f, args, focus, vars, budget, depth, backwards)?
         }
     };
     Ok(result)
@@ -2057,16 +2279,44 @@ fn call_named<'a>(
             | "for-each-pair"
             | "function-arity"
             | "function-lookup"
+            | "function-name"
+            | "apply"
     ) || name == "sort" && args.len() == 3
+        || crate::maps::higher_order(name)
     {
         higher_order(name, args, focus, vars, budget, depth, backwards)?
     } else {
         function(name, &args, focus, budget, backwards)?
     })
 }
+/// Atomization of arrays: members are atomized recursively; maps and functions
+/// have no typed value (FOTY0013).
+pub(crate) fn flatten_arrays(value: Value<'_>) -> Result<Value<'_>, Diagnostic> {
+    if !value.iter().any(|i| matches!(i, Item::Array(_))) {
+        return Ok(value);
+    }
+    let mut out = Vec::with_capacity(value.len());
+    let mut pending: Vec<Item<'_>> = value.into_iter().rev().collect();
+    while let Some(item) = pending.pop() {
+        match item {
+            Item::Array(members) => {
+                for member in members.iter().rev() {
+                    pending.extend(member.iter().rev().cloned());
+                }
+            }
+            Item::Map(_) | Item::Function(_) => {
+                return Err(err("FOTY0013", "maps and functions cannot be atomized"));
+            }
+            other => out.push(other),
+        }
+    }
+    Ok(out)
+}
 fn function_arg<'a>(value: &[Item<'a>]) -> Result<std::rc::Rc<FunctionValue<'a>>, Diagnostic> {
     match value {
         [Item::Function(f)] => Ok(f.clone()),
+        [Item::Map(m)] => Ok(std::rc::Rc::new(FunctionValue::Map(m.clone()))),
+        [Item::Array(a)] => Ok(std::rc::Rc::new(FunctionValue::Array(a.clone()))),
         _ => Err(err("XPTY0004", "a single function item is required")),
     }
 }
@@ -2093,6 +2343,27 @@ fn call_function_item<'a>(
         FunctionValue::Named(name, _) => {
             call_named(name, args, focus, vars, budget, depth + 1, backwards)
         }
+        FunctionValue::Partial(base, slots) => {
+            let mut supplied = args.into_iter();
+            let full = slots
+                .iter()
+                .map(|slot| match slot {
+                    Some(value) => value.clone(),
+                    None => supplied.next().unwrap_or_default(),
+                })
+                .collect();
+            call_function_item(base, full, focus, vars, budget, depth + 1, backwards)
+        }
+        FunctionValue::Map(map) => {
+            let [key] = args[0].as_slice() else {
+                return Err(err(
+                    "XPTY0004",
+                    "a map lookup key must be a single atomic value",
+                ));
+            };
+            Ok(map.get(&atomize(key)).cloned().unwrap_or_default())
+        }
+        FunctionValue::Array(array) => crate::maps::array_member(array, &args[0]).cloned(),
         FunctionValue::Inline(def, captured) => {
             let mut scope = captured.clone();
             for ((param, ty), value) in def.params.iter().zip(args) {
@@ -2133,6 +2404,58 @@ fn higher_order<'a>(
             let f = function_arg(&args[0])?;
             Ok(vec![Item::Number(Number::from(f.arity()))])
         }
+        "function-name" => {
+            let f = function_arg(&args[0])?;
+            let FunctionValue::Named(name, _) = &*f else {
+                return Ok(vec![]);
+            };
+            let (uri, prefix, local) = if let Some(rest) = name.strip_prefix("Q{") {
+                let (uri, local) = rest.split_once('}').unwrap_or(("", rest));
+                (uri.to_owned(), None, local.to_owned())
+            } else if let Some(local) = name.strip_prefix("xs:") {
+                (
+                    "http://www.w3.org/2001/XMLSchema".into(),
+                    Some("xs"),
+                    local.to_owned(),
+                )
+            } else if let Some(local) = name.strip_prefix("map:") {
+                (
+                    "http://www.w3.org/2005/xpath-functions/map".into(),
+                    Some("map"),
+                    local.to_owned(),
+                )
+            } else if let Some(local) = name.strip_prefix("array:") {
+                (
+                    "http://www.w3.org/2005/xpath-functions/array".into(),
+                    Some("array"),
+                    local.to_owned(),
+                )
+            } else {
+                (
+                    "http://www.w3.org/2005/xpath-functions".into(),
+                    Some("fn"),
+                    name.clone(),
+                )
+            };
+            let lexical = match prefix {
+                Some(p) => format!("{p}:{local}"),
+                None => local,
+            };
+            Ok(vec![Item::QName(crate::qname::AtomicQName::new(
+                &uri, &lexical,
+            )?)])
+        }
+        "apply" => {
+            let f = function_arg(&args[0])?;
+            let members = crate::maps::members(&args[1])?;
+            if members.len() != f.arity() {
+                return Err(err(
+                    "FOAP0001",
+                    "apply: wrong number of arguments for the function",
+                ));
+            }
+            call(&f, members.to_vec(), budget)
+        }
         "function-lookup" => {
             let (qname, arity) = match (args[0].as_slice(), args[1].as_slice()) {
                 ([Item::QName(q)], [Item::Number(n)]) => (q.clone(), n.double()),
@@ -2154,7 +2477,8 @@ fn higher_order<'a>(
                 "http://www.w3.org/2005/xpath-functions" => fits(local).then(|| local.to_owned()),
                 "http://www.w3.org/2001/XMLSchema" => {
                     let xs = format!("xs:{local}");
-                    fits(&xs).then_some(xs)
+                    // xs:QName needs the static namespaces of the call site.
+                    (local != "QName" && fits(&xs)).then_some(xs)
                 }
                 _ => {
                     let expanded = format!("Q{{{uri}}}{local}");
@@ -2216,6 +2540,92 @@ fn higher_order<'a>(
                 out.extend(call(&f, vec![vec![a.clone()], vec![b.clone()]], budget)?);
             }
             Ok(out)
+        }
+        "map:for-each" => {
+            let f = function_arg(&args[1])?;
+            let mut out = vec![];
+            for (k, v) in &crate::maps::entries(&args[0])?.entries {
+                out.extend(call(&f, vec![vec![k.clone()], v.clone()], budget)?);
+            }
+            Ok(out)
+        }
+        "array:for-each" => {
+            let f = function_arg(&args[1])?;
+            let mut members = vec![];
+            for member in crate::maps::members(&args[0])?.iter() {
+                members.push(call(&f, vec![member.clone()], budget)?);
+            }
+            Ok(crate::maps::new_array(members))
+        }
+        "array:filter" => {
+            let f = function_arg(&args[1])?;
+            let mut members = vec![];
+            for member in crate::maps::members(&args[0])?.iter() {
+                match call(&f, vec![member.clone()], budget)?.as_slice() {
+                    [Item::Boolean(true)] => members.push(member.clone()),
+                    [Item::Boolean(false)] => {}
+                    _ => return Err(err("XPTY0004", "filter predicate must return one boolean")),
+                }
+            }
+            Ok(crate::maps::new_array(members))
+        }
+        "array:fold-left" => {
+            let f = function_arg(&args[2])?;
+            let mut acc = args[1].clone();
+            for member in crate::maps::members(&args[0])?.iter() {
+                acc = call(&f, vec![acc, member.clone()], budget)?;
+            }
+            Ok(acc)
+        }
+        "array:fold-right" => {
+            let f = function_arg(&args[2])?;
+            let mut acc = args[1].clone();
+            for member in crate::maps::members(&args[0])?.iter().rev() {
+                acc = call(&f, vec![member.clone(), acc], budget)?;
+            }
+            Ok(acc)
+        }
+        "array:for-each-pair" => {
+            let f = function_arg(&args[2])?;
+            let (a, b) = (
+                crate::maps::members(&args[0])?,
+                crate::maps::members(&args[1])?,
+            );
+            let mut members = vec![];
+            for (x, y) in a.iter().zip(b.iter()) {
+                members.push(call(&f, vec![x.clone(), y.clone()], budget)?);
+            }
+            Ok(crate::maps::new_array(members))
+        }
+        "array:sort" => {
+            let array = crate::maps::members(&args[0])?;
+            let members: Value<'a> = array
+                .iter()
+                .map(|m| Item::Array(std::rc::Rc::new(vec![m.clone()])))
+                .collect();
+            let mut keys = Vec::with_capacity(members.len());
+            for member in array.iter() {
+                keys.push(match args.get(2) {
+                    Some(f) => {
+                        let f = function_arg(f)?;
+                        call(&f, vec![member.clone()], budget)?
+                    }
+                    None => member.clone(),
+                });
+            }
+            let sorted = crate::aggregate::sort(
+                &[members, args.get(1).cloned().unwrap_or_default()][..args.len().clamp(1, 2)],
+                Some(keys),
+                budget,
+            )?;
+            let members = sorted
+                .into_iter()
+                .map(|item| match item {
+                    Item::Array(a) => a[0].clone(),
+                    _ => unreachable!(),
+                })
+                .collect();
+            Ok(crate::maps::new_array(members))
         }
         _ => {
             // sort with a key function
@@ -2782,6 +3192,9 @@ fn function<'a>(
         }
         return Ok(vec![Item::String(path)]);
     }
+    if crate::maps::arity(name).is_some() && !crate::maps::higher_order(name) {
+        return crate::maps::evaluate(name, args, budget);
+    }
     if name == "sort" {
         return crate::aggregate::sort(args, None, budget);
     }
@@ -3110,7 +3523,7 @@ fn function<'a>(
         return crate::string_functions::evaluate(name, args, budget, backwards);
     }
     if name == "data" {
-        return Ok(first.iter().map(atomize).collect());
+        return Ok(flatten_arrays(first.clone())?.iter().map(atomize).collect());
     }
     if let Some(kind) = name.strip_prefix("xs:") {
         if first.is_empty() {

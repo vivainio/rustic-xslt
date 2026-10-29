@@ -149,3 +149,37 @@ fn function_types_support_instance_of_and_typed_parameters() {
         assert_eq!(run(expr).unwrap(), expected, "{expr}");
     }
 }
+#[test]
+fn partial_application_apply_and_function_name() {
+    for (expr, expected) in [
+        (
+            "filter(('apple', 'pear', 'apricot'), starts-with(?, 'a'))",
+            "apple apricot",
+        ),
+        ("fold-left(1 to 3, '', concat(?, '.', ?))", ".1.2.3"),
+        (
+            "let $add := function($a, $b) { $a + $b }, $inc := $add(1, ?) return $inc(41)",
+            "42",
+        ),
+        ("let $f := substring(?, 2, ?) return $f('hello', 3)", "ell"),
+        ("function-arity(substring(?, 2, ?))", "2"),
+        ("apply(concat#3, ['a', 'b', 'c'])", "abc"),
+        ("apply(function() { 'none' }, [])", "none"),
+        ("string(function-name(upper-case#1))", "fn:upper-case"),
+        ("string(function-name(f:inc#1))", "inc"),
+        ("empty(function-name(function() { 1 }))", "true"),
+        (
+            "local-name-from-QName(function-name(xs:integer#1))",
+            "integer",
+        ),
+    ] {
+        assert_eq!(run(expr).unwrap(), expected, "{expr}");
+    }
+    for expr in [
+        "apply(concat#3, ['a'])",
+        "apply(1, [])",
+        "starts-with(?, ?, ?, ?)",
+    ] {
+        assert!(run(expr).is_err(), "{expr}");
+    }
+}

@@ -199,8 +199,14 @@ pub(crate) fn sort<'a>(
     for (index, item) in args[0].iter().enumerate() {
         budget.tick()?;
         let key = match &key_values {
-            Some(keys) => keys[index].iter().map(atomize).collect(),
-            None => vec![atomize(item)],
+            Some(keys) => crate::xpath::flatten_arrays(keys[index].clone())?
+                .iter()
+                .map(atomize)
+                .collect(),
+            None => crate::xpath::flatten_arrays(vec![item.clone()])?
+                .iter()
+                .map(atomize)
+                .collect(),
         };
         keyed.push((key, item.clone()));
     }

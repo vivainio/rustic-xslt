@@ -1,9 +1,26 @@
 //! Iterative deep equality for supported atomic values and untyped XDM nodes.
 use crate::{
-    Diagnostic,
+    Diagnostic, Limits,
     xpath::{Budget, Item, Value, XNode, atomize},
 };
-use std::{cmp::Ordering, collections::BTreeMap};
+use std::{cell::Cell, cmp::Ordering, collections::BTreeMap};
+thread_local! {
+    static NESTING: Cell<usize> = const { Cell::new(0) };
+}
+/// Equality of map values and array members; nesting is bounded so that
+/// hostile deeply nested containers cannot exhaust the stack.
+fn members_equal(a: &Value<'_>, b: &Value<'_>) -> bool {
+    NESTING.with(|depth| {
+        if depth.get() >= 64 {
+            return false;
+        }
+        depth.set(depth.get() + 1);
+        let result =
+            evaluate(&[a.clone(), b.clone()], &mut Budget::new(Limits::default())).unwrap_or(false);
+        depth.set(depth.get() - 1);
+        result
+    })
+}
 fn kind(n: XNode<'_>) -> u8 {
     if n.is_attribute() {
         0
@@ -34,6 +51,15 @@ pub(crate) fn atomic_equal(a: &Item<'_>, b: &Item<'_>, nan_equal: bool) -> bool 
         (Item::QName(a), Item::QName(b)) => a.equal(b),
         (Item::Binary(ak, a), Item::Binary(bk, b)) => ak == bk && a == b,
         (Item::Temporal(a), Item::Temporal(b)) => a.compare(b) == Some(Ordering::Equal),
+        (Item::Map(a), Item::Map(b)) => {
+            a.entries.len() == b.entries.len()
+                && a.entries
+                    .iter()
+                    .all(|(k, v)| b.get(k).is_some_and(|other| members_equal(v, other)))
+        }
+        (Item::Array(a), Item::Array(b)) => {
+            a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| members_equal(x, y))
+        }
         _ => false,
     }
 }

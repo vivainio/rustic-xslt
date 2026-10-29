@@ -6,6 +6,7 @@ mod collation;
 mod compile;
 mod deep_equal;
 mod integer_type;
+mod maps;
 mod mode;
 mod node;
 mod number;

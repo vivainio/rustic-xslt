@@ -1043,3 +1043,20 @@ conformance claims. Smaller tested increments are committed independently.
   XPath-only cases that expected them to be unknown (XPST0017) were dropped from the
   gate on purpose, together with the XPath 2.0 `function()` case; the gate records
   every other passing case.
+
+## Increment 87: maps, arrays and partial application
+
+- Added map and array values with constructors (map{}, [ ], array{ }), the lookup
+  operator (postfix and unary, names, integers, wildcards, expressions), calls of
+  maps and arrays as functions, partial application with `?` placeholders, fn:apply,
+  fn:function-name and the map: and array: function libraries (including the
+  higher-order members), deep-equal over containers, atomization of arrays in
+  comparisons, arithmetic, data() and sort keys, and map(*)/array(*) sequence types.
+- Maps keep insertion order and look keys up linearly; duplicate keys follow
+  op:same-key (1 and 1.0 collide). Key lookup `?name` takes only NCNames and
+  integer literals.
+- The QT3 driver now accepts the higherOrderFunctions feature and predeclares the
+  XPath 3.1 static prefixes (fn, xs, math, map, array, err). Two XPath 2.0 cases that
+  expect `[` and `[]` to be syntax errors were dropped from the gate on purpose.
+- Pinned QT3 over 26,002 cases: 17,321+ pass (from 15,999), 798 engine failures,
+  890 harness errors, 6,993 profile exclusions.

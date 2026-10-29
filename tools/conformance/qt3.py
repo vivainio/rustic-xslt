@@ -22,6 +22,8 @@ def text(node):
 def literal(value):
     return "'" + value.replace("'", "''") + "'"
 
+SUPPORTED_FEATURES = {"higherOrderFunctions"}
+
 def dependencies(node):
     for d in node.findall(NS + "dependency"):
         kind, value = d.get("type"), d.get("value", "")
@@ -32,6 +34,9 @@ def dependencies(node):
         elif kind == "feature" and value == "schema-aware":
             if d.get("satisfied", "true") != "false":
                 raise ProfileExcluded("optional schema-aware processor")
+        elif kind == "feature" and value in SUPPORTED_FEATURES:
+            if d.get("satisfied", "true") == "false":
+                raise ProfileExcluded(f"test requires the feature to be absent: {value}")
         else:
             raise HarnessError(f"unsupported QT3 dependency: {kind}={value}")
 
@@ -64,6 +69,16 @@ def environment(node, registry, seen=()):
             raise HarnessError(f"unsupported QT3 environment component: {kind}")
     return result
 
+# The static context of XPath 3.1 predeclares these prefixes.
+STANDARD_NAMESPACES = {
+    "fn": "http://www.w3.org/2005/xpath-functions",
+    "xs": "http://www.w3.org/2001/XMLSchema",
+    "math": "http://www.w3.org/2005/xpath-functions/math",
+    "map": "http://www.w3.org/2005/xpath-functions/map",
+    "array": "http://www.w3.org/2005/xpath-functions/array",
+    "err": "http://www.w3.org/2005/xqt-errors",
+}
+
 def stylesheet(expression, bindings, assertion="count($result)"):
     # The query is global; assertion-only $result cannot satisfy a free query
     # variable. Generated namespace prefixes cannot appear in the query.
@@ -72,7 +87,7 @@ def stylesheet(expression, bindings, assertion="count($result)"):
         xsl += "_"
     while value in bindings or value + ":" in expression:
         value += "_"
-    namespaces = dict(bindings)
+    namespaces = {**STANDARD_NAMESPACES, **bindings}
     namespaces[xsl] = "http://www.w3.org/1999/XSL/Transform"
     namespaces[value] = "urn:rust-xslt:qt3:result"
     declarations = " ".join(f"xmlns:{p}={quoteattr(uri)}" for p, uri in namespaces.items() if p != "xml")
