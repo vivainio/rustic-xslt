@@ -378,3 +378,29 @@ fn aggregate_record_limits_include_xml_escaping() {
     assert_eq!(output, b"<a>&amp;</a><a>&amp;</a>");
     assert_eq!(stats.output_bytes, output.len());
 }
+
+#[test]
+fn record_serialization_respects_uri_escaping_settings() {
+    for (setting, expected) in [("yes", "%C3%A5"), ("no", "a\u{30a}")] {
+        let stylesheet = format!(
+            r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="html" escape-uri-attributes="{setting}"/><xsl:template name="record"><a href="{{@href}}">x</a></xsl:template></xsl:stylesheet>"#
+        );
+        let sheet = Stylesheet::compile(&stylesheet).unwrap();
+        let mut output = Vec::new();
+        let stats = sheet
+            .stream_records(
+                Cursor::new(
+                    "<records><record href='a&#x30a;'/><record href='a&#x30a;'/></records>",
+                ),
+                &mut output,
+                &StreamOptions::default(),
+            )
+            .unwrap();
+        assert_eq!(
+            String::from_utf8(output.clone()).unwrap(),
+            format!("<a href=\"{expected}\">x</a><a href=\"{expected}\">x</a>")
+        );
+        assert_eq!(stats.output_bytes, output.len());
+        assert_eq!(stats.records, 2);
+    }
+}

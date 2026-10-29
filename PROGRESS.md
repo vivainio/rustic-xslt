@@ -2092,3 +2092,13 @@ conformance claims. Smaller tested increments are committed independently.
   an unoverridden named setting remains disabled across the same capture path.
 - Validation: all twelve result-document tests, the full all-feature Rust suite,
   formatting and diff checks pass. Clippy passed during this test increment.
+
+## Increment 182: URI escaping in record serialization
+
+- Added a two-record streaming regression for enabled and disabled URI escaping.
+  Enabled output normalizes decomposed text before percent encoding; disabled
+  output preserves it. Both modes verify record and serialized-byte counts.
+- Inspected temporary HTML capture construction and confirmed URI settings are
+  inherited through all serializer-preserving capture paths.
+- Validation: thirteen streaming tests, all-target/all-feature Clippy, formatting
+  and diff checks pass. No runtime behavior changed in this increment.
