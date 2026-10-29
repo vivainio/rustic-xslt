@@ -15,6 +15,40 @@ pub(crate) struct Element {
     pub attributes: Vec<(Name, String)>,
     pub inherit_namespaces: bool,
 }
+/// The markup flavour of the final serialization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) enum Markup {
+    #[default]
+    Xml,
+    Html,
+    Xhtml,
+}
+const VOID_ELEMENTS: &[&str] = &[
+    "area", "base", "basefont", "br", "col", "embed", "frame", "hr", "img", "input", "isindex",
+    "link", "meta", "param", "source", "track", "wbr",
+];
+const BOOLEAN_ATTRIBUTES: &[&str] = &[
+    "checked", "compact", "declare", "defer", "disabled", "ismap", "multiple", "nohref",
+    "noresize", "noshade", "nowrap", "readonly", "selected",
+];
+fn html_name(name: &Name, markup: Markup) -> Option<String> {
+    let in_html = match markup {
+        Markup::Html => name
+            .uri
+            .as_deref()
+            .is_none_or(|u| u.is_empty() || u == XHTML),
+        Markup::Xhtml => name.uri.as_deref() == Some(XHTML),
+        Markup::Xml => false,
+    };
+    in_html.then(|| name.local.to_ascii_lowercase())
+}
+pub(crate) const XHTML: &str = "http://www.w3.org/1999/xhtml";
+/// DOCTYPE declaration parts from `doctype-public` / `doctype-system`.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct Doctype {
+    pub public: Option<String>,
+    pub system: Option<String>,
+}
 struct Open {
     element: Element,
     pending: bool,
@@ -32,8 +66,19 @@ pub(crate) struct Output {
     document: bool,
     simple: Option<Simple>,
     adjacent_atomic: bool,
+    markup: Markup,
+    doctype: Option<Doctype>,
 }
 impl Output {
+    /// Apply the stylesheet's serialization method and DOCTYPE to the result document.
+    pub fn with_serialization(mut self, markup: Markup, doctype: Option<Doctype>) -> Self {
+        self.markup = markup;
+        self.doctype = doctype;
+        self
+    }
+    pub fn serialization(&self) -> (Markup, Option<Doctype>) {
+        (self.markup, self.doctype.clone())
+    }
     pub fn new(max: usize, text: bool) -> Self {
         Self {
             value: String::new(),
@@ -43,6 +88,8 @@ impl Output {
             document: false,
             simple: None,
             adjacent_atomic: false,
+            markup: Markup::Xml,
+            doctype: None,
         }
     }
     pub fn simple(max: usize, separator: String) -> Self {
@@ -137,6 +184,10 @@ impl Output {
         Ok(())
     }
     fn flush_start(&mut self) -> Result<(), Diagnostic> {
+        self.flush_start_with(">")
+    }
+    fn flush_start_with(&mut self, close: &str) -> Result<(), Diagnostic> {
+        let markup = self.markup;
         let Some(open) = self.stack.last_mut() else {
             return Ok(());
         };
@@ -149,6 +200,7 @@ impl Output {
         }
         let e = open.element.clone();
         let inherited = open.inherited.clone();
+        let html_element = html_name(&e.name, markup);
         self.push("<")?;
         self.push(&e.name.qname)?;
         for (prefix, uri) in &e.namespaces {
@@ -167,15 +219,45 @@ impl Output {
         for (name, value) in &e.attributes {
             self.push(" ")?;
             self.push(&name.qname)?;
+            let minimized = markup == Markup::Html
+                && html_element.is_some()
+                && name.uri.is_none()
+                && BOOLEAN_ATTRIBUTES.contains(&name.local.to_ascii_lowercase().as_str())
+                && value.eq_ignore_ascii_case(&name.local);
+            if minimized {
+                continue;
+            }
             self.push("=\"")?;
-            self.push(&escape(value, true))?;
+            if markup == Markup::Html {
+                self.push(&value.replace('&', "&amp;").replace('"', "&quot;"))?;
+            } else {
+                self.push(&escape(value, true))?;
+            }
             self.push("\"")?;
         }
-        self.push(">")
+        self.push(close)
     }
     pub fn start(&mut self, mut element: Element) -> Result<(), Diagnostic> {
         self.flush_start()?;
         self.adjacent_atomic = false;
+        if self.stack.is_empty()
+            && !self.text
+            && self.simple.is_none()
+            && let Some(doctype) = self.doctype.take()
+        {
+            let name = if self.markup == Markup::Html {
+                "html".to_owned()
+            } else {
+                element.name.qname.clone()
+            };
+            let declaration = match (&doctype.public, &doctype.system) {
+                (Some(p), Some(s)) => format!("<!DOCTYPE {name} PUBLIC \"{p}\" \"{s}\">\n"),
+                (Some(p), None) => format!("<!DOCTYPE {name} PUBLIC \"{p}\">\n"),
+                (None, Some(s)) => format!("<!DOCTYPE {name} SYSTEM \"{s}\">\n"),
+                (None, None) => String::new(),
+            };
+            self.push(&declaration)?;
+        }
         if self.simple.is_some() && self.stack.is_empty() {
             self.simple_part("", false)?;
         }
@@ -261,6 +343,21 @@ impl Output {
     }
     pub fn end(&mut self) -> Result<(), Diagnostic> {
         self.adjacent_atomic = false;
+        if !self.text
+            && let Some(open) = self.stack.last()
+            && open.pending
+            && html_name(&open.element.name, self.markup)
+                .is_some_and(|name| VOID_ELEMENTS.contains(&name.as_str()))
+        {
+            // HTML void elements have no end tag; XHTML writes them as `<br />`.
+            self.flush_start_with(if self.markup == Markup::Xhtml {
+                " />"
+            } else {
+                ">"
+            })?;
+            self.stack.pop();
+            return Ok(());
+        }
         self.flush_start()?;
         let Some(open) = self.stack.pop() else {
             return Err(Diagnostic::new(
@@ -297,7 +394,13 @@ impl Output {
                 .push_str(s);
             return Ok(());
         }
-        if self.text {
+        let raw = self.markup == Markup::Html
+            && self
+                .stack
+                .last()
+                .and_then(|open| html_name(&open.element.name, self.markup))
+                .is_some_and(|name| name == "script" || name == "style");
+        if self.text || raw {
             self.push(s)
         } else {
             self.push(&escape(s, false))

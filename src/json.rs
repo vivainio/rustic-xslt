@@ -217,7 +217,11 @@ impl<'t> Parser<'t> {
                 c if (c as u32) < 0x20 && !self.options.liberal => {
                     return Err(invalid("control character in JSON string"));
                 }
-                c => out.push(if self.options.escape { c } else { xml_char(c as u32) }),
+                c => out.push(if self.options.escape {
+                    c
+                } else {
+                    xml_char(c as u32)
+                }),
             }
         }
     }

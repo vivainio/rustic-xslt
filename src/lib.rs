@@ -142,6 +142,8 @@ pub struct Stylesheet {
     templates: Vec<compile::Template>,
     omit_declaration: bool,
     indent: bool,
+    markup: result::Markup,
+    doctype: Option<result::Doctype>,
     text_output: bool,
     backwards: bool,
     version: u8,

@@ -1142,3 +1142,14 @@ conformance claims. Smaller tested increments are committed independently.
   FOJS0005 errors and a nesting limit. The fallback option and the file-reading
   json-doc()/unparsed-text() functions are not implemented.
 - 123 of the 154 fn-parse-json cases pass and are in the gate.
+
+## Increment 97: HTML and XHTML output methods
+
+- xsl:output method="html" and "xhtml": HTML void elements lose their end tags
+  (`<br>`; XHTML writes `<br />`), script/style content is unescaped in HTML, boolean
+  attributes minimize, attribute values escape only & and ", element names match
+  case-insensitively, HTML omits the XML declaration by default, and
+  doctype-public/doctype-system emit a DOCTYPE before the root element (also for
+  XML). Further xsl:output attributes are accepted and ignored (media-type,
+  html-version, include-content-type and similar); other encodings, character maps
+  and CDATA sections remain unsupported.

@@ -780,7 +780,8 @@ fn execute<'a>(
         pending = remaining;
     }
     let globals = Rc::new(globals);
-    let mut output = Output::new(limits.max_output_bytes, sheet.text_output);
+    let mut output = Output::new(limits.max_output_bytes, sheet.text_output)
+        .with_serialization(sheet.markup, sheet.doctype.clone());
     if declaration && !sheet.text_output && !sheet.omit_declaration {
         output.push("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")?;
     }
@@ -1665,7 +1666,8 @@ fn run_tasks<'a>(
                         let nested = Output::new(
                             output.max.saturating_sub(output.value.len()),
                             sheet.text_output,
-                        );
+                        )
+                        .with_serialization(output.serialization().0, None);
                         let try_frame = Frame {
                             focus: focus.clone(),
                             env: env.clone(),

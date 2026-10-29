@@ -1794,6 +1794,15 @@ fn declarations(
                         "encoding",
                         "indent",
                         "version",
+                        "doctype-public",
+                        "doctype-system",
+                        "html-version",
+                        "media-type",
+                        "include-content-type",
+                        "escape-uri-attributes",
+                        "undeclare-prefixes",
+                        "byte-order-mark",
+                        "standalone",
                     ],
                 )?;
                 if n.attribute("encoding")
@@ -1804,23 +1813,38 @@ fn declarations(
                         "only UTF-8 output encoding is currently supported",
                     ));
                 }
-                sheet.indent = boolean_attribute(n, "indent", false)?;
-                if n.attribute("version").is_some_and(|s| s != "1.0") {
+                if n.attribute("version").is_some_and(|s| s != "1.0")
+                    && n.attribute("method").is_none_or(|m| m == "xml")
+                {
                     return Err(error(n, "only XML 1.0 output is currently supported"));
                 }
+                sheet.indent = boolean_attribute(n, "indent", false)?;
                 empty(n)?;
                 if **output_seen {
                     return Err(error(n, "multiple xsl:output declarations are unsupported"));
                 }
                 **output_seen = true;
-                sheet.text_output = match n.attribute("method").unwrap_or("xml") {
-                    "xml" => false,
-                    "text" => true,
+                let method = n.attribute("method").unwrap_or("xml");
+                sheet.text_output = method == "text";
+                sheet.markup = match method {
+                    "xml" | "text" => crate::result::Markup::Xml,
+                    "html" => crate::result::Markup::Html,
+                    "xhtml" => crate::result::Markup::Xhtml,
                     _ => return Err(error(n, "unsupported output method")),
                 };
-                sheet.omit_declaration = match n.attribute("omit-xml-declaration").unwrap_or("no") {
-                    "yes" => true,
-                    "no" => false,
+                if n.attribute("doctype-public").is_some()
+                    || n.attribute("doctype-system").is_some()
+                {
+                    sheet.doctype = Some(crate::result::Doctype {
+                        public: n.attribute("doctype-public").map(str::to_owned),
+                        system: n.attribute("doctype-system").map(str::to_owned),
+                    });
+                }
+                let default_omit = method == "html";
+                sheet.omit_declaration = match n.attribute("omit-xml-declaration") {
+                    None => default_omit,
+                    Some("yes") => true,
+                    Some("no") => false,
                     _ => return Err(error(n, "invalid omit-xml-declaration")),
                 };
             }
@@ -2143,6 +2167,8 @@ pub(crate) fn compile(
         modes: BTreeMap::new(),
         omit_declaration: false,
         indent: false,
+        markup: crate::result::Markup::Xml,
+        doctype: None,
         text_output: false,
         backwards: root.attribute("version") == Some("1.0"),
         version: match root.attribute("version") {
