@@ -83,10 +83,11 @@ Template result types apply function conversion with XTTE0505 diagnostics for
 sole sequence/document returns and element-only constructors (including supported
 control flow). Unconstrained item()* templates retain ordinary output behavior.
 Sequence instructions, supported control flow and template delegation also
-retain raw values across typed bindings and returns. Constructed-node paths that
-cannot yet join these raw sequences are explicitly rejected.
-Mixing constructed nodes into raw typed sequences, standalone attribute
-constructors and zero-length constructed text-node identity remain incomplete.
+retain raw values across typed bindings and returns. Mixed sequences support
+constructed elements, documents, text, comments and processing instructions;
+constructed element contents are normalized independently. Standalone attribute
+constructors, raw copy/built-in dispatch paths and zero-length constructed
+text-node identity remain incomplete.
 Selected node/attribute identity is preserved through raw sequence capture.
 Match patterns support child/attribute paths, namespaces, wildcards, node tests,
 predicates, `/` and union. Descendant patterns remain ahead.

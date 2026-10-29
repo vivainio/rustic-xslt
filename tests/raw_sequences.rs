@@ -104,12 +104,34 @@ fn raw_record_results_do_not_accumulate_across_records() {
     assert_eq!(output, b"1 22 3");
 }
 #[test]
-fn unsupported_untyped_constructor_delegation_is_explicit() {
+fn untyped_constructor_delegation_atomizes_for_string_results() {
     let s = sheet(
         r#"<xsl:template match="/" as="xs:string"><xsl:call-template name="constructor"/></xsl:template><xsl:template name="constructor"><n>text</n></xsl:template>"#,
     );
-    assert_eq!(
-        s.transform("<r/>").unwrap_err().code,
-        "RUST_XSLT_UNSUPPORTED"
+    assert_eq!(s.transform("<r/>").unwrap(), "text");
+}
+
+#[test]
+fn mixed_constructed_nodes_keep_kinds_and_boundaries() {
+    let s = sheet(
+        r#"<xsl:template match="/"><xsl:variable name="v" as="item()*"><xsl:sequence select="7"/><n>e</n><xsl:text>a</xsl:text><xsl:text>b</xsl:text><xsl:comment>c</xsl:comment><xsl:processing-instruction name="p">d</xsl:processing-instruction><xsl:document><doc/></xsl:document><xsl:sequence select="true()"/></xsl:variable><xsl:value-of select="concat(count($v), ':', $v[2] instance of element(n), ':', $v[3] instance of text(), ':', $v[4] instance of text(), ':', $v[5] instance of comment(), ':', $v[6] instance of processing-instruction(), ':', $v[7] instance of document-node(), ':', empty($v[2]/parent::node()), ':', string-join($v[3], '|'))"/></xsl:template>"#,
     );
+    assert_eq!(
+        s.transform("<r/>").unwrap(),
+        "8:true:true:true:true:true:true:true:a"
+    );
+}
+#[test]
+fn nested_element_contents_are_grounded_within_raw_sequences() {
+    let s = sheet(
+        r#"<xsl:template match="/"><xsl:variable name="v" as="item()*"><xsl:sequence select="1"/><out><xsl:sequence select="(2,3)"/></out><xsl:sequence select="4"/></xsl:variable><xsl:value-of select="concat(count($v), ':', string($v[2]))"/></xsl:template>"#,
+    );
+    assert_eq!(s.transform("<r/>").unwrap(), "3:2 3");
+}
+#[test]
+fn adjacent_constructed_text_nodes_atomize_separately() {
+    let s = sheet(
+        r#"<xsl:template match="/"><xsl:variable name="v" as="xs:string+"><xsl:text>a</xsl:text><xsl:value-of select="'b'"/></xsl:variable><xsl:value-of select="concat(count($v), ':', string-join($v, '|'))"/></xsl:template>"#,
+    );
+    assert_eq!(s.transform("<r/>").unwrap(), "2:a|b");
 }

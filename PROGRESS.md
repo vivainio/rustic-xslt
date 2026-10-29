@@ -498,5 +498,16 @@ conformance claims. Smaller tested increments are committed independently.
 - Nineteen QT3 sets: 2,037 cases, 989 pass / 667 engine failures / 21 harness errors /
   360 profile exclusions. All 980 previous passes remain; QT3 gate expands to 989.
 
-Next: collect constructed nodes in mixed raw sequences, then broaden attribute
-construction and XPath grammar coverage.
+## Increment 40: mixed constructed-node sequences
+
+- Raw typed bindings and template results collect constructed elements, documents,
+  text, comments and processing instructions alongside atomic/selected values.
+- Adjacent constructed text nodes retain separate identities before conversion;
+  nested element contents normalize independently of their containing sequence.
+- Untyped constructor delegation can atomize into typed template returns. Mixed
+  return cardinality errors now use XTTE0505 rather than rejecting the shape.
+- 282 Rust integration tests, 27 harness tests and Clippy/format pass. Both pinned
+  gates retain all 373 XSLT and 989 QT3 passes without regressions.
+
+Next: raw copy and built-in dispatch, then standalone attributes and XPath grammar.
+

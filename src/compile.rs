@@ -302,7 +302,12 @@ fn binding(n: Node<'_, '_>, parameter: bool, depth: usize) -> Result<Binding, Di
                 unreachable!()
             };
             BindingValue::Select(e)
-        } else if ty.is_some() && raw_result_body(&body) {
+        } else if ty.is_some()
+            && raw_result_body(&body)
+            && (!element_result_body(&body)
+                || top_sequence(&body)
+                || body.iter().all(|i| matches!(i, Instruction::Bind(_))))
+        {
             BindingValue::Raw(body)
         } else {
             if ty.as_ref().is_some_and(|ty| {
@@ -359,7 +364,14 @@ pub(crate) fn raw_result_body(body: &[Instruction]) -> bool {
         Instruction::Sequence(_)
         | Instruction::Call(..)
         | Instruction::NextMatch(_)
-        | Instruction::Bind(_) => true,
+        | Instruction::Bind(_)
+        | Instruction::Element { .. }
+        | Instruction::ComputedElement(..)
+        | Instruction::Document(_)
+        | Instruction::Text(_)
+        | Instruction::Value(..)
+        | Instruction::Comment(_)
+        | Instruction::Pi(..) => true,
         Instruction::ForEach(_, _, body) | Instruction::If(_, body) => raw_result_body(body),
         Instruction::Choose(branches) => branches.iter().all(|(_, body)| raw_result_body(body)),
         _ => false,

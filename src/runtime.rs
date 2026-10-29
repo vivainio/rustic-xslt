@@ -75,6 +75,7 @@ enum Task<'a> {
     FinishDocument(Output, usize),
     FinishTemplate(&'a crate::seqtype::SequenceType, Output, usize, bool, bool),
     FinishRawTemplate(&'a crate::seqtype::SequenceType, Output, usize),
+    FinishRawNode(Output, usize, bool),
     Value(Item<'a>, usize, bool),
     Close,
     FinishCapture(Capture, Output),
@@ -161,6 +162,41 @@ fn restore_raw(captures: &mut [RawCapture<'_>], active: bool) {
     if let Some(capture) = captures.last_mut() {
         capture.active = active;
     }
+}
+fn begin_raw_node<'a>(
+    output: &mut Output,
+    captures: &mut [RawCapture<'a>],
+    tasks: &mut Vec<Task<'a>>,
+    depth: usize,
+    document: bool,
+) {
+    let saved = std::mem::replace(output, Output::document(output.max));
+    suspend_raw(captures);
+    tasks.push(Task::FinishRawNode(saved, depth, document));
+}
+fn raw_text<'a>(
+    text: &str,
+    trees: &crate::trees::Trees<'a>,
+    max: usize,
+) -> Result<Value<'a>, Diagnostic> {
+    if text.is_empty() {
+        return Err(Diagnostic::new(
+            "RUST_XSLT_UNSUPPORTED",
+            "zero-length constructed text-node identity is not implemented",
+            "run",
+        ));
+    }
+    let mut output = Output::document(max);
+    output.text(text)?;
+    trees.construct(
+        output.value,
+        Some(&crate::seqtype::SequenceType {
+            kind: crate::seqtype::Kind::Item,
+            min: 0,
+            max: usize::MAX,
+        }),
+        "XTTE0570",
+    )
 }
 struct Run<'a, 'r> {
     sheet: &'a Stylesheet,
@@ -766,6 +802,18 @@ fn run_tasks<'a>(
                     tasks.push(Task::Body(&t.body, 0, frame));
                 }
             }
+            Task::FinishRawNode(saved, depth, document) => {
+                let xml = std::mem::replace(&mut output, saved).value;
+                let nodes = crate::seqtype::SequenceType {
+                    kind: crate::seqtype::Kind::Item,
+                    min: 0,
+                    max: usize::MAX,
+                };
+                let value =
+                    trees.construct(xml, if document { None } else { Some(&nodes) }, "XTTE0570")?;
+                restore_raw(&mut captures, true);
+                emit_value(value, &mut tasks, depth, true);
+            }
             Task::FinishRawTemplate(ty, saved, depth) => {
                 output = saved;
                 let captured = captures.pop().unwrap().items;
@@ -1023,6 +1071,13 @@ fn run_tasks<'a>(
                             | Instruction::ForEach(..)
                             | Instruction::If(..)
                             | Instruction::Choose(_)
+                            | Instruction::Element { .. }
+                            | Instruction::ComputedElement(..)
+                            | Instruction::Document(_)
+                            | Instruction::Text(_)
+                            | Instruction::Value(..)
+                            | Instruction::Comment(_)
+                            | Instruction::Pi(..)
                     )
                 {
                     return Err(Diagnostic::new(
@@ -1051,6 +1106,9 @@ fn run_tasks<'a>(
                             rule,
                         };
                         let name = computed_name(n, false, &frame, budget, sheet.backwards)?;
+                        if raw_active(&captures) {
+                            begin_raw_node(&mut output, &mut captures, &mut tasks, depth, false);
+                        }
                         output.start(result::Element {
                             name,
                             namespaces: Default::default(),
@@ -1080,22 +1138,27 @@ fn run_tasks<'a>(
                             &mut tasks,
                         )?;
                     }
-                    Instruction::Comment(content) => capture(
-                        content,
-                        Capture::Comment,
-                        Frame {
-                            focus,
-                            env,
-                            depth: depth + 1,
-                            mode,
-                            tunnel: tunnel.clone(),
-                            rule,
-                        },
-                        sheet,
-                        budget,
-                        &mut output,
-                        &mut tasks,
-                    )?,
+                    Instruction::Comment(content) => {
+                        if raw_active(&captures) {
+                            begin_raw_node(&mut output, &mut captures, &mut tasks, depth, false);
+                        }
+                        capture(
+                            content,
+                            Capture::Comment,
+                            Frame {
+                                focus,
+                                env,
+                                depth: depth + 1,
+                                mode,
+                                tunnel: tunnel.clone(),
+                                rule,
+                            },
+                            sheet,
+                            budget,
+                            &mut output,
+                            &mut tasks,
+                        )?;
+                    }
                     Instruction::Pi(n, content) => {
                         let name = parts(n, &focus, &env, budget, sheet.backwards)?;
                         let name = name.trim().to_owned();
@@ -1105,6 +1168,9 @@ fn run_tasks<'a>(
                                 "invalid processing-instruction target",
                                 "run",
                             ));
+                        }
+                        if raw_active(&captures) {
+                            begin_raw_node(&mut output, &mut captures, &mut tasks, depth, false);
                         }
                         capture(
                             content,
@@ -1124,7 +1190,17 @@ fn run_tasks<'a>(
                         )?;
                     }
                     Instruction::Bind(_) => unreachable!(),
-                    Instruction::Text(t) => output.text(t)?,
+                    Instruction::Text(t) => {
+                        if raw_active(&captures) {
+                            captures
+                                .last_mut()
+                                .unwrap()
+                                .items
+                                .extend(raw_text(t, trees, output.max)?);
+                        } else {
+                            output.text(t)?;
+                        }
+                    }
                     Instruction::Value(e, separator) => {
                         let mut v = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
                         if sheet.backwards && separator.is_none() {
@@ -1138,11 +1214,20 @@ fn run_tasks<'a>(
                         for _ in &v {
                             budget.tick()?;
                         }
-                        output.text(&xpath::simple_string(
+                        let text = xpath::simple_string(
                             &v,
                             &separator,
                             output.max.saturating_sub(output.value.len()),
-                        )?)?;
+                        )?;
+                        if raw_active(&captures) {
+                            captures
+                                .last_mut()
+                                .unwrap()
+                                .items
+                                .extend(raw_text(&text, trees, output.max)?);
+                        } else {
+                            output.text(&text)?;
+                        }
                     }
                     Instruction::Apply(e, target_mode, sorts, params) => {
                         let value = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
@@ -1249,6 +1334,22 @@ fn run_tasks<'a>(
                         }
                     }
                     Instruction::Document(body) => {
+                        if raw_active(&captures) {
+                            begin_raw_node(&mut output, &mut captures, &mut tasks, depth, true);
+                            tasks.push(Task::Body(
+                                body,
+                                0,
+                                Frame {
+                                    focus,
+                                    env,
+                                    depth: depth + 1,
+                                    mode,
+                                    tunnel,
+                                    rule,
+                                },
+                            ));
+                            continue;
+                        }
                         let saved = std::mem::replace(
                             &mut output,
                             Output::document(limits.max_output_bytes),
@@ -1404,6 +1505,9 @@ fn run_tasks<'a>(
                                 value.push_str(&xpath::simple_string(&v, " ", usize::MAX)?);
                             }
                             element.attributes.push((name.clone(), value));
+                        }
+                        if raw_active(&captures) {
+                            begin_raw_node(&mut output, &mut captures, &mut tasks, depth, false);
                         }
                         output.start(element)?;
                         tasks.push(Task::Close);

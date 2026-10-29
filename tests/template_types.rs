@@ -83,11 +83,15 @@ fn unconstrained_template_sequences_keep_normal_output_semantics() {
     assert_eq!(s.transform("<r/>").unwrap(), "1 2");
 }
 #[test]
-fn unsupported_raw_result_shapes_are_rejected_explicitly() {
+fn mixed_raw_results_enforce_template_cardinality() {
     let body = r#"<xsl:template match="/" as="xs:string"><xsl:sequence select="'a'"/><out/></xsl:template>"#;
     assert_eq!(
-        Stylesheet::compile(&source(body)).unwrap_err().code,
-        "RUST_XSLT_UNSUPPORTED"
+        Stylesheet::compile(&source(body))
+            .unwrap()
+            .transform("<r/>")
+            .unwrap_err()
+            .code,
+        "XTTE0505"
     );
 }
 #[test]
