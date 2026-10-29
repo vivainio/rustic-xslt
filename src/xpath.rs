@@ -52,6 +52,7 @@ pub(crate) enum Expr {
     Variable(String),
     For(String, Box<Expr>, Box<Expr>),
     Let(String, Box<Expr>, Box<Expr>),
+    Quantified(bool, String, Box<Expr>, Box<Expr>),
     Context,
     Root,
     Path(Box<Expr>, Vec<Step>),
@@ -477,11 +478,11 @@ impl Parser {
     }
     fn expression_inner(&mut self, minimum: u8) -> Result<Expr, Diagnostic> {
         if minimum > 2
-            && matches!(self.peek(), Token::Name(n) if n == "for" || n == "let")
+            && matches!(self.peek(), Token::Name(n) if ["for", "let", "some", "every"].contains(&n.as_str()))
             && self.tokens.get(self.index + 1) == Some(&Token::Symbol("$".into()))
         {
             return Err(syntax(
-                "for/let expressions require parentheses in this operand",
+                "binding expressions require parentheses in this operand",
             ));
         }
         let mut left = self.primary()?;
@@ -681,11 +682,11 @@ impl Parser {
                     Expr::Number(n)
                 }
                 Token::Name(n)
-                    if (n == "for" || n == "let")
+                    if (["for", "let", "some", "every"].contains(&n.as_str()))
                         && self.tokens.get(self.index + 1) == Some(&Token::Symbol("$".into())) =>
                 {
                     self.next();
-                    self.binding_expression(n == "for")?
+                    self.binding_expression(&n)?
                 }
                 Token::Name(n)
                     if n == "if"
@@ -799,7 +800,7 @@ impl Parser {
         }
         Ok(e)
     }
-    fn binding_expression(&mut self, iterative: bool) -> Result<Expr, Diagnostic> {
+    fn binding_expression(&mut self, keyword: &str) -> Result<Expr, Diagnostic> {
         let mut bindings = vec![];
         loop {
             if bindings.len() >= 128 {
@@ -810,7 +811,7 @@ impl Parser {
                 return Err(syntax("expected binding variable name"));
             };
             let name = crate::qname::resolve(&name, &self.namespaces, "XPST0003")?;
-            if iterative {
+            if keyword != "let" {
                 if self.next() != Token::Name("in".into()) {
                     return Err(syntax("expected in"));
                 }
@@ -827,8 +828,13 @@ impl Parser {
                 break;
             }
         }
-        if self.next() != Token::Name("return".into()) {
-            return Err(syntax("expected return"));
+        let terminal = if matches!(keyword, "some" | "every") {
+            "satisfies"
+        } else {
+            "return"
+        };
+        if self.next() != Token::Name(terminal.into()) {
+            return Err(syntax(format!("expected {terminal}")));
         }
         let extra = bindings.len().saturating_sub(1);
         self.depth += extra;
@@ -836,10 +842,10 @@ impl Parser {
         self.depth -= extra;
         let mut body = returned?;
         for (name, select) in bindings.into_iter().rev() {
-            body = if iterative {
-                Expr::For(name, Box::new(select), Box::new(body))
-            } else {
-                Expr::Let(name, Box::new(select), Box::new(body))
+            body = match keyword {
+                "for" => Expr::For(name, Box::new(select), Box::new(body)),
+                "let" => Expr::Let(name, Box::new(select), Box::new(body)),
+                _ => Expr::Quantified(keyword == "every", name, Box::new(select), Box::new(body)),
             };
         }
         Ok(body)
@@ -1082,6 +1088,22 @@ pub(crate) fn eval<'a>(
                 }
             }
             result
+        }
+        Expr::Quantified(every, name, select, body) => {
+            let selected = eval(select, focus, vars, budget, depth + 1, backwards)?;
+            let mut result = *every;
+            for item in selected {
+                budget.tick()?;
+                let mut scope = vars.clone();
+                scope.insert(name.clone(), vec![item]);
+                let value = eval(body, focus, &scope, budget, depth + 1, backwards)?;
+                let matches = boolean(&value)?;
+                if matches != *every {
+                    result = matches;
+                    break;
+                }
+            }
+            vec![Item::Boolean(result)]
         }
         Expr::Let(name, select, body) => {
             let selected = eval(select, focus, vars, budget, depth + 1, backwards)?;

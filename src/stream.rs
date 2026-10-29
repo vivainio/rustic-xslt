@@ -112,7 +112,9 @@ fn safe_expression(e: &Expr, global: bool) -> Result<(), Diagnostic> {
                 pending.push(n);
             }
             Expr::Unary(_, e) | Expr::TypeOp(_, e, _) => pending.push(e),
-            Expr::For(_, select, body) | Expr::Let(_, select, body) => {
+            Expr::For(_, select, body)
+            | Expr::Let(_, select, body)
+            | Expr::Quantified(_, _, select, body) => {
                 pending.push(select);
                 pending.push(body);
             }

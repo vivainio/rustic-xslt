@@ -1266,7 +1266,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                         "compile",
                     ));
                 }
-                Expr::For(name, select, body) | Expr::Let(name, select, body) => {
+                Expr::For(name, select, body)
+                | Expr::Let(name, select, body)
+                | Expr::Quantified(_, name, select, body) => {
                     expression(select, scope)?;
                     let mut inner = scope.clone();
                     inner.insert(name.clone());

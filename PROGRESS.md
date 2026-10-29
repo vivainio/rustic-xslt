@@ -547,5 +547,16 @@ conformance claims. Smaller tested increments are committed independently.
 - 292 Rust integration tests, 27 harness tests and Clippy/format pass. Both pinned
   gates retain all 376 XSLT and 989 QT3 passes without regressions.
 
-Next: XPath grammar and remaining simple-content normalization semantics.
+## Increment 45: XPath quantified expressions
+
+- some/every supports dependent multiple bindings, nested quantifiers, QName
+  variables, lexical shadowing and unchanged caller focus.
+- Effective boolean values short-circuit; empty domains use existential/universal
+  identities. Static scope, parser depth and streaming safety inspect all bodies.
+- Iteration consumes the shared budget. 300 Rust integration tests, 27 harness
+  tests and Clippy/format pass; all 376 XSLT and 989 prior QT3 passes remain.
+- Twenty QT3 sets: 2,240 cases, 1,132 pass / 685 engine failures / 21 harness errors /
+  402 profile exclusions. Quantified expressions add 143 passes to the gate.
+
+Next: integer division and remaining XPath grammar.
 
