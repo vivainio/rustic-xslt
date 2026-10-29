@@ -4,6 +4,7 @@ mod compile;
 mod deep_equal;
 mod integer_type;
 mod mode;
+mod namespace_functions;
 mod node;
 mod number;
 mod pattern;

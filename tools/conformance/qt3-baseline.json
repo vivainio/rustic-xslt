@@ -13,16 +13,20 @@
     "fn-exactly-one",
     "fn-floor",
     "fn-head",
+    "fn-in-scope-prefixes",
     "fn-insert-before",
     "fn-local-name-from-QName",
     "fn-lower-case",
     "fn-max",
     "fn-min",
+    "fn-namespace-uri-for-prefix",
     "fn-namespace-uri-from-QName",
+    "fn-node-name",
     "fn-normalize-unicode",
     "fn-one-or-more",
     "fn-prefix-from-QName",
     "fn-remove",
+    "fn-resolve-QName",
     "fn-reverse",
     "fn-root",
     "fn-round",
@@ -4195,6 +4199,50 @@
       "cbcl-fn-insert-before-002"
     ],
     [
+      "fn-local-name-from-QName",
+      "LocalNameFromQNameFunc006"
+    ],
+    [
+      "fn-local-name-from-QName",
+      "LocalNameFromQNameFunc007"
+    ],
+    [
+      "fn-local-name-from-QName",
+      "LocalNameFromQNameFunc009"
+    ],
+    [
+      "fn-local-name-from-QName",
+      "LocalNameFromQNameFunc011"
+    ],
+    [
+      "fn-local-name-from-QName",
+      "LocalNameFromQNameFunc015a"
+    ],
+    [
+      "fn-local-name-from-QName",
+      "LocalNameFromQNameFunc016"
+    ],
+    [
+      "fn-local-name-from-QName",
+      "fn-local-name-from-qname-024"
+    ],
+    [
+      "fn-local-name-from-QName",
+      "K-LocalNameFromQNameFunc-1"
+    ],
+    [
+      "fn-local-name-from-QName",
+      "K-LocalNameFromQNameFunc-2"
+    ],
+    [
+      "fn-local-name-from-QName",
+      "K-LocalNameFromQNameFunc-3"
+    ],
+    [
+      "fn-local-name-from-QName",
+      "K-LocalNameFromQNameFunc-4"
+    ],
+    [
       "fn-lower-case",
       "fn-lower-case1args-1"
     ],
@@ -6121,6 +6169,106 @@
     [
       "fn-one-or-more",
       "cbcl-one-or-more-007"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-1"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-2"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-3"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-4"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-5"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-6"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-7"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-8"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-9"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-10"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-11"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-12"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-13"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-14"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-15"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-16"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-17"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-18"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-19"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-20"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-23"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "K-PrefixFromQName-1"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "K-PrefixFromQName-2"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "K-PrefixFromQName-3"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "K-PrefixFromQName-4"
     ],
     [
       "fn-QName",
@@ -10311,6 +10459,30 @@
       "cbcl-anyURI-013"
     ],
     [
+      "xs-normalizedString",
+      "cbcl-normalizedstring-001"
+    ],
+    [
+      "xs-normalizedString",
+      "cbcl-normalizedstring-002b"
+    ],
+    [
+      "xs-normalizedString",
+      "cbcl-normalizedstring-003"
+    ],
+    [
+      "xs-normalizedString",
+      "cbcl-normalizedstring-004"
+    ],
+    [
+      "xs-normalizedString",
+      "cbcl-normalizedstring-005"
+    ],
+    [
+      "xs-normalizedString",
+      "cbcl-normalizedstring-006"
+    ],
+    [
       "op-anyURI-equal",
       "K-AnyURIEqual-1"
     ],
@@ -13607,164 +13779,112 @@
       "sequence-type-21"
     ],
     [
-      "fn-local-name-from-QName",
-      "LocalNameFromQNameFunc006"
+      "fn-in-scope-prefixes",
+      "fn-in-scope-prefixes-2"
     ],
     [
-      "fn-local-name-from-QName",
-      "LocalNameFromQNameFunc007"
+      "fn-in-scope-prefixes",
+      "fn-in-scope-prefixes-23"
     ],
     [
-      "fn-local-name-from-QName",
-      "LocalNameFromQNameFunc009"
+      "fn-in-scope-prefixes",
+      "fn-in-scope-prefixes-26"
     ],
     [
-      "fn-local-name-from-QName",
-      "LocalNameFromQNameFunc011"
+      "fn-in-scope-prefixes",
+      "K-InScopePrefixesFunc-1"
     ],
     [
-      "fn-local-name-from-QName",
-      "LocalNameFromQNameFunc015a"
+      "fn-in-scope-prefixes",
+      "K-InScopePrefixesFunc-2"
     ],
     [
-      "fn-local-name-from-QName",
-      "LocalNameFromQNameFunc016"
+      "fn-namespace-uri-for-prefix",
+      "K-NamespaceURIForPrefixFunc-1"
     ],
     [
-      "fn-local-name-from-QName",
-      "K-LocalNameFromQNameFunc-1"
+      "fn-namespace-uri-for-prefix",
+      "K-NamespaceURIForPrefixFunc-2"
     ],
     [
-      "fn-local-name-from-QName",
-      "K-LocalNameFromQNameFunc-2"
+      "fn-node-name",
+      "fn-node-name-1"
     ],
     [
-      "fn-local-name-from-QName",
-      "K-LocalNameFromQNameFunc-3"
+      "fn-node-name",
+      "fn-node-name-2"
     ],
     [
-      "fn-local-name-from-QName",
-      "K-LocalNameFromQNameFunc-4"
+      "fn-node-name",
+      "fn-node-name-3"
     ],
     [
-      "fn-prefix-from-QName",
-      "fn-prefix-from-qname-1"
+      "fn-node-name",
+      "fn-node-name-30"
     ],
     [
-      "fn-prefix-from-QName",
-      "fn-prefix-from-qname-2"
+      "fn-node-name",
+      "fn-node-name-32"
     ],
     [
-      "fn-prefix-from-QName",
-      "fn-prefix-from-qname-3"
+      "fn-node-name",
+      "K-NodeNameFunc-1a"
     ],
     [
-      "fn-prefix-from-QName",
-      "fn-prefix-from-qname-4"
+      "fn-node-name",
+      "K-NodeNameFunc-2"
     ],
     [
-      "fn-prefix-from-QName",
-      "fn-prefix-from-qname-5"
+      "fn-node-name",
+      "K-NodeNameFunc-3"
     ],
     [
-      "fn-prefix-from-QName",
-      "fn-prefix-from-qname-6"
+      "fn-node-name",
+      "K2-NodeNameFunc-1"
     ],
     [
-      "fn-prefix-from-QName",
-      "fn-prefix-from-qname-7"
+      "fn-node-name",
+      "K2-NodeNameFunc-2"
     ],
     [
-      "fn-prefix-from-QName",
-      "fn-prefix-from-qname-8"
+      "fn-node-name",
+      "K2-NodeNameFunc-3"
     ],
     [
-      "fn-prefix-from-QName",
-      "fn-prefix-from-qname-9"
+      "fn-node-name",
+      "K3-NodeNameFunc-1"
     ],
     [
-      "fn-prefix-from-QName",
-      "fn-prefix-from-qname-10"
+      "fn-resolve-QName",
+      "fn-resolve-qname-23"
     ],
     [
-      "fn-prefix-from-QName",
-      "fn-prefix-from-qname-11"
+      "fn-resolve-QName",
+      "fn-resolve-qname-24"
     ],
     [
-      "fn-prefix-from-QName",
-      "fn-prefix-from-qname-12"
+      "fn-resolve-QName",
+      "fn-resolve-qname-25"
     ],
     [
-      "fn-prefix-from-QName",
-      "fn-prefix-from-qname-13"
+      "fn-resolve-QName",
+      "fn-resolve-qname-26"
     ],
     [
-      "fn-prefix-from-QName",
-      "fn-prefix-from-qname-14"
+      "fn-resolve-QName",
+      "K-ResolveQNameConstructFunc-1"
     ],
     [
-      "fn-prefix-from-QName",
-      "fn-prefix-from-qname-15"
+      "fn-resolve-QName",
+      "K-ResolveQNameConstructFunc-2"
     ],
     [
-      "fn-prefix-from-QName",
-      "fn-prefix-from-qname-16"
+      "fn-resolve-QName",
+      "K-ResolveQNameConstructFunc-3"
     ],
     [
-      "fn-prefix-from-QName",
-      "fn-prefix-from-qname-17"
-    ],
-    [
-      "fn-prefix-from-QName",
-      "fn-prefix-from-qname-18"
-    ],
-    [
-      "fn-prefix-from-QName",
-      "fn-prefix-from-qname-19"
-    ],
-    [
-      "fn-prefix-from-QName",
-      "fn-prefix-from-qname-20"
-    ],
-    [
-      "fn-prefix-from-QName",
-      "K-PrefixFromQName-1"
-    ],
-    [
-      "fn-prefix-from-QName",
-      "K-PrefixFromQName-2"
-    ],
-    [
-      "fn-prefix-from-QName",
-      "K-PrefixFromQName-3"
-    ],
-    [
-      "fn-prefix-from-QName",
-      "K-PrefixFromQName-4"
-    ],
-    [
-      "xs-normalizedString",
-      "cbcl-normalizedstring-001"
-    ],
-    [
-      "xs-normalizedString",
-      "cbcl-normalizedstring-002b"
-    ],
-    [
-      "xs-normalizedString",
-      "cbcl-normalizedstring-003"
-    ],
-    [
-      "xs-normalizedString",
-      "cbcl-normalizedstring-004"
-    ],
-    [
-      "xs-normalizedString",
-      "cbcl-normalizedstring-005"
-    ],
-    [
-      "xs-normalizedString",
-      "cbcl-normalizedstring-006"
+      "fn-resolve-QName",
+      "K-ResolveQNameConstructFunc-4"
     ]
   ]
 }

@@ -1031,7 +1031,9 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "QName" => (2, 2),
         "namespace-uri-from-QName" | "prefix-from-QName" | "local-name-from-QName" => (1, 1),
         "string" | "number" | "normalize-space" | "string-length" | "name" | "local-name"
-        | "namespace-uri" | "root" => (0, 1),
+        | "namespace-uri" | "root" | "node-name" => (0, 1),
+        "resolve-QName" | "namespace-uri-for-prefix" => (2, 2),
+        "in-scope-prefixes" => (1, 1),
         "count" | "boolean" | "not" | "exists" | "empty" | "data" | "reverse" | "head" | "tail" => {
             (1, 1)
         }
@@ -1862,8 +1864,27 @@ fn function<'a>(
             budget.tick()?;
         }
         return Ok(vec![Item::QName(crate::qname::AtomicQName::new(
-            &uri, &lexical,
+            uri.trim_matches([' ', '\t', '\n', '\r']),
+            lexical.trim_matches([' ', '\t', '\n', '\r']),
         )?)]);
+    }
+    if name == "node-name" {
+        return match first.as_slice() {
+            [] => Ok(vec![]),
+            [Item::Node(node)] => Ok(node
+                .atomic_name()
+                .map_or_else(Vec::new, |name| vec![Item::QName(name)])),
+            _ => Err(err(
+                "XPTY0004",
+                "node-name requires an optional singleton node",
+            )),
+        };
+    }
+    if matches!(
+        name,
+        "resolve-QName" | "namespace-uri-for-prefix" | "in-scope-prefixes"
+    ) {
+        return crate::namespace_functions::evaluate(name, args, budget);
     }
     if matches!(name, "round" | "round-half-to-even") {
         let precision = match args.get(1).map(Vec::as_slice) {
@@ -2160,14 +2181,8 @@ fn function<'a>(
                     } else if name == "local-name" {
                         local.into()
                     } else {
-                        let node = n.raw;
-                        if let Some(uri) = uri {
-                            node.lookup_prefix(uri)
-                                .filter(|p| !p.is_empty())
-                                .map_or_else(|| local.into(), |p| format!("{p}:{local}"))
-                        } else {
-                            local.into()
-                        }
+                        n.atomic_name()
+                            .map_or_else(String::new, |name| name.lexical())
                     }
                 }
                 _ => return Err(err("XPTY0004", "name function requires one node")),

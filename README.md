@@ -84,7 +84,9 @@ text sort keys retain plain notation and legacy infinity/zero spellings.
 Full numeric/atomic type coverage remains ahead. QName(uri, lexical-name) retains
 prefixes and supports namespace-based equality, deep equality and xs:QName types.
 QName construction accepts XML 1.0 Unicode names. Prefix/local-name accessors
-return xs:NCName values with the correct string restriction hierarchy. anyURI values collapse XML
+return xs:NCName values with the correct string restriction hierarchy. node-name
+retains lexical prefixes; resolve-QName and namespace binding functions use
+elements’ in-scope namespaces. anyURI values collapse XML
 whitespace, promote to strings for function conversion/comparison, and retain
 their distinct type for namespace-uri and namespace-uri-from-QName results. xs:QName
 constructors/casts resolve prefixes in their declaring XPath namespace scope. error() reports FOER0000 for absent codes
@@ -215,11 +217,11 @@ streamable modes/accumulators and automatic plan selection remain ahead.
 
 ## W3C development checks
 
-A pinned, partial catalog runner and a 382-case passing regression gate are in
+A pinned, partial catalog runner and a 383-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. An initial internal QT3 bridge
-also gates 3,427 passing XPath cases at the pinned XPath suite revision.
+also gates 3,456 passing XPath cases at the pinned XPath suite revision.
 The example JSON-lines driver
 and its JSON dependency are development-only.
 

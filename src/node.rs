@@ -144,6 +144,41 @@ impl<'a> XNode<'a> {
             (None, self.raw.pi().map_or("", |pi| pi.target))
         }
     }
+    pub fn atomic_name(self) -> Option<crate::qname::AtomicQName> {
+        if !self.is_element() && !self.is_attribute() && !self.is_pi() {
+            return None;
+        }
+        let (uri, local) = self.name();
+        let input = self.raw.document().input_text();
+        let lexical = if self.is_attribute() {
+            let attribute = self
+                .raw
+                .attributes()
+                .find(|a| a.name() == local && a.namespace() == uri)
+                .unwrap();
+            input[attribute.range()]
+                .split([' ', '\t', '\n', '\r', '='])
+                .next()
+                .unwrap()
+        } else if self.is_element() {
+            input[self.raw.range().start + 1..]
+                .split([' ', '\t', '\n', '\r', '/', '>'])
+                .next()
+                .unwrap()
+        } else {
+            local
+        };
+        let prefix = if self.is_pi() {
+            None
+        } else {
+            lexical.split_once(':').map(|(prefix, _)| prefix.to_owned())
+        };
+        Some(crate::qname::AtomicQName {
+            uri: uri.map(str::to_owned),
+            local: local.into(),
+            prefix,
+        })
+    }
     pub fn children(self) -> impl DoubleEndedIterator<Item = Self> {
         self.raw
             .children()

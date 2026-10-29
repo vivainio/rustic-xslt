@@ -810,5 +810,19 @@ conformance claims. Smaller tested increments are committed independently.
   XSLT gate cases remain green; fifty-five QT3 sets: 4,460 cases, 3,427 pass /
   272 engine failures / 73 harness errors / 688 profile exclusions. Gate adds 43.
 
-Next: node-name and further namespace functions.
+## Increment 66: node QNames and namespace bindings
+
+- node-name retains element/attribute lexical prefixes and returns QName values;
+  unnamed nodes return (). name() also preserves actual attribute prefix aliases.
+- resolve-QName uses element namespace bindings and default namespaces; prefix
+  lookup/in-scope-prefixes preserve URI/string result types and xml bindings.
+- Namespace scans consume the shared budget. QName construction strips outer XML
+  whitespace as required, while invalid lexical names remain diagnostic errors.
+- 393 Rust integration tests, 27 harness tests and Clippy/format pass. XSLT gate
+  expands to 383 (383 pass / 148 failures / 146 harness errors / 46 exclusions).
+- Fifty-nine QT3 sets: 4,626 cases, 3,456 pass / 271 engine failures / 82 harness
+  errors / 817 profile exclusions. Gate grows by 29; old XPath node-name arity
+  remains a named version-profile gap, without losing previous passing cases.
+
+Next: remaining node functions and version-profile distinctions.
 
