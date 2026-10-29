@@ -516,3 +516,32 @@ fn decimal_formats_customize_separators_digits_and_special_values() {
     );
     assert!(run(r#"<xsl:decimal-format decimal-separator="ab"/>"#, "1").is_err());
 }
+#[test]
+fn format_integer_supports_digit_patterns_alphabetic_roman_and_words() {
+    let run = |expr: &str| {
+        Stylesheet::compile(&format!(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:sequence select="{expr}"/></xsl:template></xsl:stylesheet>"#))
+            .and_then(|s| s.transform("<r/>"))
+    };
+    for (expr, expected) in [
+        ("format-integer(123, '0000')", "0123"),
+        ("format-integer(1234567, '#,###')", "1,234,567"),
+        ("format-integer(-42, '000')", "-042"),
+        ("format-integer(27, 'a')", "aa"),
+        ("format-integer(1999, 'I')", "MCMXCIX"),
+        ("format-integer(7, 'w')", "seven"),
+        ("format-integer(7, 'Ww;o')", "Seventh"),
+        ("format-integer(3, '1;o')", "3rd"),
+        ("format-integer(1234, '#.###')", "1.234"),
+        ("format-integer((), '1')", ""),
+        ("format-integer(5, '\u{661}')", "\u{665}"),
+    ] {
+        assert_eq!(run(expr).unwrap(), expected, "{expr}");
+    }
+    for expr in [
+        "format-integer(1, '')",
+        "format-integer(1, 'x')",
+        "format-integer(1, '0#0')",
+    ] {
+        assert_eq!(run(expr).unwrap_err().code, "FODF1310", "{expr}");
+    }
+}

@@ -1187,3 +1187,11 @@ conformance claims. Smaller tested increments are committed independently.
   prefix/suffix/separators), ordinal, grouping-separator and grouping-size.
 - Not implemented: start-at, lang and letter-value (accepted, ignored), non-English
   words and traditional numbering.
+
+## Increment 101: fn:format-integer
+
+- Added format-integer() on the shared numbering module: decimal digit patterns
+  (mandatory/optional digits, regular and explicit grouping separators, other Unicode
+  digit families), a/A, i/I, w/W/Ww, the ordinal modifier, negative numbers, empty
+  input and FODF1310 for malformed pictures; unrecognized tokens fall back to "1".
+  Language-dependent forms are not implemented.

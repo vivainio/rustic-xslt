@@ -363,3 +363,97 @@ pub(crate) fn format_list(
     out.push_str(&suffix);
     out
 }
+
+/// `fn:format-integer`: `picture` is a primary format token with optional modifiers.
+pub(crate) fn format_integer(
+    value: &bigdecimal::num_bigint::BigInt,
+    picture: &str,
+) -> Result<String, String> {
+    use num_traits::{Signed, ToPrimitive};
+    let invalid = || "FODF1310".to_owned();
+    let (primary, modifier) = match picture.rsplit_once(';') {
+        Some((p, m)) => (p, m),
+        None => (picture, ""),
+    };
+    if primary.is_empty() {
+        return Err(invalid());
+    }
+    let ordinal = modifier.starts_with('o');
+    let magnitude = value.abs().to_u64().ok_or_else(invalid)?;
+    let sign = if value.is_negative() { "-" } else { "" };
+    let chars: Vec<char> = primary.chars().collect();
+    let is_digit = |c: char| zero_of(c).is_some();
+    let decimal_like = chars
+        .iter()
+        .all(|c| is_digit(*c) || *c == '#' || !c.is_alphanumeric())
+        && chars.iter().any(|c| is_digit(*c) || *c == '#');
+    let body = if decimal_like {
+        if chars.iter().any(|c| *c == '#') {
+            if let Some(first_digit) = chars.iter().position(|c| is_digit(*c)) {
+                if chars[first_digit..].contains(&'#') {
+                    return Err(invalid());
+                }
+            }
+        }
+        let digits: Vec<char> = chars.iter().copied().filter(|c| is_digit(*c)).collect();
+        let zero = digits.first().and_then(|c| zero_of(*c)).unwrap_or('0');
+        if digits.iter().any(|c| zero_of(*c) != Some(zero)) {
+            return Err(invalid());
+        }
+        if chars
+            .first()
+            .is_some_and(|c| !c.is_alphanumeric() && *c != '#')
+            || chars
+                .last()
+                .is_some_and(|c| !c.is_alphanumeric() && *c != '#')
+            || chars.windows(2).any(|w| {
+                !w[0].is_alphanumeric() && !w[1].is_alphanumeric() && w[0] != '#' && w[1] != '#'
+            })
+        {
+            return Err(invalid());
+        }
+        let mut separators: Vec<(char, usize)> = vec![];
+        let mut to_right = 0;
+        for c in chars.iter().rev() {
+            if c.is_alphanumeric() || *c == '#' {
+                to_right += 1;
+            } else {
+                separators.push((*c, to_right));
+            }
+        }
+        let width = digits.len();
+        let token = Token::Decimal { zero, width };
+        let mut text = format(magnitude, &token, ordinal);
+        if let Some(&(separator, first)) = separators.first() {
+            let regular = separators
+                .iter()
+                .enumerate()
+                .all(|(i, (c, pos))| *c == separator && *pos == first * (i + 1));
+            let rendered: String = if regular {
+                group(&text, &separator.to_string(), first)
+            } else {
+                let chars: Vec<char> = text.chars().collect();
+                let mut out = String::new();
+                for (i, c) in chars.iter().enumerate() {
+                    out.push(*c);
+                    let remaining = chars.len() - i - 1;
+                    if let Some((sep, _)) = separators.iter().find(|(_, pos)| *pos == remaining) {
+                        if remaining > 0 {
+                            out.push(*sep);
+                        }
+                    }
+                }
+                out
+            };
+            text = rendered;
+        }
+        text
+    } else {
+        match primary {
+            "a" | "A" | "i" | "I" | "w" | "W" | "Ww" => format(magnitude, &token(primary), ordinal),
+            // Unrecognized tokens fall back to plain decimal numbering.
+            _ => format(magnitude, &token("1"), ordinal),
+        }
+    };
+    Ok(format!("{sign}{body}"))
+}

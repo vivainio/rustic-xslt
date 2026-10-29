@@ -1514,6 +1514,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "fold-left" | "fold-right" | "for-each-pair" => (3, 3),
         "format-number" => (2, 3),
         "parse-json" => (1, 2),
+        "format-integer" => (2, 3),
         "math:pi" => (0, 0),
         "math:exp" | "math:exp10" | "math:log" | "math:log10" | "math:sqrt" | "math:sin"
         | "math:cos" | "math:tan" | "math:asin" | "math:acos" | "math:atan" => (1, 1),
@@ -3245,6 +3246,29 @@ fn function<'a>(
             path.push_str(step);
         }
         return Ok(vec![Item::String(path)]);
+    }
+    if name == "format-integer" {
+        let value = match args[0].as_slice() {
+            [] => return Ok(vec![Item::String(String::new())]),
+            [item] => match atomize(item) {
+                Item::Number(Number::Integer(n) | Number::DerivedInteger(_, n)) => n,
+                Item::Untyped(s) => match Number::cast("integer", &s)? {
+                    Number::Integer(n) => n,
+                    _ => unreachable!(),
+                },
+                _ => return Err(err("XPTY0004", "format-integer requires an integer")),
+            },
+            _ => {
+                return Err(err(
+                    "XPTY0004",
+                    "format-integer requires an optional integer",
+                ));
+            }
+        };
+        let picture = crate::string_functions::string(&args[1], false, backwards)?;
+        return crate::numbering::format_integer(&value, &picture)
+            .map(|text| vec![Item::String(text)])
+            .map_err(|code| err(&code, "invalid integer picture"));
     }
     if name == "parse-json" {
         let text = match args[0].as_slice() {
