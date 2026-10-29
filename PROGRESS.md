@@ -1536,3 +1536,20 @@ conformance claims. Smaller tested increments are committed independently.
 - Validation: full all-feature offline Rust suite, focused final regressions,
   all-feature Clippy with warnings denied, formatting, all 30 Python harness
   tests, expanded XSLT gate and all 18,735 QT3 baseline cases pass.
+
+## Increment 133: structural versus serialized assertions
+
+- assert-serialization now compares serialized text exactly, supporting XML,
+  HTML, XHTML, text, JSON and adaptive results. Explicit ignore-prefixes keeps
+  structural prefix-insensitive comparison for XML methods. Expected files use
+  their declared encoding; invalid settings fail harness preflight.
+- XML assertions first parse well-formed documents, excluding prolog/epilog
+  whitespace and DTD declarations from the XDM comparison while retaining
+  comments/PIs. Fragment fallback preserves all fragment text and element
+  whitespace. This resolves seven previously false-negative comparisons.
+- Recognized the existing serialization feature dependency and surveyed output
+  tests. Expanded the pinned XSLT gate to 640 passes (22 new, zero regressions)
+  across 1,418 cases: 239 engine failures, 386 harness errors and 153 exclusions.
+- Added exact/non-XML serialization, encoding, prefix, preflight and document/
+  fragment whitespace regressions. All 36 Python harness tests, whitespace
+  checks and the expanded pinned XSLT regression gate pass.

@@ -5,6 +5,7 @@ Missing setup/assertion support is a harness_error, never a passing/hidden case.
 Engine gaps are failures. Profile exclusions are named and counted separately.
 """
 import argparse
+import codecs
 from collections import Counter
 import json
 from pathlib import Path
@@ -13,6 +14,7 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from xml.dom import Node, minidom
+from xml.parsers.expat import ExpatError
 from xml.sax.saxutils import quoteattr
 
 NS = "{http://www.w3.org/2012/10/xslt-test-catalog}"
@@ -182,7 +184,7 @@ def dependencies(node):
         elif kind == "feature" and value in {"streaming", "schema_aware", "schemaImport", "schemaValidation", "schemaAware", "static_typing", "staticTyping", "streaming-fallback"}:
             if positive:
                 raise ProfileExcluded(f"optional processor profile: {value}")
-        elif kind == "feature" and value in {"backwards_compatibility", "namespace_axis"}:
+        elif kind == "feature" and value in {"backwards_compatibility", "namespace_axis", "serialization"}:
             if not positive:
                 raise ProfileExcluded(f"requires processor without {value}")
         else:
@@ -198,7 +200,18 @@ def strip_declaration(xml):
     return xml
 
 def fragment(xml):
-    return minidom.parseString("<_result>" + strip_declaration(xml) + "</_result>").documentElement
+    value = strip_declaration(xml)
+    try:
+        document = minidom.parseString(value)
+    except ExpatError:
+        return minidom.parseString("<_result>" + value + "</_result>").documentElement
+    # XML document parsing excludes prolog/epilog whitespace from the XDM tree.
+    # Keep comments/PIs and the document element; a DTD is not an XDM node.
+    result = minidom.parseString("<_result/>").documentElement
+    for child in document.childNodes:
+        if child.nodeType != Node.DOCUMENT_TYPE_NODE:
+            result.appendChild(result.ownerDocument.importNode(child, True))
+    return result
 
 def canonical(node, ignore_prefixes=False):
     def name(n):
@@ -236,8 +249,18 @@ def preflight(assertion):
     elif kind not in {"error", "assert-xml", "assert-serialization", "assert-string-value", "assert"}:
         raise HarnessError(f"unsupported assertion: {kind}")
     else:
-        allowed = {"error": ["code"], "assert-xml": ["file", "ignore-prefixes"], "assert-serialization": ["file", "ignore-prefixes"], "assert-string-value": ["normalize-space"], "assert": []}[kind]
+        allowed = {"error": ["code"], "assert-xml": ["file", "ignore-prefixes"], "assert-serialization": ["file", "ignore-prefixes", "method", "encoding"], "assert-string-value": ["normalize-space"], "assert": []}[kind]
         check_attrs(assertion, allowed)
+        if kind == "assert-serialization":
+            if assertion.get("method", "xml") not in {"xml", "xml-fragment", "html", "xhtml", "text", "json", "adaptive"}:
+                raise HarnessError(f"unsupported serialization assertion method: {assertion.get('method')}")
+            try:
+                codecs.lookup(assertion.get("encoding", "utf-8-sig"))
+            except LookupError as e:
+                raise HarnessError(f"unsupported expected-result encoding: {assertion.get('encoding')}") from e
+        for attribute in {"ignore-prefixes", "normalize-space"} & set(assertion.attrib):
+            if assertion.get(attribute) not in {"true", "false", "0", "1"}:
+                raise HarnessError(f"invalid assertion boolean: {attribute}")
 
 def assertion(a, response, base, driver=None):
     kind = tag(a)
@@ -278,9 +301,20 @@ def assertion(a, response, base, driver=None):
         return evaluated["output"] == "true", "XPath assertion was false"
 
     if kind in {"assert-xml", "assert-serialization"}:
-        expected = (base / a.get("file")).read_text(encoding="utf-8-sig") if a.get("file") else text(a)
+        encoding = a.get("encoding", "utf-8-sig") if kind == "assert-serialization" else "utf-8-sig"
         try:
-            ignore = a.get("ignore-prefixes") == "true"
+            expected = (base / a.get("file")).read_text(encoding=encoding) if a.get("file") else text(a)
+        except (OSError, LookupError, UnicodeError) as e:
+            raise HarnessError(f"cannot read expected result: {e}") from e
+        if kind == "assert-serialization":
+            method = a.get("method", "xml")
+            if method not in {"xml", "xml-fragment", "html", "xhtml", "text", "json", "adaptive"}:
+                raise HarnessError(f"unsupported serialization assertion method: {method}")
+            if a.get("ignore-prefixes") not in {"true", "1"} or method not in {"xml", "xml-fragment", "xhtml"}:
+                equal = output == expected
+                return equal, "serialization differs" if not equal else ""
+        try:
+            ignore = a.get("ignore-prefixes") in {"true", "1"}
             equal = canonical(fragment(expected), ignore) == canonical(fragment(output), ignore)
         except Exception as e:
             return False, f"XML comparison failed: {e}"
@@ -293,7 +327,7 @@ def assertion(a, response, base, driver=None):
             actual = string_value(fragment(output))
         except Exception as e:
             return False, f"invalid XML result: {e}"
-    if a.get("normalize-space") == "true":
+    if a.get("normalize-space") in {"true", "1"}:
         actual, expected = " ".join(re.findall(r"[^ \t\r\n]+", actual)), " ".join(re.findall(r"[^ \t\r\n]+", expected))
     return actual == expected, f"string mismatch: expected {expected!r}, got {actual!r}"
 

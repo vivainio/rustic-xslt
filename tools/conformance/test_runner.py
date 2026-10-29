@@ -25,6 +25,62 @@ class Assertions(unittest.TestCase):
         self.assertEqual(canonical(fragment(cases[-1][0]),True),canonical(fragment(cases[-1][1]),True))
         self.assertEqual(canonical(fragment('<r>a<![CDATA[b]]>c</r>')),canonical(fragment('<r>abc</r>')))
 
+    def test_xml_documents_ignore_prolog_epilog_whitespace_but_fragments_retain_text(self):
+        self.assertEqual(canonical(fragment('\n<r/>\n')), canonical(fragment('<r/>')))
+        self.assertEqual(canonical(fragment('<?xml version="1.0"?>\n<r/>')), canonical(fragment('<r/>')))
+        self.assertNotEqual(canonical(fragment('<r> </r>')), canonical(fragment('<r/>')))
+        self.assertNotEqual(canonical(fragment('<r/> <s/>')), canonical(fragment('<r/><s/>')))
+        self.assertNotEqual(canonical(fragment(' <r/><s/>')), canonical(fragment('<r/><s/>')))
+        self.assertNotEqual(canonical(fragment(' ')), canonical(fragment('')))
+        self.assertNotEqual(canonical(fragment('<!--before--><r/>')), canonical(fragment('<r/>')))
+        self.assertNotEqual(canonical(fragment('<r/><?after value?>')), canonical(fragment('<r/>')))
+        self.assertEqual(canonical(fragment('<!DOCTYPE r><r/>')), canonical(fragment('<r/>')))
+
+    def test_serialization_dependencies_select_the_available_processor_feature(self):
+        from run import dependencies, ProfileExcluded
+        dependencies(node(f'<root xmlns="{NS[1:-1]}"><dependencies><feature value="serialization"/></dependencies></root>'))
+        with self.assertRaises(ProfileExcluded):
+            dependencies(node(f'<root xmlns="{NS[1:-1]}"><dependencies><feature value="serialization" satisfied="false"/></dependencies></root>'))
+
+    def test_serialization_comparison_is_exact_and_handles_non_xml_methods(self):
+        for method, value in [("text", "plain text"), ("json", '{"a":1}'), ("html", "<br>"), ("adaptive", "1,2")]:
+            check = node(f'<assert-serialization method="{method}">{value.replace("<", "&lt;")}</assert-serialization>')
+            preflight(check)
+            self.assertTrue(assertion(check, {"output": value}, Path())[0])
+            self.assertFalse(assertion(check, {"output": value + " "}, Path())[0])
+        check = node('<assert-serialization>&lt;r/&gt;</assert-serialization>')
+        self.assertFalse(assertion(check, {"output": "<r></r>"}, Path())[0])
+        self.assertFalse(assertion(check, {"output": '<?xml version="1.0"?><r/>'}, Path())[0])
+        xml = node('<assert-xml>&lt;r/&gt;</assert-xml>')
+        self.assertTrue(assertion(xml, {"output": "<r></r>"}, Path())[0])
+
+    def test_invalid_serialization_settings_are_rejected_before_execution(self):
+        for check in [
+            '<assert-serialization method="unknown"/>',
+            '<assert-serialization encoding="unknown-encoding"/>',
+            '<assert-serialization ignore-prefixes="maybe"/>',
+            '<assert-xml ignore-prefixes="maybe"/>',
+        ]:
+            with self.assertRaises(HarnessError):
+                preflight(node(f'<any-of><assert-xml/>{check}</any-of>'))
+
+    def test_serialization_prefix_ignoring_is_explicit(self):
+        check = node('<assert-serialization ignore-prefixes="true">&lt;p:r xmlns:p="urn:r"/&gt;</assert-serialization>')
+        self.assertTrue(assertion(check, {"output": '<q:r xmlns:q="urn:r"/>'}, Path())[0])
+        self.assertFalse(assertion(check, {"output": '<q:s xmlns:q="urn:r"/>'}, Path())[0])
+
+    def test_serialization_expected_files_use_the_requested_encoding(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            (base / "expected.txt").write_bytes("café".encode("iso-8859-1"))
+            check = node('<assert-serialization file="expected.txt" method="text" encoding="ISO-8859-1"/>')
+            preflight(check)
+            self.assertTrue(assertion(check, {"output": "café"}, base)[0])
+            check.set("encoding", "unsupported-encoding")
+            with self.assertRaises(HarnessError):
+                assertion(check, {"output": "café"}, base)
+
     def test_error_code_must_match_and_unsupported_is_not_wildcard_success(self):
         a = node('<error code="XTDE0410"/>')
         self.assertFalse(assertion(a,{'diagnostics':[{'code':'XPST0017'}]},Path())[0])

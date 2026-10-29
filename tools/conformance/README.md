@@ -28,17 +28,19 @@ python3 -m unittest discover -s tools/conformance -p 'test_*.py'
 
 The gate fails for missing or regressed baseline cases. Other failures and
 harness errors are still named and counted, never reclassified as passes.
-The current gate contains 618 passing cases out of 1,186 selected cases: 218 engine
-failures, 197 harness errors, 153 optional-profile exclusions. Do not present the
-618 cases as an applicable-suite pass rate.
+The current gate contains 640 passing cases out of 1,418 selected cases: 239 engine
+failures, 386 harness errors, 153 optional-profile exclusions. Do not present the
+640 cases as an applicable-suite pass rate.
 
 Supported setup: local stylesheet/source files or inline content, local/global
 named environments, string/boolean/numeric/empty parameter literals, ordinary/tunnel
 initial template/mode parameters and selection,
 and serialization selection. Supported assertions: exact W3C error codes
-(including explicit `*`), structural `assert-xml`/`assert-serialization`,
+(including explicit `*`), structural `assert-xml`, exact `assert-serialization` (with explicit prefix ignoring),
 `assert-string-value`, supported XPath `assert` expressions, all-of/any-of/not. XML comparison preserves tree shape,
-text/whitespace, comments, PIs and prefixes unless ignore-prefixes is requested;
+element/fragment text and whitespace, comments, PIs and prefixes unless ignore-prefixes is requested;
+valid document prolog/epilog whitespace is excluded by XML parsing. Serialization
+assertions support XML, HTML, XHTML, text, JSON and adaptive methods plus expected-file encodings;
 attribute order and redundant namespace declarations do not matter.
 
 Engine errors never satisfy negated non-error assertions. An implementation-gap
