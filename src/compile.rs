@@ -10,6 +10,8 @@ pub(crate) const XSL: &str = "http://www.w3.org/1999/XSL/Transform";
 #[derive(Debug)]
 pub(crate) enum Instruction {
     Text(String),
+    /// Text with `{expression}` value templates (expand-text).
+    TextValue(Vec<Expr>),
     Value(Expr, Option<Vec<Expr>>),
     Apply(Expr, String, Vec<Sort>, Vec<Binding>),
     Copy {
@@ -276,6 +278,10 @@ fn attrs(n: Node<'_, '_>, allowed: &[&str]) -> Result<(), Diagnostic> {
         if a.namespace().is_none() && a.name() == "exclude-result-prefixes" {
             continue;
         }
+        if a.namespace().is_none() && a.name() == "expand-text" {
+            boolean_attribute(n, "expand-text", false)?;
+            continue;
+        }
         if a.namespace().is_some() || !allowed.contains(&a.name()) {
             return Err(error(n, format!("unsupported attribute: {}", a.name())));
         }
@@ -461,6 +467,7 @@ pub(crate) fn raw_result_body(body: &[Instruction]) -> bool {
         | Instruction::ComputedElement(..)
         | Instruction::Document(_)
         | Instruction::Text(_)
+        | Instruction::TextValue(_)
         | Instruction::Value(..)
         | Instruction::Comment(_)
         | Instruction::Message(..)
@@ -494,6 +501,28 @@ fn element_result_body(body: &[Instruction]) -> bool {
         Instruction::Choose(branches) => branches.iter().all(|(_, body)| element_result_body(body)),
         _ => false,
     })
+}
+/// Whether `expand-text` is in force for a node: the nearest declaration wins.
+fn expand_text(n: Node<'_, '_>) -> bool {
+    for ancestor in n.ancestors().filter(|a| a.is_element()) {
+        let value = if ancestor.tag_name().namespace() == Some(XSL) {
+            ancestor.attribute("expand-text")
+        } else {
+            ancestor.attribute((XSL, "expand-text"))
+        };
+        if let Some(value) = value {
+            return matches!(value.trim(), "yes" | "true" | "1");
+        }
+    }
+    false
+}
+/// A text node, or a text value template when `expand-text` applies.
+fn text_instruction(n: Node<'_, '_>, text: &str) -> Result<Instruction, Diagnostic> {
+    if expand_text(n) && text.contains(['{', '}']) {
+        Ok(Instruction::TextValue(avt(n, text)?))
+    } else {
+        Ok(Instruction::Text(text.into()))
+    }
 }
 fn avt(n: Node<'_, '_>, value: &str) -> Result<Vec<Expr>, Diagnostic> {
     let mut parts = vec![];
@@ -783,7 +812,7 @@ fn body(
                     .next()
                     == Some("preserve")
             {
-                out.push(Instruction::Text(t.into()));
+                out.push(text_instruction(n, t)?);
             }
         } else if n.is_element() {
             if n.tag_name().namespace() == Some(XSL) {
@@ -794,12 +823,12 @@ fn body(
                         if n.children().any(|c| c.is_element()) {
                             return Err(error(n, "xsl:text cannot contain elements"));
                         }
-                        out.push(Instruction::Text(
-                            n.children()
-                                .filter(|c| c.is_text())
-                                .filter_map(|c| c.text())
-                                .collect(),
-                        ));
+                        let text: String = n
+                            .children()
+                            .filter(|c| c.is_text())
+                            .filter_map(|c| c.text())
+                            .collect();
+                        out.push(text_instruction(n, &text)?);
                     }
                     "value-of" | "apply-templates" => {
                         attrs(
@@ -1518,6 +1547,7 @@ fn body(
                             "exclude-result-prefixes",
                             "inherit-namespaces",
                             "default-mode",
+                            "expand-text",
                             "use-attribute-sets",
                         ]
                         .contains(&a.name())
@@ -2792,6 +2822,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 }
                 Instruction::Text(_) | Instruction::NextMatch(_) | Instruction::ApplyImports(_) => {
                 }
+                Instruction::TextValue(items) => parts(items, &scope)?,
                 Instruction::Value(e, _)
                 | Instruction::Apply(e, _, _, _)
                 | Instruction::CopyOf(e, _)

@@ -1596,6 +1596,7 @@ fn run_tasks<'a>(
                             | Instruction::ComputedElement(..)
                             | Instruction::Document(_)
                             | Instruction::Text(_)
+                            | Instruction::TextValue(_)
                             | Instruction::Value(..)
                             | Instruction::Comment(_)
                             | Instruction::Pi(..)
@@ -1733,6 +1734,18 @@ fn run_tasks<'a>(
                         )?;
                     }
                     Instruction::Bind(_) => unreachable!(),
+                    Instruction::TextValue(items) => {
+                        let text = parts(items, &focus, &env, budget, sheet.backwards)?;
+                        if raw_active(&captures) {
+                            captures
+                                .last_mut()
+                                .unwrap()
+                                .items
+                                .extend(raw_text(&text, trees, output.max)?);
+                        } else {
+                            output.text(&text)?;
+                        }
+                    }
                     Instruction::Text(t) => {
                         if raw_active(&captures) {
                             captures

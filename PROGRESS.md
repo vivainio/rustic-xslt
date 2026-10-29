@@ -1260,3 +1260,11 @@ conformance claims. Smaller tested increments are committed independently.
 - Collation-aware search (contains, starts-with, ends-with, substring-before/after,
   contains-token), compare, min, max, index-of, distinct-values and deep-equal use
   the selected collation.
+
+## Increment 109: expand-text
+
+- expand-text="yes" (on xsl: elements) and xsl:expand-text="yes" (on literal result
+  elements) turn text nodes and xsl:text content into text value templates:
+  {expr} is evaluated and joined with spaces, {{ and }} are literal braces, and the
+  nearest declaration wins. Unbalanced braces and invalid expressions are static
+  errors. Record streaming rejects value templates.

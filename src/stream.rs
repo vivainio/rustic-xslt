@@ -236,6 +236,11 @@ fn safe_global_body(body: &[Instruction]) -> Result<(), Diagnostic> {
     for i in body {
         match i {
             Instruction::Text(_) => {}
+            Instruction::TextValue(_) => {
+                return Err(unsupported(
+                    "text value templates are not supported when streaming",
+                ));
+            }
             Instruction::Value(e, sep) => {
                 safe_expression(e, true)?;
                 if let Some(es) = sep {
@@ -421,6 +426,11 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                         safe_content(c, &mut bodies)?;
                     }
                     Instruction::Text(_) => {}
+                    Instruction::TextValue(_) => {
+                        return Err(unsupported(
+                            "text value templates are not supported when streaming",
+                        ));
+                    }
                     Instruction::Value(e, _)
                     | Instruction::CopyOf(e, _)
                     | Instruction::Sequence(e) => safe_expression(e, false)?,
