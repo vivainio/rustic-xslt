@@ -133,3 +133,15 @@ fn restricted_encoding_references_are_outside_cdata() {
         "<out><![CDATA[a]]>&#xE9;<![CDATA[z]]></out>"
     );
 }
+
+#[test]
+fn invalid_doctype_identifiers_report_serialization_parameter_errors() {
+    for body in [
+        r#"<xsl:result-document doctype-system="a&quot;b&apos;c"><out/></xsl:result-document>"#,
+        r#"<xsl:result-document doctype-public="bad&lt;public" doctype-system="out.dtd"><out/></xsl:result-document>"#,
+    ] {
+        let error = run(body).unwrap_err();
+        assert_eq!(error.code, "SEPM0016");
+        assert_eq!(error.phase, "run");
+    }
+}

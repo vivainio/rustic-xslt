@@ -493,6 +493,41 @@ impl Output {
             } else {
                 element.name.qname.clone()
             };
+            if let Some(public) = &doctype.public
+                && !public.chars().all(|c| {
+                    c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            ' ' | '\r'
+                                | '\n'
+                                | '-'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '+'
+                                | ','
+                                | '.'
+                                | '/'
+                                | ':'
+                                | '='
+                                | '?'
+                                | ';'
+                                | '!'
+                                | '*'
+                                | '#'
+                                | '@'
+                                | '$'
+                                | '_'
+                                | '%'
+                        )
+                })
+            {
+                return Err(Diagnostic::new(
+                    "SEPM0016",
+                    "DOCTYPE public identifier contains an invalid character",
+                    "run",
+                ));
+            }
             let system = doctype
                 .system
                 .as_ref()

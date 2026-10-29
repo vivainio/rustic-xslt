@@ -2025,3 +2025,12 @@ conformance claims. Smaller tested increments are committed independently.
 - Added a regression for a double quote in an XML system identifier.
 - Validation: eight HTML/XML serializer tests, all-target/all-feature Clippy and
   the full 882-case pinned XSLT gate pass without regressions.
+
+## Increment 175: validate DOCTYPE public identifiers
+
+- DOCTYPE public identifiers are checked against XML's PubidChar set and report
+  `SEPM0016` for invalid characters before a declaration is emitted.
+- Added error regressions for invalid public identifiers and system identifiers
+  containing both quote delimiters, including runtime diagnostic phases.
+- Validation: result-document and HTML/XML serializer tests, all-target/all-feature
+  Clippy and the full 882-case pinned XSLT gate pass without regressions.
