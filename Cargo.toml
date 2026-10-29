@@ -6,6 +6,10 @@ license = "Apache-2.0"
 repository = "https://github.com/vivainio/rustic-xslt"
 description = "Native Rust XSLT engine, ported from go-xslt (early implementation)"
 
+[features]
+# Development bridge only; no standalone XPath API.
+conformance = []
+
 [dependencies]
 roxmltree = "=0.21.1"
 quick-xml = "=0.38.4"

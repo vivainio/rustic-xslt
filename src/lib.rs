@@ -185,6 +185,7 @@ pub struct Stylesheet {
     doctype: Option<result::Doctype>,
     text_output: bool,
     backwards: bool,
+    xpath_only: bool,
     version: u8,
     default_mode: String,
     modes: std::collections::BTreeMap<String, mode::Mode>,
@@ -199,6 +200,12 @@ pub struct Stylesheet {
 impl Stylesheet {
     pub fn compile(source: &str) -> Result<Self, Diagnostic> {
         compile::compile(source, None)
+    }
+    /// Development bridge entry point: compile its stylesheet with the XPath function library.
+    #[cfg(feature = "conformance")]
+    #[doc(hidden)]
+    pub fn compile_xpath_test_stylesheet(source: &str) -> Result<Self, Diagnostic> {
+        xpath::with_xpath_profile(|| Self::compile(source))
     }
     /// Compile a stylesheet whose `xsl:include` hrefs are loaded through `resolver`.
     pub fn compile_with_resolver(

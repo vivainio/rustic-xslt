@@ -318,6 +318,7 @@ pub(crate) type FunctionTable = std::sync::Arc<BTreeMap<(String, usize), UserFun
 pub(crate) struct Budget {
     pub functions: FunctionTable,
     pub keys: KeyTable,
+    pub xpath_only: bool,
     /// Keys currently being evaluated, identified by expanded name and document root.
     active_keys: Vec<KeyIdentity>,
     key_indexes: BTreeMap<KeyIdentity, KeyIndex>,
@@ -336,6 +337,7 @@ impl Budget {
         Self {
             functions: FunctionTable::default(),
             keys: KeyTable::default(),
+            xpath_only: false,
             active_keys: vec![],
             key_indexes: BTreeMap::new(),
             decimal_formats: DecimalFormats::default(),
@@ -1561,7 +1563,44 @@ fn temporal_accessor(name: &str) -> Option<(crate::temporal::TemporalType, &str)
     };
     valid.then_some((kind, component))
 }
+thread_local! {
+    static XPATH_ONLY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+pub(crate) fn xpath_only_profile() -> bool {
+    XPATH_ONLY.with(std::cell::Cell::get)
+}
+#[cfg(feature = "conformance")]
+pub(crate) fn with_xpath_profile<T>(operation: impl FnOnce() -> T) -> T {
+    struct Restore(bool);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            XPATH_ONLY.with(|profile| profile.set(self.0));
+        }
+    }
+    let _restore = Restore(XPATH_ONLY.with(|profile| profile.replace(true)));
+    operation()
+}
+fn xslt_function(name: &str) -> bool {
+    matches!(
+        name,
+        "current"
+            | "current-group"
+            | "current-grouping-key"
+            | "key"
+            | "document"
+            | "system-property"
+            | "element-available"
+            | "function-available"
+            | "type-available"
+            | "regex-group"
+            | "unparsed-entity-uri"
+            | "unparsed-entity-public-id"
+    )
+}
 fn function_arity(name: &str) -> Option<(usize, usize)> {
+    if xpath_only_profile() && xslt_function(name) {
+        return None;
+    }
     Some(match name {
         "xs:string" | "xs:untypedAtomic" | "xs:integer" | "xs:decimal" | "xs:double"
         | "xs:float" | "xs:boolean" | "xs:QName" | "xs:anyURI" | "xs:hexBinary"
@@ -2779,7 +2818,8 @@ fn higher_order<'a>(
             let uri = qname.uri.as_deref().unwrap_or("");
             let local = qname.local.as_str();
             let fits = |name: &str| {
-                function_arity(name).is_some_and(|(lo, hi)| (lo..=hi).contains(&arity))
+                (!budget.xpath_only || !xslt_function(name))
+                    && function_arity(name).is_some_and(|(lo, hi)| (lo..=hi).contains(&arity))
             };
             let known = match uri {
                 "" => None,

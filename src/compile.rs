@@ -2825,6 +2825,7 @@ pub(crate) fn compile(
         globals: vec![],
         functions: Default::default(),
         keys: Default::default(),
+        xpath_only: xpath::xpath_only_profile(),
         attribute_sets: BTreeMap::new(),
         decimal_formats: Default::default(),
         document_uris: vec![],

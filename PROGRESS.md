@@ -1501,3 +1501,21 @@ conformance claims. Smaller tested increments are committed independently.
 - A full QT3 run after current() identified two XPath-only unknown-function cases
   that now see the XSLT extension through the bridge. These remain reported
   regressions until the development bridge isolates its XPath function profile.
+
+## Increment 131: isolate the QT3 function library
+
+- Added a development-only conformance feature and hidden stylesheet compilation
+  hook selecting the XPath function library. QT3 query and assertion requests use
+  this profile; ordinary XSLT compilation keeps its extension functions.
+- The profile rejects XSLT-only calls/references with XPST0017 and hides them from
+  function-lookup at runtime. Functions transferred into XPath, including
+  generate-id(), remain available. Compilation restores the thread-local profile
+  after success or failure; compiled stylesheets retain their own runtime profile.
+- Added profile compilation/restoration/runtime lookup tests and a Python bridge
+  regression verifying both query and assertion requests select the profile.
+- Full pinned QT3: 18,735 passes (six new, zero regressions), 390 engine failures,
+  764 harness errors, 7,077 profile exclusions across 26,966 cases. The two current()
+  regressions from increment 129 are resolved; all prior gate cases pass.
+- Validation: full all-feature offline Rust suite, default-build checks,
+  all-feature Clippy with warnings denied, formatting, all 30 Python harness
+  tests, the full QT3 gate and the 594-case XSLT gate pass.

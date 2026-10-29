@@ -65088,6 +65088,14 @@
     ],
     [
       "prod-FunctionCall",
+      "K-FunctionCallExpr-11"
+    ],
+    [
+      "prod-FunctionCall",
+      "K-FunctionCallExpr-14"
+    ],
+    [
+      "prod-FunctionCall",
       "K-FunctionCallExpr-15a"
     ],
     [
@@ -65132,6 +65140,10 @@
     ],
     [
       "prod-FunctionCall",
+      "K-FunctionCallExpr-26"
+    ],
+    [
+      "prod-FunctionCall",
       "K-FunctionCallExpr-27"
     ],
     [
@@ -65164,6 +65176,10 @@
     ],
     [
       "prod-FunctionCall",
+      "K2-FunctionCallExpr-2"
+    ],
+    [
+      "prod-FunctionCall",
       "K2-FunctionCallExpr-3"
     ],
     [
@@ -65173,6 +65189,10 @@
     [
       "prod-FunctionCall",
       "K2-FunctionCallExpr-5"
+    ],
+    [
+      "prod-FunctionCall",
+      "K2-FunctionCallExpr-8"
     ],
     [
       "prod-FunctionCall",
@@ -71445,6 +71465,10 @@
     [
       "prod-NamedFunctionRef",
       "function-literal-518"
+    ],
+    [
+      "prod-NodeTest",
+      "K2-NodeTest-10"
     ],
     [
       "prod-NodeTest",

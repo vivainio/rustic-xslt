@@ -44,7 +44,29 @@ fn parameter(value: &Value) -> Result<ParameterValue, Diagnostic> {
 }
 fn run(req: Value) -> Value {
     let string = |key| req.get(key).and_then(Value::as_str).unwrap_or("");
-    let sheet = match Stylesheet::compile(string("stylesheet")) {
+    let compiled = if req
+        .get("xpathOnly")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        #[cfg(feature = "conformance")]
+        {
+            Stylesheet::compile_xpath_test_stylesheet(string("stylesheet"))
+        }
+        #[cfg(not(feature = "conformance"))]
+        {
+            Err(rust_xslt::Diagnostic {
+                code: "RUST_XSLT_UNSUPPORTED".into(),
+                message: "XPath test profile requires the conformance feature".into(),
+                phase: "compile",
+                line: 0,
+                column: 0,
+            })
+        }
+    } else {
+        Stylesheet::compile(string("stylesheet"))
+    };
+    let sheet = match compiled {
         Ok(s) => s,
         Err(e) => return json!({"diagnostics":[diagnostic(e)]}),
     };

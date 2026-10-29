@@ -186,7 +186,7 @@ def assertion(a, probe, expression, env, driver):
                 actual, value = f"normalize-space({actual})", " ".join(re.findall(r"[^ \t\r\n]+", value))
             condition = f"{actual} eq {literal(value)}"
         style = stylesheet(expression, env["namespaces"], assertion=condition, decimal_formats=env.get("decimal_formats", ()), params=env.get("params", ()), source_variables=env.get("source_variables", ()))
-    response = driver.call({"stylesheet": style, "source": env["source"], "resources": env.get("resources", {}), "initialTemplate": "entry"})
+    response = driver.call({"xpathOnly": True, "stylesheet": style, "source": env["source"], "resources": env.get("resources", {}), "initialTemplate": "entry"})
     if response.get("diagnostics"):
         raise HarnessError("QT3 assertion evaluator: " + "; ".join(e.get("message", "") for e in response["diagnostics"]))
     output = response.get("output", "")
@@ -209,7 +209,7 @@ def run_case(case, base, registry, driver):
     if test is None:
         raise HarnessError("missing QT3 test expression")
     expression = (base / test.get("file")).read_text() if test.get("file") else text(test)
-    probe = driver.call({"stylesheet": stylesheet(expression, env["namespaces"], decimal_formats=env.get("decimal_formats", ()), params=env.get("params", ()), source_variables=env.get("source_variables", ())), "source": env["source"], "resources": env.get("resources", {}), "initialTemplate": "entry"})
+    probe = driver.call({"xpathOnly": True, "stylesheet": stylesheet(expression, env["namespaces"], decimal_formats=env.get("decimal_formats", ()), params=env.get("params", ()), source_variables=env.get("source_variables", ())), "source": env["source"], "resources": env.get("resources", {}), "initialTemplate": "entry"})
     answers = [assertion(a, probe, expression, env, driver) for a in result]
     reason = "; ".join(e.get("code", "") + ": " + e.get("message", "") for e in probe.get("diagnostics", []))
     return ("pass", "") if all(answers) else ("fail", reason or "QT3 assertion is false")
@@ -230,7 +230,7 @@ def main():
     dirty = subprocess.check_output(["git", "-C", str(args.suite), "status", "--porcelain"], text=True).strip()
     if revision != PIN or dirty:
         parser.error(f"QT3 must be clean and pinned to {PIN}")
-    subprocess.run(["cargo", "build", "--offline", "--example", "reference_driver"], cwd=ROOT, check=True)
+    subprocess.run(["cargo", "build", "--offline", "--features", "conformance", "--example", "reference_driver"], cwd=ROOT, check=True)
     root = parse_catalog(args.suite / "catalog.xml")
     registry = {e.get("name"): (e, args.suite) for e in root.findall(NS + "environment")}
     for e in root.findall(NS + "environment"):

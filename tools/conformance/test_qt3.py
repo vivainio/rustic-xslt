@@ -2,7 +2,7 @@ import tempfile
 from pathlib import Path
 import unittest
 import xml.etree.ElementTree as ET
-from qt3 import NS, HarnessError, ProfileExcluded, assertion, dependencies, environment, preflight
+from qt3 import NS, HarnessError, ProfileExcluded, assertion, dependencies, environment, preflight, run_case
 
 def node(xml):
     return ET.fromstring(xml.replace('<root>', f'<root xmlns="{NS[1:-1]}">'))[0]
@@ -47,6 +47,17 @@ class QT3Setup(unittest.TestCase):
             with self.assertRaises(ProfileExcluded):
                 dependencies(node(f'<root><test-case><dependency type="spec" value="{value}" satisfied="false"/></test-case></root>'))
         dependencies(node('<root><test-case><dependency type="spec" value="XP20" satisfied="false"/></test-case></root>'))
+
+    def test_query_and_assertion_requests_use_the_xpath_function_profile(self):
+        requests = []
+        class Driver:
+            def call(self, request):
+                requests.append(request)
+                return {"output": "true", "diagnostics": []}
+        case = node('<root><test-case name="profile"><test>true()</test><result><assert-true/></result></test-case></root>')
+        self.assertEqual(run_case(case, Path(), {}, Driver()), ("pass", ""))
+        self.assertEqual(len(requests), 2)
+        self.assertTrue(all(request.get("xpathOnly") is True for request in requests))
 
     def test_source_variables_and_resources_retain_uris_and_content(self):
         with tempfile.TemporaryDirectory() as tmp:

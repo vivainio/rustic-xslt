@@ -61,7 +61,11 @@ as harness errors. This runner is intended to grow alongside the engine.
 ## Internal XPath / QT3 checks
 
 A separate partial bridge runs QT3 expressions through development stylesheets;
-this adds no public XPath API. The suite must be clean at
+this adds no public XPath API. The runners build the development driver with the
+`conformance` feature. QT3 requests select an XPath-only function library so XSLT
+extensions such as current() do not alter unknown-function assertions; normal
+XSLT requests retain the XSLT library. The hidden compilation hook is absent
+from default builds. The suite must be clean at
 `201a6e466940cdfc727f4babfedcde5332b9f578`.
 
 ```sh
@@ -69,8 +73,8 @@ python3 tools/conformance/qt3.py /path/to/qt3tests \
   --baseline tools/conformance/qt3-baseline.json
 ```
 
-The current selection contains 26,966 cases: 18,729 pass, 396 engine failures, 764
-harness errors and 7,077 profile exclusions. All 18,729 passing cases are recorded
+The current selection contains 26,966 cases: 18,735 pass, 390 engine failures, 764
+harness errors and 7,077 profile exclusions. All 18,735 passing cases are recorded
 in a gate.
 Counts describe this selected development workload, not a conformance rate.
 

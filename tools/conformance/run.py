@@ -374,7 +374,7 @@ def main():
     dirty = subprocess.check_output(["git", "-C", str(args.suite), "status", "--porcelain"], text=True).strip()
     if dirty or revision != PIN and not args.allow_other_revision:
         parser.error(f"suite must be clean and pinned to {PIN}; got {revision}, dirty={bool(dirty)}")
-    subprocess.run(["cargo", "build", "--offline", "--example", "reference_driver"], cwd=ROOT, check=True)
+    subprocess.run(["cargo", "build", "--offline", "--features", "conformance", "--example", "reference_driver"], cwd=ROOT, check=True)
     driver = Driver(ROOT / "target/debug/examples/reference_driver")
     root = parse_catalog(catalog)
     registry = {e.get("name"): (e, args.suite) for e in children(root, "environment")}
