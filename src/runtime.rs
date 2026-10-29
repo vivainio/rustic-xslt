@@ -77,6 +77,7 @@ enum Task<'a> {
     FinishTemplate(&'a crate::seqtype::SequenceType, Output, usize, bool, bool),
     FinishRawTemplate(&'a crate::seqtype::SequenceType, Output, usize),
     FinishRawNode(Output, usize, bool),
+    FinishRawAttribute(Output, usize),
     Value(Item<'a>, usize, bool),
     Close,
     FinishCapture(Capture, Output),
@@ -174,6 +175,26 @@ fn begin_raw_node<'a>(
     let saved = std::mem::replace(output, Output::document(output.max));
     suspend_raw(captures);
     tasks.push(Task::FinishRawNode(saved, depth, document));
+}
+fn begin_raw_attribute<'a>(
+    output: &mut Output,
+    captures: &mut [RawCapture<'a>],
+    tasks: &mut Vec<Task<'a>>,
+    depth: usize,
+) -> Result<(), Diagnostic> {
+    let saved = std::mem::replace(output, Output::document(output.max));
+    suspend_raw(captures);
+    tasks.push(Task::FinishRawAttribute(saved, depth));
+    output.start(result::Element {
+        name: result::Name {
+            qname: "_attribute".into(),
+            local: "_attribute".into(),
+            uri: None,
+        },
+        namespaces: Default::default(),
+        attributes: vec![],
+        inherit_namespaces: true,
+    })
 }
 fn raw_text<'a>(
     text: &str,
@@ -803,6 +824,17 @@ fn run_tasks<'a>(
                     tasks.push(Task::Body(&t.body, 0, frame));
                 }
             }
+            Task::FinishRawAttribute(saved, depth) => {
+                output.end()?;
+                let xml = std::mem::replace(&mut output, saved).value;
+                let value = trees.construct(xml, None, "XTTE0570")?;
+                let Item::Node(document) = value[0] else {
+                    unreachable!()
+                };
+                let attribute = document.children().next().unwrap().attributes()[0].detached();
+                restore_raw(&mut captures, true);
+                emit_value(vec![Item::Node(attribute)], &mut tasks, depth, true);
+            }
             Task::FinishRawNode(saved, depth, document) => {
                 let xml = std::mem::replace(&mut output, saved).value;
                 let nodes = crate::seqtype::SequenceType {
@@ -1100,6 +1132,7 @@ fn run_tasks<'a>(
                             | Instruction::Value(..)
                             | Instruction::Comment(_)
                             | Instruction::Pi(..)
+                            | Instruction::Attribute(..)
                     )
                 {
                     return Err(Diagnostic::new(
@@ -1150,6 +1183,9 @@ fn run_tasks<'a>(
                             rule,
                         };
                         let name = computed_name(n, true, &frame, budget, sheet.backwards)?;
+                        if raw_active(&captures) {
+                            begin_raw_attribute(&mut output, &mut captures, &mut tasks, depth)?;
+                        }
                         capture(
                             content,
                             Capture::Attribute(name),
@@ -1575,11 +1611,9 @@ fn run_tasks<'a>(
             Task::RawCopy(item, depth, namespaces) => match item {
                 Item::Node(node) => {
                     if node.attribute.is_some() {
-                        return Err(Diagnostic::new(
-                            "RUST_XSLT_UNSUPPORTED",
-                            "parentless copied attributes are not implemented",
-                            "run",
-                        ));
+                        begin_raw_attribute(&mut output, &mut captures, &mut tasks, depth)?;
+                        copied_leaf(node, &mut output)?;
+                        continue;
                     }
                     begin_raw_node(
                         &mut output,

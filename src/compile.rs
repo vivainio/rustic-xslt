@@ -374,10 +374,10 @@ pub(crate) fn raw_result_body(body: &[Instruction]) -> bool {
         | Instruction::Text(_)
         | Instruction::Value(..)
         | Instruction::Comment(_)
-        | Instruction::Pi(..) => true,
+        | Instruction::Pi(..)
+        | Instruction::Attribute(..) => true,
         Instruction::ForEach(_, _, body) | Instruction::If(_, body) => raw_result_body(body),
         Instruction::Choose(branches) => branches.iter().all(|(_, body)| raw_result_body(body)),
-        _ => false,
     })
 }
 fn element_result_body(body: &[Instruction]) -> bool {

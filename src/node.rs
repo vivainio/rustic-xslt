@@ -6,6 +6,7 @@ pub(crate) struct XNode<'a> {
     pub raw: Node<'a, 'a>,
     pub attribute: Option<(&'a str, Option<&'a str>)>,
     fragment: bool,
+    detached_attribute: bool,
     boundary: Option<Node<'a, 'a>>,
 }
 impl<'a> XNode<'a> {
@@ -14,6 +15,7 @@ impl<'a> XNode<'a> {
             raw,
             attribute: None,
             fragment: false,
+            detached_attribute: false,
             boundary: None,
         }
     }
@@ -22,6 +24,7 @@ impl<'a> XNode<'a> {
             raw,
             attribute: None,
             fragment: true,
+            detached_attribute: false,
             boundary: None,
         }
     }
@@ -30,10 +33,12 @@ impl<'a> XNode<'a> {
             raw,
             attribute: None,
             fragment: self.fragment,
+            detached_attribute: false,
             boundary: self.boundary,
         }
     }
     pub fn detached(mut self) -> Self {
+        self.detached_attribute = self.is_attribute();
         self.boundary = Some(self.raw);
         self.fragment = false;
         self
@@ -87,7 +92,11 @@ impl<'a> XNode<'a> {
     }
     pub fn parent(self) -> Option<Self> {
         if self.is_attribute() {
-            Some(self.relative(self.raw))
+            if self.detached_attribute {
+                None
+            } else {
+                Some(self.relative(self.raw))
+            }
         } else if self.is_document() || self.boundary == Some(self.raw) {
             None
         } else {
@@ -95,6 +104,9 @@ impl<'a> XNode<'a> {
         }
     }
     pub fn root(self) -> Self {
+        if self.detached_attribute {
+            return self;
+        }
         self.relative(if let Some(boundary) = self.boundary {
             boundary
         } else if self.fragment {
@@ -134,6 +146,7 @@ impl<'a> XNode<'a> {
                 raw: self.raw,
                 attribute: Some((a.name(), a.namespace())),
                 fragment: self.fragment,
+                detached_attribute: false,
                 boundary: self.boundary,
             })
             .collect()

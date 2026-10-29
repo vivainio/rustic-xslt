@@ -177,3 +177,40 @@ fn raw_builtin_copy_policies_keep_node_kinds() {
         assert_eq!(s.transform("<r a='v'><n/></r>").unwrap(), "1:true:true:v:1");
     }
 }
+
+#[test]
+fn raw_constructed_attributes_are_parentless_and_keep_names_and_values() {
+    let s = sheet(
+        r#"<xsl:template match="/"><xsl:variable name="v" as="attribute(Q{urn:a}v)"><xsl:attribute name="p:v" namespace="urn:a" separator="|"><xsl:sequence select="('a', 'b')"/></xsl:attribute></xsl:variable><xsl:value-of select="concat($v instance of attribute(Q{urn:a}v), ':', string($v), ':', root($v) is $v, ':', empty($v/ancestor::node()), ':', empty($v/following::node()), ':', empty($v/preceding::node()))"/></xsl:template>"#,
+    );
+    assert_eq!(s.transform("<r/>").unwrap(), "true:a|b:true:true:true:true");
+}
+#[test]
+fn raw_attribute_copies_have_fresh_identities_and_attach_to_elements() {
+    let s = sheet(
+        r#"<xsl:template match="/"><xsl:variable name="v" as="attribute()+"><xsl:copy-of select="(r/@a, r/@a)"/><xsl:copy select="r/@a"/></xsl:variable><xsl:variable name="e" as="element()"><out><xsl:sequence select="$v[1]"/></out></xsl:variable><xsl:value-of select="concat(count($v), ':', $v[1] is $v[2], ':', $v[1] is r/@a, ':', root($v[3]) is $v[3], ':', string($e/@a), ':', $e/@a/parent::node() is $e)"/></xsl:template>"#,
+    );
+    assert_eq!(
+        s.transform("<r a='v'/>").unwrap(),
+        "3:false:false:true:v:true"
+    );
+}
+#[test]
+fn raw_attribute_builtin_copy_and_typed_template_results() {
+    for policy in ["shallow-copy", "deep-copy"] {
+        let s = sheet(&format!(
+            r#"<xsl:mode name="m" on-no-match="{policy}"/><xsl:template name="a" as="attribute(v)"><xsl:attribute name="v" select="'constructed'"/></xsl:template><xsl:template match="/"><xsl:variable name="v" as="attribute()+"><xsl:apply-templates select="r/@a" mode="m"/><xsl:call-template name="a"/></xsl:variable><xsl:value-of select="concat(count($v), ':', string($v[1]), ':', string($v[2]), ':', empty($v/parent::node()))"/></xsl:template>"#
+        ));
+        assert_eq!(
+            s.transform("<r a='copied'/>").unwrap(),
+            "2:copied:constructed:true"
+        );
+    }
+}
+#[test]
+fn constructed_attributes_enforce_required_types() {
+    let s = sheet(
+        r#"<xsl:template match="/"><xsl:variable name="v" as="attribute(other)"><xsl:attribute name="v">value</xsl:attribute></xsl:variable><xsl:sequence select="$v"/></xsl:template>"#,
+    );
+    assert_eq!(s.transform("<r/>").unwrap_err().code, "XTTE0570");
+}

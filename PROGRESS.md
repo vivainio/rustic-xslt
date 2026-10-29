@@ -527,5 +527,16 @@ conformance claims. Smaller tested increments are committed independently.
 - 286 Rust integration tests, 27 harness tests and Clippy/format pass. Both pinned
   gates retain all 375 XSLT and 989 QT3 passes without regressions.
 
-Next: standalone attributes and XPath grammar.
+## Increment 43: parentless attributes
+
+- Typed collectors retain standalone constructed/copied attributes, including
+  named attribute types, template returns and built-in shallow/deep copy rules.
+- Attribute roots retain their identity and expose no synthetic parent or axes;
+  attributes attached to parentless constructed elements retain their real parent.
+- Copied attributes get fresh identities and attach normally to result elements.
+- 290 Rust integration tests, 27 harness tests and Clippy/format pass. XSLT gate
+  expands to 376 (376 pass / 157 failures / 144 harness errors / 46 exclusions).
+  All 989 QT3 gate cases remain green.
+
+Next: zero-length constructed text nodes and XPath grammar.
 
