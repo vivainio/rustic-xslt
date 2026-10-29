@@ -144,11 +144,11 @@ fn group(digits: &str, groups: &[usize], leading: usize) -> String {
     let smallest = *groups.iter().min().unwrap();
     let regular = smallest > 0
         && (1..=smallest).contains(&leading)
-        && groups.iter().all(|g| g % smallest == 0)
+        && groups.iter().all(|g| g.is_multiple_of(smallest))
         && (1..=groups.len()).all(|i| groups.contains(&(i * smallest)));
     let separator_after = |from_right: usize| {
         if regular {
-            from_right > 0 && from_right % smallest == 0
+            from_right > 0 && from_right.is_multiple_of(smallest)
         } else {
             groups.contains(&from_right)
         }
