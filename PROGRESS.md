@@ -2084,3 +2084,11 @@ conformance claims. Smaller tested increments are committed independently.
   attribute names under the XHTML serializer.
 - Validation: eleven HTML/XHTML serializer tests, all-target/all-feature Clippy
   and the full 897-case pinned XSLT gate pass without regressions.
+
+## Increment 181: named URI settings and nested capture regression
+
+- Added a regression combining named HTML output definitions, a dynamic URI
+  escaping override and nested try capture. The companion result verifies that
+  an unoverridden named setting remains disabled across the same capture path.
+- Validation: all twelve result-document tests, the full all-feature Rust suite,
+  formatting and diff checks pass. Clippy passed during this test increment.

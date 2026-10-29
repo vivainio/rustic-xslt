@@ -145,3 +145,13 @@ fn invalid_doctype_identifiers_report_serialization_parameter_errors() {
         assert_eq!(error.phase, "run");
     }
 }
+
+#[test]
+fn uri_escaping_overrides_named_output_and_survives_try_capture() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:f="urn:formats" exclude-result-prefixes="f"><xsl:output name="f:html" method="html" escape-uri-attributes="no"/><xsl:template match="/"><xsl:variable name="enabled" select="'yes'"/><xsl:result-document href="escaped.html" format="f:html" escape-uri-attributes="{$enabled}"><xsl:try><a href="é">x</a><xsl:catch><error/></xsl:catch></xsl:try></xsl:result-document><xsl:result-document href="literal.html" format="f:html"><xsl:try><a href="é">x</a><xsl:catch><error/></xsl:catch></xsl:try></xsl:result-document></xsl:template></xsl:stylesheet>"#).unwrap();
+    let result = sheet
+        .transform_with_documents("<r/>", &TransformOptions::default())
+        .unwrap();
+    assert_eq!(result.documents[0].content, "<a href=\"%C3%A9\">x</a>");
+    assert_eq!(result.documents[1].content, "<a href=\"é\">x</a>");
+}
