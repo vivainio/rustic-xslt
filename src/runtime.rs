@@ -1156,7 +1156,24 @@ fn execute<'a>(
         trees,
         globals,
     };
-    let result = run_tasks(&run, budget, tasks, output, None)?;
+    let principal_prefix_len = output.value.len();
+    let mut result = run_tasks(&run, budget, tasks, output, None)?;
+    if budget.principal_output_claimed && result.len() > principal_prefix_len {
+        return Err(Diagnostic::new(
+            "XTDE1490",
+            "the principal result document was produced more than once",
+            "run",
+        ));
+    }
+    if budget.principal_output.len() > options.limits.max_output_bytes.saturating_sub(result.len())
+    {
+        return Err(Diagnostic::new(
+            "XPDY0130",
+            "output byte limit exceeded",
+            "run",
+        ));
+    }
+    result.push_str(&budget.principal_output);
     let result = if sheet.indent && declaration && !sheet.text_output {
         crate::indent::indent(&result, sheet.markup == crate::result::Markup::Html)
     } else {
@@ -2084,11 +2101,52 @@ fn run_tasks<'a>(
                         }
                         let href = parts(&spec.href, &focus, &env, budget, sheet.backwards)?;
                         if href.is_empty() {
-                            return Err(Diagnostic::new(
-                                "XTDE1490",
-                                "xsl:result-document needs an href",
-                                "run",
-                            ));
+                            if budget.principal_output_claimed {
+                                return Err(Diagnostic::new(
+                                    "XTDE1490",
+                                    "the principal result document was produced more than once",
+                                    "run",
+                                ));
+                            }
+                            budget.principal_output_claimed = true;
+                            let inner = Frame {
+                                focus,
+                                env,
+                                depth: depth + 1,
+                                mode,
+                                tunnel: tunnel.clone(),
+                                rule: None,
+                            };
+                            {
+                                let principal =
+                                    Output::new(limits.max_output_bytes, sheet.text_output)
+                                        .with_serialization(sheet.markup, sheet.doctype.clone())
+                                        .with_cdata(sheet.cdata_elements.clone())
+                                        .with_char_map(sheet.char_map.clone());
+                                TRY_DEPTH.with(|d| d.set(d.get() + 1));
+                                let output = run_tasks(
+                                    run,
+                                    budget,
+                                    vec![Task::Body(&spec.body, 0, inner)],
+                                    principal,
+                                    None,
+                                );
+                                TRY_DEPTH.with(|d| d.set(d.get() - 1));
+                                let output = output?;
+                                if output.len()
+                                    > limits
+                                        .max_output_bytes
+                                        .saturating_sub(budget.principal_output.len())
+                                {
+                                    return Err(Diagnostic::new(
+                                        "XPDY0130",
+                                        "output byte limit exceeded",
+                                        "run",
+                                    ));
+                                }
+                                budget.principal_output.push_str(&output);
+                            }
+                            continue;
                         }
                         if budget
                             .secondary
@@ -2152,6 +2210,7 @@ fn run_tasks<'a>(
                             rule: None,
                         };
                         TRY_DEPTH.with(|d| d.set(d.get() + 1));
+                        budget.secondary_depth += 1;
                         let result = run_tasks(
                             run,
                             budget,
@@ -2159,6 +2218,7 @@ fn run_tasks<'a>(
                             nested,
                             None,
                         );
+                        budget.secondary_depth -= 1;
                         TRY_DEPTH.with(|d| d.set(d.get() - 1));
                         let mut content = result?;
                         if indent && !text_method {

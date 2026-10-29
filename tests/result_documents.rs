@@ -29,19 +29,30 @@ fn result_document_methods_and_indentation_apply_per_document() {
     assert_eq!(result.documents[2].content, "<a>\n  <b></b>\n</a>");
 }
 #[test]
-fn duplicate_or_missing_hrefs_are_errors() {
+fn duplicate_hrefs_are_errors_and_missing_href_writes_to_the_principal_result() {
     assert_eq!(
         run(r#"<xsl:result-document href="a"><x/></xsl:result-document><xsl:result-document href="a"><y/></xsl:result-document>"#).unwrap_err().code,
         "XTDE1490"
     );
+    let principal = run(r#"<xsl:result-document><x/></xsl:result-document>"#).unwrap();
+    assert_eq!(principal.principal, "<x></x>");
+    assert!(principal.documents.is_empty());
+    let empty_href = run(r#"<xsl:result-document href=""><y/></xsl:result-document>"#).unwrap();
+    assert_eq!(empty_href.principal, "<y></y>");
+    assert!(
+        run(r#"<xsl:result-document href="a" method="json"><x/></xsl:result-document>"#).is_err()
+    );
     assert_eq!(
-        run(r#"<xsl:result-document><x/></xsl:result-document>"#)
+        run(r#"<x/><xsl:result-document><y/></xsl:result-document>"#)
             .unwrap_err()
             .code,
         "XTDE1490"
     );
-    assert!(
-        run(r#"<xsl:result-document href="a" method="json"><x/></xsl:result-document>"#).is_err()
+    assert_eq!(
+        run(r#"<xsl:result-document><x/></xsl:result-document><y/>"#)
+            .unwrap_err()
+            .code,
+        "XTDE1490"
     );
     let plain = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output omit-xml-declaration="yes"/><xsl:template match="/"><p/><xsl:result-document href="z"><q/></xsl:result-document></xsl:template></xsl:stylesheet>"#).unwrap();
     assert_eq!(plain.transform("<r/>").unwrap(), "<p></p>");
