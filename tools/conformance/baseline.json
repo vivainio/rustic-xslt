@@ -15,6 +15,7 @@
     "next-match",
     "output",
     "param",
+    "result-document",
     "template",
     "tunnel",
     "variable",
@@ -2007,6 +2008,10 @@
     ],
     [
       "output",
+      "output-0134"
+    ],
+    [
+      "output",
       "output-0136"
     ],
     [
@@ -2251,6 +2256,10 @@
     ],
     [
       "output",
+      "output-0303"
+    ],
+    [
+      "output",
       "output-0305"
     ],
     [
@@ -2340,6 +2349,42 @@
     [
       "param",
       "param-0702"
+    ],
+    [
+      "result-document",
+      "result-document-0250"
+    ],
+    [
+      "result-document",
+      "result-document-0255"
+    ],
+    [
+      "result-document",
+      "result-document-0262"
+    ],
+    [
+      "result-document",
+      "result-document-0283"
+    ],
+    [
+      "result-document",
+      "result-document-1001"
+    ],
+    [
+      "result-document",
+      "result-document-1002"
+    ],
+    [
+      "result-document",
+      "result-document-1003"
+    ],
+    [
+      "result-document",
+      "result-document-1004"
+    ],
+    [
+      "result-document",
+      "result-document-1005"
     ],
     [
       "template",

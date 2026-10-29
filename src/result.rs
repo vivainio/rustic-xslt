@@ -131,6 +131,21 @@ pub(crate) struct Doctype {
     pub public: Option<String>,
     pub system: Option<String>,
 }
+/// Compiled serialization settings for one named or unnamed output definition.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Serialization {
+    pub text_output: bool,
+    pub markup: Markup,
+    pub encoding: Encoding,
+    pub omit_declaration: bool,
+    pub omit_specified: bool,
+    pub standalone: Option<bool>,
+    pub byte_order_mark: bool,
+    pub indent: bool,
+    pub doctype: Option<Doctype>,
+    pub cdata_elements: std::sync::Arc<Vec<String>>,
+    pub char_map: std::sync::Arc<BTreeMap<char, String>>,
+}
 struct Open {
     element: Element,
     pending: bool,
@@ -554,7 +569,8 @@ impl Output {
                 .last()
                 .and_then(|open| html_name(&open.element.name, self.markup))
                 .is_some_and(|name| name == "script" || name == "style");
-        let in_cdata = !self.cdata.is_empty()
+        let in_cdata = self.markup != Markup::Html
+            && !self.cdata.is_empty()
             && self.stack.last().is_some_and(|open| {
                 let name = &open.element.name;
                 let expanded = match name.uri.as_deref() {
@@ -567,7 +583,18 @@ impl Output {
             let safe = s.replace("]]>", "]]]]><![CDATA[>");
             self.push(&format!("<![CDATA[{safe}]]>"))
         } else if self.text || raw {
-            self.push(s)
+            let map = self.char_map.clone();
+            if map.is_empty() {
+                return self.push(s);
+            }
+            for character in s.chars() {
+                if let Some(replacement) = map.get(&character) {
+                    self.push(replacement)?;
+                } else {
+                    self.push(character.encode_utf8(&mut [0; 4]))?;
+                }
+            }
+            Ok(())
         } else {
             let escaped = self.escape_mapped(s, false);
             self.push(&escaped)

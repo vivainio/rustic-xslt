@@ -1604,3 +1604,25 @@ conformance claims. Smaller tested increments are committed independently.
   224 harness errors and 153 exclusions across 1,418 cases.
 - Validation: full all-feature offline Rust suite, all-feature Clippy with warnings
   denied, formatting, all 39 Python harness tests and expanded XSLT gate pass.
+
+## Increment 137: named output definitions and secondary inheritance
+
+- Named xsl:output definitions merge independently by expanded name/import
+  precedence. result-document format supports AVTs and static QName bindings;
+  unknown/invalid definitions raise XTDE1460 and AVT variables are checked.
+- Secondary documents inherit their selected named or unnamed definition's method,
+  encoding, indentation, declaration/BOM, doctype, CDATA and character maps, with
+  explicit instruction overrides. Corrected the old secondary declaration test
+  that had ignored the unnamed omit-xml-declaration setting.
+- Character maps now apply to text/raw HTML text; CDATA content retains the pinned
+  suite's unmapped behavior, and HTML output ignores CDATA section settings.
+- The development driver returns secondary documents/messages and reads principal
+  method metadata from the compiled stylesheet instead of the first output node.
+- Added named method/AVT/namespace, merging/conflict, inherited/overridden settings,
+  character-map/CDATA and driver metadata regressions. Surveyed result-document;
+  expanded gate: 735 passes (11 new, zero regressions), 410 failures, 274 harness
+  errors and 153 exclusions across 1,572 cases. All 18,735 QT3 cases still pass.
+- Validation: full all-feature Rust suite, final focused tests, all-feature Clippy,
+  default-build check, formatting, 39 Python tests and both full pinned gates pass.
+  Rebuilt with debug info disabled after clearing generated Cargo artifacts to
+  recover disk space; source/dependency configuration was unchanged.

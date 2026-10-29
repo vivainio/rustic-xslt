@@ -2055,14 +2055,48 @@ fn run_tasks<'a>(
                                 "run",
                             ));
                         }
-                        let text_method = spec.method == "text";
-                        let markup = match spec.method.as_str() {
+                        let format = match &spec.format {
+                            Some((format, namespaces)) => {
+                                let name = parts(format, &focus, &env, budget, sheet.backwards)?;
+                                crate::qname::resolve(name.trim(), namespaces, "XTDE1460").map_err(
+                                    |mut error| {
+                                        error.code = "XTDE1460".into();
+                                        error.phase = "run";
+                                        error
+                                    },
+                                )?
+                            }
+                            None => String::new(),
+                        };
+                        let settings = sheet.outputs.get(&format).ok_or_else(|| {
+                            Diagnostic::new(
+                                "XTDE1460",
+                                format!("unknown output definition: {format}"),
+                                "run",
+                            )
+                        })?;
+                        let default_method = if settings.text_output {
+                            "text"
+                        } else {
+                            match settings.markup {
+                                Markup::Html => "html",
+                                Markup::Xhtml => "xhtml",
+                                Markup::Xml => "xml",
+                            }
+                        };
+                        let method = spec.method.as_deref().unwrap_or(default_method);
+                        let text_method = method == "text";
+                        let markup = match method {
                             "html" => Markup::Html,
                             "xhtml" => Markup::Xhtml,
                             _ => Markup::Xml,
                         };
+                        let encoding = spec.encoding.unwrap_or(settings.encoding);
+                        let indent = spec.indent.unwrap_or(settings.indent);
                         let nested = Output::new(limits.max_output_bytes, text_method)
-                            .with_serialization(markup, None);
+                            .with_serialization(markup, settings.doctype.clone())
+                            .with_cdata(settings.cdata_elements.clone())
+                            .with_char_map(settings.char_map.clone());
                         let inner = Frame {
                             focus,
                             env,
@@ -2081,28 +2115,29 @@ fn run_tasks<'a>(
                         );
                         TRY_DEPTH.with(|d| d.set(d.get() - 1));
                         let mut content = result?;
-                        if spec.indent.unwrap_or(false) && !text_method {
+                        if indent && !text_method {
                             content = crate::indent::indent(&content, markup == Markup::Html);
                         }
                         let omit = spec
                             .omit_declaration
-                            .unwrap_or(spec.method == "html" || text_method);
+                            .or(settings.omit_specified.then_some(settings.omit_declaration))
+                            .unwrap_or(method == "html" || text_method);
                         if !text_method
                             && markup != Markup::Html
                             && let Some(header) = crate::result::xml_declaration(
-                                spec.encoding,
+                                encoding,
                                 omit,
-                                spec.standalone.unwrap_or(sheet.standalone),
+                                spec.standalone.unwrap_or(settings.standalone),
                             )?
                         {
                             content = format!("{header}{content}");
-                            if spec.indent.unwrap_or(false) {
+                            if indent {
                                 content = content.replacen("?><", "?>\n<", 1);
                             }
                         }
-                        content = spec.encoding.apply(&content, !text_method)?;
-                        if spec.byte_order_mark.unwrap_or(sheet.byte_order_mark)
-                            && spec.encoding == crate::result::Encoding::Utf8
+                        content = encoding.apply(&content, !text_method)?;
+                        if spec.byte_order_mark.unwrap_or(settings.byte_order_mark)
+                            && encoding == crate::result::Encoding::Utf8
                         {
                             content.insert(0, '\u{feff}');
                         }

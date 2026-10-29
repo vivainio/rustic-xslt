@@ -196,6 +196,7 @@ pub struct Stylesheet {
     keys: xpath::KeyTable,
     decimal_formats: xpath::DecimalFormats,
     document_uris: Vec<String>,
+    outputs: std::collections::BTreeMap<String, result::Serialization>,
     attribute_sets: std::collections::BTreeMap<String, compile::AttributeSet>,
     space_rules: Vec<whitespace::Rule>,
 }
@@ -208,6 +209,19 @@ impl Stylesheet {
     #[doc(hidden)]
     pub fn compile_xpath_test_stylesheet(source: &str) -> Result<Self, Diagnostic> {
         xpath::with_xpath_profile(|| Self::compile(source))
+    }
+    #[cfg(feature = "conformance")]
+    #[doc(hidden)]
+    pub fn conformance_output_method(&self) -> &'static str {
+        if self.text_output {
+            "text"
+        } else {
+            match self.markup {
+                result::Markup::Xml => "xml",
+                result::Markup::Html => "html",
+                result::Markup::Xhtml => "xhtml",
+            }
+        }
     }
     /// Compile a stylesheet whose `xsl:include` hrefs are loaded through `resolver`.
     pub fn compile_with_resolver(

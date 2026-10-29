@@ -88,12 +88,13 @@ pub(crate) struct Catch {
 #[derive(Debug)]
 pub(crate) struct ResultDocumentSpec {
     pub href: Vec<Expr>,
-    pub method: String,
+    pub method: Option<String>,
+    pub format: Option<(Vec<Expr>, BTreeMap<String, String>)>,
     pub omit_declaration: Option<bool>,
     pub standalone: Option<Option<bool>>,
     pub byte_order_mark: Option<bool>,
     pub indent: Option<bool>,
-    pub encoding: crate::result::Encoding,
+    pub encoding: Option<crate::result::Encoding>,
     pub body: Vec<Instruction>,
 }
 pub(crate) const ERROR_NAMESPACE: &str = "http://www.w3.org/2005/xqt-errors";
@@ -1261,22 +1262,21 @@ fn body(
                                 "type",
                             ],
                         )?;
-                        if n.attribute("format").is_some() {
-                            return Err(error(n, "named output definitions are not implemented"));
-                        }
                         let encoding = match n.attribute("encoding") {
                             Some(name) => {
-                                crate::result::Encoding::parse(name).ok_or_else(|| {
+                                Some(crate::result::Encoding::parse(name).ok_or_else(|| {
                                     error(
                                         n,
                                         "only UTF-8, ISO-8859-1 and US-ASCII results are supported",
                                     )
-                                })?
+                                })?)
                             }
-                            None => Default::default(),
+                            None => None,
                         };
-                        let method = n.attribute("method").unwrap_or("xml");
-                        if !matches!(method, "xml" | "html" | "xhtml" | "text") {
+                        let method = n.attribute("method");
+                        if method.is_some_and(|method| {
+                            !matches!(method, "xml" | "html" | "xhtml" | "text")
+                        }) {
                             return Err(error(n, "unsupported result document method"));
                         }
                         let flag = |name: &str| -> Result<Option<bool>, Diagnostic> {
@@ -1290,7 +1290,11 @@ fn body(
                                 .map(|h| avt(n, h))
                                 .transpose()?
                                 .unwrap_or_default(),
-                            method: method.to_owned(),
+                            method: method.map(str::to_owned),
+                            format: n
+                                .attribute("format")
+                                .map(|value| avt(n, value).map(|parts| (parts, namespaces(n))))
+                                .transpose()?,
                             omit_declaration: flag("omit-xml-declaration")?,
                             standalone: n
                                 .attribute("standalone")
@@ -2016,8 +2020,15 @@ struct OutputProperty {
     conflict: Option<Diagnostic>,
 }
 
+#[derive(Default)]
+struct OutputGroup {
+    properties: BTreeMap<String, OutputProperty>,
+    cdata_elements: Vec<String>,
+    character_maps: Vec<String>,
+}
+
 fn apply_output_properties(
-    sheet: &mut Stylesheet,
+    sheet: &mut crate::result::Serialization,
     properties: &BTreeMap<String, OutputProperty>,
 ) -> Result<(), Diagnostic> {
     for property in properties.values() {
@@ -2052,6 +2063,7 @@ fn apply_output_properties(
         .unwrap_or_default();
     sheet.indent = get("indent") == Some("yes");
     sheet.byte_order_mark = get("byte-order-mark") == Some("yes");
+    sheet.omit_specified = properties.contains_key("omit-xml-declaration");
     sheet.omit_declaration =
         get("omit-xml-declaration").map_or(method == "html", |value| value == "yes");
     sheet.standalone = match get("standalone") {
@@ -2069,12 +2081,11 @@ fn apply_output_properties(
 
 struct Declarations<'a> {
     sheet: &'a mut Stylesheet,
-    output_properties: &'a mut BTreeMap<String, OutputProperty>,
+    output_properties: &'a mut BTreeMap<String, OutputGroup>,
     functions: &'a mut BTreeMap<(String, usize), xpath::UserFunction>,
     keys: &'a mut BTreeMap<String, Vec<xpath::KeyDefinition>>,
     attribute_sets: &'a mut BTreeMap<String, AttributeSet>,
     character_maps: &'a mut BTreeMap<String, CharacterMap>,
-    output_character_maps: &'a mut Vec<String>,
     decimal_formats: &'a mut BTreeMap<String, crate::format_number::Format>,
     counter: &'a mut u32,
     global_precedence: &'a mut BTreeMap<String, u32>,
@@ -2096,7 +2107,6 @@ fn declarations(
         keys,
         attribute_sets,
         character_maps,
-        output_character_maps,
         decimal_formats,
         counter,
         global_precedence,
@@ -2146,7 +2156,6 @@ fn declarations(
                 keys,
                 attribute_sets,
                 character_maps,
-                output_character_maps,
                 decimal_formats,
                 counter,
                 global_precedence,
@@ -2447,6 +2456,7 @@ fn declarations(
                 attrs(
                     n,
                     &[
+                        "name",
                         "method",
                         "omit-xml-declaration",
                         "encoding",
@@ -2465,8 +2475,14 @@ fn declarations(
                         "use-character-maps",
                     ],
                 )?;
+                let id = n
+                    .attribute("name")
+                    .map(|name| component_name(n, name))
+                    .transpose()?
+                    .unwrap_or_default();
+                let group = output_properties.entry(id).or_default();
                 if let Some(names) = n.attribute("use-character-maps") {
-                    output_character_maps.extend(
+                    group.character_maps.extend(
                         names
                             .split_whitespace()
                             .map(|name| component_name(n, name))
@@ -2474,7 +2490,7 @@ fn declarations(
                     );
                 }
                 if let Some(names) = n.attribute("cdata-section-elements") {
-                    let mut all = (*sheet.cdata_elements).clone();
+                    let all = &mut group.cdata_elements;
                     for name in names.split_whitespace() {
                         let mut expanded = component_name(n, name)?;
                         if !name.contains(':')
@@ -2487,7 +2503,6 @@ fn declarations(
                             all.push(expanded);
                         }
                     }
-                    sheet.cdata_elements = std::sync::Arc::new(all);
                 }
                 empty(n)?;
                 for attribute in n
@@ -2496,6 +2511,7 @@ fn declarations(
                 {
                     let name = attribute.name();
                     if [
+                        "name",
                         "use-character-maps",
                         "cdata-section-elements",
                         "use-when",
@@ -2538,7 +2554,7 @@ fn declarations(
                             .into(),
                         _ => attribute.value().trim().to_owned(),
                     };
-                    match output_properties.get_mut(name) {
+                    match group.properties.get_mut(name) {
                         Some(previous) if previous.precedence > precedence => {}
                         Some(previous) if previous.precedence == precedence => {
                             if previous.value != value {
@@ -2550,7 +2566,7 @@ fn declarations(
                             }
                         }
                         _ => {
-                            output_properties.insert(
+                            group.properties.insert(
                                 name.to_owned(),
                                 OutputProperty {
                                     precedence,
@@ -2597,7 +2613,6 @@ fn declarations(
                         keys,
                         attribute_sets,
                         character_maps,
-                        output_character_maps,
                         decimal_formats,
                         counter,
                         global_precedence,
@@ -2962,6 +2977,7 @@ pub(crate) fn compile(
         attribute_sets: BTreeMap::new(),
         decimal_formats: Default::default(),
         document_uris: vec![],
+        outputs: BTreeMap::new(),
         space_rules: vec![],
         default_mode: default_mode(root)?,
         modes: BTreeMap::new(),
@@ -2987,7 +3003,6 @@ pub(crate) fn compile(
     let mut keys: BTreeMap<String, Vec<xpath::KeyDefinition>> = BTreeMap::new();
     let mut attribute_sets: BTreeMap<String, AttributeSet> = BTreeMap::new();
     let mut character_maps: BTreeMap<String, CharacterMap> = BTreeMap::new();
-    let mut output_character_maps: Vec<String> = vec![];
     let mut decimal_formats: BTreeMap<String, crate::format_number::Format> = BTreeMap::new();
     let mut precedence_counter = 0u32;
     let mut global_precedence: BTreeMap<String, u32> = BTreeMap::new();
@@ -3001,7 +3016,6 @@ pub(crate) fn compile(
             keys: &mut keys,
             attribute_sets: &mut attribute_sets,
             character_maps: &mut character_maps,
-            output_character_maps: &mut output_character_maps,
             decimal_formats: &mut decimal_formats,
             counter: &mut precedence_counter,
             global_precedence: &mut global_precedence,
@@ -3011,14 +3025,31 @@ pub(crate) fn compile(
         0,
         None,
     )?;
-    apply_output_properties(&mut sheet, &output_properties)?;
+    output_properties.entry(String::new()).or_default();
+    for (name, group) in output_properties {
+        let mut settings = crate::result::Serialization::default();
+        apply_output_properties(&mut settings, &group.properties)?;
+        settings.cdata_elements = std::sync::Arc::new(group.cdata_elements);
+        settings.char_map = std::sync::Arc::new(resolve_character_maps(
+            &character_maps,
+            &group.character_maps,
+        )?);
+        sheet.outputs.insert(name, settings);
+    }
+    let primary = &sheet.outputs[""];
+    sheet.text_output = primary.text_output;
+    sheet.markup = primary.markup;
+    sheet.encoding = primary.encoding;
+    sheet.omit_declaration = primary.omit_declaration;
+    sheet.standalone = primary.standalone;
+    sheet.byte_order_mark = primary.byte_order_mark;
+    sheet.indent = primary.indent;
+    sheet.doctype = primary.doctype.clone();
+    sheet.cdata_elements = primary.cdata_elements.clone();
+    sheet.char_map = primary.char_map.clone();
     sheet.functions = std::sync::Arc::new(functions);
     sheet.keys = std::sync::Arc::new(keys);
     sheet.attribute_sets = attribute_sets;
-    sheet.char_map = std::sync::Arc::new(resolve_character_maps(
-        &character_maps,
-        &output_character_maps,
-    )?);
     sheet.decimal_formats = std::sync::Arc::new(decimal_formats);
     sheet.document_uris = xpath::take_document_uris();
     validate(&sheet)?;
@@ -3248,6 +3279,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 }
                 Instruction::ResultDocument(spec) => {
                     parts(&spec.href, &scope)?;
+                    if let Some((format, _)) = &spec.format {
+                        parts(format, &scope)?;
+                    }
                     instructions(&spec.body, scope.clone(), templates)?;
                 }
                 Instruction::Namespace(name, content) => {

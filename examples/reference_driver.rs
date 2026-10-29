@@ -131,6 +131,9 @@ fn run(req: Value) -> Value {
             }
         }
     }
+    #[cfg(feature = "conformance")]
+    let method = sheet.conformance_output_method().to_owned();
+    #[cfg(not(feature = "conformance"))]
     let method = roxmltree::Document::parse(string("stylesheet"))
         .ok()
         .and_then(|d| {
@@ -140,13 +143,16 @@ fn run(req: Value) -> Value {
                     n.is_element()
                         && n.tag_name().namespace() == Some("http://www.w3.org/1999/XSL/Transform")
                         && n.tag_name().name() == "output"
+                        && n.attribute("name").is_none()
                 })
                 .and_then(|n| n.attribute("method"))
                 .map(str::to_owned)
         })
         .unwrap_or("xml".into());
-    match sheet.transform_with_options(string("source"), &options) {
-        Ok(output) => json!({"output":output,"method":method,"diagnostics":[]}),
+    match sheet.transform_with_documents(string("source"), &options) {
+        Ok(result) => json!({"output":result.principal,"method":method,"diagnostics":[],
+            "documents": result.documents.into_iter().map(|document| (document.href, document.content)).collect::<std::collections::BTreeMap<_, _>>(),
+            "messages": result.messages}),
         Err(e) => json!({"diagnostics":[diagnostic(e)]}),
     }
 }

@@ -15,14 +15,8 @@ fn secondary_results_are_returned_with_their_hrefs() {
     assert_eq!(
         documents,
         vec![
-            (
-                "out-1.xml",
-                "<?xml version=\"1.0\" encoding=\"UTF-8\"?><item>a</item>"
-            ),
-            (
-                "out-2.xml",
-                "<?xml version=\"1.0\" encoding=\"UTF-8\"?><item>b</item>"
-            ),
+            ("out-1.xml", "<item>a</item>"),
+            ("out-2.xml", "<item>b</item>"),
         ]
     );
 }
