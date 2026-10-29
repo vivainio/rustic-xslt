@@ -176,6 +176,39 @@ impl Output {
         self.flush_start()?;
         self.push(s)
     }
+    /// Add a namespace binding to the pending start tag (`xsl:namespace`).
+    pub fn namespace(&mut self, prefix: &str, uri: &str) -> Result<(), Diagnostic> {
+        let Some(open) = self.stack.last_mut().filter(|o| o.pending) else {
+            return Err(Diagnostic::new(
+                "XTDE0410",
+                "namespace created without an open result start tag",
+                "run",
+            ));
+        };
+        if open
+            .element
+            .namespaces
+            .get(prefix)
+            .is_some_and(|existing| existing != uri)
+            && open
+                .element
+                .name
+                .qname
+                .split_once(':')
+                .map_or("", |(p, _)| p)
+                == prefix
+        {
+            return Err(Diagnostic::new(
+                "XTDE0430",
+                "conflicting namespace declarations for one prefix",
+                "run",
+            ));
+        }
+        open.element
+            .namespaces
+            .insert(prefix.to_owned(), uri.to_owned());
+        Ok(())
+    }
     pub fn push(&mut self, s: &str) -> Result<(), Diagnostic> {
         if s.len() > self.max.saturating_sub(self.value.len()) {
             return Err(Diagnostic::new("XPDY0130", "output limit exceeded", "run"));

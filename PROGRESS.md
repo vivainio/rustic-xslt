@@ -1207,3 +1207,14 @@ conformance claims. Smaller tested increments are committed independently.
   accepted but ignored.
 - The QT3 driver binds environment parameters as global variables and treats
   language=en as supported; 243 of the 315 format-date/time cases pass.
+
+## Increment 103: evaluate, where-populated and namespace
+
+- Added xsl:evaluate (dynamic XPath with context-item and with-param variables,
+  global variables visible, parse errors reported as XTDE3160; namespace-context,
+  base-uri and with-params are rejected), xsl:where-populated (the body runs in a
+  nested output and survives only when it produced content) and xsl:namespace
+  (XTDE0410 without an open start tag, XTDE0920 for bad prefixes, XTDE0430 for
+  conflicts with the element's own prefix).
+- The static variable check now also covers inline functions, dynamic calls, partial
+  applications, map and array constructors, lookups, perform-sort and evaluate.

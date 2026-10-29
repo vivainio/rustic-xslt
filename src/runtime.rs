@@ -278,6 +278,7 @@ struct Run<'a, 'r> {
     globals: Rc<Variables<'a>>,
 }
 enum Capture {
+    Namespace(String),
     Attribute(result::Name),
     Comment,
     Message(bool),
@@ -381,6 +382,7 @@ fn computed_name(
 fn finish_capture(kind: Capture, value: String, output: &mut Output) -> Result<(), Diagnostic> {
     match kind {
         Capture::Attribute(name) => output.attribute(name, value),
+        Capture::Namespace(prefix) => output.namespace(&prefix, &value),
         Capture::Comment => {
             let mut value = value.replace("--", "- -");
             while value.contains("--") {
@@ -1522,6 +1524,8 @@ fn run_tasks<'a>(
                             | Instruction::NextIteration(_)
                             | Instruction::Break(_)
                             | Instruction::Number(_)
+                            | Instruction::WherePopulated(_)
+                            | Instruction::Namespace(..)
                             | Instruction::If(..)
                             | Instruction::Choose(_)
                             | Instruction::Element { .. }
@@ -1884,6 +1888,65 @@ fn run_tasks<'a>(
                                     rule: None,
                                 },
                             ));
+                        }
+                    }
+                    Instruction::Namespace(name, content) => {
+                        let prefix = parts(name, &focus, &env, budget, sheet.backwards)?;
+                        let prefix = prefix.trim().to_owned();
+                        if !prefix.is_empty() && !crate::qname::xml_ncname(&prefix) {
+                            return Err(Diagnostic::new(
+                                "XTDE0920",
+                                format!("invalid namespace prefix: {prefix}"),
+                                "run",
+                            ));
+                        }
+                        capture(
+                            content,
+                            Capture::Namespace(prefix),
+                            Frame {
+                                focus,
+                                env,
+                                depth: depth + 1,
+                                mode,
+                                tunnel: tunnel.clone(),
+                                rule,
+                            },
+                            sheet,
+                            budget,
+                            &mut output,
+                            &mut tasks,
+                        )?;
+                    }
+                    Instruction::WherePopulated(content) => {
+                        if TRY_DEPTH.with(|d| d.get()) >= 32 {
+                            return Err(limit());
+                        }
+                        let nested = Output::new(
+                            output.max.saturating_sub(output.value.len()),
+                            sheet.text_output,
+                        )
+                        .with_serialization(output.serialization().0, None);
+                        let inner = Frame {
+                            focus,
+                            env,
+                            depth: depth + 1,
+                            mode,
+                            tunnel: tunnel.clone(),
+                            rule: None,
+                        };
+                        TRY_DEPTH.with(|d| d.set(d.get() + 1));
+                        let result = run_tasks(
+                            run,
+                            budget,
+                            vec![Task::Body(content, 0, inner)],
+                            nested,
+                            None,
+                        );
+                        TRY_DEPTH.with(|d| d.set(d.get() - 1));
+                        let text = result?;
+                        // Only content that produced something survives.
+                        if !text.is_empty() {
+                            output.splice(&text)?;
                         }
                     }
                     Instruction::Number(spec) => {

@@ -270,6 +270,11 @@ fn safe_global_body(body: &[Instruction]) -> Result<(), Diagnostic> {
             Instruction::Number(_) => {
                 return Err(unsupported("xsl:number is not supported when streaming"));
             }
+            Instruction::WherePopulated(_) | Instruction::Namespace(..) => {
+                return Err(unsupported(
+                    "this instruction is not supported when streaming",
+                ));
+            }
             Instruction::UseSets(_) => {
                 return Err(unsupported(
                     "attribute sets are not supported when streaming",
@@ -472,6 +477,11 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                     }
                     Instruction::Number(_) => {
                         return Err(unsupported("xsl:number is not supported when streaming"));
+                    }
+                    Instruction::WherePopulated(_) | Instruction::Namespace(..) => {
+                        return Err(unsupported(
+                            "this instruction is not supported when streaming",
+                        ));
                     }
                     Instruction::UseSets(_) => {
                         return Err(unsupported(

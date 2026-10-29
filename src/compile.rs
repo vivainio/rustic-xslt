@@ -52,6 +52,8 @@ pub(crate) enum Instruction {
         body: Vec<Instruction>,
         catches: Vec<Catch>,
     },
+    WherePopulated(Vec<Instruction>),
+    Namespace(Vec<Expr>, Content),
     Break(Vec<Instruction>),
     AnalyzeString {
         select: Expr,
@@ -457,6 +459,8 @@ pub(crate) fn raw_result_body(body: &[Instruction]) -> bool {
         | Instruction::NextIteration(_)
         | Instruction::Break(_)
         | Instruction::Number(_)
+        | Instruction::WherePopulated(_)
+        | Instruction::Namespace(..)
         | Instruction::Try { .. }
         | Instruction::AnalyzeString { .. }
         | Instruction::LiteralAttributes(_)
@@ -898,6 +902,63 @@ fn body(
                             "xsl:map-entry is only allowed inside xsl:map",
                         ));
                     }
+                    "evaluate" => {
+                        attrs(
+                            n,
+                            &[
+                                "xpath",
+                                "as",
+                                "context-item",
+                                "namespace-context",
+                                "schema-aware",
+                                "base-uri",
+                                "with-params",
+                                "static",
+                            ],
+                        )?;
+                        if n.attribute("namespace-context").is_some()
+                            || n.attribute("base-uri").is_some()
+                            || n.attribute("with-params").is_some()
+                        {
+                            return Err(error(
+                                n,
+                                "xsl:evaluate namespace-context, base-uri and with-params are not implemented",
+                            ));
+                        }
+                        let mut params = vec![];
+                        for c in n.children() {
+                            if c.is_element()
+                                && c.tag_name().namespace() == Some(XSL)
+                                && c.tag_name().name() == "with-param"
+                            {
+                                let b = binding(c, true, depth)?;
+                                let BindingValue::Select(e) = b.value else {
+                                    return Err(error(
+                                        c,
+                                        "xsl:evaluate parameters need a select attribute",
+                                    ));
+                                };
+                                params.push((b.name, e));
+                            } else if c.is_element()
+                                || c.is_text() && !xml_space(c.text().unwrap_or_default())
+                            {
+                                return Err(static_error(
+                                    c,
+                                    "XTSE0010",
+                                    "unexpected content in xsl:evaluate",
+                                ));
+                            }
+                        }
+                        out.push(Instruction::Sequence(Expr::Evaluate {
+                            xpath: Box::new(expr(n, required(n, "xpath")?)?),
+                            context: n
+                                .attribute("context-item")
+                                .map(|c| expr(n, c).map(Box::new))
+                                .transpose()?,
+                            params,
+                            namespaces: namespaces(n),
+                        }));
+                    }
                     "perform-sort" => {
                         attrs(n, &["select"])?;
                         let keys = sorts(n)?;
@@ -1003,6 +1064,17 @@ fn body(
                             grouping_separator: optional_avt("grouping-separator")?,
                             grouping_size: optional_avt("grouping-size")?,
                         })));
+                    }
+                    "where-populated" => {
+                        attrs(n, &[])?;
+                        out.push(Instruction::WherePopulated(body(n, depth + 1, false)?));
+                    }
+                    "namespace" => {
+                        attrs(n, &["name", "select"])?;
+                        out.push(Instruction::Namespace(
+                            avt(n, required(n, "name")?)?,
+                            content(n, depth + 1)?,
+                        ));
                     }
                     "try" => {
                         attrs(n, &["select", "rollback-output"])?;
@@ -2452,7 +2524,53 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 Expr::Unary(_, e) | Expr::TypeOp(_, e, _) | Expr::QNameCast(e, _, _, _) => {
                     pending.push(e)
                 }
-                Expr::Call(_, args) | Expr::Sequence(args) => pending.extend(args),
+                Expr::Call(_, args) | Expr::Sequence(args) | Expr::ArraySquare(args) => {
+                    pending.extend(args)
+                }
+                Expr::InlineFunction(def) => {
+                    let mut inner = scope.clone();
+                    inner.extend(def.params.iter().map(|(name, _)| name.clone()));
+                    expression(&def.body, &inner)?;
+                }
+                Expr::DynamicCall(callee, args) => {
+                    pending.push(callee);
+                    pending.extend(args);
+                }
+                Expr::Partial(callee, slots) => {
+                    pending.push(callee);
+                    pending.extend(slots.iter().flatten());
+                }
+                Expr::MapConstructor(entries) => {
+                    for (key, value) in entries {
+                        pending.push(key);
+                        pending.push(value);
+                    }
+                }
+                Expr::ArrayCurly(inner) => pending.push(inner),
+                Expr::Lookup(base, key) => {
+                    pending.push(base);
+                    if let Some(key) = key {
+                        pending.push(key);
+                    }
+                }
+                Expr::Sorted(inner, keys) => {
+                    pending.push(inner);
+                    for key in keys {
+                        pending.push(&key.select);
+                    }
+                }
+                Expr::Evaluate {
+                    xpath,
+                    context,
+                    params,
+                    ..
+                } => {
+                    pending.push(xpath);
+                    if let Some(context) = context {
+                        pending.push(context);
+                    }
+                    pending.extend(params.iter().map(|(_, e)| e));
+                }
                 _ => {}
             }
         }
@@ -2562,6 +2680,13 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     parts(&spec.ordinal, &scope)?;
                     parts(&spec.grouping_separator, &scope)?;
                     parts(&spec.grouping_size, &scope)?;
+                }
+                Instruction::WherePopulated(body) => {
+                    instructions(body, scope.clone(), templates)?;
+                }
+                Instruction::Namespace(name, content) => {
+                    parts(name, &scope)?;
+                    value(content, &scope, templates)?;
                 }
                 Instruction::Try { body, catches } => {
                     instructions(body, scope.clone(), templates)?;
