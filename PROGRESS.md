@@ -764,8 +764,9 @@ conformance claims. Smaller tested increments are committed independently.
   values via decimal representations, preserving signed zero and non-finite values.
 - Extreme precisions short-circuit to unchanged/zero values without allocating
   unbounded powers of ten; numeric digit limits still apply.
-- 372 Rust integration tests, 27 harness tests and Clippy/format pass. All 381 XSLT
-  and previous QT3 gate cases remain green.
+- 372 Rust integration tests, 27 harness tests and Clippy/format pass. XSLT gate
+  expands to 382 (382 pass / 149 failures / 146 harness errors / 46 exclusions);
+  all previous QT3 gate cases remain green.
 - Fifty-two QT3 sets: 4,398 cases, 2,529 pass / 1,126 engine failures / 72 harness
   errors / 671 profile exclusions. Rounding adds 310 gate cases; remaining failures
   primarily require numeric subtypes, plus an older-XPath arity distinction.
