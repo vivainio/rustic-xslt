@@ -20,6 +20,7 @@ pub(crate) enum Kind {
     String,
     Untyped,
     Boolean,
+    QName,
     Integer,
     Decimal,
     Float,
@@ -137,6 +138,7 @@ impl SequenceType {
                     "string" => Kind::String,
                     "untypedAtomic" => Kind::Untyped,
                     "boolean" => Kind::Boolean,
+                    "QName" => Kind::QName,
                     "integer" => Kind::Integer,
                     "decimal" => Kind::Decimal,
                     "float" => Kind::Float,
@@ -161,6 +163,7 @@ impl SequenceType {
             Kind::String
                 | Kind::Untyped
                 | Kind::Boolean
+                | Kind::QName
                 | Kind::Integer
                 | Kind::Decimal
                 | Kind::Float
@@ -200,7 +203,8 @@ impl SequenceType {
             (Kind::Pi, Item::Node(n)) => n.is_pi(),
             (Kind::String, Item::String(_))
             | (Kind::Untyped, Item::Untyped(_))
-            | (Kind::Boolean, Item::Boolean(_)) => true,
+            | (Kind::Boolean, Item::Boolean(_))
+            | (Kind::QName, Item::QName(_)) => true,
             (Kind::Integer, Item::Number(Number::Integer(_))) => true,
             (Kind::Decimal, Item::Number(Number::Integer(_) | Number::Decimal(_))) => true,
             (Kind::Float, Item::Number(Number::Float(_)))
@@ -208,7 +212,11 @@ impl SequenceType {
             | (Kind::Numeric, Item::Number(_)) => true,
             (
                 Kind::Atomic,
-                Item::String(_) | Item::Untyped(_) | Item::Boolean(_) | Item::Number(_),
+                Item::String(_)
+                | Item::Untyped(_)
+                | Item::Boolean(_)
+                | Item::Number(_)
+                | Item::QName(_),
             ) => true,
             _ => false,
         }

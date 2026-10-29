@@ -57,6 +57,7 @@ pub(crate) fn evaluate(args: &[Value<'_>], budget: &mut Budget) -> Result<bool, 
             }
             (Item::String(a) | Item::Untyped(a), Item::String(b) | Item::Untyped(b)) => a == b,
             (Item::Boolean(a), Item::Boolean(b)) => a == b,
+            (Item::QName(a), Item::QName(b)) => a.equal(b),
             _ => false,
         };
         if !equal {

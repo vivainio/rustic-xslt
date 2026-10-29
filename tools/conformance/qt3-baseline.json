@@ -1,6 +1,7 @@
 {
   "suite_revision": "201a6e466940cdfc727f4babfedcde5332b9f578",
   "selected_sets": [
+    "fn-QName",
     "fn-abs",
     "fn-avg",
     "fn-ceiling",
@@ -29,6 +30,7 @@
     "fn-translate",
     "fn-upper-case",
     "fn-zero-or-one",
+    "op-QName-equal",
     "op-bang",
     "op-concat",
     "op-except",
@@ -1852,11 +1854,19 @@
     ],
     [
       "fn-deep-equal",
+      "K-SeqDeepEqualFunc-17"
+    ],
+    [
+      "fn-deep-equal",
       "K-SeqDeepEqualFunc-19"
     ],
     [
       "fn-deep-equal",
       "K-SeqDeepEqualFunc-20"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-21"
     ],
     [
       "fn-deep-equal",
@@ -1973,6 +1983,358 @@
     [
       "fn-deep-equal",
       "K2-SeqDeepEqualFunc-9"
+    ],
+    [
+      "fn-error",
+      "fn-error-1"
+    ],
+    [
+      "fn-error",
+      "fn-error-2"
+    ],
+    [
+      "fn-error",
+      "fn-error-3"
+    ],
+    [
+      "fn-error",
+      "fn-error-4"
+    ],
+    [
+      "fn-error",
+      "fn-error-5"
+    ],
+    [
+      "fn-error",
+      "fn-error-6"
+    ],
+    [
+      "fn-error",
+      "fn-error-7"
+    ],
+    [
+      "fn-error",
+      "fn-error-8"
+    ],
+    [
+      "fn-error",
+      "fn-error-9"
+    ],
+    [
+      "fn-error",
+      "fn-error-10"
+    ],
+    [
+      "fn-error",
+      "fn-error-11"
+    ],
+    [
+      "fn-error",
+      "fn-error-12"
+    ],
+    [
+      "fn-error",
+      "fn-error-13"
+    ],
+    [
+      "fn-error",
+      "fn-error-14"
+    ],
+    [
+      "fn-error",
+      "fn-error-15"
+    ],
+    [
+      "fn-error",
+      "fn-error-16"
+    ],
+    [
+      "fn-error",
+      "fn-error-17"
+    ],
+    [
+      "fn-error",
+      "fn-error-18"
+    ],
+    [
+      "fn-error",
+      "fn-error-19"
+    ],
+    [
+      "fn-error",
+      "fn-error-20"
+    ],
+    [
+      "fn-error",
+      "fn-error-22"
+    ],
+    [
+      "fn-error",
+      "fn-error-23"
+    ],
+    [
+      "fn-error",
+      "fn-error-25"
+    ],
+    [
+      "fn-error",
+      "fn-error-26"
+    ],
+    [
+      "fn-error",
+      "fn-error-27"
+    ],
+    [
+      "fn-error",
+      "fn-error-28"
+    ],
+    [
+      "fn-error",
+      "fn-error-29"
+    ],
+    [
+      "fn-error",
+      "fn-error-30"
+    ],
+    [
+      "fn-error",
+      "fn-error-31"
+    ],
+    [
+      "fn-error",
+      "fn-error-32"
+    ],
+    [
+      "fn-error",
+      "fn-error-33"
+    ],
+    [
+      "fn-error",
+      "fn-error-34"
+    ],
+    [
+      "fn-error",
+      "fn-error-35"
+    ],
+    [
+      "fn-error",
+      "fn-error-36"
+    ],
+    [
+      "fn-error",
+      "fn-error-37"
+    ],
+    [
+      "fn-error",
+      "fn-error-38"
+    ],
+    [
+      "fn-error",
+      "fn-error-39"
+    ],
+    [
+      "fn-error",
+      "fn-error-40"
+    ],
+    [
+      "fn-error",
+      "fn-error-41"
+    ],
+    [
+      "fn-error",
+      "fn-error-42"
+    ],
+    [
+      "fn-error",
+      "fn-error-43"
+    ],
+    [
+      "fn-error",
+      "fn-error-44"
+    ],
+    [
+      "fn-error",
+      "fn-error-45"
+    ],
+    [
+      "fn-error",
+      "fn-error-46"
+    ],
+    [
+      "fn-error",
+      "fn-error-47"
+    ],
+    [
+      "fn-error",
+      "fn-error-48"
+    ],
+    [
+      "fn-error",
+      "fn-error-49"
+    ],
+    [
+      "fn-error",
+      "fn-error-50"
+    ],
+    [
+      "fn-error",
+      "fn-error-51"
+    ],
+    [
+      "fn-error",
+      "K-ErrorFunc-1"
+    ],
+    [
+      "fn-error",
+      "K-ErrorFunc-2"
+    ],
+    [
+      "fn-error",
+      "K-ErrorFunc-3"
+    ],
+    [
+      "fn-error",
+      "K-ErrorFunc-4a"
+    ],
+    [
+      "fn-error",
+      "K-ErrorFunc-5"
+    ],
+    [
+      "fn-error",
+      "K-ErrorFunc-6"
+    ],
+    [
+      "fn-error",
+      "K-ErrorFunc-7"
+    ],
+    [
+      "fn-error",
+      "K-ErrorFunc-8"
+    ],
+    [
+      "fn-error",
+      "K-ErrorFunc-9"
+    ],
+    [
+      "fn-error",
+      "K-ErrorFunc-10"
+    ],
+    [
+      "fn-error",
+      "K2-ErrorFunc-1"
+    ],
+    [
+      "fn-error",
+      "K2-ErrorFunc-3"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-002"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-003"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-004"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-005"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-006"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-007"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-008"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-009"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-010"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-011"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-012"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-013"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-014"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-016"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-017"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-018"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-019"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-020"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-023"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-024"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-025"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-030"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-031"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-032"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-033"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-034"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-035"
     ],
     [
       "fn-exactly-one",
@@ -2800,7 +3162,15 @@
     ],
     [
       "fn-max",
+      "K-SeqMAXFunc-38"
+    ],
+    [
+      "fn-max",
       "K-SeqMAXFunc-41"
+    ],
+    [
+      "fn-max",
+      "K-SeqMAXFunc-42"
     ],
     [
       "fn-max",
@@ -3168,7 +3538,15 @@
     ],
     [
       "fn-min",
+      "K-SeqMINFunc-38"
+    ],
+    [
+      "fn-min",
       "K-SeqMINFunc-41"
+    ],
+    [
+      "fn-min",
+      "K-SeqMINFunc-42"
     ],
     [
       "fn-min",
@@ -7452,6 +7830,14 @@
     ],
     [
       "prod-QuantifiedExpr",
+      "K-QuantExprWithout-1"
+    ],
+    [
+      "prod-QuantifiedExpr",
+      "K-QuantExprWithout-2"
+    ],
+    [
+      "prod-QuantifiedExpr",
       "K-QuantExprWithout-3"
     ],
     [
@@ -7899,172 +8285,220 @@
       "sequence-type-21"
     ],
     [
-      "fn-error",
-      "fn-error-1"
+      "fn-QName",
+      "ExpandedQNameConstructFunc005"
     ],
     [
-      "fn-error",
-      "fn-error-2"
+      "fn-QName",
+      "ExpandedQNameConstructFunc006"
     ],
     [
-      "fn-error",
-      "fn-error-3"
+      "fn-QName",
+      "ExpandedQNameConstructFunc007"
     ],
     [
-      "fn-error",
-      "fn-error-5"
+      "fn-QName",
+      "ExpandedQNameConstructFunc008"
     ],
     [
-      "fn-error",
-      "fn-error-6"
+      "fn-QName",
+      "ExpandedQNameConstructFunc009"
     ],
     [
-      "fn-error",
-      "K-ErrorFunc-1"
+      "fn-QName",
+      "ExpandedQNameConstructFunc010"
     ],
     [
-      "fn-error",
-      "K-ErrorFunc-3"
+      "fn-QName",
+      "ExpandedQNameConstructFunc011"
     ],
     [
-      "fn-error",
-      "K-ErrorFunc-4a"
+      "fn-QName",
+      "ExpandedQNameConstructFunc012"
     ],
     [
-      "fn-error",
-      "K-ErrorFunc-6"
+      "fn-QName",
+      "ExpandedQNameConstructFunc013"
     ],
     [
-      "fn-error",
-      "K-ErrorFunc-7"
+      "fn-QName",
+      "ExpandedQNameConstructFunc014"
     ],
     [
-      "fn-error",
-      "K-ErrorFunc-8"
+      "fn-QName",
+      "ExpandedQNameConstructFunc015"
     ],
     [
-      "fn-error",
-      "K-ErrorFunc-9"
+      "fn-QName",
+      "ExpandedQNameConstructFunc016"
     ],
     [
-      "fn-error",
-      "K-ErrorFunc-10"
+      "fn-QName",
+      "K-ExpandedQNameConstructFunc-1"
     ],
     [
-      "fn-error",
-      "K2-ErrorFunc-1"
+      "fn-QName",
+      "K-ExpandedQNameConstructFunc-2"
     ],
     [
-      "fn-error",
-      "K2-ErrorFunc-3"
+      "fn-QName",
+      "K-ExpandedQNameConstructFunc-3"
     ],
     [
-      "fn-error",
-      "cbcl-error-002"
+      "fn-QName",
+      "K-ExpandedQNameConstructFunc-5"
     ],
     [
-      "fn-error",
-      "cbcl-error-003"
+      "fn-QName",
+      "K-ExpandedQNameConstructFunc-6"
     ],
     [
-      "fn-error",
-      "cbcl-error-004"
+      "fn-QName",
+      "K-ExpandedQNameConstructFunc-7"
     ],
     [
-      "fn-error",
-      "cbcl-error-005"
+      "fn-QName",
+      "K-ExpandedQNameConstructFunc-8"
     ],
     [
-      "fn-error",
-      "cbcl-error-006"
+      "fn-QName",
+      "K2-ExpandedQNameConstructFunc-1"
     ],
     [
-      "fn-error",
-      "cbcl-error-007"
+      "fn-QName",
+      "cbcl-qname-001"
     ],
     [
-      "fn-error",
-      "cbcl-error-008"
+      "op-QName-equal",
+      "op-qname-equal-1"
     ],
     [
-      "fn-error",
-      "cbcl-error-009"
+      "op-QName-equal",
+      "op-qname-equal-2"
     ],
     [
-      "fn-error",
-      "cbcl-error-010"
+      "op-QName-equal",
+      "op-qname-equal-3"
     ],
     [
-      "fn-error",
-      "cbcl-error-011"
+      "op-QName-equal",
+      "op-qname-equal-4"
     ],
     [
-      "fn-error",
-      "cbcl-error-012"
+      "op-QName-equal",
+      "op-qname-equal-5"
     ],
     [
-      "fn-error",
-      "cbcl-error-013"
+      "op-QName-equal",
+      "op-qname-equal-6"
     ],
     [
-      "fn-error",
-      "cbcl-error-014"
+      "op-QName-equal",
+      "op-qname-equal-7"
     ],
     [
-      "fn-error",
-      "cbcl-error-016"
+      "op-QName-equal",
+      "op-qname-equal-8"
     ],
     [
-      "fn-error",
-      "cbcl-error-017"
+      "op-QName-equal",
+      "op-qname-equal-9"
     ],
     [
-      "fn-error",
-      "cbcl-error-018"
+      "op-QName-equal",
+      "op-qname-equal-10"
     ],
     [
-      "fn-error",
-      "cbcl-error-019"
+      "op-QName-equal",
+      "op-qname-equal-11"
     ],
     [
-      "fn-error",
-      "cbcl-error-020"
+      "op-QName-equal",
+      "op-qname-equal-12"
     ],
     [
-      "fn-error",
-      "cbcl-error-023"
+      "op-QName-equal",
+      "op-qname-equal-13"
     ],
     [
-      "fn-error",
-      "cbcl-error-024"
+      "op-QName-equal",
+      "op-qname-equal-14"
     ],
     [
-      "fn-error",
-      "cbcl-error-025"
+      "op-QName-equal",
+      "op-qname-equal-15"
     ],
     [
-      "fn-error",
-      "cbcl-error-030"
+      "op-QName-equal",
+      "op-qname-equal-16"
     ],
     [
-      "fn-error",
-      "cbcl-error-031"
+      "op-QName-equal",
+      "op-qname-equal-17"
     ],
     [
-      "fn-error",
-      "cbcl-error-032"
+      "op-QName-equal",
+      "op-qname-equal-18"
     ],
     [
-      "fn-error",
-      "cbcl-error-033"
+      "op-QName-equal",
+      "op-qname-equal-19"
     ],
     [
-      "fn-error",
-      "cbcl-error-034"
+      "op-QName-equal",
+      "op-qname-equal-20"
     ],
     [
-      "fn-error",
-      "cbcl-error-035"
+      "op-QName-equal",
+      "op-qname-equal-21"
+    ],
+    [
+      "op-QName-equal",
+      "op-qname-equal-22"
+    ],
+    [
+      "op-QName-equal",
+      "op-qname-equal-23"
+    ],
+    [
+      "op-QName-equal",
+      "op-qname-equal-24"
+    ],
+    [
+      "op-QName-equal",
+      "K-QNameEQ-1"
+    ],
+    [
+      "op-QName-equal",
+      "K-QNameEQ-2"
+    ],
+    [
+      "op-QName-equal",
+      "K-QNameEQ-3"
+    ],
+    [
+      "op-QName-equal",
+      "K-QNameEQ-4"
+    ],
+    [
+      "op-QName-equal",
+      "K-QNameEQ-5"
+    ],
+    [
+      "op-QName-equal",
+      "K-QNameEQ-7"
+    ],
+    [
+      "op-QName-equal",
+      "K-QNameEQ-8"
+    ],
+    [
+      "op-QName-equal",
+      "K-QNameEQ-9"
+    ],
+    [
+      "op-QName-equal",
+      "K-QNameEQ-10"
     ]
   ]
 }

@@ -73,6 +73,7 @@ pub(crate) enum Item<'a> {
     Untyped(String),
     Number(Number),
     Boolean(bool),
+    QName(crate::qname::AtomicQName),
 }
 pub(crate) type Value<'a> = Vec<Item<'a>>;
 pub(crate) type Variables<'a> = BTreeMap<String, Value<'a>>;
@@ -91,6 +92,7 @@ impl Item<'_> {
             Self::String(s) | Self::Untyped(s) => s.clone(),
             Self::Number(n) => n.string(),
             Self::Boolean(b) => b.to_string(),
+            Self::QName(name) => name.lexical(),
         }
     }
     pub fn string_compat(&self, backwards: bool) -> String {
@@ -579,6 +581,15 @@ impl Parser {
                         "compile",
                     ));
                 }
+                if matches!(op.as_str(), "cast" | "castable")
+                    && matches!(ty.kind, crate::seqtype::Kind::QName)
+                {
+                    return Err(Diagnostic::new(
+                        "RUST_XSLT_UNSUPPORTED",
+                        "QName casts require static namespace context and are not implemented",
+                        "compile",
+                    ));
+                }
                 left = Expr::TypeOp(op, Box::new(left), ty);
                 continue;
             }
@@ -998,6 +1009,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         | "xs:float" | "xs:boolean" => (1, 1),
         "true" | "false" | "position" | "last" => (0, 0),
         "error" => (0, 3),
+        "QName" => (2, 2),
         "string" | "number" | "normalize-space" | "string-length" | "name" | "local-name"
         | "namespace-uri" | "root" => (0, 1),
         "count" | "boolean" | "not" | "exists" | "empty" | "data" | "reverse" | "head" | "tail" => {
@@ -1613,6 +1625,16 @@ fn numeric(v: &[Item<'_>], backwards: bool) -> Result<Number, Diagnostic> {
 fn compare(a: &Item<'_>, b: &Item<'_>, op: &str, backwards: bool) -> Result<bool, Diagnostic> {
     use std::cmp::Ordering;
     let (mut a, mut b) = (atomize(a), atomize(b));
+    if matches!(a, Item::QName(_)) || matches!(b, Item::QName(_)) {
+        return match (&a, &b) {
+            (Item::QName(a), Item::QName(b)) if op == "=" => Ok(a.equal(b)),
+            (Item::QName(a), Item::QName(b)) if op == "!=" => Ok(!a.equal(b)),
+            _ => Err(err(
+                "XPTY0004",
+                "QName values only support equality with other QNames",
+            )),
+        };
+    }
     let cmp = if backwards {
         if ["=", "!="].contains(&op)
             && (matches!(a, Item::Boolean(_)) || matches!(b, Item::Boolean(_)))
@@ -1668,9 +1690,11 @@ fn function<'a>(
     backwards: bool,
 ) -> Result<Value<'a>, Diagnostic> {
     if name == "error" {
-        if args.first().is_some_and(|code| !code.is_empty()) {
-            return Err(err("XPTY0004", "error code must be an optional QName"));
-        }
+        let code = match args.first().map(Vec::as_slice).unwrap_or(&[]) {
+            [] => "FOER0000".into(),
+            [Item::QName(name)] => name.error_code(),
+            _ => return Err(err("XPTY0004", "error code must be an optional QName")),
+        };
         let description = if let Some(description) = args.get(1) {
             let [item] = description.as_slice() else {
                 return Err(err(
@@ -1685,7 +1709,7 @@ fn function<'a>(
         } else {
             "error() was called".into()
         };
-        return Err(err("FOER0000", description));
+        return Err(err(&code, description));
     }
     if args.is_empty()
         && matches!(focus.item, Item::Absent)
@@ -1706,6 +1730,16 @@ fn function<'a>(
             .map_or_else(String::new, |item| item.string_compat(backwards)))
     };
     let s = || scalar(first);
+    if name == "QName" {
+        let uri = crate::string_functions::string(&args[0], true, false)?;
+        let lexical = crate::string_functions::string(&args[1], false, false)?;
+        for _ in uri.bytes().chain(lexical.bytes()) {
+            budget.tick()?;
+        }
+        return Ok(vec![Item::QName(crate::qname::AtomicQName::new(
+            &uri, &lexical,
+        )?)]);
+    }
     if matches!(name, "abs" | "floor" | "ceiling") {
         if first.is_empty() && !backwards {
             return Ok(vec![]);
@@ -1766,6 +1800,9 @@ fn function<'a>(
             return Err(err("XPTY0004", "constructor requires a singleton"));
         }
         let item = &first[0];
+        if matches!(item, Item::QName(_)) && !matches!(kind, "string" | "untypedAtomic") {
+            return Err(err("XPTY0004", "QName cannot be cast to this atomic type"));
+        }
         return Ok(vec![match kind {
             "string" => Item::String(item.string()),
             "untypedAtomic" => Item::Untyped(item.string()),

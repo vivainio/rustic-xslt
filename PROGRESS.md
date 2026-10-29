@@ -713,5 +713,20 @@ conformance claims. Smaller tested increments are committed independently.
 - Forty-three QT3 sets: 3,848 cases, 2,005 pass / 1,132 engine failures / 71 harness
   errors / 640 profile exclusions. Gate adds 42 selected error-function cases.
 
-Next: QName atomic values and custom error codes.
+## Increment 59: QName atomic values and custom errors
+
+- QName(uri, lexical-name) retains prefixes and expanded identity, with full
+  XML 1.0 Unicode name validation and FOCA0002 lexical/namespace diagnostics.
+- xs:QName sequence types, raw typed bindings/template results/copies, equality
+  and deep equality preserve atomic values without conflating strings/prefixes.
+- error() preserves explicit QName codes, using short standard error names and
+  Q{uri}local for custom namespaces (including Q{} for absent namespaces).
+- Static-context QName constructors/casts remain explicit implementation gaps.
+- 360 Rust integration tests, 27 harness tests and Clippy/format pass. All 381
+  XSLT passes remain; forty-five QT3 sets: 3,920 cases, 2,113 pass / 1,085 engine
+  failures / 71 harness errors / 651 profile exclusions. Gate grows by 108.
+- Public repository configured as https://github.com/vivainio/rustic-xslt;
+  crate name remains rust-xslt.
+
+Next: static-context QName conversion and further XPath coverage.
 

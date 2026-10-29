@@ -90,3 +90,61 @@ pub(crate) fn normalize_uri(uri: &str) -> String {
         .collect::<Vec<_>>()
         .join(" ")
 }
+
+/// An atomic QName retains its lexical prefix, but equality uses only uri/local.
+#[derive(Debug, Clone)]
+pub(crate) struct AtomicQName {
+    pub uri: Option<String>,
+    pub local: String,
+    pub prefix: Option<String>,
+}
+fn xml_ncname_start(c: char) -> bool {
+    matches!(c, 'A'..='Z' | '_' | 'a'..='z' | '\u{C0}'..='\u{D6}' | '\u{D8}'..='\u{F6}' | '\u{F8}'..='\u{2FF}' | '\u{370}'..='\u{37D}' | '\u{37F}'..='\u{1FFF}' | '\u{200C}'..='\u{200D}' | '\u{2070}'..='\u{218F}' | '\u{2C00}'..='\u{2FEF}' | '\u{3001}'..='\u{D7FF}' | '\u{F900}'..='\u{FDCF}' | '\u{FDF0}'..='\u{FFFD}' | '\u{10000}'..='\u{EFFFF}')
+}
+fn xml_ncname(s: &str) -> bool {
+    let mut chars = s.chars();
+    chars.next().is_some_and(xml_ncname_start)
+        && chars.all(|c| xml_ncname_start(c) || matches!(c, '-' | '.' | '0'..='9' | '\u{B7}' | '\u{300}'..='\u{36F}' | '\u{203F}'..='\u{2040}'))
+}
+impl AtomicQName {
+    pub fn new(uri: &str, lexical: &str) -> Result<Self, Diagnostic> {
+        let (prefix, local) = lexical
+            .split_once(':')
+            .map_or((None, lexical), |(p, l)| (Some(p), l));
+        if !xml_ncname(local) || prefix.is_some_and(|p| !xml_ncname(p) || uri.is_empty()) {
+            return Err(Diagnostic::new(
+                "FOCA0002",
+                "invalid lexical QName or absent prefixed namespace",
+                "run",
+            ));
+        }
+        Ok(Self {
+            uri: if uri.is_empty() {
+                None
+            } else {
+                Some(uri.into())
+            },
+            local: local.into(),
+            prefix: prefix.map(str::to_owned),
+        })
+    }
+    pub fn lexical(&self) -> String {
+        self.prefix
+            .as_ref()
+            .map_or_else(|| self.local.clone(), |p| format!("{p}:{}", self.local))
+    }
+    pub fn equal(&self, other: &Self) -> bool {
+        self.uri == other.uri && self.local == other.local
+    }
+    pub fn error_code(&self) -> String {
+        if self.uri.as_deref() == Some("http://www.w3.org/2005/xqt-errors") {
+            self.local.clone()
+        } else {
+            format!(
+                "Q{{{}}}{}",
+                self.uri.as_deref().unwrap_or_default(),
+                self.local
+            )
+        }
+    }
+}

@@ -14,7 +14,11 @@ fn type_error() -> Diagnostic {
         "run",
     )
 }
-fn string(value: &[Item<'_>], optional: bool, backwards: bool) -> Result<String, Diagnostic> {
+pub(crate) fn string(
+    value: &[Item<'_>],
+    optional: bool,
+    backwards: bool,
+) -> Result<String, Diagnostic> {
     if value.is_empty() {
         return if optional || backwards {
             Ok(String::new())
