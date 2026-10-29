@@ -64608,10 +64608,6 @@
     ],
     [
       "prod-FunctionCall",
-      "K-FunctionCallExpr-26"
-    ],
-    [
-      "prod-FunctionCall",
       "K-FunctionCallExpr-27"
     ],
     [
@@ -64653,10 +64649,6 @@
     [
       "prod-FunctionCall",
       "K2-FunctionCallExpr-5"
-    ],
-    [
-      "prod-FunctionCall",
-      "K2-FunctionCallExpr-8"
     ],
     [
       "prod-FunctionCall",
