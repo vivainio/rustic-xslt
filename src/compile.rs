@@ -89,6 +89,7 @@ pub(crate) struct ResultDocumentSpec {
     pub method: String,
     pub omit_declaration: Option<bool>,
     pub indent: Option<bool>,
+    pub encoding: crate::result::Encoding,
     pub body: Vec<Instruction>,
 }
 pub(crate) const ERROR_NAMESPACE: &str = "http://www.w3.org/2005/xqt-errors";
@@ -1174,11 +1175,17 @@ fn body(
                         if n.attribute("format").is_some() {
                             return Err(error(n, "named output definitions are not implemented"));
                         }
-                        if n.attribute("encoding")
-                            .is_some_and(|e| !e.eq_ignore_ascii_case("utf-8"))
-                        {
-                            return Err(error(n, "only UTF-8 result documents are supported"));
-                        }
+                        let encoding = match n.attribute("encoding") {
+                            Some(name) => {
+                                crate::result::Encoding::parse(name).ok_or_else(|| {
+                                    error(
+                                        n,
+                                        "only UTF-8, ISO-8859-1 and US-ASCII results are supported",
+                                    )
+                                })?
+                            }
+                            None => Default::default(),
+                        };
                         let method = n.attribute("method").unwrap_or("xml");
                         if !matches!(method, "xml" | "html" | "xhtml" | "text") {
                             return Err(error(n, "unsupported result document method"));
@@ -1197,6 +1204,7 @@ fn body(
                             method: method.to_owned(),
                             omit_declaration: flag("omit-xml-declaration")?,
                             indent: flag("indent")?,
+                            encoding,
                             body: body(n, depth + 1, false)?,
                         })));
                     }
@@ -2247,13 +2255,13 @@ fn declarations(
                         "standalone",
                     ],
                 )?;
-                if n.attribute("encoding")
-                    .is_some_and(|s| !s.eq_ignore_ascii_case("UTF-8"))
-                {
-                    return Err(error(
-                        n,
-                        "only UTF-8 output encoding is currently supported",
-                    ));
+                if let Some(name) = n.attribute("encoding") {
+                    sheet.encoding = crate::result::Encoding::parse(name).ok_or_else(|| {
+                        error(
+                            n,
+                            "only UTF-8, ISO-8859-1 and US-ASCII output are supported",
+                        )
+                    })?;
                 }
                 if n.attribute("version").is_some_and(|s| s != "1.0")
                     && n.attribute("method").is_none_or(|m| m == "xml")
@@ -2618,6 +2626,7 @@ pub(crate) fn compile(
         omit_declaration: false,
         indent: false,
         markup: crate::result::Markup::Xml,
+        encoding: Default::default(),
         doctype: None,
         text_output: false,
         backwards: root.attribute("version") == Some("1.0"),

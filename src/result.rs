@@ -43,6 +43,64 @@ fn html_name(name: &Name, markup: Markup) -> Option<String> {
     in_html.then(|| name.local.to_ascii_lowercase())
 }
 pub(crate) const XHTML: &str = "http://www.w3.org/1999/xhtml";
+/// Output encodings. The result is always a Rust string; characters outside the
+/// encoding become numeric character references (an error for the text method).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) enum Encoding {
+    #[default]
+    Utf8,
+    Latin1,
+    Ascii,
+}
+impl Encoding {
+    pub fn parse(name: &str) -> Option<Self> {
+        match name.to_ascii_lowercase().as_str() {
+            "utf-8" | "utf8" => Some(Self::Utf8),
+            "iso-8859-1" | "latin1" | "latin-1" => Some(Self::Latin1),
+            "us-ascii" | "ascii" => Some(Self::Ascii),
+            _ => None,
+        }
+    }
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Utf8 => "UTF-8",
+            Self::Latin1 => "ISO-8859-1",
+            Self::Ascii => "US-ASCII",
+        }
+    }
+    fn limit(self) -> u32 {
+        match self {
+            Self::Utf8 => u32::MAX,
+            Self::Latin1 => 0xFF,
+            Self::Ascii => 0x7F,
+        }
+    }
+    /// Re-express `text` within the encoding; `Err` when a character cannot be written.
+    pub fn apply(self, text: &str, references: bool) -> Result<String, Diagnostic> {
+        if self == Self::Utf8 {
+            return Ok(text.to_owned());
+        }
+        let mut out = String::with_capacity(text.len());
+        for c in text.chars() {
+            if (c as u32) <= self.limit() {
+                out.push(c);
+            } else if references {
+                out.push_str(&format!("&#x{:X};", c as u32));
+            } else {
+                return Err(Diagnostic::new(
+                    "SERE0008",
+                    format!(
+                        "character U+{:04X} cannot be represented in {}",
+                        c as u32,
+                        self.name()
+                    ),
+                    "run",
+                ));
+            }
+        }
+        Ok(out)
+    }
+}
 /// DOCTYPE declaration parts from `doctype-public` / `doctype-system`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct Doctype {

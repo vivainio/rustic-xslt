@@ -719,6 +719,13 @@ pub(crate) fn transform<R: BufRead, W: Write>(
     let mut stack: Vec<(Name, BTreeMap<String, String>, bool)> = vec![];
     let mut event_buffer = vec![];
     let mut record: Option<Writer<RecordBuffer>> = None;
+    if sheet.encoding != crate::result::Encoding::Utf8 {
+        return Err(Diagnostic::new(
+            "RUST_XSLT_UNSUPPORTED",
+            "record streaming only writes UTF-8",
+            "compile",
+        ));
+    }
     let mut stats = StreamStats::default();
     let mut record_preserve = false;
     let mut roots = 0;

@@ -1075,7 +1075,10 @@ fn execute<'a>(
     let mut output = Output::new(limits.max_output_bytes, sheet.text_output)
         .with_serialization(sheet.markup, sheet.doctype.clone());
     if declaration && !sheet.text_output && !sheet.omit_declaration {
-        output.push("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")?;
+        output.push(&format!(
+            "<?xml version=\"1.0\" encoding=\"{}\"?>",
+            sheet.encoding.name()
+        ))?;
     }
     let initial_mode = options
         .initial_mode
@@ -1152,13 +1155,12 @@ fn execute<'a>(
         globals,
     };
     let result = run_tasks(&run, budget, tasks, output, None)?;
-    if sheet.indent && declaration && !sheet.text_output {
-        return Ok(crate::indent::indent(
-            &result,
-            sheet.markup == crate::result::Markup::Html,
-        ));
-    }
-    Ok(result)
+    let result = if sheet.indent && declaration && !sheet.text_output {
+        crate::indent::indent(&result, sheet.markup == crate::result::Markup::Html)
+    } else {
+        result
+    };
+    sheet.encoding.apply(&result, !sheet.text_output)
 }
 fn run_tasks<'a>(
     run: &Run<'a, '_>,
@@ -2057,12 +2059,15 @@ fn run_tasks<'a>(
                             .omit_declaration
                             .unwrap_or(spec.method == "html" || text_method);
                         if !omit {
-                            content =
-                                format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>{content}");
+                            content = format!(
+                                "<?xml version=\"1.0\" encoding=\"{}\"?>{content}",
+                                spec.encoding.name()
+                            );
                             if spec.indent.unwrap_or(false) {
                                 content = content.replacen("?><", "?>\n<", 1);
                             }
                         }
+                        content = spec.encoding.apply(&content, !text_method)?;
                         budget.secondary.push((href, content));
                     }
                     Instruction::OnEmpty(_) | Instruction::OnNonEmpty(_) => {

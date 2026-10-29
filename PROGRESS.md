@@ -1301,3 +1301,11 @@ conformance claims. Smaller tested increments are committed independently.
   instructions in a nested output; the on-empty content replaces an empty result and
   the on-non-empty content follows a non-empty one. Like where-populated, the nested
   evaluation cannot produce attributes or namespaces for the enclosing element.
+
+## Increment 114: output encodings
+
+- xsl:output and xsl:result-document accept encoding="UTF-8", "ISO-8859-1" and
+  "US-ASCII". Results stay Rust strings: the XML declaration names the encoding and
+  characters outside it become numeric character references (markup methods) or raise
+  SERE0008 (text method). Other encodings, and record streaming with a non-UTF-8
+  encoding, are rejected.

@@ -179,6 +179,7 @@ pub struct Stylesheet {
     omit_declaration: bool,
     indent: bool,
     markup: result::Markup,
+    encoding: result::Encoding,
     doctype: Option<result::Doctype>,
     text_output: bool,
     backwards: bool,
