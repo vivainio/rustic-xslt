@@ -701,5 +701,17 @@ conformance claims. Smaller tested increments are committed independently.
 - Same 3,750 QT3 cases: 1,950 pass / 1,096 engine failures / 71 harness errors /
   633 profile exclusions. All selected floor/ceiling formatting assertions pass.
 
-Next: further XPath atomic/function coverage.
+## Increment 58: default-code error function
+
+- error() and error((), ...) report FOER0000 without requiring focus; descriptions
+  retain caller text. Arguments evaluate normally, including supplied error objects.
+- Lazy branches, logical short-circuits and empty iteration domains skip errors;
+  static arity, code and description type checks remain enforced.
+- Custom QName codes and returned error-object payloads remain explicit gaps.
+- 354 Rust integration tests, 27 harness tests and Clippy/format pass. All 381
+  XSLT passes remain; prior QT3 cases gain thirteen passes.
+- Forty-three QT3 sets: 3,848 cases, 2,005 pass / 1,132 engine failures / 71 harness
+  errors / 640 profile exclusions. Gate adds 42 selected error-function cases.
+
+Next: QName atomic values and custom error codes.
 

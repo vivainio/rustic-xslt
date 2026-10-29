@@ -997,6 +997,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "xs:string" | "xs:untypedAtomic" | "xs:integer" | "xs:decimal" | "xs:double"
         | "xs:float" | "xs:boolean" => (1, 1),
         "true" | "false" | "position" | "last" => (0, 0),
+        "error" => (0, 3),
         "string" | "number" | "normalize-space" | "string-length" | "name" | "local-name"
         | "namespace-uri" | "root" => (0, 1),
         "count" | "boolean" | "not" | "exists" | "empty" | "data" | "reverse" | "head" | "tail" => {
@@ -1666,6 +1667,26 @@ fn function<'a>(
     budget: &mut Budget,
     backwards: bool,
 ) -> Result<Value<'a>, Diagnostic> {
+    if name == "error" {
+        if args.first().is_some_and(|code| !code.is_empty()) {
+            return Err(err("XPTY0004", "error code must be an optional QName"));
+        }
+        let description = if let Some(description) = args.get(1) {
+            let [item] = description.as_slice() else {
+                return Err(err(
+                    "XPTY0004",
+                    "error description must be a singleton string",
+                ));
+            };
+            match atomize(item) {
+                Item::String(s) | Item::Untyped(s) => s,
+                _ => return Err(err("XPTY0004", "error description must be a string")),
+            }
+        } else {
+            "error() was called".into()
+        };
+        return Err(err("FOER0000", description));
+    }
     if args.is_empty()
         && matches!(focus.item, Item::Absent)
         && !["true", "false", "position", "last"].contains(&name)

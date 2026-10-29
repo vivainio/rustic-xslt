@@ -8,6 +8,7 @@
     "fn-codepoints-to-string",
     "fn-compare",
     "fn-deep-equal",
+    "fn-error",
     "fn-exactly-one",
     "fn-floor",
     "fn-head",
@@ -284,6 +285,10 @@
     [
       "fn-abs",
       "K2-ABSFunc-50"
+    ],
+    [
+      "fn-abs",
+      "fn-abs-1"
     ],
     [
       "fn-abs",
@@ -908,6 +913,10 @@
     [
       "fn-ceiling",
       "K-CeilingFunc-6"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-1"
     ],
     [
       "fn-ceiling",
@@ -2039,6 +2048,18 @@
     ],
     [
       "fn-exactly-one",
+      "K-SeqExactlyOneFunc-6"
+    ],
+    [
+      "fn-exactly-one",
+      "K-SeqExactlyOneFunc-7"
+    ],
+    [
+      "fn-exactly-one",
+      "K-SeqExactlyOneFunc-8"
+    ],
+    [
+      "fn-exactly-one",
       "K-SeqExactlyOneFunc-9"
     ],
     [
@@ -2116,6 +2137,10 @@
     [
       "fn-floor",
       "K-FloorFunc-6"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-1"
     ],
     [
       "fn-floor",
@@ -2376,6 +2401,10 @@
     [
       "fn-insert-before",
       "K-SeqInsertBeforeFunc-15"
+    ],
+    [
+      "fn-insert-before",
+      "K-SeqInsertBeforeFunc-16"
     ],
     [
       "fn-insert-before",
@@ -3347,6 +3376,10 @@
     ],
     [
       "fn-normalize-unicode",
+      "K-NormalizeUnicodeFunc-13"
+    ],
+    [
+      "fn-normalize-unicode",
       "cbcl-fn-normalize-unicode-002"
     ],
     [
@@ -3436,6 +3469,10 @@
     [
       "fn-one-or-more",
       "K-SeqOneOrMoreFunc-6"
+    ],
+    [
+      "fn-one-or-more",
+      "K-SeqOneOrMoreFunc-7"
     ],
     [
       "fn-one-or-more",
@@ -3556,6 +3593,10 @@
     [
       "fn-remove",
       "K-SeqRemoveFunc-12"
+    ],
+    [
+      "fn-remove",
+      "K-SeqRemoveFunc-13"
     ],
     [
       "fn-remove",
@@ -3716,6 +3757,10 @@
     [
       "fn-reverse",
       "K-SeqReverseFunc-14"
+    ],
+    [
+      "fn-reverse",
+      "K-SeqReverseFunc-15"
     ],
     [
       "fn-reverse",
@@ -4156,6 +4201,10 @@
     [
       "fn-subsequence",
       "K-SeqSubsequenceFunc-29"
+    ],
+    [
+      "fn-subsequence",
+      "K-SeqSubsequenceFunc-30"
     ],
     [
       "fn-subsequence",
@@ -5188,6 +5237,10 @@
     [
       "fn-zero-or-one",
       "K-SeqZeroOrOneFunc-6"
+    ],
+    [
+      "fn-zero-or-one",
+      "K-SeqZeroOrOneFunc-7"
     ],
     [
       "fn-zero-or-one",
@@ -7844,6 +7897,174 @@
     [
       "prod-SequenceType",
       "sequence-type-21"
+    ],
+    [
+      "fn-error",
+      "fn-error-1"
+    ],
+    [
+      "fn-error",
+      "fn-error-2"
+    ],
+    [
+      "fn-error",
+      "fn-error-3"
+    ],
+    [
+      "fn-error",
+      "fn-error-5"
+    ],
+    [
+      "fn-error",
+      "fn-error-6"
+    ],
+    [
+      "fn-error",
+      "K-ErrorFunc-1"
+    ],
+    [
+      "fn-error",
+      "K-ErrorFunc-3"
+    ],
+    [
+      "fn-error",
+      "K-ErrorFunc-4a"
+    ],
+    [
+      "fn-error",
+      "K-ErrorFunc-6"
+    ],
+    [
+      "fn-error",
+      "K-ErrorFunc-7"
+    ],
+    [
+      "fn-error",
+      "K-ErrorFunc-8"
+    ],
+    [
+      "fn-error",
+      "K-ErrorFunc-9"
+    ],
+    [
+      "fn-error",
+      "K-ErrorFunc-10"
+    ],
+    [
+      "fn-error",
+      "K2-ErrorFunc-1"
+    ],
+    [
+      "fn-error",
+      "K2-ErrorFunc-3"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-002"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-003"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-004"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-005"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-006"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-007"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-008"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-009"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-010"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-011"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-012"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-013"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-014"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-016"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-017"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-018"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-019"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-020"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-023"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-024"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-025"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-030"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-031"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-032"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-033"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-034"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-035"
     ]
   ]
 }
