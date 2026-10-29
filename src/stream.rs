@@ -467,6 +467,7 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                                         || b.selected.is_some()
                                         || !b.required.is_empty()
                                         || !b.excluded.is_empty()
+                                        || b.path_map.is_some()
                                         || !b.steps.is_empty()
                                             && (b.absolute
                                                 || b.steps.len() != 1

@@ -20,6 +20,8 @@ pub(crate) struct Branch {
     /// Additional pattern alternatives that must (or must not) match this item.
     pub required: Vec<Vec<Branch>>,
     pub excluded: Vec<Vec<Branch>>,
+    /// A slash whose right operand is a general pattern expression.
+    pub path_map: Option<(Box<Branch>, Expr)>,
 }
 
 #[derive(Clone)]
@@ -31,6 +33,7 @@ struct Parts {
     predicate: Option<Vec<Expr>>,
     required: Vec<Vec<Parts>>,
     excluded: Vec<Vec<Parts>>,
+    path_map: Option<(Box<Parts>, Expr)>,
 }
 
 fn unsupported() -> Diagnostic {
@@ -125,6 +128,7 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
                 predicate: None,
                 required: vec![],
                 excluded: vec![],
+                path_map: None,
             });
             Ok(())
         }
@@ -137,6 +141,7 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
                 predicate: Some(vec![]),
                 required: vec![],
                 excluded: vec![],
+                path_map: None,
             });
             Ok(())
         }
@@ -163,6 +168,7 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
                 predicate: None,
                 required: vec![],
                 excluded: vec![],
+                path_map: None,
             });
             Ok(())
         }
@@ -180,6 +186,7 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
                 predicate: None,
                 required: vec![],
                 excluded: vec![],
+                path_map: None,
             });
             Ok(())
         }
@@ -193,6 +200,7 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
                     predicate: None,
                     required: vec![],
                     excluded: vec![],
+                    path_map: None,
                 });
                 return Ok(());
             }
@@ -206,6 +214,7 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
                     predicate: None,
                     required: vec![],
                     excluded: vec![],
+                    path_map: None,
                 });
             } else {
                 collect(*base, &mut bases)?;
@@ -222,48 +231,14 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
         Expr::PathMap(left, right) => {
             let mut lefts = vec![];
             collect(*left, &mut lefts)?;
-            let mut rights = vec![];
-            collect(*right, &mut rights)?;
-            for left in &lefts {
-                for right in &rights {
-                    if right.absolute
-                        || right.selected.is_some()
-                        || right.predicate.is_some()
-                        || left.predicate.is_some()
-                        || !left.required.is_empty()
-                        || !left.excluded.is_empty()
-                    {
-                        return Err(unsupported());
-                    }
-                    out.push(prepend(left, right.clone()));
-                }
+            for mut left in lefts {
+                left.path_map = Some((Box::new(left.clone()), *right.clone()));
+                out.push(left);
             }
             Ok(())
         }
         _ => Err(unsupported()),
     }
-}
-
-fn prepend(prefix: &Parts, mut suffix: Parts) -> Parts {
-    for group in &mut suffix.required {
-        for candidate in group {
-            *candidate = prepend(prefix, candidate.clone());
-        }
-    }
-    for group in &mut suffix.excluded {
-        for candidate in group {
-            *candidate = prepend(prefix, candidate.clone());
-        }
-    }
-    let mut steps = prefix.steps.clone();
-    steps.append(&mut suffix.steps);
-    let mut gaps = prefix.gaps.clone();
-    gaps.append(&mut suffix.gaps);
-    suffix.absolute = prefix.absolute;
-    suffix.selected = prefix.selected.clone();
-    suffix.steps = steps;
-    suffix.gaps = gaps;
-    suffix
 }
 
 pub(crate) fn parse(
@@ -329,6 +304,9 @@ fn into_branch(p: Parts) -> Branch {
             .into_iter()
             .map(|group| group.into_iter().map(into_branch).collect())
             .collect(),
+        path_map: p
+            .path_map
+            .map(|(prefix, expression)| (Box::new(into_branch(*prefix)), expression)),
     }
 }
 
@@ -352,6 +330,10 @@ pub(crate) fn matches_item<'a>(
 ) -> Result<bool, Diagnostic> {
     budget.tick()?;
     let base_matches = match item {
+        Item::Node(node) if branch.path_map.is_some() => {
+            let (prefix, expression) = branch.path_map.as_ref().unwrap();
+            path_map_contains(prefix, expression, *node, vars, budget, backwards)?
+        }
         Item::Node(node) if branch.selected.is_some() && branch.steps.is_empty() => {
             let mut scope = vars.clone();
             scope.insert(xpath::CURRENT_ITEM.into(), vec![Item::Node(*node)]);
@@ -409,6 +391,10 @@ pub(crate) fn expressions(branch: &Branch) -> std::vec::IntoIter<&Expr> {
         expressions.extend(branch.selected.iter());
         expressions.extend(branch.predicate.iter().flatten());
         expressions.extend(branch.steps.iter().flat_map(|step| &step.predicates));
+        if let Some((prefix, expression)) = &branch.path_map {
+            expressions.push(expression);
+            collect(prefix, expressions);
+        }
         for candidate in branch.required.iter().flatten() {
             collect(candidate, expressions);
         }
@@ -419,6 +405,35 @@ pub(crate) fn expressions(branch: &Branch) -> std::vec::IntoIter<&Expr> {
     let mut result = vec![];
     collect(branch, &mut result);
     result.into_iter()
+}
+
+fn path_map_contains<'a>(
+    prefix: &Branch,
+    expression: &Expr,
+    candidate: XNode<'a>,
+    vars: &Variables<'a>,
+    budget: &mut Budget,
+    backwards: bool,
+) -> Result<bool, Diagnostic> {
+    let mut context = Some(candidate);
+    while let Some(node) = context {
+        budget.tick()?;
+        if matches_item(prefix, &Item::Node(node), vars, budget, backwards)? {
+            let focus = Focus {
+                item: Item::Node(node),
+                position: 1,
+                size: 1,
+            };
+            if xpath::eval(expression, &focus, vars, budget, 1, backwards)?
+                .iter()
+                .any(|item| matches!(item, Item::Node(found) if *found == candidate))
+            {
+                return Ok(true);
+            }
+        }
+        context = node.parent();
+    }
+    Ok(false)
 }
 
 fn matches_inner<'a>(

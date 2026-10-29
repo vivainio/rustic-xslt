@@ -1729,3 +1729,18 @@ conformance claims. Smaller tested increments are committed independently.
   selected cases.
 - Validation: all 43 Python harness tests, mode and pattern suites and the pinned
   XSLT gate pass.
+
+## Increment 145: evaluate right-hand pattern expressions in context
+
+- Slash patterns with a general right operand now evaluate that expression from
+  each candidate left-hand anchor and test whether the result contains the
+  candidate. This keeps `except` exclusions relative to the same anchor that
+  selected the descendant, including parentless constructed trees.
+- Record streaming rejects these context-dependent path patterns. Added coverage
+  for a nested descendant that is excluded under its nearest parent but selected
+  under an outer matching ancestor.
+- The pinned XSLT gate now has 809 passing cases (one new, zero regressions), 346
+  engine failures, 264 harness errors and 153 profile exclusions across 1,572
+  selected cases.
+- Validation: all-feature Rust tests, all-target/all-feature Clippy, 43 Python
+  harness tests and the pinned XSLT gate pass.
