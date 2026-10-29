@@ -1895,3 +1895,12 @@ conformance claims. Smaller tested increments are committed independently.
   275 engine failures, 264 harness errors and 153 profile exclusions.
 - Validation: HTML/XML serializer tests, all-target/all-feature Clippy and the
   full pinned XSLT regression gate pass.
+
+## Increment 161: preserve HTML result-document public identifiers
+
+- Result-document DOCTYPE overrides retain public identifiers independently of
+  system identifiers, leaving method-specific suppression to the serializer.
+  Public-identifier AVTs are evaluated even when the system identifier is absent.
+- Added a regression for an HTML result document with a public-only DOCTYPE.
+- Validation: seven result-document tests, all-target/all-feature Clippy and
+  the full 880-case pinned XSLT regression gate pass without regressions.

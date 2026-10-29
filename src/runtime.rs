@@ -2257,17 +2257,12 @@ fn run_tasks<'a>(
                                 .map(|value| parts(value, &focus, &env, budget, sheet.backwards))
                                 .transpose()?
                                 .or(inherited.system);
-                            let public = if system.is_some() {
-                                spec.doctype_public
-                                    .as_ref()
-                                    .map(|value| {
-                                        parts(value, &focus, &env, budget, sheet.backwards)
-                                    })
-                                    .transpose()?
-                                    .or(inherited.public)
-                            } else {
-                                None
-                            };
+                            let public = spec
+                                .doctype_public
+                                .as_ref()
+                                .map(|value| parts(value, &focus, &env, budget, sheet.backwards))
+                                .transpose()?
+                                .or(inherited.public);
                             doctype = Some(crate::result::Doctype { public, system });
                         }
                         let nested = Output::new(limits.max_output_bytes, text_method)

@@ -95,3 +95,12 @@ fn nested_result_documents_cannot_reuse_an_open_destination() {
     let error = run(r#"<xsl:result-document href="same.xml"><outer/><xsl:result-document href="same.xml"><inner/></xsl:result-document></xsl:result-document>"#).unwrap_err();
     assert_eq!(error.code, "XTDE1490");
 }
+
+#[test]
+fn html_result_documents_retain_public_only_doctypes() {
+    let result = run(r#"<xsl:result-document method="html" doctype-public="PUBLIC"><html/></xsl:result-document>"#).unwrap();
+    assert_eq!(
+        result.principal,
+        "<!DOCTYPE html PUBLIC \"PUBLIC\">\n<html></html>"
+    );
+}
