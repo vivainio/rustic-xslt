@@ -36,6 +36,42 @@ class Assertions(unittest.TestCase):
         self.assertNotEqual(canonical(fragment('<r/><?after value?>')), canonical(fragment('<r/>')))
         self.assertEqual(canonical(fragment('<!DOCTYPE r><r/>')), canonical(fragment('<r/>')))
 
+    def test_serialization_regex_uses_xpath_flags_and_external_string_parameters(self):
+        requests = []
+        class Driver:
+            def call(self, request):
+                requests.append(request)
+                return {"output": "true", "diagnostics": []}
+        check = node('<serialization-matches flags="is">A.*B</serialization-matches>')
+        preflight(check)
+        value = "not XML: < & ' \" \n a b"
+        self.assertTrue(assertion(check, {"output": value}, Path(), Driver())[0])
+        self.assertEqual(requests[0]["params"], {"subject": value, "pattern": "A.*B", "flags": "is"})
+        self.assertEqual(requests[0]["source"], "")
+        class FalseDriver:
+            def call(self, request):
+                return {"output": "false"}
+        self.assertFalse(assertion(check, {"output": value}, Path(), FalseDriver())[0])
+
+    def test_serialization_regex_evaluator_failures_are_harness_errors(self):
+        check = node('<serialization-matches>(</serialization-matches>')
+        class Driver:
+            def call(self, request):
+                return {"diagnostics": [{"code": "FORX0002", "message": "invalid pattern"}]}
+        with self.assertRaises(HarnessError):
+            assertion(check, {"output": "x"}, Path(), Driver())
+        with self.assertRaises(HarnessError):
+            preflight(node('<any-of><assert-xml/><serialization-matches flags="j"/></any-of>'))
+
+    def test_serialization_error_assertions_require_serialization_codes(self):
+        check = node('<assert-serialization-error code="*"/>')
+        preflight(check)
+        for code in ["XPTY0004", "XTDE0040", "RUST_XSLT_UNSUPPORTED"]:
+            self.assertFalse(assertion(check, {"diagnostics": [{"code": code}]}, Path())[0])
+        self.assertTrue(assertion(check, {"diagnostics": [{"code": "SERE0008"}]}, Path())[0])
+        check.set("code", "SERE0008")
+        self.assertFalse(assertion(check, {"diagnostics": [{"code": "SEPM0009"}]}, Path())[0])
+
     def test_serialization_dependencies_select_the_available_processor_feature(self):
         from run import dependencies, ProfileExcluded
         dependencies(node(f'<root xmlns="{NS[1:-1]}"><dependencies><feature value="serialization"/></dependencies></root>'))

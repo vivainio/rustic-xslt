@@ -184,7 +184,7 @@ def dependencies(node):
         elif kind == "feature" and value in {"streaming", "schema_aware", "schemaImport", "schemaValidation", "schemaAware", "static_typing", "staticTyping", "streaming-fallback"}:
             if positive:
                 raise ProfileExcluded(f"optional processor profile: {value}")
-        elif kind == "feature" and value in {"backwards_compatibility", "namespace_axis", "serialization"}:
+        elif kind == "feature" and value in {"backwards_compatibility", "namespace_axis", "serialization", "XPath_3.1"}:
             if not positive:
                 raise ProfileExcluded(f"requires processor without {value}")
         else:
@@ -246,11 +246,13 @@ def preflight(assertion):
             raise HarnessError(f"empty {kind}")
         for a in assertion:
             preflight(a)
-    elif kind not in {"error", "assert-xml", "assert-serialization", "assert-string-value", "assert"}:
+    elif kind not in {"error", "assert-serialization-error", "serialization-matches", "assert-xml", "assert-serialization", "assert-string-value", "assert"}:
         raise HarnessError(f"unsupported assertion: {kind}")
     else:
-        allowed = {"error": ["code"], "assert-xml": ["file", "ignore-prefixes"], "assert-serialization": ["file", "ignore-prefixes", "method", "encoding"], "assert-string-value": ["normalize-space"], "assert": []}[kind]
+        allowed = {"error": ["code"], "assert-serialization-error": ["code"], "serialization-matches": ["file", "flags"], "assert-xml": ["file", "ignore-prefixes"], "assert-serialization": ["file", "ignore-prefixes", "method", "encoding"], "assert-string-value": ["normalize-space"], "assert": []}[kind]
         check_attrs(assertion, allowed)
+        if kind == "serialization-matches" and any(flag not in "smixq" for flag in assertion.get("flags", "")):
+            raise HarnessError("unsupported serialization regex flags")
         if kind == "assert-serialization":
             if assertion.get("method", "xml") not in {"xml", "xml-fragment", "html", "xhtml", "text", "json", "adaptive"}:
                 raise HarnessError(f"unsupported serialization assertion method: {assertion.get('method')}")
@@ -278,11 +280,13 @@ def assertion(a, response, base, driver=None):
         ok, reason = assertion(a[0], response, base, driver)
         return not ok, "negated assertion: " + reason
     errors = response.get("diagnostics", [])
-    if kind == "error":
+    if kind in {"error", "assert-serialization-error"}:
         codes = a.get("code", "").split()
         if not codes:
             raise HarnessError("missing expected error code")
         actual = [e["code"] for e in errors]
+        if kind == "assert-serialization-error":
+            actual = [code for code in actual if code.startswith("SE")]
         ok = any(c in codes or "*" in codes and not c.startswith(("RUST_", "INTERNAL")) for c in actual)
         return ok, f"expected error {codes}; got {actual}"
     if errors:
@@ -299,6 +303,28 @@ def assertion(a, response, base, driver=None):
         if evaluated.get("output") not in {"true", "false"}:
             raise HarnessError("XPath assertion returned no boolean")
         return evaluated["output"] == "true", "XPath assertion was false"
+
+    if kind == "serialization-matches":
+        if driver is None:
+            raise HarnessError("serialization regex assertion requires the engine driver")
+        try:
+            pattern = read_resource(a, base) if a.get("file") else text(a)
+        except (OSError, UnicodeError) as e:
+            raise HarnessError(f"cannot read serialization regex: {e}") from e
+        style = ('<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">'
+                 '<xsl:output method="text"/><xsl:param name="subject"/><xsl:param name="pattern"/>'
+                 '<xsl:param name="flags"/><xsl:template name="entry">'
+                 '<xsl:value-of select="matches($subject, $pattern, $flags)"/>'
+                 '</xsl:template></xsl:stylesheet>')
+        evaluated = driver.call({"stylesheet": style, "source": "", "initialTemplate": "entry",
+                                 "params": {"subject": output, "pattern": pattern, "flags": a.get("flags", "")}})
+        if evaluated.get("diagnostics"):
+            e = evaluated["diagnostics"][0]
+            raise HarnessError(f"serialization regex could not be evaluated: {e['code']}: {e['message']}")
+        if evaluated.get("output") not in {"true", "false"}:
+            raise HarnessError("serialization regex returned no boolean")
+        equal = evaluated["output"] == "true"
+        return equal, "serialization regex did not match" if not equal else ""
 
     if kind in {"assert-xml", "assert-serialization"}:
         encoding = a.get("encoding", "utf-8-sig") if kind == "assert-serialization" else "utf-8-sig"

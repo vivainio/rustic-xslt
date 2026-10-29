@@ -1553,3 +1553,19 @@ conformance claims. Smaller tested increments are committed independently.
 - Added exact/non-XML serialization, encoding, prefix, preflight and document/
   fragment whitespace regressions. All 36 Python harness tests, whitespace
   checks and the expanded pinned XSLT regression gate pass.
+
+## Increment 134: serialization regexes and error assertions
+
+- Added serialization-matches using the engine's XPath matches() implementation,
+  catalog flags and external string parameters; raw serialized text is never
+  interpreted as XML or interpolated into XPath. Pattern files are supported;
+  invalid flags/evaluator errors remain explicit harness errors.
+- Added assert-serialization-error with exact serialization-code matching. Its
+  wildcard accepts only serialization errors, not arbitrary transformation errors
+  or implementation-gap diagnostics. Recognized the XPath_3.1 feature dependency.
+- The expanded pinned XSLT gate now has 694 passes (54 new, zero regressions),
+  347 engine failures, 224 harness errors and 153 profile exclusions across 1,418
+  cases. Newly reachable cases account for increased explicit engine failures.
+- Added regex parameter/flag, false-match, evaluator-error, invalid-preflight and
+  serialization-error regressions. All 39 Python tests, whitespace checks and the
+  expanded pinned XSLT regression gate pass.

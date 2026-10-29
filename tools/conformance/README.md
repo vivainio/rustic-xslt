@@ -28,15 +28,16 @@ python3 -m unittest discover -s tools/conformance -p 'test_*.py'
 
 The gate fails for missing or regressed baseline cases. Other failures and
 harness errors are still named and counted, never reclassified as passes.
-The current gate contains 640 passing cases out of 1,418 selected cases: 239 engine
-failures, 386 harness errors, 153 optional-profile exclusions. Do not present the
-640 cases as an applicable-suite pass rate.
+The current gate contains 694 passing cases out of 1,418 selected cases: 347 engine
+failures, 224 harness errors, 153 optional-profile exclusions. Do not present the
+694 cases as an applicable-suite pass rate.
 
 Supported setup: local stylesheet/source files or inline content, local/global
 named environments, string/boolean/numeric/empty parameter literals, ordinary/tunnel
 initial template/mode parameters and selection,
 and serialization selection. Supported assertions: exact W3C error codes
 (including explicit `*`), structural `assert-xml`, exact `assert-serialization` (with explicit prefix ignoring),
+`serialization-matches` via XPath regexes, exact `assert-serialization-error`,
 `assert-string-value`, supported XPath `assert` expressions, all-of/any-of/not. XML comparison preserves tree shape,
 element/fragment text and whitespace, comments, PIs and prefixes unless ignore-prefixes is requested;
 valid document prolog/epilog whitespace is excluded by XML parsing. Serialization
@@ -54,7 +55,7 @@ XPath assertions run through a development-only stylesheet with `$result` bound
 to the XML result document and the catalog namespace scope preserved. Unsupported
 assertion expressions are harness errors. No standalone XPath product is added.
 
-Still missing: raw XDM result access, complete XPath assertion coverage, regex assertions,
+Still missing: raw XDM result access, complete XPath assertion coverage,
 secondary-result/message assertions, general parameter expressions and static catalog
 parameters, context-item selectors, package/resource/schema environments,
 collations and additional dependency configurations. These appear in reports
