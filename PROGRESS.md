@@ -1662,3 +1662,17 @@ conformance claims. Smaller tested increments are committed independently.
   selected cases. All 18,735 QT3 baseline cases remain green.
 - Validation: all-feature Rust tests, all-target/all-feature Clippy, 41 Python
   harness tests, and both pinned gates pass.
+
+## Increment 140: variable-anchored and filtered patterns
+
+- Match patterns can use global variable references as selection anchors, alone
+  or at the head of a path, and can filter selected nodes. Pattern filters are
+  applied after the candidate's underlying pattern matches.
+- Explicit descendant and descendant-or-self name tests now use the existing
+  reverse-ancestry matcher. Added focused coverage for variable identity,
+  descendant matching and filtered variable anchors.
+- Expanded the pinned XSLT gate to 763 passing cases (nine new, zero regressions),
+  392 engine failures, 264 harness errors and 153 profile exclusions across 1,572
+  selected cases. All QT3 baseline cases remain green.
+- Validation: all-feature Rust tests, all-target/all-feature Clippy, 41 Python
+  harness tests, and both pinned gates pass.

@@ -13,7 +13,7 @@ pub(crate) struct Branch {
     pub gaps: Vec<bool>,
     pub absolute: bool,
     pub priority: f64,
-    /// Patterns such as `key('k', 'v')` match the nodes an expression selects.
+    /// Selection-anchored patterns such as `key()`, `id()` or `$nodes//item`.
     pub selected: Option<Expr>,
     /// A singleton-focus predicate pattern, including bare `.`.
     pub predicate: Option<Vec<Expr>>,
@@ -43,10 +43,26 @@ fn is_descendant_separator(step: &Step) -> bool {
 
 fn append(parts: &mut Parts, steps: Vec<Step>) -> Result<(), Diagnostic> {
     let mut gap = false;
-    for step in steps {
+    for mut step in steps {
         if is_descendant_separator(&step) {
             gap = true;
             continue;
+        }
+        if matches!(step.axis, Axis::Descendant | Axis::DescendantOrSelf) {
+            if matches!(step.axis, Axis::Descendant) && matches!(step.test, Test::AttributeKind(_))
+            {
+                return Err(unsupported());
+            }
+            gap = true;
+            // The reverse matcher uses the separator to express the axis relation.
+            // Keep the step's axis for node tests and predicate evaluation.
+            if step.predicates.is_empty() {
+                step.axis = if matches!(step.test, Test::AttributeKind(_)) {
+                    Axis::Attribute
+                } else {
+                    Axis::Child
+                };
+            }
         }
         if !matches!(step.axis, Axis::Child | Axis::Attribute) {
             return Err(unsupported());
@@ -100,11 +116,25 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
         Expr::Filter(base, predicates) => {
             let mut parts = vec![];
             collect(*base, &mut parts)?;
-            if parts.len() != 1 || parts[0].predicate.is_none() {
+            if parts.is_empty() {
                 return Err(unsupported());
             }
-            parts[0].predicate.as_mut().unwrap().extend(predicates);
+            for part in &mut parts {
+                part.predicate
+                    .get_or_insert_with(Vec::new)
+                    .extend(predicates.iter().cloned());
+            }
             out.extend(parts);
+            Ok(())
+        }
+        Expr::Variable(name) => {
+            out.push(Parts {
+                absolute: false,
+                steps: vec![],
+                gaps: vec![],
+                selected: Some(Expr::Variable(name)),
+                predicate: None,
+            });
             Ok(())
         }
         Expr::Call(name, args)
@@ -123,6 +153,16 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
             Ok(())
         }
         Expr::Path(base, steps) => {
+            if matches!(base.as_ref(), Expr::Variable(_)) {
+                out.push(Parts {
+                    absolute: false,
+                    steps: vec![],
+                    gaps: vec![],
+                    selected: Some(Expr::Path(base, steps)),
+                    predicate: None,
+                });
+                return Ok(());
+            }
             let mut bases = vec![];
             if matches!(*base, Expr::Context) {
                 bases.push(Parts {
@@ -242,6 +282,22 @@ pub(crate) fn matches_item<'a>(
 ) -> Result<bool, Diagnostic> {
     if let Some(predicates) = &branch.predicate {
         budget.tick()?;
+        let base_matches = match item {
+            Item::Node(node) if branch.selected.is_some() => selection_contains(
+                branch.selected.as_ref().unwrap(),
+                *node,
+                vars,
+                budget,
+                backwards,
+            )?,
+            Item::Node(node) if branch.absolute || !branch.steps.is_empty() => {
+                matches_inner(branch, *node, vars, budget, backwards)?
+            }
+            _ => true,
+        };
+        if !base_matches {
+            return Ok(false);
+        }
         let mut scope = vars.clone();
         scope.insert(xpath::CURRENT_ITEM.into(), vec![item.clone()]);
         return Ok(

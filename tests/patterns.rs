@@ -13,6 +13,32 @@ fn descendant_separators_match_any_depth() {
     let chain = r#"<xsl:template match="/"><xsl:apply-templates select="//*"/></xsl:template><xsl:template match="doc//sec//p">D</xsl:template>"#;
     assert_eq!(run(chain).unwrap(), "DD");
 }
+
+#[test]
+fn explicit_descendant_axes_match_any_depth_in_patterns() {
+    let sheet = Stylesheet::compile(
+        r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="doc"><xsl:apply-templates/></xsl:template><xsl:template match="doc/descendant::foo">D</xsl:template><xsl:template match="doc/descendant-or-self::bar">S</xsl:template></xsl:stylesheet>"#,
+    ).unwrap();
+    assert_eq!(
+        sheet
+            .transform("<doc><foo/><x><foo/><bar/></x></doc>")
+            .unwrap(),
+        "DDS"
+    );
+}
+
+#[test]
+fn global_variable_anchors_select_pattern_candidates() {
+    let sheet = Stylesheet::compile(
+        r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:variable name="roots" select="/doc"/><xsl:variable name="selected" select="/doc/foo"/><xsl:template match="/"><xsl:apply-templates/></xsl:template><xsl:template match="*"><xsl:apply-templates/></xsl:template><xsl:template match="$roots//baz">B</xsl:template><xsl:template match="$selected[@kind = 'hit']">H</xsl:template><xsl:template match="text()"/></xsl:stylesheet>"#,
+    ).unwrap();
+    assert_eq!(
+        sheet
+            .transform("<doc><foo kind='hit'><baz/><baz/></foo><foo><baz/></foo></doc>")
+            .unwrap(),
+        "HB"
+    );
+}
 #[test]
 fn parenthesized_unions_expand_into_alternatives() {
     let templates = r#"<xsl:template match="/"><xsl:apply-templates select="//*"/></xsl:template><xsl:template match="chap/(p|q)">X</xsl:template><xsl:template match="(sec|doc)/p">Y</xsl:template>"#;
