@@ -96,3 +96,22 @@ fn restricted_encodings_reject_unrepresentable_markup_names() {
         "<out attr=\"&#xE9;\"></out>"
     );
 }
+
+#[test]
+fn output_limits_include_encoding_expansion() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output encoding="US-ASCII" omit-xml-declaration="yes"/><xsl:template match="/"><a>é</a></xsl:template></xsl:stylesheet>"#).unwrap();
+    let options = rust_xslt::TransformOptions {
+        limits: rust_xslt::Limits {
+            max_output_bytes: 10,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(
+        sheet
+            .transform_with_options("<r/>", &options)
+            .unwrap_err()
+            .code,
+        "XPDY0130"
+    );
+}

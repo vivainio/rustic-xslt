@@ -1969,3 +1969,13 @@ conformance claims. Smaller tested increments are committed independently.
 - Added regressions for non-ASCII element names, attribute names and values.
 - Validation: encoding and result-document tests, all-target/all-feature Clippy
   and the full 882-case pinned XSLT gate pass without regressions.
+
+## Increment 169: final principal serialization size limit
+
+- The implicit principal result checks its byte limit after indentation and
+  encoding, catching expansion from character references and CDATA boundaries.
+  Explicit result-document serialization already checks its final size.
+- Added a regression where raw output fits but US-ASCII references exceed the
+  configured output limit and must report `XPDY0130`.
+- Validation: encoding and declaration tests, all-target/all-feature Clippy and
+  the full 882-case pinned XSLT gate pass without regressions.

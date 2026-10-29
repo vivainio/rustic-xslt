@@ -1182,7 +1182,15 @@ fn execute<'a>(
     } else {
         result
     };
-    sheet.encoding.apply(&result, !sheet.text_output)
+    let result = sheet.encoding.apply(&result, !sheet.text_output)?;
+    if result.len() > limits.max_output_bytes {
+        return Err(Diagnostic::new(
+            "XPDY0130",
+            "output byte limit exceeded",
+            "run",
+        ));
+    }
+    Ok(result)
 }
 fn run_tasks<'a>(
     run: &Run<'a, '_>,
