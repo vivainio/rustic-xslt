@@ -1028,3 +1028,43 @@ fn metadata_name(name: &Name, markup: Markup) -> Option<String> {
         html_name(name, markup)
     }
 }
+
+pub(crate) fn validate_media_type(value: &str) -> Result<(), Diagnostic> {
+    let mut quoted = false;
+    let mut escaped = false;
+    let mut start = 0;
+    let mut parameter = false;
+    for (index, c) in value
+        .char_indices()
+        .chain(std::iter::once((value.len(), ';')))
+    {
+        if escaped {
+            escaped = false;
+            continue;
+        }
+        if quoted && c == '\\' {
+            escaped = true;
+            continue;
+        }
+        if c == '"' {
+            quoted = !quoted;
+        }
+        if c == ';' && !quoted {
+            let segment = &value[start..index];
+            if parameter
+                && segment
+                    .split_once('=')
+                    .is_some_and(|(name, _)| name.trim().eq_ignore_ascii_case("charset"))
+            {
+                return Err(Diagnostic::new(
+                    "SEPM0016",
+                    "media-type must not specify a charset parameter",
+                    "run",
+                ));
+            }
+            parameter = true;
+            start = index + 1;
+        }
+    }
+    Ok(())
+}

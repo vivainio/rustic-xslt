@@ -167,3 +167,11 @@ fn uri_escaping_avts_have_static_scope_and_dynamic_value_errors() {
     assert_eq!(error.code, "XPST0008");
     assert_eq!(error.phase, "compile");
 }
+
+#[test]
+fn explicit_charset_parameters_in_media_types_are_rejected() {
+    let error = run(r#"<xsl:variable name="media" select="'text/html; CHARSET = UTF-8'"/><xsl:result-document method="html" media-type="{$media}"><head/></xsl:result-document>"#).unwrap_err();
+    assert_eq!(error.code, "SEPM0016");
+    let valid = run(r#"<xsl:result-document method="html" media-type='text/html; note="x;charset=y"'><head/></xsl:result-document>"#).unwrap();
+    assert!(valid.principal.contains("charset=UTF-8"));
+}

@@ -1063,6 +1063,9 @@ fn execute<'a>(
         pending = remaining;
     }
     let globals = Rc::new(globals);
+    if let Some(media) = &sheet.media_type {
+        crate::result::validate_media_type(media)?;
+    }
     let output = Output::new(limits.max_output_bytes, sheet.text_output)
         .with_serialization(sheet.markup, sheet.doctype.clone())
         .with_uri_escaping(sheet.escape_uri_attributes)
@@ -2316,6 +2319,7 @@ fn run_tasks<'a>(
                             .transpose()?
                             .or(settings.media_type.clone())
                             .unwrap_or_else(|| "text/html".into());
+                        crate::result::validate_media_type(&media)?;
                         let nested = Output::new(limits.max_output_bytes, text_method)
                             .with_serialization(markup, doctype)
                             .with_metadata(crate::result::Metadata {

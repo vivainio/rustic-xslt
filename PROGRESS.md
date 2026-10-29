@@ -2205,3 +2205,12 @@ conformance claims. Smaller tested increments are committed independently.
 - Added a regression comparing br/img with uppercase BR/IMG in XHTML output.
 - Validation: nineteen serializer tests, all-target/all-feature Clippy and the
   full 929-case pinned XSLT gate pass without regressions.
+
+## Increment 194: reject charset parameters in media-type
+
+- Media-type validation rejects explicit charset parameters with `SEPM0016`,
+  keeping generated encoding metadata tied to the actual serializer encoding.
+  Parsing respects quoted parameter values and escaped characters.
+- Added dynamic charset rejection and quoted-semicolon preservation regressions.
+- Validation: fourteen result-document tests, all-target/all-feature Clippy and
+  the full 929-case pinned XSLT gate pass without regressions.
