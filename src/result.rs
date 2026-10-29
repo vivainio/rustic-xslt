@@ -1066,5 +1066,12 @@ pub(crate) fn validate_media_type(value: &str) -> Result<(), Diagnostic> {
             start = index + 1;
         }
     }
+    if quoted || escaped {
+        return Err(Diagnostic::new(
+            "SEPM0016",
+            "media-type has an unterminated quoted parameter",
+            "run",
+        ));
+    }
     Ok(())
 }

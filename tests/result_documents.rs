@@ -183,3 +183,11 @@ fn explicit_principal_media_type_overrides_unused_implicit_settings() {
     assert!(output.contains("content=\"text/html; charset=UTF-8\""));
     assert!(!output.contains("wrong"));
 }
+
+#[test]
+fn media_types_reject_unterminated_quoted_parameters() {
+    let error = run(r#"<xsl:result-document method="html" media-type='text/html; note=&quot;open'><head/></xsl:result-document>"#).unwrap_err();
+    assert_eq!(error.code, "SEPM0016");
+    assert_eq!(error.phase, "run");
+    assert!(error.message.contains("unterminated"));
+}

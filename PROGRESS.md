@@ -2232,3 +2232,11 @@ conformance claims. Smaller tested increments are committed independently.
 - Added a regression overriding an implicit charset-bearing media type.
 - Validation: result-document and streaming tests, all-target/all-feature Clippy
   and the full 929-case pinned XSLT gate pass without regressions.
+
+## Increment 197: malformed media-type quoted parameters
+
+- Media-type validation rejects unterminated quoted parameters with runtime
+  `SEPM0016` instead of emitting an invalid metadata value.
+- Added a regression for a result-document media type with an open quote.
+- Validation: sixteen result-document tests, all-target/all-feature Clippy and
+  the full 929-case pinned XSLT gate pass without regressions.
