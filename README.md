@@ -206,7 +206,7 @@ A pinned, partial catalog runner and a 381-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. An initial internal QT3 bridge
-also gates 1,639 passing XPath cases at the pinned XPath suite revision.
+also gates 1,657 passing XPath cases at the pinned XPath suite revision.
 The example JSON-lines driver
 and its JSON dependency are development-only.
 

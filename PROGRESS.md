@@ -641,5 +641,16 @@ conformance claims. Smaller tested increments are committed independently.
   all 44 selected string-to-codepoints cases pass. A million-item codepoint range
   remains a named execution-budget failure under the conformance driver limits.
 
-Next: expression grammar validation and further XPath coverage.
+## Increment 53: conditional operand grammar
+
+- Unparenthesized if expressions are rejected in arithmetic, logical, comparison,
+  concatenation, range and unary operands, matching ExprSingle placement rules.
+- Parenthesized forms, nested else conditions, function arguments, sequence items
+  and binding bodies remain valid. Contextual keyword element names still work.
+- 337 Rust integration tests, 27 harness tests and Clippy/format pass. All 381
+  XSLT and previous QT3 gate cases remain green.
+- Thirty-six QT3 sets: 3,200 cases, 1,657 pass / 879 engine failures / 52 harness
+  errors / 612 profile exclusions. Conditional expressions add 18 gate cases.
+
+Next: codepoint string comparison and further XPath coverage.
 

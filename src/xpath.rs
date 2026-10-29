@@ -478,12 +478,13 @@ impl Parser {
         result
     }
     fn expression_inner(&mut self, minimum: u8) -> Result<Expr, Diagnostic> {
-        if minimum > 2
-            && matches!(self.peek(), Token::Name(n) if ["for", "let", "some", "every"].contains(&n.as_str()))
-            && self.tokens.get(self.index + 1) == Some(&Token::Symbol("$".into()))
-        {
+        let binding = matches!(self.peek(), Token::Name(n) if ["for", "let", "some", "every"].contains(&n.as_str()))
+            && self.tokens.get(self.index + 1) == Some(&Token::Symbol("$".into()));
+        let conditional = matches!(self.peek(), Token::Name(n) if n == "if")
+            && self.tokens.get(self.index + 1) == Some(&Token::Symbol("(".into()));
+        if minimum > 2 && (binding || conditional) {
             return Err(syntax(
-                "binding expressions require parentheses in this operand",
+                "conditional and binding expressions require parentheses in this operand",
             ));
         }
         let mut left = self.primary()?;

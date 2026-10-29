@@ -69,8 +69,8 @@ python3 tools/conformance/qt3.py /path/to/qt3tests \
   --baseline tools/conformance/qt3-baseline.json
 ```
 
-The current selection contains 3,158 cases: 1,639 pass, 868 engine failures, 52
-harness errors and 599 profile exclusions. All 1,639 passing cases are recorded
+The current selection contains 3,200 cases: 1,657 pass, 879 engine failures, 52
+harness errors and 612 profile exclusions. All 1,657 passing cases are recorded
 in a gate.
 Counts describe this selected development workload, not a conformance rate.
 
