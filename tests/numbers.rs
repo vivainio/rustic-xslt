@@ -448,3 +448,67 @@ fn format_number_applies_pictures_grouping_percent_and_exponents() {
         assert_eq!(run(expr).unwrap_err().code, "FODF1310", "{expr}");
     }
 }
+#[test]
+fn decimal_formats_customize_separators_digits_and_special_values() {
+    let run = |declarations: &str, expr: &str| {
+        Stylesheet::compile(&format!(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:f="urn:f"><xsl:output method="text"/>{declarations}<xsl:template match="/"><xsl:sequence select="{expr}"/></xsl:template></xsl:stylesheet>"#))
+            .and_then(|s| s.transform("<r/>"))
+    };
+    let european = r#"<xsl:decimal-format name="eu" decimal-separator="," grouping-separator="." infinity="oo" NaN="n/a" minus-sign="~"/>"#;
+    assert_eq!(
+        run(european, "format-number(1234567.891, '#.##0,00', 'eu')").unwrap(),
+        "1.234.567,89"
+    );
+    assert_eq!(run(european, "format-number(-5, '0', 'eu')").unwrap(), "~5");
+    assert_eq!(
+        run(european, "format-number(xs:double('INF'), '0', 'eu')").unwrap(),
+        "oo"
+    );
+    assert_eq!(
+        run(european, "format-number(xs:double('NaN'), '0', 'eu')").unwrap(),
+        "n/a"
+    );
+    assert_eq!(run(european, "format-number(12.5, '0.0')").unwrap(), "12.5");
+    let default_override = r#"<xsl:decimal-format decimal-separator="|" grouping-separator="."/>"#;
+    assert_eq!(
+        run(default_override, "format-number(931.4857, '000.000|###')").unwrap(),
+        "000.931|486"
+    );
+    let bang = r#"<xsl:decimal-format digit="!" pattern-separator="\"/>"#;
+    assert_eq!(
+        run(bang, "format-number(26931.4, '+!!!,!!!.!!!\\-!!,!!!.!!!')").unwrap(),
+        "+26,931.4"
+    );
+    let arabic = r#"<xsl:decimal-format name="ar" zero-digit="&#x660;"/>"#;
+    assert_eq!(
+        run(arabic, "format-number(1234, '\u{660}\u{660}\u{660}\u{660}', 'ar')").unwrap(),
+        "\u{661}\u{662}\u{663}\u{664}"
+    );
+    let qualified = r#"<xsl:decimal-format name="f:fmt" percent="p"/>"#;
+    assert_eq!(
+        run(qualified, "format-number(0.5, '0p', 'f:fmt')").unwrap(),
+        "50p"
+    );
+    assert_eq!(
+        run("", "format-number(1, '0', 'missing')")
+            .unwrap_err()
+            .code,
+        "FODF1280"
+    );
+    assert_eq!(
+        run(r#"<xsl:decimal-format percent="x" digit="x"/>"#, "1")
+            .unwrap_err()
+            .code,
+        "XTSE1300"
+    );
+    assert_eq!(
+        run(
+            r#"<xsl:decimal-format name="a" digit="x"/><xsl:decimal-format name="a" digit="y"/>"#,
+            "1"
+        )
+        .unwrap_err()
+        .code,
+        "XTSE1290"
+    );
+    assert!(run(r#"<xsl:decimal-format decimal-separator="ab"/>"#, "1").is_err());
+}

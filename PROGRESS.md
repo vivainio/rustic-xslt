@@ -1121,3 +1121,14 @@ conformance claims. Smaller tested increments are committed independently.
   are never caught, nesting is capped, and try inside attribute or other
   simple-content constructors, raw sequence variables and record streaming is
   rejected.
+
+## Increment 95: xsl:decimal-format
+
+- Added xsl:decimal-format (default and named formats; decimal, grouping, minus,
+  percent, per-mille, zero-digit, digit, pattern and exponent separators; infinity
+  and NaN strings) with the third argument of format-number(); pictures are
+  normalized against the format, so custom zero-digit families and literal text that
+  looks like picture syntax work. Invalid properties are XTSE1295/XTSE1300 and
+  conflicting declarations XTSE1290; unknown names raise FODF1280.
+- The QT3 driver turns decimal-format environments into declarations: 230 of the 269
+  fn-format-number cases now pass.

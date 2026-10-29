@@ -41,7 +41,7 @@ def dependencies(node):
             raise HarnessError(f"unsupported QT3 dependency: {kind}={value}")
 
 def environment(node, registry, seen=()):
-    result = {"source": "", "namespaces": {}}
+    result = {"source": "", "namespaces": {}, "decimal_formats": []}
     if node is None:
         return result
     reference = node.get("ref")
@@ -63,6 +63,8 @@ def environment(node, registry, seen=()):
             if not part.get("file") or "://" in part.get("file"):
                 raise HarnessError("QT3 source requires a local file")
             result["source"] = (base / part.get("file")).read_text(encoding="utf-8-sig")
+        elif kind == "decimal-format":
+            result.setdefault("decimal_formats", []).append(dict(part.attrib))
         elif kind == "schema":
             raise ProfileExcluded("optional schema-aware environment")
         else:
@@ -79,7 +81,7 @@ STANDARD_NAMESPACES = {
     "err": "http://www.w3.org/2005/xqt-errors",
 }
 
-def stylesheet(expression, bindings, assertion="count($result)"):
+def stylesheet(expression, bindings, assertion="count($result)", decimal_formats=()):
     # The query is global; assertion-only $result cannot satisfy a free query
     # variable. Generated namespace prefixes cannot appear in the query.
     xsl, value = "_qt3_xsl", "_qt3_value"
@@ -91,8 +93,11 @@ def stylesheet(expression, bindings, assertion="count($result)"):
     namespaces[xsl] = "http://www.w3.org/1999/XSL/Transform"
     namespaces[value] = "urn:rust-xslt:qt3:result"
     declarations = " ".join(f"xmlns:{p}={quoteattr(uri)}" for p, uri in namespaces.items() if p != "xml")
+    formats = "".join(
+        f"<{xsl}:decimal-format " + " ".join(f"{k}={quoteattr(v)}" for k, v in fmt.items()) + "/>"
+        for fmt in decimal_formats)
     start = (f'<{xsl}:stylesheet version="3.0" {declarations}>'
-             f'<{xsl}:output method="text"/>'
+             f'<{xsl}:output method="text"/>{formats}'
              f'<{xsl}:variable name="{value}:result" as="item()*" select={quoteattr(expression)}/>'
              f'<{xsl}:template name="entry"><{xsl}:variable name="result" as="item()*" select="${value}:result"/>')
     start += f'<{xsl}:value-of select={quoteattr(assertion)}/>'
@@ -135,9 +140,9 @@ def assertion(a, probe, expression, env, driver):
                      "(every $_item in ($result, $_expected) satisfies "
                      "count($result[deep-equal(., $_item)]) eq "
                      "count($_expected[deep-equal(., $_item)]))")
-        style = stylesheet(expression, env["namespaces"], assertion=condition)
+        style = stylesheet(expression, env["namespaces"], assertion=condition, decimal_formats=env.get("decimal_formats", ()))
     elif kind == "assert-deep-eq":
-        style = stylesheet(expression, env["namespaces"], assertion=f"deep-equal($result, ({value}))")
+        style = stylesheet(expression, env["namespaces"], assertion=f"deep-equal($result, ({value}))", decimal_formats=env.get("decimal_formats", ()))
     else:
         condition = {
             "assert": f"boolean(({value}))",
@@ -153,7 +158,7 @@ def assertion(a, probe, expression, env, driver):
             if a.get("normalize-space") == "true":
                 actual, value = f"normalize-space({actual})", " ".join(re.findall(r"[^ \t\r\n]+", value))
             condition = f"{actual} eq {literal(value)}"
-        style = stylesheet(expression, env["namespaces"], assertion=condition)
+        style = stylesheet(expression, env["namespaces"], assertion=condition, decimal_formats=env.get("decimal_formats", ()))
     response = driver.call({"stylesheet": style, "source": env["source"], "initialTemplate": "entry"})
     if response.get("diagnostics"):
         raise HarnessError("QT3 assertion evaluator: " + "; ".join(e.get("message", "") for e in response["diagnostics"]))
@@ -177,7 +182,7 @@ def run_case(case, base, registry, driver):
     if test is None:
         raise HarnessError("missing QT3 test expression")
     expression = (base / test.get("file")).read_text() if test.get("file") else text(test)
-    probe = driver.call({"stylesheet": stylesheet(expression, env["namespaces"]), "source": env["source"], "initialTemplate": "entry"})
+    probe = driver.call({"stylesheet": stylesheet(expression, env["namespaces"], decimal_formats=env.get("decimal_formats", ())), "source": env["source"], "initialTemplate": "entry"})
     answers = [assertion(a, probe, expression, env, driver) for a in result]
     reason = "; ".join(e.get("code", "") + ": " + e.get("message", "") for e in probe.get("diagnostics", []))
     return ("pass", "") if all(answers) else ("fail", reason or "QT3 assertion is false")

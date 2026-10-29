@@ -1528,6 +1528,7 @@ struct Declarations<'a> {
     functions: &'a mut BTreeMap<(String, usize), xpath::UserFunction>,
     keys: &'a mut BTreeMap<String, Vec<xpath::KeyDefinition>>,
     attribute_sets: &'a mut BTreeMap<String, AttributeSet>,
+    decimal_formats: &'a mut BTreeMap<String, crate::format_number::Format>,
 }
 type Resolver<'a> = &'a dyn Fn(&str) -> Result<String, Diagnostic>;
 fn declarations(
@@ -1542,6 +1543,7 @@ fn declarations(
         functions,
         keys,
         attribute_sets,
+        decimal_formats,
     } = state;
     for n in root.children() {
         if n.is_text() && !xml_space(n.text().unwrap_or_default()) {
@@ -1856,10 +1858,96 @@ fn declarations(
                         functions,
                         keys,
                         attribute_sets,
+                        decimal_formats,
                     },
                     Some(resolver),
                     depth + 1,
                 )?;
+            }
+            "decimal-format" => {
+                attrs(
+                    n,
+                    &[
+                        "name",
+                        "decimal-separator",
+                        "grouping-separator",
+                        "infinity",
+                        "minus-sign",
+                        "NaN",
+                        "percent",
+                        "per-mille",
+                        "zero-digit",
+                        "digit",
+                        "pattern-separator",
+                        "exponent-separator",
+                    ],
+                )?;
+                empty(n)?;
+                let id = match n.attribute("name") {
+                    Some(name) => component_name(n, name)?,
+                    None => String::new(),
+                };
+                let mut format = crate::format_number::Format::default();
+                let single = |name: &str, target: &mut char| -> Result<(), Diagnostic> {
+                    if let Some(value) = n.attribute(name) {
+                        let mut chars = value.chars();
+                        match (chars.next(), chars.next()) {
+                            (Some(c), None) => *target = c,
+                            _ => {
+                                return Err(static_error(
+                                    n,
+                                    "XTSE0020",
+                                    format!("{name} must be a single character"),
+                                ));
+                            }
+                        }
+                    }
+                    Ok(())
+                };
+                single("decimal-separator", &mut format.decimal)?;
+                single("grouping-separator", &mut format.grouping)?;
+                single("minus-sign", &mut format.minus)?;
+                single("percent", &mut format.percent)?;
+                single("per-mille", &mut format.permille)?;
+                single("zero-digit", &mut format.zero)?;
+                single("digit", &mut format.digit)?;
+                single("pattern-separator", &mut format.pattern_separator)?;
+                single("exponent-separator", &mut format.exponent)?;
+                if let Some(v) = n.attribute("infinity") {
+                    format.infinity = v.into();
+                }
+                if let Some(v) = n.attribute("NaN") {
+                    format.nan = v.into();
+                }
+                if !(0..10)
+                    .all(|d| char::from_u32(format.zero as u32 + d).is_some_and(|c| c.is_numeric()))
+                {
+                    return Err(static_error(
+                        n,
+                        "XTSE1295",
+                        "zero-digit must start a run of ten digits",
+                    ));
+                }
+                let mut roles = format.property_chars().to_vec();
+                roles.push(format.zero);
+                roles.sort_unstable();
+                if roles.windows(2).any(|w| w[0] == w[1]) {
+                    return Err(static_error(
+                        n,
+                        "XTSE1300",
+                        "decimal-format properties must use distinct characters",
+                    ));
+                }
+                if let Some(existing) = decimal_formats.get(&id)
+                    && *existing != format
+                {
+                    return Err(static_error(
+                        n,
+                        "XTSE1290",
+                        "conflicting decimal-format declarations",
+                    ));
+                }
+                decimal_formats.insert(id, format);
             }
             "attribute-set" => {
                 attrs(
@@ -2049,6 +2137,7 @@ pub(crate) fn compile(
         functions: Default::default(),
         keys: Default::default(),
         attribute_sets: BTreeMap::new(),
+        decimal_formats: Default::default(),
         space_rules: vec![],
         default_mode: default_mode(root)?,
         modes: BTreeMap::new(),
@@ -2066,6 +2155,7 @@ pub(crate) fn compile(
     let mut functions: BTreeMap<(String, usize), xpath::UserFunction> = BTreeMap::new();
     let mut keys: BTreeMap<String, Vec<xpath::KeyDefinition>> = BTreeMap::new();
     let mut attribute_sets: BTreeMap<String, AttributeSet> = BTreeMap::new();
+    let mut decimal_formats: BTreeMap<String, crate::format_number::Format> = BTreeMap::new();
     declarations(
         root,
         &mut Declarations {
@@ -2074,6 +2164,7 @@ pub(crate) fn compile(
             functions: &mut functions,
             keys: &mut keys,
             attribute_sets: &mut attribute_sets,
+            decimal_formats: &mut decimal_formats,
         },
         resolver,
         0,
@@ -2081,6 +2172,7 @@ pub(crate) fn compile(
     sheet.functions = std::sync::Arc::new(functions);
     sheet.keys = std::sync::Arc::new(keys);
     sheet.attribute_sets = attribute_sets;
+    sheet.decimal_formats = std::sync::Arc::new(decimal_formats);
     validate(&sheet)?;
     Ok(sheet)
 }

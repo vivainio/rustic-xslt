@@ -222,11 +222,13 @@ pub(crate) struct KeyDefinition {
 pub(crate) const CURRENT_GROUP: &str = "\u{0}current-group";
 pub(crate) const REGEX_GROUPS: &str = "\u{0}regex-groups";
 pub(crate) const CURRENT_KEY: &str = "\u{0}current-grouping-key";
+pub(crate) type DecimalFormats = std::sync::Arc<BTreeMap<String, crate::format_number::Format>>;
 pub(crate) type KeyTable = std::sync::Arc<BTreeMap<String, Vec<KeyDefinition>>>;
 pub(crate) type FunctionTable = std::sync::Arc<BTreeMap<(String, usize), UserFunction>>;
 pub(crate) struct Budget {
     pub functions: FunctionTable,
     pub keys: KeyTable,
+    pub decimal_formats: DecimalFormats,
     remaining: u64,
     pub max_depth: usize,
     pub now: crate::temporal::Temporal,
@@ -236,6 +238,7 @@ impl Budget {
         Self {
             functions: FunctionTable::default(),
             keys: KeyTable::default(),
+            decimal_formats: DecimalFormats::default(),
             remaining: limits.max_steps,
             max_depth: limits.max_depth,
             now: crate::temporal::Temporal::now(),
@@ -785,6 +788,13 @@ impl Parser {
                 false,
             ))
         } else {
+            if local == "format-number"
+                && let Some(Expr::String(format_name)) = args.get_mut(2)
+                && format_name.contains(':')
+            {
+                *format_name =
+                    crate::qname::resolve(format_name.trim(), &self.namespaces, "FODF1280")?;
+            }
             if local == "key"
                 && let Some(Expr::String(key_name)) = args.first_mut()
                 && key_name.contains(':')
@@ -3236,9 +3246,17 @@ fn function<'a>(
         return Ok(vec![Item::String(path)]);
     }
     if name == "format-number" {
-        if args.len() == 3 && !args[2].is_empty() {
-            return Err(err("XTDE1280", "named decimal formats are not implemented"));
-        }
+        let format = match args.get(2).map(Vec::as_slice) {
+            None | Some([]) => budget.decimal_formats.get("").cloned().unwrap_or_default(),
+            Some(_) => {
+                let name = crate::string_functions::string(&args[2], false, backwards)?;
+                budget
+                    .decimal_formats
+                    .get(name.trim())
+                    .cloned()
+                    .ok_or_else(|| err("FODF1280", format!("unknown decimal format: {name}")))?
+            }
+        };
         let number = match args[0].as_slice() {
             [] => Number::Double(f64::NAN),
             [item] => match atomize(item) {
@@ -3253,7 +3271,7 @@ fn function<'a>(
             budget.tick()?;
         }
         return Ok(vec![Item::String(crate::format_number::format(
-            &number, &picture,
+            &number, &picture, &format,
         )?)]);
     }
     if let Some(op) = name.strip_prefix("math:") {

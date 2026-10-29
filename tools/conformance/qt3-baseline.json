@@ -9715,6 +9715,30 @@
     ],
     [
       "fn-format-number",
+      "cbcl-fn-format-number-004"
+    ],
+    [
+      "fn-format-number",
+      "cbcl-fn-format-number-005"
+    ],
+    [
+      "fn-format-number",
+      "cbcl-fn-format-number-006"
+    ],
+    [
+      "fn-format-number",
+      "cbcl-fn-format-number-007"
+    ],
+    [
+      "fn-format-number",
+      "cbcl-fn-format-number-008"
+    ],
+    [
+      "fn-format-number",
+      "cbcl-fn-format-number-009"
+    ],
+    [
+      "fn-format-number",
       "cbcl-fn-format-number-010"
     ],
     [
@@ -9915,11 +9939,23 @@
     ],
     [
       "fn-format-number",
+      "numberformat09"
+    ],
+    [
+      "fn-format-number",
       "numberformat101"
     ],
     [
       "fn-format-number",
       "numberformat102"
+    ],
+    [
+      "fn-format-number",
+      "numberformat107"
+    ],
+    [
+      "fn-format-number",
+      "numberformat11"
     ],
     [
       "fn-format-number",
@@ -9951,11 +9987,23 @@
     ],
     [
       "fn-format-number",
+      "numberformat12"
+    ],
+    [
+      "fn-format-number",
       "numberformat120"
     ],
     [
       "fn-format-number",
+      "numberformat123"
+    ],
+    [
+      "fn-format-number",
       "numberformat129"
+    ],
+    [
+      "fn-format-number",
+      "numberformat13"
     ],
     [
       "fn-format-number",
@@ -9992,6 +10040,10 @@
     [
       "fn-format-number",
       "numberformat139"
+    ],
+    [
+      "fn-format-number",
+      "numberformat14"
     ],
     [
       "fn-format-number",
@@ -10040,6 +10092,26 @@
     [
       "fn-format-number",
       "numberformat156"
+    ],
+    [
+      "fn-format-number",
+      "numberformat16"
+    ],
+    [
+      "fn-format-number",
+      "numberformat17"
+    ],
+    [
+      "fn-format-number",
+      "numberformat18"
+    ],
+    [
+      "fn-format-number",
+      "numberformat19"
+    ],
+    [
+      "fn-format-number",
+      "numberformat20"
     ],
     [
       "fn-format-number",
@@ -10247,6 +10319,10 @@
     ],
     [
       "fn-format-number",
+      "numberformat26"
+    ],
+    [
+      "fn-format-number",
       "numberformat261"
     ],
     [
@@ -10259,7 +10335,19 @@
     ],
     [
       "fn-format-number",
+      "numberformat27"
+    ],
+    [
+      "fn-format-number",
       "numberformat28"
+    ],
+    [
+      "fn-format-number",
+      "numberformat29"
+    ],
+    [
+      "fn-format-number",
+      "numberformat30"
     ],
     [
       "fn-format-number",
@@ -10268,6 +10356,10 @@
     [
       "fn-format-number",
       "numberformat303"
+    ],
+    [
+      "fn-format-number",
+      "numberformat31"
     ],
     [
       "fn-format-number",
@@ -10311,6 +10403,10 @@
     ],
     [
       "fn-format-number",
+      "numberformat32"
+    ],
+    [
+      "fn-format-number",
       "numberformat321"
     ],
     [
@@ -10339,6 +10435,10 @@
     ],
     [
       "fn-format-number",
+      "numberformat34"
+    ],
+    [
+      "fn-format-number",
       "numberformat35"
     ],
     [
@@ -10352,6 +10452,10 @@
     [
       "fn-format-number",
       "numberformat39"
+    ],
+    [
+      "fn-format-number",
+      "numberformat40"
     ],
     [
       "fn-format-number",
@@ -10431,11 +10535,31 @@
     ],
     [
       "fn-format-number",
+      "numberformat64"
+    ],
+    [
+      "fn-format-number",
+      "numberformat65"
+    ],
+    [
+      "fn-format-number",
+      "numberformat71"
+    ],
+    [
+      "fn-format-number",
       "numberformat72"
     ],
     [
       "fn-format-number",
       "numberformat80"
+    ],
+    [
+      "fn-format-number",
+      "numberformat81"
+    ],
+    [
+      "fn-format-number",
+      "numberformat82"
     ],
     [
       "fn-format-number",
@@ -10460,6 +10584,10 @@
     [
       "fn-format-number",
       "numberformat902err"
+    ],
+    [
+      "fn-format-number",
+      "numberformat905err"
     ],
     [
       "fn-format-number",

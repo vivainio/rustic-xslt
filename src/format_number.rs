@@ -1,8 +1,115 @@
-//! `fn:format-number` with the default decimal format: picture parsing,
-//! rounding half to even, grouping, percent and per-mille scaling.
+//! `fn:format-number`: picture parsing against a decimal format, rounding half
+//! to even, grouping, percent and per-mille scaling.
 use crate::{Diagnostic, number::Number};
 use bigdecimal::{BigDecimal, RoundingMode};
 use num_traits::Zero;
+
+/// The properties of an `xsl:decimal-format` declaration.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Format {
+    pub decimal: char,
+    pub grouping: char,
+    pub percent: char,
+    pub permille: char,
+    pub zero: char,
+    pub digit: char,
+    pub pattern_separator: char,
+    pub exponent: char,
+    pub minus: char,
+    pub infinity: String,
+    pub nan: String,
+}
+impl Default for Format {
+    fn default() -> Self {
+        Self {
+            decimal: '.',
+            grouping: ',',
+            percent: '%',
+            permille: '\u{2030}',
+            zero: '0',
+            digit: '#',
+            pattern_separator: ';',
+            exponent: 'e',
+            minus: '-',
+            infinity: "Infinity".into(),
+            nan: "NaN".into(),
+        }
+    }
+}
+impl Format {
+    fn digit_value(&self, c: char) -> Option<u32> {
+        let offset = (c as u32).checked_sub(self.zero as u32)?;
+        (offset < 10).then_some(offset)
+    }
+    /// The characters with a role in pictures, which must all differ.
+    pub fn property_chars(&self) -> [char; 8] {
+        [
+            self.decimal,
+            self.grouping,
+            self.percent,
+            self.permille,
+            self.digit,
+            self.pattern_separator,
+            self.exponent,
+            self.minus,
+        ]
+    }
+}
+
+const PLACEHOLDER_BASE: u32 = 0xF0000;
+
+/// Rewrite a picture in terms of the default format; literal characters that would
+/// otherwise take on a role become private-use placeholders.
+fn normalize(picture: &str, fmt: &Format) -> String {
+    picture
+        .chars()
+        .map(|c| {
+            if let Some(d) = fmt.digit_value(c) {
+                char::from_digit(d, 10).unwrap()
+            } else if c == fmt.digit {
+                '#'
+            } else if c == fmt.decimal {
+                '.'
+            } else if c == fmt.grouping {
+                ','
+            } else if c == fmt.percent {
+                '%'
+            } else if c == fmt.permille {
+                '\u{2030}'
+            } else if c == fmt.pattern_separator {
+                ';'
+            } else if c == fmt.exponent {
+                'e'
+            } else if c == fmt.minus {
+                '-'
+            } else if "0123456789#.,%\u{2030};e-".contains(c) {
+                char::from_u32(PLACEHOLDER_BASE + c as u32).unwrap()
+            } else {
+                c
+            }
+        })
+        .collect()
+}
+
+fn localize(text: &str, fmt: &Format) -> String {
+    text.chars()
+        .map(|c| match c {
+            '0'..='9' => char::from_u32(fmt.zero as u32 + (c as u32 - '0' as u32)).unwrap_or(c),
+            '#' => fmt.digit,
+            '.' => fmt.decimal,
+            ',' => fmt.grouping,
+            '%' => fmt.percent,
+            '\u{2030}' => fmt.permille,
+            ';' => fmt.pattern_separator,
+            'e' => fmt.exponent,
+            '-' => fmt.minus,
+            c if (PLACEHOLDER_BASE..PLACEHOLDER_BASE + 0x1_0000).contains(&(c as u32)) => {
+                char::from_u32(c as u32 - PLACEHOLDER_BASE).unwrap_or(c)
+            }
+            c => c,
+        })
+        .collect()
+}
 
 fn picture_error(message: &str) -> Diagnostic {
     Diagnostic::new(
@@ -165,8 +272,9 @@ fn group(digits: &str, groups: &[usize], leading: usize) -> String {
     out
 }
 
-pub(crate) fn format(value: &Number, picture: &str) -> Result<String, Diagnostic> {
-    let parts: Vec<&str> = picture.split(';').collect();
+pub(crate) fn format(value: &Number, picture: &str, fmt: &Format) -> Result<String, Diagnostic> {
+    let normalized = normalize(picture, fmt);
+    let parts: Vec<&str> = normalized.split(';').collect();
     if parts.len() > 2 {
         return Err(picture_error("more than one pattern separator"));
     }
@@ -174,7 +282,7 @@ pub(crate) fn format(value: &Number, picture: &str) -> Result<String, Diagnostic
     let negative = parts.get(1).map(|p| parse(p)).transpose()?;
     let double = value.double();
     if double.is_nan() {
-        return Ok("NaN".into());
+        return Ok(fmt.nan.clone());
     }
     let negative_value = double.is_sign_negative()
         && !matches!(value, Number::Integer(_) | Number::DerivedInteger(..))
@@ -189,8 +297,11 @@ pub(crate) fn format(value: &Number, picture: &str) -> Result<String, Diagnostic
     let decimal = value.shortest_decimal().filter(|_| !overflow);
     let Some(decimal) = decimal else {
         return Ok(format!(
-            "{sign}{}Infinity{}",
-            pattern.prefix, pattern.suffix
+            "{}{}{}{}",
+            localize(sign, fmt),
+            localize(&pattern.prefix, fmt),
+            fmt.infinity,
+            localize(&pattern.suffix, fmt)
         ));
     };
     let mut scaled = decimal.abs() * BigDecimal::from(pattern.scale);
@@ -259,5 +370,5 @@ pub(crate) fn format(value: &Number, picture: &str) -> Result<String, Diagnostic
         out.push_str(&format!("{:0width$}", exponent.unsigned_abs()));
     }
     out.push_str(&pattern.suffix);
-    Ok(out)
+    Ok(localize(&out, fmt))
 }
