@@ -608,7 +608,7 @@ impl Output {
         }
         self.push(close)?;
         if self.metadata.enabled && metadata_name(&e.name, markup).as_deref() == Some("head") {
-            let content = escape(
+            let content = self.escape_mapped(
                 &format!(
                     "{}; charset={}",
                     self.metadata.media,
@@ -625,8 +625,9 @@ impl Output {
             } else {
                 "meta".to_owned()
             };
+            let http_equiv = self.escape_mapped("Content-Type", true);
             self.push(&format!(
-                "<{meta_name} http-equiv=\"Content-Type\" content=\"{content}\"{ending}"
+                "<{meta_name} http-equiv=\"{http_equiv}\" content=\"{content}\"{ending}"
             ))?;
         }
         Ok(())

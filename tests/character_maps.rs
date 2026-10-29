@@ -62,3 +62,10 @@ fn html_uri_escaping_suppresses_maps_only_when_enabled() {
         );
     }
 }
+
+#[test]
+fn generated_content_type_metadata_uses_character_maps() {
+    let declarations = r#"<xsl:output method="html" media-type="application/x-demo" use-character-maps="m"/><xsl:character-map name="m"><xsl:output-character character="x" string="X"/></xsl:character-map>"#;
+    let output = run(declarations, "<html><head><title>T</title></head></html>").unwrap();
+    assert!(output.contains("content=\"application/X-demo; charset=UTF-8\""));
+}

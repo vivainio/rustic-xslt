@@ -2169,3 +2169,11 @@ conformance claims. Smaller tested increments are committed independently.
 - Added a failing-then-fixed regression for try capture inside an HTML head.
 - Validation: sixteen serializer tests, all-target/all-feature Clippy and the
   full 928-case pinned XSLT gate pass without regressions.
+
+## Increment 190: character maps on generated metadata
+
+- Generated metadata attribute values use mapped attribute escaping, applying
+  character maps to the Content-Type value and configured media/encoding text.
+- Added a regression for a mapped character in a generated media-type value.
+- Validation: character-map and serializer tests, all-target/all-feature Clippy
+  and the full 928-case pinned XSLT gate pass without regressions.
