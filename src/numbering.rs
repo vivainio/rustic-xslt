@@ -435,10 +435,10 @@ pub(crate) fn format_integer(
                 for (i, c) in chars.iter().enumerate() {
                     out.push(*c);
                     let remaining = chars.len() - i - 1;
-                    if let Some((sep, _)) = separators.iter().find(|(_, pos)| *pos == remaining) {
-                        if remaining > 0 {
-                            out.push(*sep);
-                        }
+                    if let Some((sep, _)) = separators.iter().find(|(_, pos)| *pos == remaining)
+                        && remaining > 0
+                    {
+                        out.push(*sep);
                     }
                 }
                 out
