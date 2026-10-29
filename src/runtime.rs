@@ -2411,6 +2411,7 @@ fn run_tasks<'a>(
                         .with_serialization(output.serialization().0, None)
                         .with_uri_escaping(output.uri_escaping())
                         .with_metadata(output.metadata())
+                        .with_parent_head(output.in_head())
                         .with_cdata(output.cdata())
                         .with_char_map(output.char_map());
                         let inner = Frame {
@@ -2458,6 +2459,7 @@ fn run_tasks<'a>(
                         .with_serialization(output.serialization().0, None)
                         .with_uri_escaping(output.uri_escaping())
                         .with_metadata(output.metadata())
+                        .with_parent_head(output.in_head())
                         .with_cdata(output.cdata())
                         .with_char_map(output.char_map());
                         let inner = Frame {
@@ -2509,6 +2511,7 @@ fn run_tasks<'a>(
                         .with_serialization(output.serialization().0, None)
                         .with_uri_escaping(output.uri_escaping())
                         .with_metadata(output.metadata())
+                        .with_parent_head(output.in_head())
                         .with_cdata(output.cdata())
                         .with_char_map(output.char_map());
                         let try_frame = Frame {

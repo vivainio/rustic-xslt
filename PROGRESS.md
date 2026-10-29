@@ -2160,3 +2160,12 @@ conformance claims. Smaller tested increments are committed independently.
   replacing a matching lowercase declaration with case/space-varied value.
 - Validation: fifteen serializer tests, all-target/all-feature Clippy and the
   full 928-case pinned XSLT gate pass without regressions.
+
+## Increment 189: metadata replacement through nested captures
+
+- Serializer-preserving captures inherit surrounding head context, allowing
+  direct meta children inside try/populated captures to participate in metadata
+  replacement even when the head itself belongs to the outer output.
+- Added a failing-then-fixed regression for try capture inside an HTML head.
+- Validation: sixteen serializer tests, all-target/all-feature Clippy and the
+  full 928-case pinned XSLT gate pass without regressions.

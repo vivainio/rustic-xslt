@@ -186,3 +186,14 @@ fn xhtml_metadata_replacement_respects_attribute_case_and_namespace() {
     assert!(!output.contains("content=\"replace\""));
     assert_eq!(output.matches("charset=").count(), 1);
 }
+
+#[test]
+fn metadata_replacement_survives_try_capture_inside_head() {
+    let output = run(
+        r#"method="html""#,
+        "<html><head><xsl:try><meta http-equiv='Content-Type' content='old'/><title>T</title><xsl:catch><error/></xsl:catch></xsl:try></head></html>",
+    );
+    assert_eq!(output.matches("charset=").count(), 1);
+    assert!(!output.contains("content=\"old\""));
+    assert!(output.contains("<title>T</title>"));
+}

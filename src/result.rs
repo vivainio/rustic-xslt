@@ -241,6 +241,7 @@ pub(crate) struct Metadata {
 }
 pub(crate) struct Output {
     metadata: Metadata,
+    parent_head: bool,
     pub value: String,
     pub max: usize,
     pub text: bool,
@@ -257,6 +258,17 @@ pub(crate) struct Output {
     char_map: std::sync::Arc<BTreeMap<char, String>>,
 }
 impl Output {
+    pub fn with_parent_head(mut self, head: bool) -> Self {
+        self.parent_head = head;
+        self
+    }
+    pub fn in_head(&self) -> bool {
+        self.metadata.enabled
+            && self.stack.last().map_or(self.parent_head, |open| {
+                metadata_name(&open.element.name, self.markup).as_deref() == Some("head")
+            })
+    }
+
     pub fn with_metadata(mut self, metadata: Metadata) -> Self {
         self.metadata = metadata;
         self
@@ -315,6 +327,7 @@ impl Output {
     }
     pub fn new(max: usize, text: bool) -> Self {
         Self {
+            parent_head: false,
             metadata: Metadata {
                 enabled: true,
                 media: "text/html".into(),
@@ -466,11 +479,12 @@ impl Output {
     }
     fn flush_start_with(&mut self, close: &str) -> Result<(), Diagnostic> {
         let markup = self.markup;
-        let parent_head = self.stack.len() > 1
-            && self.metadata.enabled
-            && self.stack.get(self.stack.len() - 2).is_some_and(|parent| {
-                metadata_name(&parent.element.name, markup).as_deref() == Some("head")
-            });
+        let parent_head = self.metadata.enabled
+            && (self.stack.len() == 1 && self.parent_head
+                || self.stack.len() > 1
+                    && self.stack.get(self.stack.len() - 2).is_some_and(|parent| {
+                        metadata_name(&parent.element.name, markup).as_deref() == Some("head")
+                    }));
         let parent_suppressed = self.stack.len() > 1 && self.stack[self.stack.len() - 2].suppressed;
         let Some(open) = self.stack.last_mut() else {
             return Ok(());
