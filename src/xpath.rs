@@ -1554,6 +1554,8 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "id" | "element-with-id" => (1, 2),
         "doc" | "doc-available" => (1, 1),
         "document" => (1, 2),
+        "system-property" | "element-available" | "type-available" => (1, 1),
+        "function-available" => (1, 2),
         "unparsed-text" | "unparsed-text-available" => (1, 2),
         "unparsed-text-lines" => (1, 2),
         "json-doc" => (1, 2),
@@ -3468,6 +3470,144 @@ fn function<'a>(
                 crate::json::parse(&text, &options)
             }
         };
+    }
+    if matches!(
+        name,
+        "system-property" | "element-available" | "function-available" | "type-available"
+    ) {
+        let text = crate::string_functions::string(&args[0], false, backwards)?;
+        let text = text.trim();
+        let local = text
+            .strip_prefix("Q{http://www.w3.org/1999/XSL/Transform}")
+            .or_else(|| text.rsplit_once(':').map(|(_, local)| local))
+            .unwrap_or(text);
+        let is_xsl =
+            text.starts_with("Q{http://www.w3.org/1999/XSL/Transform}") || text.starts_with("xsl:");
+        return Ok(vec![match name {
+            "system-property" => Item::String(
+                match (is_xsl, local) {
+                    (true, "version") => "3.0",
+                    (true, "vendor") => "rust-xslt",
+                    (true, "vendor-url") => "https://github.com/vivainio/rustic-xslt",
+                    (true, "product-name") => "rust-xslt",
+                    (true, "product-version") => env!("CARGO_PKG_VERSION"),
+                    (
+                        true,
+                        "is-schema-aware" | "supports-namespace-axis" | "supports-streaming",
+                    ) => "no",
+                    (
+                        true,
+                        "supports-backwards-compatibility"
+                        | "supports-serialization"
+                        | "supports-dynamic-evaluation",
+                    ) => "yes",
+                    (true, "xpath-version") => "3.1",
+                    (true, "xsd-version") => "1.0",
+                    _ => "",
+                }
+                .to_owned(),
+            ),
+            "element-available" => Item::Boolean(
+                is_xsl
+                    && matches!(
+                        local,
+                        "analyze-string"
+                            | "apply-imports"
+                            | "apply-templates"
+                            | "attribute"
+                            | "attribute-set"
+                            | "break"
+                            | "call-template"
+                            | "catch"
+                            | "choose"
+                            | "comment"
+                            | "copy"
+                            | "copy-of"
+                            | "decimal-format"
+                            | "element"
+                            | "evaluate"
+                            | "for-each"
+                            | "for-each-group"
+                            | "function"
+                            | "if"
+                            | "import"
+                            | "include"
+                            | "iterate"
+                            | "key"
+                            | "map"
+                            | "map-entry"
+                            | "message"
+                            | "mode"
+                            | "namespace"
+                            | "next-iteration"
+                            | "next-match"
+                            | "number"
+                            | "otherwise"
+                            | "output"
+                            | "param"
+                            | "perform-sort"
+                            | "processing-instruction"
+                            | "result-document"
+                            | "sequence"
+                            | "sort"
+                            | "strip-space"
+                            | "preserve-space"
+                            | "template"
+                            | "text"
+                            | "try"
+                            | "value-of"
+                            | "variable"
+                            | "when"
+                            | "where-populated"
+                            | "with-param"
+                    ),
+            ),
+            "function-available" => {
+                let arity = match args.get(1).map(Vec::as_slice) {
+                    Some([item]) => match atomize(item) {
+                        Item::Number(n) => Some(n.double() as usize),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                let internal = if let Some(rest) = text.strip_prefix("Q{") {
+                    match rest.split_once('}') {
+                        Some(("http://www.w3.org/2005/xpath-functions", l)) => l.to_owned(),
+                        Some(("http://www.w3.org/2001/XMLSchema", l)) => format!("xs:{l}"),
+                        Some(("http://www.w3.org/2005/xpath-functions/math", l)) => {
+                            format!("math:{l}")
+                        }
+                        Some(("http://www.w3.org/2005/xpath-functions/map", l)) => {
+                            format!("map:{l}")
+                        }
+                        Some(("http://www.w3.org/2005/xpath-functions/array", l)) => {
+                            format!("array:{l}")
+                        }
+                        _ => String::new(),
+                    }
+                } else {
+                    match text.split_once(':') {
+                        Some(("xs", l)) => format!("xs:{l}"),
+                        Some(("math", l)) => format!("math:{l}"),
+                        Some(("map", l)) => format!("map:{l}"),
+                        Some(("array", l)) => format!("array:{l}"),
+                        Some(("fn", l)) => l.to_owned(),
+                        Some(_) => String::new(),
+                        None => text.to_owned(),
+                    }
+                };
+                Item::Boolean(
+                    !internal.is_empty()
+                        && function_arity(&internal)
+                            .is_some_and(|(lo, hi)| arity.is_none_or(|a| (lo..=hi).contains(&a))),
+                )
+            }
+            _ => Item::Boolean(text.strip_prefix("xs:").is_some_and(|l| {
+                function_arity(&format!("xs:{l}")).is_some() && l != "QName"
+                    || matches!(l, "QName" | "NOTATION" | "anyAtomicType" | "numeric")
+                    || crate::temporal::TemporalType::parse(l).is_some()
+            })),
+        }]);
     }
     if name == "format-integer" {
         let value = match args[0].as_slice() {

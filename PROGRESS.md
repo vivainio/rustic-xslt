@@ -1268,3 +1268,13 @@ conformance claims. Smaller tested increments are committed independently.
   {expr} is evaluated and joined with spaces, {{ and }} are literal braces, and the
   nearest declaration wins. Unbalanced braces and invalid expressions are static
   errors. Record streaming rejects value templates.
+
+## Increment 110: use-when and static variables
+
+- use-when (xsl: elements) / xsl:use-when (literal result elements) conditions are
+  evaluated at compile time on instructions and top-level declarations; static
+  variables (xsl:variable static="yes") are evaluated in order, visible to later
+  conditions, and also remain ordinary global variables.
+- Added system-property(), element-available(), function-available() and
+  type-available() (no static parameters supplied from the API, and no
+  available-system-properties()).

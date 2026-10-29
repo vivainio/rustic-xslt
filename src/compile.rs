@@ -278,6 +278,9 @@ fn attrs(n: Node<'_, '_>, allowed: &[&str]) -> Result<(), Diagnostic> {
         if a.namespace().is_none() && a.name() == "exclude-result-prefixes" {
             continue;
         }
+        if a.namespace().is_none() && a.name() == "use-when" {
+            continue;
+        }
         if a.namespace().is_none() && a.name() == "expand-text" {
             boolean_attribute(n, "expand-text", false)?;
             continue;
@@ -323,11 +326,11 @@ fn binding(n: Node<'_, '_>, parameter: bool, depth: usize) -> Result<Binding, Di
     attrs(
         n,
         if declaration {
-            &["name", "select", "as", "required", "tunnel"]
+            &["name", "select", "as", "required", "tunnel", "static"]
         } else if parameter {
             &["name", "select", "as", "tunnel"]
         } else {
-            &["name", "select", "as"]
+            &["name", "select", "as", "static"]
         },
     )?;
     let tunnel = parameter && boolean_attribute(n, "tunnel", false)?;
@@ -523,6 +526,40 @@ fn text_instruction(n: Node<'_, '_>, text: &str) -> Result<Instruction, Diagnost
     } else {
         Ok(Instruction::Text(text.into()))
     }
+}
+thread_local! {
+    static STATIC_VARIABLES: std::cell::RefCell<xpath::Variables<'static>> =
+        const { std::cell::RefCell::new(BTreeMap::new()) };
+}
+/// Evaluate a static (compile-time) expression such as a `use-when` condition.
+fn static_value(n: Node<'_, '_>, source: &str) -> Result<xpath::Value<'static>, Diagnostic> {
+    let parsed = expr(n, source)?;
+    let variables = STATIC_VARIABLES.with(|v| v.borrow().clone());
+    let mut budget = xpath::Budget::new(crate::Limits::default());
+    let focus = xpath::Focus {
+        item: xpath::Item::Absent,
+        position: 0,
+        size: 0,
+    };
+    xpath::eval(&parsed, &focus, &variables, &mut budget, 0, false).map_err(|mut e| {
+        let pos = n.document().text_pos_at(n.range().start);
+        e.phase = "compile";
+        e.line = pos.row;
+        e.column = pos.col;
+        e
+    })
+}
+/// Whether a `use-when` condition on this element excludes it.
+fn use_when_excludes(n: Node<'_, '_>) -> Result<bool, Diagnostic> {
+    let condition = if n.tag_name().namespace() == Some(XSL) {
+        n.attribute("use-when")
+    } else {
+        n.attribute((XSL, "use-when"))
+    };
+    let Some(condition) = condition else {
+        return Ok(false);
+    };
+    Ok(!xpath::boolean(&static_value(n, condition)?)?)
 }
 fn avt(n: Node<'_, '_>, value: &str) -> Result<Vec<Expr>, Diagnostic> {
     let mut parts = vec![];
@@ -815,6 +852,9 @@ fn body(
                 out.push(text_instruction(n, t)?);
             }
         } else if n.is_element() {
+            if use_when_excludes(n)? {
+                continue;
+            }
             if n.tag_name().namespace() == Some(XSL) {
                 match n.tag_name().name() {
                     "param" if skip_params => continue,
@@ -1548,6 +1588,7 @@ fn body(
                             "inherit-namespaces",
                             "default-mode",
                             "expand-text",
+                            "use-when",
                             "use-attribute-sets",
                         ]
                         .contains(&a.name())
@@ -1871,6 +1912,9 @@ fn declarations(
         if n.tag_name().namespace() != Some(XSL) {
             return Err(error(n, "unsupported top-level element"));
         }
+        if use_when_excludes(n)? {
+            continue;
+        }
         if n.tag_name().name() == "import" {
             if other_seen {
                 return Err(static_error(
@@ -1995,6 +2039,16 @@ fn declarations(
             }
             "param" | "variable" => {
                 let b = binding(n, n.tag_name().name() == "param", 0)?;
+                if n.attribute("static")
+                    .is_some_and(|s| matches!(s.trim(), "yes" | "true" | "1"))
+                {
+                    // Static variables are evaluated now, and also remain ordinary globals.
+                    let value = match n.attribute("select") {
+                        Some(select) => static_value(n, select)?,
+                        None => vec![xpath::Item::String(String::new())],
+                    };
+                    STATIC_VARIABLES.with(|v| v.borrow_mut().insert(b.name.clone(), value));
+                }
                 match global_precedence.get(&b.name) {
                     Some(existing) if *existing == precedence => {
                         return Err(static_error(n, "XTSE0630", "duplicate global binding"));
@@ -2493,6 +2547,7 @@ pub(crate) fn compile(
     resolver: Option<Resolver<'_>>,
 ) -> Result<Stylesheet, Diagnostic> {
     xpath::take_document_uris();
+    STATIC_VARIABLES.with(|v| v.borrow_mut().clear());
     let doc = crate::parse(source, "compile")?;
     let root = doc.root_element();
     if root.tag_name().namespace() != Some(XSL)
