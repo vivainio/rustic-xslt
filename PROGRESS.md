@@ -1756,3 +1756,14 @@ conformance claims. Smaller tested increments are committed independently.
   selected cases.
 - Validation: all-feature Rust tests, all-target/all-feature Clippy, 43 Python
   harness tests and both pinned gates pass.
+
+## Increment 147: principal result documents
+
+- `xsl:result-document` without `href` or with `href=""` now writes to the
+  principal result. A second principal result, including a collision with normal
+  template output, raises `XTDE1490`.
+- Added tests for both collision orders and updated the pinned XSLT regression
+  baseline to 832 passing cases (19 new, zero regressions), 323 engine failures,
+  264 harness errors and 153 profile exclusions across 1,572 selected cases.
+- Validation: all-feature Rust tests, all-target/all-feature Clippy, 43 Python
+  harness tests and both pinned XSLT and QT3 gates pass.
