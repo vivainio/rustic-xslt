@@ -97,6 +97,10 @@
     ],
     [
       "mode",
+      "mode-0801c"
+    ],
+    [
+      "mode",
       "mode-0901"
     ],
     [
@@ -137,6 +141,10 @@
     ],
     [
       "mode",
+      "mode-1402"
+    ],
+    [
+      "mode",
       "mode-1403"
     ],
     [
@@ -166,6 +174,10 @@
     [
       "mode",
       "mode-1423"
+    ],
+    [
+      "mode",
+      "mode-1425"
     ],
     [
       "mode",
@@ -409,6 +421,10 @@
     ],
     [
       "param",
+      "param-0110"
+    ],
+    [
+      "param",
       "param-0111"
     ],
     [
@@ -497,6 +513,10 @@
     ],
     [
       "variable",
+      "variable-0110"
+    ],
+    [
+      "variable",
       "variable-0111"
     ],
     [
@@ -505,11 +525,39 @@
     ],
     [
       "variable",
+      "variable-0113"
+    ],
+    [
+      "variable",
+      "variable-0115"
+    ],
+    [
+      "variable",
+      "variable-0116"
+    ],
+    [
+      "variable",
+      "variable-0117"
+    ],
+    [
+      "variable",
+      "variable-0118"
+    ],
+    [
+      "variable",
       "variable-0119"
     ],
     [
       "variable",
+      "variable-0121"
+    ],
+    [
+      "variable",
       "variable-0122"
+    ],
+    [
+      "variable",
+      "variable-0123"
     ],
     [
       "variable",
@@ -785,6 +833,10 @@
     ],
     [
       "variable",
+      "variable-4501"
+    ],
+    [
+      "variable",
       "variable-4601"
     ],
     [
@@ -794,6 +846,10 @@
     [
       "variable",
       "variable-4801"
+    ],
+    [
+      "variable",
+      "variable-4802"
     ],
     [
       "apply-templates",
@@ -825,6 +881,10 @@
     ],
     [
       "apply-templates",
+      "conflict-resolution-0112"
+    ],
+    [
+      "apply-templates",
       "conflict-resolution-0201"
     ],
     [
@@ -853,11 +913,19 @@
     ],
     [
       "apply-templates",
+      "conflict-resolution-1102"
+    ],
+    [
+      "apply-templates",
       "conflict-resolution-1201"
     ],
     [
       "apply-templates",
       "conflict-resolution-1205"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-1301"
     ],
     [
       "apply-templates",
@@ -969,6 +1037,10 @@
     ],
     [
       "call-template",
+      "call-template-1401"
+    ],
+    [
+      "call-template",
       "call-template-1501"
     ],
     [
@@ -990,6 +1062,10 @@
     [
       "call-template",
       "call-template-2101"
+    ],
+    [
+      "call-template",
+      "call-template-2102"
     ],
     [
       "choose",
@@ -1261,11 +1337,51 @@
     ],
     [
       "copy",
+      "copy-1204"
+    ],
+    [
+      "copy",
+      "copy-1205"
+    ],
+    [
+      "copy",
+      "copy-1206"
+    ],
+    [
+      "copy",
+      "copy-1207"
+    ],
+    [
+      "copy",
+      "copy-1208"
+    ],
+    [
+      "copy",
+      "copy-1209"
+    ],
+    [
+      "copy",
+      "copy-1213"
+    ],
+    [
+      "copy",
+      "copy-1215"
+    ],
+    [
+      "copy",
+      "copy-1217"
+    ],
+    [
+      "copy",
       "copy-1501"
     ],
     [
       "copy",
       "copy-1601"
+    ],
+    [
+      "copy",
+      "copy-1602"
     ],
     [
       "copy",
@@ -1278,6 +1394,18 @@
     [
       "copy",
       "copy-2001"
+    ],
+    [
+      "copy",
+      "copy-2201"
+    ],
+    [
+      "copy",
+      "copy-2202"
+    ],
+    [
+      "copy",
+      "copy-2203"
     ],
     [
       "copy",
@@ -1440,6 +1568,10 @@
       "copy-4805"
     ],
     [
+      "copy",
+      "copy-4901"
+    ],
+    [
       "next-match",
       "next-match-001"
     ],
@@ -1477,6 +1609,10 @@
     ],
     [
       "next-match",
+      "next-match-022"
+    ],
+    [
+      "next-match",
       "next-match-023"
     ],
     [
@@ -1509,11 +1645,27 @@
     ],
     [
       "next-match",
+      "next-match-035"
+    ],
+    [
+      "next-match",
+      "next-match-038"
+    ],
+    [
+      "next-match",
       "next-match-039"
     ],
     [
       "initial-mode",
       "initial-mode-001"
+    ],
+    [
+      "initial-mode",
+      "initial-mode-002"
+    ],
+    [
+      "initial-mode",
+      "initial-mode-003"
     ],
     [
       "initial-mode",
