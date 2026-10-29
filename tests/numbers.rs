@@ -126,3 +126,67 @@ fn numeric_implementation_limit_is_explicit() {
         "XPDY0130"
     );
 }
+
+#[test]
+fn integer_division_is_exact_and_truncates_toward_zero() {
+    for (e, want) in [
+        ("10 idiv 3", "3"),
+        ("-10 idiv 3", "-3"),
+        ("10 idiv -3", "-3"),
+        ("-10 idiv -3", "3"),
+        ("9007199254740993 idiv 1", "9007199254740993"),
+        ("5.99 idiv 0.2", "29"),
+        ("-5.99 idiv 0.2", "-29"),
+        ("1.999999999999999999999999999999 idiv 2", "0"),
+        ("10 idiv 0.01", "1000"),
+        ("(10 idiv 3) instance of xs:integer", "true"),
+        ("2 + 10 idiv 3 * 2", "8"),
+        ("() idiv 0", ""),
+        ("1 idiv ()", ""),
+    ] {
+        assert_eq!(evaluate(e), want, "{e}");
+    }
+}
+#[test]
+fn floating_integer_division_uses_promoted_precision_and_returns_integer() {
+    for (e, want) in [
+        ("10e0 idiv 3", "3"),
+        ("xs:float('-10') idiv 3", "-3"),
+        ("xs:float('16777216') idiv 16777217", "1"),
+        ("xs:float('16777216') idiv xs:double('16777217')", "0"),
+        ("3 idiv xs:double('INF')", "0"),
+        ("-3 idiv xs:float('-INF')", "0"),
+        ("(10e0 idiv 3) instance of xs:integer", "true"),
+    ] {
+        assert_eq!(evaluate(e), want, "{e}");
+    }
+}
+#[test]
+fn integer_division_reports_zero_invalid_and_overflow_errors() {
+    for (e, code) in [
+        ("1 idiv 0", "FOAR0001"),
+        ("1.0 idiv 0.0", "FOAR0001"),
+        ("1e0 idiv -0e0", "FOAR0001"),
+        ("1 idiv xs:float('0')", "FOAR0001"),
+        ("xs:double('INF') idiv 1", "FOAR0002"),
+        ("1 idiv xs:float('NaN')", "FOAR0002"),
+        ("xs:double('NaN') idiv 1", "FOAR0002"),
+        ("1e308 idiv 1e-308", "FOAR0002"),
+        ("xs:float('3e38') idiv xs:float('1e-38')", "FOAR0002"),
+        ("(1,2) idiv 1", "XPTY0004"),
+        ("'1' idiv 1", "XPTY0004"),
+    ] {
+        assert_eq!(
+            transform(&sheet("3.0", e), "<r/>").unwrap_err().code,
+            code,
+            "{e}"
+        );
+    }
+}
+#[test]
+fn integer_division_atomizes_nodes_as_untyped_numbers() {
+    assert_eq!(
+        transform(&sheet("3.0", "r/@a idiv r/b"), "<r a='10'><b>3</b></r>").unwrap(),
+        "3"
+    );
+}

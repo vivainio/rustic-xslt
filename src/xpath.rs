@@ -590,7 +590,7 @@ impl Parser {
                 Token::Symbol(s) if s == "|" => (s.clone(), 8),
                 Token::Symbol(s) if s == "+" || s == "-" => (s.clone(), 6),
                 Token::Symbol(s) if s == "*" => (s.clone(), 7),
-                Token::Name(s) if s == "div" || s == "mod" => (s.clone(), 7),
+                Token::Name(s) if ["div", "idiv", "mod"].contains(&s.as_str()) => (s.clone(), 7),
                 _ => break,
             };
             if prec < minimum {

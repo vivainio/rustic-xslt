@@ -825,6 +825,10 @@
     ],
     [
       "apply-templates",
+      "conflict-resolution-0502"
+    ],
+    [
+      "apply-templates",
       "conflict-resolution-0601"
     ],
     [
@@ -1418,6 +1422,10 @@
     [
       "copy",
       "copy-4805"
+    ],
+    [
+      "next-match",
+      "next-match-001"
     ],
     [
       "next-match",

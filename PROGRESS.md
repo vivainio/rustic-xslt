@@ -558,5 +558,17 @@ conformance claims. Smaller tested increments are committed independently.
 - Twenty QT3 sets: 2,240 cases, 1,132 pass / 685 engine failures / 21 harness errors /
   402 profile exclusions. Quantified expressions add 143 passes to the gate.
 
-Next: integer division and remaining XPath grammar.
+## Increment 46: integer division
+
+- XPath idiv returns exact arbitrary-precision integers, truncating toward zero;
+  decimal operands divide scaled integers without intermediate decimal rounding.
+- Float/double promotion, empty operands, untyped node atomization, divide-by-zero,
+  invalid non-finite operands and overflow preserve the required types/error codes.
+- Numeric digit/scale limits apply to integer division. 304 Rust integration tests,
+  27 harness tests and Clippy/format pass; all previous regression cases remain.
+- Twenty-one QT3 sets: 2,376 cases, 1,229 pass / 713 engine failures / 21 harness
+  errors / 413 profile exclusions. Gate grows by 97; XSLT gate expands to 378
+  (378 pass / 155 failures / 144 harness errors / 46 exclusions).
+
+Next: node set operators and remaining XPath grammar.
 

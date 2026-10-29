@@ -171,7 +171,58 @@ impl Number {
             Some(self.decimal().ok()?.cmp(&other.decimal().ok()?))
         }
     }
+    fn integer_division(&self, rhs: &Self) -> Result<Self, Diagnostic> {
+        let limit = || error("XPDY0130", "numeric digit limit exceeded");
+        let quotient = if matches!(self, Self::Double(_) | Self::Float(_))
+            || matches!(rhs, Self::Double(_) | Self::Float(_))
+        {
+            let double = matches!(self, Self::Double(_)) || matches!(rhs, Self::Double(_));
+            let (a, b) = if double {
+                (self.double(), rhs.double())
+            } else {
+                (self.double() as f32 as f64, rhs.double() as f32 as f64)
+            };
+            if b == 0.0 {
+                return Err(error("FOAR0001", "integer division by zero"));
+            }
+            if a.is_nan() || b.is_nan() || a.is_infinite() {
+                return Err(error("FOAR0002", "invalid integer division operand"));
+            }
+            let value = if double {
+                a / b
+            } else {
+                ((a as f32) / (b as f32)) as f64
+            };
+            BigInt::from_f64(value.trunc())
+                .ok_or_else(|| error("FOAR0002", "integer division overflow"))?
+        } else {
+            let (mut a, a_scale) = self.decimal()?.into_bigint_and_scale();
+            let (mut b, b_scale) = rhs.decimal()?.into_bigint_and_scale();
+            if b.is_zero() {
+                return Err(error("FOAR0001", "integer division by zero"));
+            }
+            let scale = b_scale.checked_sub(a_scale).ok_or_else(limit)?;
+            let magnitude = scale.unsigned_abs();
+            if magnitude > MAX_DIGITS as u64 {
+                return Err(limit());
+            }
+            let factor = BigInt::from(10).pow(magnitude as u32);
+            if scale > 0 {
+                a *= factor;
+            } else {
+                b *= factor;
+            }
+            a / b
+        };
+        if quotient.to_string().len() > MAX_DIGITS {
+            return Err(limit());
+        }
+        Ok(Self::Integer(quotient))
+    }
     pub fn arithmetic(&self, rhs: &Self, op: &str) -> Result<Self, Diagnostic> {
+        if op == "idiv" {
+            return self.integer_division(rhs);
+        }
         if matches!(self, Self::Double(_)) || matches!(rhs, Self::Double(_)) {
             let (a, b) = (self.double(), rhs.double());
             return Ok(Self::Double(match op {
