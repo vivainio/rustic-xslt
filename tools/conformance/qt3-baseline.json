@@ -14,12 +14,14 @@
     "fn-floor",
     "fn-head",
     "fn-insert-before",
+    "fn-local-name-from-QName",
     "fn-lower-case",
     "fn-max",
     "fn-min",
     "fn-namespace-uri-from-QName",
     "fn-normalize-unicode",
     "fn-one-or-more",
+    "fn-prefix-from-QName",
     "fn-remove",
     "fn-reverse",
     "fn-root",
@@ -52,7 +54,8 @@
     "prod-PathExpr",
     "prod-QuantifiedExpr",
     "prod-SequenceType",
-    "xs-anyURI"
+    "xs-anyURI",
+    "xs-normalizedString"
   ],
   "passing_cases": [
     [
@@ -3124,6 +3127,10 @@
       "K2-SeqDeepEqualFunc-9"
     ],
     [
+      "fn-deep-equal",
+      "K2-SeqDeepEqualFunc-35"
+    ],
+    [
       "fn-error",
       "fn-error-1"
     ],
@@ -4989,6 +4996,10 @@
     ],
     [
       "fn-max",
+      "fn-max-13"
+    ],
+    [
+      "fn-max",
       "fn-max-14"
     ],
     [
@@ -5698,6 +5709,10 @@
     [
       "fn-min",
       "fn-min-11"
+    ],
+    [
+      "fn-min",
+      "fn-min-13"
     ],
     [
       "fn-min",
@@ -13590,6 +13605,166 @@
     [
       "prod-SequenceType",
       "sequence-type-21"
+    ],
+    [
+      "fn-local-name-from-QName",
+      "LocalNameFromQNameFunc006"
+    ],
+    [
+      "fn-local-name-from-QName",
+      "LocalNameFromQNameFunc007"
+    ],
+    [
+      "fn-local-name-from-QName",
+      "LocalNameFromQNameFunc009"
+    ],
+    [
+      "fn-local-name-from-QName",
+      "LocalNameFromQNameFunc011"
+    ],
+    [
+      "fn-local-name-from-QName",
+      "LocalNameFromQNameFunc015a"
+    ],
+    [
+      "fn-local-name-from-QName",
+      "LocalNameFromQNameFunc016"
+    ],
+    [
+      "fn-local-name-from-QName",
+      "K-LocalNameFromQNameFunc-1"
+    ],
+    [
+      "fn-local-name-from-QName",
+      "K-LocalNameFromQNameFunc-2"
+    ],
+    [
+      "fn-local-name-from-QName",
+      "K-LocalNameFromQNameFunc-3"
+    ],
+    [
+      "fn-local-name-from-QName",
+      "K-LocalNameFromQNameFunc-4"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-1"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-2"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-3"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-4"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-5"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-6"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-7"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-8"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-9"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-10"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-11"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-12"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-13"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-14"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-15"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-16"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-17"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-18"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-19"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "fn-prefix-from-qname-20"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "K-PrefixFromQName-1"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "K-PrefixFromQName-2"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "K-PrefixFromQName-3"
+    ],
+    [
+      "fn-prefix-from-QName",
+      "K-PrefixFromQName-4"
+    ],
+    [
+      "xs-normalizedString",
+      "cbcl-normalizedstring-001"
+    ],
+    [
+      "xs-normalizedString",
+      "cbcl-normalizedstring-002b"
+    ],
+    [
+      "xs-normalizedString",
+      "cbcl-normalizedstring-003"
+    ],
+    [
+      "xs-normalizedString",
+      "cbcl-normalizedstring-004"
+    ],
+    [
+      "xs-normalizedString",
+      "cbcl-normalizedstring-005"
+    ],
+    [
+      "xs-normalizedString",
+      "cbcl-normalizedstring-006"
     ]
   ]
 }

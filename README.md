@@ -49,7 +49,8 @@ Supported so far:
   lexical for/let bindings, some/every quantified expressions, lazy if/then/else, bounded nested XPath comments, string concatenation (`||`),
   instance-of/treat-as/cast/castable;
 - exact integer/decimal arithmetic and integer division (`idiv`), integer subtype
-  constructors/bounds/hierarchy, subtype-preserving min/max, numeric promotion, general/value comparisons,
+  constructors/bounds/hierarchy, derived string/name types and whitespace facets,
+  subtype-preserving min/max, numeric promotion, general/value comparisons,
   basic xs constructors, QName/anyURI atomic values and error(), atomization and string/node/sequence functions, including
   reverse/head/tail, exactly-one/zero-or-one/one-or-more, remove/insert-before, subsequence, numeric sum/avg/min/max, exact abs/floor/ceiling and precision-aware rounding,
   Unicode upper/lower case, translate/substring, codepoint conversion/comparison, Unicode normalization,
@@ -82,7 +83,8 @@ outside the ordinary decimal range. Legacy value-of/AVT/string conversions and
 text sort keys retain plain notation and legacy infinity/zero spellings.
 Full numeric/atomic type coverage remains ahead. QName(uri, lexical-name) retains
 prefixes and supports namespace-based equality, deep equality and xs:QName types.
-QName construction accepts XML 1.0 Unicode names. anyURI values collapse XML
+QName construction accepts XML 1.0 Unicode names. Prefix/local-name accessors
+return xs:NCName values with the correct string restriction hierarchy. anyURI values collapse XML
 whitespace, promote to strings for function conversion/comparison, and retain
 their distinct type for namespace-uri and namespace-uri-from-QName results. xs:QName
 constructors/casts resolve prefixes in their declaring XPath namespace scope. error() reports FOER0000 for absent codes
@@ -217,7 +219,7 @@ A pinned, partial catalog runner and a 382-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. An initial internal QT3 bridge
-also gates 3,384 passing XPath cases at the pinned XPath suite revision.
+also gates 3,427 passing XPath cases at the pinned XPath suite revision.
 The example JSON-lines driver
 and its JSON dependency are development-only.
 

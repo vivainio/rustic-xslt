@@ -38,7 +38,10 @@ pub(crate) fn evaluate<'a>(
             return Err(error("XPTY0004", "collation must be a singleton string"));
         };
         let item = atomize(item);
-        if !matches!(item, Item::String(_) | Item::Untyped(_) | Item::AnyUri(_)) {
+        if !matches!(
+            item,
+            Item::String(_) | Item::Untyped(_) | Item::AnyUri(_) | Item::DerivedString(_, _)
+        ) {
             return Err(error("XPTY0004", "collation must be a string"));
         }
         if item.string() != "http://www.w3.org/2005/xpath-functions/collation/codepoint" {
@@ -124,18 +127,23 @@ pub(crate) fn evaluate<'a>(
         ));
     }
     if values.iter().any(|v| matches!(v, Item::AnyUri(_)))
-        && values.iter().any(|v| matches!(v, Item::String(_)))
+        && values
+            .iter()
+            .any(|v| matches!(v, Item::String(_) | Item::DerivedString(_, _)))
     {
         for value in &mut values {
             budget.tick()?;
-            if let Item::AnyUri(text) = value {
+            if let Item::AnyUri(text) | Item::DerivedString(_, text) = value {
                 *value = Item::String(std::mem::take(text));
             }
         }
     }
-    let strings = values
-        .iter()
-        .all(|v| matches!(v, Item::String(_) | Item::AnyUri(_)));
+    let strings = values.iter().all(|v| {
+        matches!(
+            v,
+            Item::String(_) | Item::AnyUri(_) | Item::DerivedString(_, _)
+        )
+    });
     let booleans = values.iter().all(|v| matches!(v, Item::Boolean(_)));
     if !strings && !booleans {
         return Err(error(
@@ -147,7 +155,10 @@ pub(crate) fn evaluate<'a>(
     for value in values.into_iter().skip(1) {
         budget.tick()?;
         let order = match (&result, &value) {
-            (Item::String(a) | Item::AnyUri(a), Item::String(b) | Item::AnyUri(b)) => a.cmp(b),
+            (
+                Item::String(a) | Item::AnyUri(a) | Item::DerivedString(_, a),
+                Item::String(b) | Item::AnyUri(b) | Item::DerivedString(_, b),
+            ) => a.cmp(b),
             (Item::Boolean(a), Item::Boolean(b)) => a.cmp(b),
             _ => unreachable!(),
         };

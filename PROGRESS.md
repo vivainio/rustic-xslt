@@ -797,5 +797,18 @@ conformance claims. Smaller tested increments are committed independently.
 - Same 4,398 QT3 cases: 3,384 pass / 271 engine failures / 72 harness errors /
   671 profile exclusions. No previous passes regress.
 
-Next: derived string types and QName accessors.
+## Increment 65: string restriction types and QName accessors
+
+- Added normalizedString, token, language, Name, NCName, NMTOKEN, ID, IDREF and
+  ENTITY atomic constructors/casts/types with XML whitespace, language and Unicode
+  name facets. Subtype substitution preserves identity through typed capture.
+- Primitive string operations, URI/QName casts, EBV, deep equality and min/max
+  handle derived strings without conflating them with untyped atomic values.
+- prefix-from-QName and local-name-from-QName return NCName restriction values;
+  optional inputs and namespace-sensitive argument conversion remain precise.
+- 386 Rust integration tests, 27 harness tests and Clippy/format pass. All 382
+  XSLT gate cases remain green; fifty-five QT3 sets: 4,460 cases, 3,427 pass /
+  272 engine failures / 73 harness errors / 688 profile exclusions. Gate adds 43.
+
+Next: node-name and further namespace functions.
 

@@ -18,6 +18,7 @@ pub(crate) enum Kind {
     Comment,
     Pi,
     String,
+    DerivedString(crate::string_type::StringType),
     Untyped,
     AnyUri,
     Boolean,
@@ -148,6 +149,9 @@ impl SequenceType {
                     "double" => Kind::Double,
                     "anyAtomicType" => Kind::Atomic,
                     "numeric" => Kind::Numeric,
+                    name if crate::string_type::StringType::parse(name).is_some() => {
+                        Kind::DerivedString(crate::string_type::StringType::parse(name).unwrap())
+                    }
                     name if crate::integer_type::IntegerType::parse(name).is_some() => {
                         Kind::DerivedInteger(crate::integer_type::IntegerType::parse(name).unwrap())
                     }
@@ -167,6 +171,7 @@ impl SequenceType {
         matches!(
             self.kind,
             Kind::String
+                | Kind::DerivedString(_)
                 | Kind::Untyped
                 | Kind::AnyUri
                 | Kind::Boolean
@@ -209,6 +214,10 @@ impl SequenceType {
             (Kind::Text, Item::Node(n)) => n.is_text(),
             (Kind::Comment, Item::Node(n)) => n.is_comment(),
             (Kind::Pi, Item::Node(n)) => n.is_pi(),
+            (Kind::DerivedString(target), Item::DerivedString(actual, _)) => {
+                actual.subtype_of(*target)
+            }
+            (Kind::String, Item::DerivedString(_, _)) => true,
             (Kind::String, Item::String(_))
             | (Kind::Untyped, Item::Untyped(_))
             | (Kind::AnyUri, Item::AnyUri(_))
@@ -232,6 +241,7 @@ impl SequenceType {
             (
                 Kind::Atomic,
                 Item::String(_)
+                | Item::DerivedString(_, _)
                 | Item::AnyUri(_)
                 | Item::Untyped(_)
                 | Item::Boolean(_)
@@ -264,6 +274,9 @@ impl SequenceType {
             }
             item = match (&self.kind, item) {
                 (Kind::String, Item::Untyped(s) | Item::AnyUri(s)) => Item::String(s),
+                (Kind::DerivedString(kind), Item::Untyped(s)) => {
+                    Item::DerivedString(*kind, kind.cast(&s).map_err(|_| failure())?)
+                }
                 (Kind::AnyUri, Item::Untyped(s)) => {
                     Item::AnyUri(crate::string_functions::collapse_xml_whitespace(&s))
                 }

@@ -73,6 +73,7 @@ pub(crate) enum Item<'a> {
     String(String),
     Untyped(String),
     AnyUri(String),
+    DerivedString(crate::string_type::StringType, String),
     Number(Number),
     Boolean(bool),
     QName(crate::qname::AtomicQName),
@@ -91,7 +92,9 @@ impl Item<'_> {
         match self {
             Self::Absent => String::new(),
             Self::Node(n) => n.string(),
-            Self::String(s) | Self::Untyped(s) | Self::AnyUri(s) => s.clone(),
+            Self::String(s) | Self::Untyped(s) | Self::AnyUri(s) | Self::DerivedString(_, s) => {
+                s.clone()
+            }
             Self::Number(n) => n.string(),
             Self::Boolean(b) => b.to_string(),
             Self::QName(name) => name.lexical(),
@@ -152,7 +155,9 @@ pub(crate) fn boolean(value: &[Item<'_>]) -> Result<bool, Diagnostic> {
         [] => Ok(false),
         [Item::Node(_), ..] => Ok(true),
         [Item::Boolean(b)] => Ok(*b),
-        [Item::String(s) | Item::Untyped(s) | Item::AnyUri(s)] => Ok(!s.is_empty()),
+        [Item::String(s) | Item::Untyped(s) | Item::AnyUri(s) | Item::DerivedString(_, s)] => {
+            Ok(!s.is_empty())
+        }
         [Item::Number(n)] => Ok(n.boolean()),
         _ => Err(err(
             "FORG0006",
@@ -1024,7 +1029,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "true" | "false" | "position" | "last" => (0, 0),
         "error" => (0, 3),
         "QName" => (2, 2),
-        "namespace-uri-from-QName" => (1, 1),
+        "namespace-uri-from-QName" | "prefix-from-QName" | "local-name-from-QName" => (1, 1),
         "string" | "number" | "normalize-space" | "string-length" | "name" | "local-name"
         | "namespace-uri" | "root" => (0, 1),
         "count" | "boolean" | "not" | "exists" | "empty" | "data" | "reverse" | "head" | "tail" => {
@@ -1050,6 +1055,13 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         name if name
             .strip_prefix("xs:")
             .and_then(crate::integer_type::IntegerType::parse)
+            .is_some() =>
+        {
+            (1, 1)
+        }
+        name if name
+            .strip_prefix("xs:")
+            .and_then(crate::string_type::StringType::parse)
             .is_some() =>
         {
             (1, 1)
@@ -1213,7 +1225,7 @@ pub(crate) fn eval<'a>(
                     [] if *optional => Ok(vec![]),
                     [item] => match atomize(item) {
                         Item::QName(name) => Ok(vec![Item::QName(name)]),
-                        Item::String(s) | Item::Untyped(s) => {
+                        Item::String(s) | Item::Untyped(s) | Item::DerivedString(_, s) => {
                             for _ in s.bytes() {
                                 budget.tick()?;
                             }
@@ -1267,6 +1279,7 @@ pub(crate) fn eval<'a>(
                         }
                         let kind = match ty.kind {
                             crate::seqtype::Kind::String => "string",
+                            crate::seqtype::Kind::DerivedString(kind) => kind.name(),
                             crate::seqtype::Kind::Untyped => "untypedAtomic",
                             crate::seqtype::Kind::AnyUri => "anyURI",
                             crate::seqtype::Kind::Boolean => "boolean",
@@ -1690,6 +1703,12 @@ fn numeric(v: &[Item<'_>], backwards: bool) -> Result<Number, Diagnostic> {
 fn compare(a: &Item<'_>, b: &Item<'_>, op: &str, backwards: bool) -> Result<bool, Diagnostic> {
     use std::cmp::Ordering;
     let (mut a, mut b) = (atomize(a), atomize(b));
+    if let Item::DerivedString(_, s) = a {
+        a = Item::String(s);
+    }
+    if let Item::DerivedString(_, s) = b {
+        b = Item::String(s);
+    }
     if let Item::AnyUri(s) = a {
         a = Item::String(s);
     }
@@ -1785,7 +1804,10 @@ fn function<'a>(
                 ));
             };
             match atomize(item) {
-                Item::String(s) | Item::Untyped(s) | Item::AnyUri(s) => s,
+                Item::String(s)
+                | Item::Untyped(s)
+                | Item::AnyUri(s)
+                | Item::DerivedString(_, s) => s,
                 _ => return Err(err("XPTY0004", "error description must be a string")),
             }
         } else {
@@ -1812,10 +1834,26 @@ fn function<'a>(
             .map_or_else(String::new, |item| item.string_compat(backwards)))
     };
     let s = || scalar(first);
-    if name == "namespace-uri-from-QName" {
-        return Ok(optional_qname(first)?.map_or_else(Vec::new, |name| {
-            vec![Item::AnyUri(name.uri.unwrap_or_default())]
-        }));
+    if matches!(
+        name,
+        "namespace-uri-from-QName" | "prefix-from-QName" | "local-name-from-QName"
+    ) {
+        let Some(qname) = optional_qname(first)? else {
+            return Ok(vec![]);
+        };
+        return Ok(match name {
+            "namespace-uri-from-QName" => vec![Item::AnyUri(qname.uri.unwrap_or_default())],
+            "prefix-from-QName" => qname.prefix.map_or_else(Vec::new, |prefix| {
+                vec![Item::DerivedString(
+                    crate::string_type::StringType::NcName,
+                    prefix,
+                )]
+            }),
+            _ => vec![Item::DerivedString(
+                crate::string_type::StringType::NcName,
+                qname.local,
+            )],
+        });
     }
     if name == "QName" {
         let uri = crate::string_functions::string(&args[0], true, false)?;
@@ -1914,6 +1952,13 @@ fn function<'a>(
             return Err(err("XPTY0004", "constructor requires a singleton"));
         }
         let item = &first[0];
+        if let Some(kind) = crate::string_type::StringType::parse(kind) {
+            let text = item.string();
+            for _ in text.bytes() {
+                budget.tick()?;
+            }
+            return Ok(vec![Item::DerivedString(kind, kind.cast(&text)?)]);
+        }
         if matches!(item, Item::AnyUri(_)) && !matches!(kind, "string" | "untypedAtomic" | "anyURI")
         {
             return Err(err("XPTY0004", "anyURI cannot be cast to this atomic type"));
@@ -1925,7 +1970,10 @@ fn function<'a>(
             "string" => Item::String(item.string()),
             "untypedAtomic" => Item::Untyped(item.string()),
             "anyURI" => match atomize(item) {
-                Item::String(s) | Item::Untyped(s) | Item::AnyUri(s) => {
+                Item::String(s)
+                | Item::Untyped(s)
+                | Item::AnyUri(s)
+                | Item::DerivedString(_, s) => {
                     for _ in s.bytes() {
                         budget.tick()?;
                     }
