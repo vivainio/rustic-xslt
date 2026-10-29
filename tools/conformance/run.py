@@ -15,6 +15,7 @@ import sys
 import xml.etree.ElementTree as ET
 from xml.dom import Node, minidom
 from xml.parsers.expat import ExpatError
+from urllib.parse import urljoin
 from xml.sax.saxutils import quoteattr
 
 NS = "{http://www.w3.org/2012/10/xslt-test-catalog}"
@@ -241,7 +242,12 @@ def string_value(node):
 
 def preflight(assertion):
     kind = tag(assertion)
-    if kind in {"all-of", "any-of", "not"}:
+    if kind == "assert-result-document":
+        check_attrs(assertion, ["uri"])
+        if "uri" not in assertion.attrib or len(assertion) != 1:
+            raise HarnessError("assert-result-document requires a URI and exactly one assertion")
+        preflight(assertion[0])
+    elif kind in {"all-of", "any-of", "not"}:
         if not len(assertion):
             raise HarnessError(f"empty {kind}")
         for a in assertion:
@@ -303,6 +309,19 @@ def assertion(a, response, base, driver=None):
         if evaluated.get("output") not in {"true", "false"}:
             raise HarnessError("XPath assertion returned no boolean")
         return evaluated["output"] == "true", "XPath assertion was false"
+
+    if kind == "assert-result-document":
+        documents = response.get("documents", {})
+        if not isinstance(documents, dict) or not all(isinstance(uri, str) and isinstance(value, str) for uri, value in documents.items()):
+            raise HarnessError("invalid secondary document response")
+        # An implementation-defined logical base; no resources are fetched.
+        result_base = "file:///__rust_xslt_result__/"
+        expected_uri = urljoin(result_base, a.get("uri", ""))
+        matches = [value for uri, value in documents.items() if urljoin(result_base, uri) == expected_uri]
+        if len(matches) != 1:
+            return False, f"expected one result document for {a.get('uri')!r}; got {len(matches)}"
+        nested = {"output": matches[0], "method": "xml", "diagnostics": [], "documents": documents}
+        return assertion(a[0], nested, base, driver)
 
     if kind == "serialization-matches":
         if driver is None:

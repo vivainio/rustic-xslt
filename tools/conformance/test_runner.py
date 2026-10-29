@@ -36,6 +36,28 @@ class Assertions(unittest.TestCase):
         self.assertNotEqual(canonical(fragment('<r/><?after value?>')), canonical(fragment('<r/>')))
         self.assertEqual(canonical(fragment('<!DOCTYPE r><r/>')), canonical(fragment('<r/>')))
 
+    def test_secondary_document_assertions_select_normalized_uris_and_recurse(self):
+        check = node('<assert-result-document uri="out/a.xml"><all-of><assert-xml>&lt;r&gt;value&lt;/r&gt;</assert-xml><assert-string-value>value</assert-string-value></all-of></assert-result-document>')
+        preflight(check)
+        response = {"output": "<principal/>", "documents": {"./out/a.xml": '<r>value</r>'}}
+        self.assertTrue(assertion(check, response, Path())[0])
+        response['documents']['./out/a.xml'] = '<r>different</r>'
+        self.assertFalse(assertion(check, response, Path())[0])
+        response['documents'] = {}
+        self.assertFalse(assertion(check, response, Path())[0])
+        response['documents'] = {'out/a.xml': '<r>value</r>', './out/a.xml': '<r>value</r>'}
+        self.assertFalse(assertion(check, response, Path())[0])
+
+    def test_secondary_assertions_preflight_all_branches_and_reject_bad_responses(self):
+        for value in ['<assert-result-document/>', '<assert-result-document uri="a"/>', '<assert-result-document uri="a"><unsupported/></assert-result-document>']:
+            with self.assertRaises(HarnessError):
+                preflight(node(f'<any-of><assert-xml/>{value}</any-of>'))
+        check = node('<assert-result-document uri="a"><assert-xml>&lt;r/&gt;</assert-xml></assert-result-document>')
+        with self.assertRaises(HarnessError):
+            assertion(check, {"documents": {"a": 1}}, Path())
+        negated = node('<not><assert-result-document uri="a"><assert-xml>&lt;r/&gt;</assert-xml></assert-result-document></not>')
+        self.assertFalse(assertion(negated, {"diagnostics": [{"code": "XTDE1490"}]}, Path())[0])
+
     def test_serialization_regex_uses_xpath_flags_and_external_string_parameters(self):
         requests = []
         class Driver:

@@ -1626,3 +1626,21 @@ conformance claims. Smaller tested increments are committed independently.
   default-build check, formatting, 39 Python tests and both full pinned gates pass.
   Rebuilt with debug info disabled after clearing generated Cargo artifacts to
   recover disk space; source/dependency configuration was unchanged.
+
+## Increment 138: secondary result assertions
+
+- Added assert-result-document over the development driver's returned secondary
+  document map. Result URIs normalize relative to an implementation-defined
+  logical base without fetching resources; each selected document runs through
+  the ordinary recursive assertion evaluator as an XML result.
+- Missing documents and duplicate equivalent URIs are failures. Malformed driver
+  responses and unsupported nested assertions remain harness errors, checked
+  before execution even inside any-of. Engine errors cannot satisfy negated
+  secondary assertions.
+- Added URI normalization, nested XML/string assertions, missing/duplicate result,
+  malformed response, nested preflight and negated-error regressions.
+- Expanded pinned XSLT gate: 741 passes (six new, zero regressions), 414 engine
+  failures, 264 harness errors and 153 exclusions across 1,572 cases. Newly
+  reaching the engine accounts for four additional explicit failures.
+- Validation: all 41 Python harness tests, whitespace checks and the expanded
+  pinned XSLT gate pass. No Rust implementation changes in this increment.
