@@ -493,12 +493,30 @@ impl Output {
             } else {
                 element.name.qname.clone()
             };
-            let declaration = match (&doctype.public, &doctype.system) {
-                (Some(p), Some(s)) => format!("<!DOCTYPE {name} PUBLIC \"{p}\" \"{s}\">\n"),
+            let system = doctype
+                .system
+                .as_ref()
+                .map(|value| {
+                    if value.contains('"') {
+                        if value.contains('\'') {
+                            return Err(Diagnostic::new(
+                                "SEPM0016",
+                                "DOCTYPE system identifier contains both quote delimiters",
+                                "run",
+                            ));
+                        }
+                        Ok(format!("'{value}'"))
+                    } else {
+                        Ok(format!("\"{value}\""))
+                    }
+                })
+                .transpose()?;
+            let declaration = match (&doctype.public, &system) {
+                (Some(p), Some(s)) => format!("<!DOCTYPE {name} PUBLIC \"{p}\" {s}>\n"),
                 (Some(p), None) if self.markup == Markup::Html => {
                     format!("<!DOCTYPE {name} PUBLIC \"{p}\">\n")
                 }
-                (None, Some(s)) => format!("<!DOCTYPE {name} SYSTEM \"{s}\">\n"),
+                (None, Some(s)) => format!("<!DOCTYPE {name} SYSTEM {s}>\n"),
                 (_, None) => String::new(),
             };
             self.push(&declaration)?;

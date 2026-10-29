@@ -2016,3 +2016,12 @@ conformance claims. Smaller tested increments are committed independently.
 - Added a regression constructing CR text with `codepoints-to-string`.
 - Validation: nine encoding tests, all-target/all-feature Clippy and the full
   882-case pinned XSLT gate pass without regressions.
+
+## Increment 174: safe DOCTYPE system-identifier quoting
+
+- DOCTYPE system identifiers containing double quotes use single-quoted literals.
+  Values containing both delimiters report invalid serialization parameter
+  `SEPM0016` instead of producing a malformed declaration.
+- Added a regression for a double quote in an XML system identifier.
+- Validation: eight HTML/XML serializer tests, all-target/all-feature Clippy and
+  the full 882-case pinned XSLT gate pass without regressions.

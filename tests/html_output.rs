@@ -91,3 +91,14 @@ fn xml_public_doctype_without_system_is_ignored() {
         "<!DOCTYPE html PUBLIC \"PUBLIC\">\n<html></html>"
     );
 }
+
+#[test]
+fn doctype_system_identifiers_choose_a_safe_quote_delimiter() {
+    assert_eq!(
+        run(
+            r#"method="xml" omit-xml-declaration="yes" doctype-system="a&quot;b.dtd""#,
+            "<root/>"
+        ),
+        "<!DOCTYPE root SYSTEM 'a\"b.dtd'>\n<root></root>"
+    );
+}
