@@ -1239,3 +1239,12 @@ conformance claims. Smaller tested increments are committed independently.
   unparsed-text(), unparsed-text-lines(), unparsed-text-available() and json-doc();
   failures and a missing resolver report FOUT1170 (availability tests return false).
   doc()/document() still need document loading into the temporary tree arena.
+
+## Increment 107: doc(), document() and doc-available()
+
+- Documents named by literal URIs in the stylesheet's XPath expressions are loaded
+  through the resolver before the transformation starts (XML declaration stripped)
+  and bound to their URI; doc() and document() return the same node for repeated
+  calls, doc-available() reports presence and unknown documents raise FODC0002.
+  Dynamically computed URIs are not supported, and relative-URI resolution against a
+  base URI is not performed (the string must match the literal).

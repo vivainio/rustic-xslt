@@ -2462,6 +2462,7 @@ pub(crate) fn compile(
     source: &str,
     resolver: Option<Resolver<'_>>,
 ) -> Result<Stylesheet, Diagnostic> {
+    xpath::take_document_uris();
     let doc = crate::parse(source, "compile")?;
     let root = doc.root_element();
     if root.tag_name().namespace() != Some(XSL)
@@ -2480,6 +2481,7 @@ pub(crate) fn compile(
         keys: Default::default(),
         attribute_sets: BTreeMap::new(),
         decimal_formats: Default::default(),
+        document_uris: vec![],
         space_rules: vec![],
         default_mode: default_mode(root)?,
         modes: BTreeMap::new(),
@@ -2524,6 +2526,7 @@ pub(crate) fn compile(
     sheet.keys = std::sync::Arc::new(keys);
     sheet.attribute_sets = attribute_sets;
     sheet.decimal_formats = std::sync::Arc::new(decimal_formats);
+    sheet.document_uris = xpath::take_document_uris();
     validate(&sheet)?;
     Ok(sheet)
 }

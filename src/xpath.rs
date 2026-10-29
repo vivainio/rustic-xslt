@@ -230,6 +230,22 @@ pub(crate) const CURRENT_GROUP: &str = "\u{0}current-group";
 pub(crate) const REGEX_GROUPS: &str = "\u{0}regex-groups";
 pub(crate) const CURRENT_KEY: &str = "\u{0}current-grouping-key";
 pub(crate) type DecimalFormats = std::sync::Arc<BTreeMap<String, crate::format_number::Format>>;
+thread_local! {
+    static DOCUMENT_URIS: std::cell::RefCell<std::collections::BTreeSet<String>> =
+        const { std::cell::RefCell::new(std::collections::BTreeSet::new()) };
+}
+/// Literal URIs passed to doc(), document() and doc-available() since the last call.
+pub(crate) fn take_document_uris() -> Vec<String> {
+    DOCUMENT_URIS.with(|uris| {
+        std::mem::take(&mut *uris.borrow_mut())
+            .into_iter()
+            .collect()
+    })
+}
+/// Global-variable key under which a preloaded document is bound.
+pub(crate) fn document_key(uri: &str) -> String {
+    format!("\u{0}doc:{uri}")
+}
 pub(crate) type KeyTable = std::sync::Arc<BTreeMap<String, Vec<KeyDefinition>>>;
 pub(crate) type FunctionTable = std::sync::Arc<BTreeMap<(String, usize), UserFunction>>;
 pub(crate) struct Budget {
@@ -803,6 +819,11 @@ impl Parser {
                 false,
             ))
         } else {
+            if matches!(local.as_str(), "doc" | "document" | "doc-available")
+                && let Some(Expr::String(uri)) = args.first()
+            {
+                DOCUMENT_URIS.with(|uris| uris.borrow_mut().insert(uri.trim().to_owned()));
+            }
             if local == "format-number"
                 && let Some(Expr::String(format_name)) = args.get_mut(2)
                 && format_name.contains(':')
@@ -1530,6 +1551,8 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "format-number" => (2, 3),
         "parse-json" => (1, 2),
         "format-integer" => (2, 3),
+        "doc" | "doc-available" => (1, 1),
+        "document" => (1, 2),
         "unparsed-text" | "unparsed-text-available" => (1, 2),
         "unparsed-text-lines" => (1, 2),
         "json-doc" => (1, 2),
@@ -2361,6 +2384,23 @@ fn call_named<'a>(
         vars.get(CURRENT_KEY)
             .cloned()
             .ok_or_else(|| err("XTDE1071", "there is no current grouping key"))?
+    } else if matches!(name, "doc" | "document" | "doc-available") {
+        let mut found: Value<'a> = vec![];
+        let mut available = true;
+        for item in &args[0] {
+            let uri = atomize(item).string();
+            match vars.get(&document_key(uri.trim())) {
+                Some(document) => found.extend(document.iter().cloned()),
+                None => available = false,
+            }
+        }
+        if name == "doc-available" {
+            vec![Item::Boolean(available && args[0].len() == 1)]
+        } else if !available {
+            return Err(err("FODC0002", "the document could not be loaded"));
+        } else {
+            found
+        }
     } else if name == "regex-group" {
         let index = match args[0].as_slice() {
             [Item::Number(n)] => n.double(),

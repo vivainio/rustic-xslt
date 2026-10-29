@@ -62,3 +62,32 @@ fn missing_resources_and_resolvers_are_errors() {
         "false"
     );
 }
+#[test]
+fn doc_loads_documents_named_by_literal_uris() {
+    let o = TransformOptions {
+        resolver: Some(ResourceResolver::new(|href| match href {
+            "lib.xml" => Ok(
+                "<?xml version=\"1.0\"?><lib><b id=\"1\">one</b><b id=\"2\">two</b></lib>"
+                    .to_owned(),
+            ),
+            _ => Err(Diagnostic {
+                code: "XTRE0000".into(),
+                message: "missing".into(),
+                phase: "run",
+                line: 0,
+                column: 0,
+            }),
+        })),
+        ..TransformOptions::default()
+    };
+    assert_eq!(run("doc('lib.xml')/lib/b[2]", &o).unwrap(), "two");
+    assert_eq!(run("count(doc('lib.xml')//b)", &o).unwrap(), "2");
+    assert_eq!(
+        run("string-join(document('lib.xml')//b/@id, ',')", &o).unwrap(),
+        "1,2"
+    );
+    assert_eq!(run("doc-available('lib.xml')", &o).unwrap(), "true");
+    assert_eq!(run("doc-available('nope.xml')", &o).unwrap(), "false");
+    assert_eq!(run("doc('nope.xml')", &o).unwrap_err().code, "FODC0002");
+    assert_eq!(run("doc('lib.xml') is doc('lib.xml')", &o).unwrap(), "true");
+}

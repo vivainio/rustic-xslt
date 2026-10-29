@@ -189,6 +189,7 @@ pub struct Stylesheet {
     functions: xpath::FunctionTable,
     keys: xpath::KeyTable,
     decimal_formats: xpath::DecimalFormats,
+    document_uris: Vec<String>,
     attribute_sets: std::collections::BTreeMap<String, compile::AttributeSet>,
     space_rules: Vec<whitespace::Rule>,
 }

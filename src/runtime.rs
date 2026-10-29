@@ -1048,6 +1048,29 @@ fn execute<'a>(
         }
         pending = remaining;
     }
+    // Documents named by literal URIs in the stylesheet are loaded up front.
+    if let Some(resolver) = &options.resolver {
+        for uri in &sheet.document_uris {
+            budget.tick()?;
+            let Ok(text) = (resolver.0)(uri) else {
+                continue;
+            };
+            let body = text.trim_start_matches('\u{feff}');
+            let body = match body
+                .strip_prefix("<?xml")
+                .and_then(|rest| rest.split_once("?>"))
+            {
+                Some((_, rest)) => rest,
+                None => body,
+            };
+            let Ok(document) = trees.construct(body.to_owned(), None, "XTTE0570") else {
+                continue;
+            };
+            let key = xpath::document_key(uri);
+            globals.insert(format!("{}{key}", xpath::GLOBAL_PREFIX), document.clone());
+            globals.insert(key, document);
+        }
+    }
     let globals = Rc::new(globals);
     let mut output = Output::new(limits.max_output_bytes, sheet.text_output)
         .with_serialization(sheet.markup, sheet.doctype.clone());
