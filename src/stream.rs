@@ -267,6 +267,9 @@ fn safe_global_body(body: &[Instruction]) -> Result<(), Diagnostic> {
             Instruction::Try { .. } => {
                 return Err(unsupported("xsl:try is not supported when streaming"));
             }
+            Instruction::Number(_) => {
+                return Err(unsupported("xsl:number is not supported when streaming"));
+            }
             Instruction::UseSets(_) => {
                 return Err(unsupported(
                     "attribute sets are not supported when streaming",
@@ -466,6 +469,9 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                     }
                     Instruction::Try { .. } => {
                         return Err(unsupported("xsl:try is not supported when streaming"));
+                    }
+                    Instruction::Number(_) => {
+                        return Err(unsupported("xsl:number is not supported when streaming"));
                     }
                     Instruction::UseSets(_) => {
                         return Err(unsupported(

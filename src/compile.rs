@@ -40,6 +40,7 @@ pub(crate) enum Instruction {
     NextMatch(Vec<Binding>),
     ApplyImports(Vec<Binding>),
     UseSets(Vec<String>),
+    Number(Box<NumberSpec>),
     Iterate {
         select: Expr,
         params: Vec<Binding>,
@@ -81,6 +82,24 @@ pub(crate) const ERROR_VARIABLES: [&str; 7] = [
 pub(crate) struct AttributeSet {
     pub uses: Vec<String>,
     pub body: Vec<Instruction>,
+}
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum NumberLevel {
+    Single,
+    Multiple,
+    Any,
+}
+#[derive(Debug)]
+pub(crate) struct NumberSpec {
+    pub value: Option<Expr>,
+    pub select: Option<Expr>,
+    pub level: NumberLevel,
+    pub count: Option<Vec<crate::pattern::Branch>>,
+    pub from: Option<Vec<crate::pattern::Branch>>,
+    pub format: Vec<Expr>,
+    pub ordinal: Vec<Expr>,
+    pub grouping_separator: Vec<Expr>,
+    pub grouping_size: Vec<Expr>,
 }
 #[derive(Debug)]
 pub(crate) enum Grouping {
@@ -437,6 +456,7 @@ pub(crate) fn raw_result_body(body: &[Instruction]) -> bool {
         | Instruction::Iterate { .. }
         | Instruction::NextIteration(_)
         | Instruction::Break(_)
+        | Instruction::Number(_)
         | Instruction::Try { .. }
         | Instruction::AnalyzeString { .. }
         | Instruction::LiteralAttributes(_)
@@ -918,6 +938,71 @@ fn body(
                             }
                         };
                         out.push(Instruction::Sequence(Expr::Sorted(Box::new(source), keys)));
+                    }
+                    "number" => {
+                        attrs(
+                            n,
+                            &[
+                                "value",
+                                "select",
+                                "level",
+                                "count",
+                                "from",
+                                "format",
+                                "lang",
+                                "letter-value",
+                                "ordinal",
+                                "grouping-separator",
+                                "grouping-size",
+                                "start-at",
+                            ],
+                        )?;
+                        empty(n)?;
+                        if n.attribute("start-at").is_some() {
+                            return Err(error(n, "xsl:number start-at is not implemented"));
+                        }
+                        if n.attribute("value").is_some()
+                            && ["select", "level", "count", "from"]
+                                .iter()
+                                .any(|a| n.attribute(*a).is_some())
+                        {
+                            return Err(static_error(
+                                n,
+                                "XTSE0975",
+                                "value excludes select, level, count and from",
+                            ));
+                        }
+                        let level = match n.attribute("level").unwrap_or("single") {
+                            "single" => NumberLevel::Single,
+                            "multiple" => NumberLevel::Multiple,
+                            "any" => NumberLevel::Any,
+                            _ => return Err(static_error(n, "XTSE0020", "invalid number level")),
+                        };
+                        let pattern = |name: &str| {
+                            n.attribute(name)
+                                .map(|p| crate::pattern::parse(p, namespaces(n)))
+                                .transpose()
+                        };
+                        let optional_avt = |name: &str| -> Result<Vec<Expr>, Diagnostic> {
+                            n.attribute(name)
+                                .map(|v| avt(n, v))
+                                .transpose()
+                                .map(Option::unwrap_or_default)
+                        };
+                        out.push(Instruction::Number(Box::new(NumberSpec {
+                            value: n.attribute("value").map(|v| expr(n, v)).transpose()?,
+                            select: n.attribute("select").map(|v| expr(n, v)).transpose()?,
+                            level,
+                            count: pattern("count")?,
+                            from: pattern("from")?,
+                            format: match n.attribute("format") {
+                                Some(f) => avt(n, f)?,
+                                None => vec![Expr::String("1".into())],
+                            },
+                            ordinal: optional_avt("ordinal")?,
+                            grouping_separator: optional_avt("grouping-separator")?,
+                            grouping_size: optional_avt("grouping-size")?,
+                        })));
                     }
                     "try" => {
                         attrs(n, &["select", "rollback-output"])?;
@@ -2468,6 +2553,15 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     }
                     instructions(on_completion, inner.clone(), templates)?;
                     instructions(body, inner, templates)?;
+                }
+                Instruction::Number(spec) => {
+                    for e in [&spec.value, &spec.select].into_iter().flatten() {
+                        expression(e, &scope)?;
+                    }
+                    parts(&spec.format, &scope)?;
+                    parts(&spec.ordinal, &scope)?;
+                    parts(&spec.grouping_separator, &scope)?;
+                    parts(&spec.grouping_size, &scope)?;
                 }
                 Instruction::Try { body, catches } => {
                     instructions(body, scope.clone(), templates)?;

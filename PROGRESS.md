@@ -1178,3 +1178,12 @@ conformance claims. Smaller tested increments are committed independently.
   matching consumes the shared work budget. matches, replace, tokenize and
   xsl:analyze-string all go through the same abstraction.
 - fn-matches/fn-matches.re/fn-replace/fn-tokenize: 1,268 of 1,333 QT3 cases pass.
+
+## Increment 100: xsl:number
+
+- Added xsl:number: value (rounded, XTDE0980 for negative or NaN), select, level
+  single/multiple/any with count and from patterns, format tokens (decimal with zero
+  padding and other Unicode digit families, a/A, i/I, w/W/Ww words with hyphenation,
+  prefix/suffix/separators), ordinal, grouping-separator and grouping-size.
+- Not implemented: start-at, lang and letter-value (accepted, ignored), non-English
+  words and traditional numbering.

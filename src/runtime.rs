@@ -532,6 +532,222 @@ fn form_groups<'a>(
     }
     Ok(groups)
 }
+fn number_matches<'a>(
+    patterns: &[crate::pattern::Branch],
+    node: XNode<'a>,
+    env: &Variables<'a>,
+    budget: &mut Budget,
+    backwards: bool,
+) -> Result<bool, Diagnostic> {
+    for branch in patterns {
+        if crate::pattern::matches(branch, node, env, budget, backwards)? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+/// The sequence of numbers `xsl:number` computes for its position in the tree.
+fn number_text<'a>(
+    spec: &crate::compile::NumberSpec,
+    focus: &Focus<'a>,
+    env: &Variables<'a>,
+    budget: &mut Budget,
+    backwards: bool,
+) -> Result<String, Diagnostic> {
+    use crate::compile::NumberLevel;
+    let numbers: Vec<u64> = if let Some(value) = &spec.value {
+        let items = xpath::eval(value, focus, env, budget, 0, backwards)?;
+        let mut out = vec![];
+        for item in &items {
+            let n = match xpath::atomize(item) {
+                xpath::Item::Number(n) => n.double(),
+                xpath::Item::Untyped(s) => s.trim().parse().unwrap_or(f64::NAN),
+                _ => f64::NAN,
+            };
+            let rounded = (n + 0.5).floor();
+            if !rounded.is_finite() || rounded < 0.0 {
+                return Err(Diagnostic::new(
+                    "XTDE0980",
+                    "xsl:number value must be a non-negative number",
+                    "run",
+                ));
+            }
+            out.push(rounded as u64);
+        }
+        out
+    } else {
+        let node = match &spec.select {
+            Some(select) => match xpath::eval(select, focus, env, budget, 0, backwards)?.as_slice()
+            {
+                [Item::Node(n)] => *n,
+                _ => {
+                    return Err(Diagnostic::new(
+                        "XTTE1000",
+                        "xsl:number select must be a single node",
+                        "run",
+                    ));
+                }
+            },
+            None => match focus.item {
+                Item::Node(n) => n,
+                _ => {
+                    return Err(Diagnostic::new(
+                        "XTTE0990",
+                        "xsl:number requires a context node",
+                        "run",
+                    ));
+                }
+            },
+        };
+        let (kind_name, kind) = (
+            node.name(),
+            (
+                node.is_element(),
+                node.is_attribute(),
+                node.is_text(),
+                node.is_comment(),
+                node.is_pi(),
+            ),
+        );
+        let mut counted = |candidate: XNode<'a>, budget: &mut Budget| -> Result<bool, Diagnostic> {
+            match &spec.count {
+                Some(patterns) => number_matches(patterns, candidate, env, budget, backwards),
+                None => Ok((
+                    candidate.is_element(),
+                    candidate.is_attribute(),
+                    candidate.is_text(),
+                    candidate.is_comment(),
+                    candidate.is_pi(),
+                ) == kind
+                    && (candidate.is_text()
+                        || candidate.is_comment()
+                        || candidate.name() == kind_name)),
+            }
+        };
+        let is_from = |candidate: XNode<'a>, budget: &mut Budget| -> Result<bool, Diagnostic> {
+            match &spec.from {
+                Some(patterns) => number_matches(patterns, candidate, env, budget, backwards),
+                None => Ok(false),
+            }
+        };
+        let position_among_siblings =
+            |target: XNode<'a>,
+             counted: &mut dyn FnMut(XNode<'a>, &mut Budget) -> Result<bool, Diagnostic>,
+             budget: &mut Budget|
+             -> Result<u64, Diagnostic> {
+                let mut position = 1;
+                if let Some(parent) = target.parent() {
+                    if target.is_attribute() {
+                        return Ok(1);
+                    }
+                    for sibling in parent.children() {
+                        budget.tick()?;
+                        if sibling == target {
+                            break;
+                        }
+                        if counted(sibling, budget)? {
+                            position += 1;
+                        }
+                    }
+                }
+                Ok(position)
+            };
+        match spec.level {
+            NumberLevel::Single => {
+                let mut current = Some(node);
+                let mut target = None;
+                while let Some(candidate) = current {
+                    budget.tick()?;
+                    if counted(candidate, budget)? {
+                        target = Some(candidate);
+                        break;
+                    }
+                    if is_from(candidate, budget)? {
+                        break;
+                    }
+                    current = candidate.parent();
+                }
+                match target {
+                    Some(target) => vec![position_among_siblings(target, &mut counted, budget)?],
+                    None => vec![],
+                }
+            }
+            NumberLevel::Multiple => {
+                let mut chain = vec![];
+                let mut current = Some(node);
+                while let Some(candidate) = current {
+                    budget.tick()?;
+                    if counted(candidate, budget)? {
+                        chain.push(candidate);
+                    }
+                    if is_from(candidate, budget)? {
+                        break;
+                    }
+                    current = candidate.parent();
+                }
+                chain.reverse();
+                let mut out = vec![];
+                for target in chain {
+                    out.push(position_among_siblings(target, &mut counted, budget)?);
+                }
+                out
+            }
+            NumberLevel::Any => {
+                let mut total = 0u64;
+                let mut seen_self = false;
+                let root = node.root();
+                let mut everything = vec![root];
+                everything.extend(root.descendants());
+                for candidate in everything {
+                    budget.tick()?;
+                    if is_from(candidate, budget)? {
+                        total = 0;
+                    }
+                    if counted(candidate, budget)? {
+                        total += 1;
+                    }
+                    if candidate == node {
+                        seen_self = true;
+                        break;
+                    }
+                }
+                if seen_self && total > 0 {
+                    vec![total]
+                } else {
+                    vec![]
+                }
+            }
+        }
+    };
+    if numbers.is_empty() {
+        return Ok(String::new());
+    }
+    let mut text = |parts: &[xpath::Expr]| parts_text(parts, focus, env, budget, backwards);
+    let format = text(&spec.format)?;
+    let ordinal = !text(&spec.ordinal)?.is_empty();
+    let separator = text(&spec.grouping_separator)?;
+    let size = text(&spec.grouping_size)?;
+    let grouping =
+        (!separator.is_empty() && !size.is_empty()).then(|| crate::numbering::Grouping {
+            separator,
+            size: size.trim().parse().unwrap_or(0),
+        });
+    Ok(crate::numbering::format_list(
+        &numbers,
+        &format,
+        ordinal,
+        grouping.as_ref(),
+    ))
+}
+fn parts_text<'a>(
+    parts_list: &[xpath::Expr],
+    focus: &Focus<'a>,
+    env: &Variables<'a>,
+    budget: &mut Budget,
+    backwards: bool,
+) -> Result<String, Diagnostic> {
+    parts(parts_list, focus, env, budget, backwards)
+}
 fn focus_sequence(value: Value<'_>) -> Vec<Focus<'_>> {
     let size = value.len();
     value
@@ -1305,6 +1521,7 @@ fn run_tasks<'a>(
                             | Instruction::Iterate { .. }
                             | Instruction::NextIteration(_)
                             | Instruction::Break(_)
+                            | Instruction::Number(_)
                             | Instruction::If(..)
                             | Instruction::Choose(_)
                             | Instruction::Element { .. }
@@ -1667,6 +1884,18 @@ fn run_tasks<'a>(
                                     rule: None,
                                 },
                             ));
+                        }
+                    }
+                    Instruction::Number(spec) => {
+                        let text = number_text(spec, &focus, &env, budget, sheet.backwards)?;
+                        if raw_active(&captures) {
+                            captures
+                                .last_mut()
+                                .unwrap()
+                                .items
+                                .extend(raw_text(&text, trees, output.max)?);
+                        } else {
+                            output.text(&text)?;
                         }
                     }
                     Instruction::Try {

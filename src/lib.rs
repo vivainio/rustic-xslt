@@ -14,6 +14,7 @@ mod maps;
 mod mode;
 mod node;
 mod number;
+mod numbering;
 mod pattern;
 mod qname;
 mod regex_functions;
