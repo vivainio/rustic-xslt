@@ -124,3 +124,19 @@ fn generated_ids_distinguish_node_identity_and_expanded_attribute_names() {
     assert!(id.starts_with(|c: char| c.is_ascii_alphabetic()));
     assert!(id.chars().all(|c| c.is_ascii_alphanumeric()));
 }
+#[test]
+fn processing_instruction_test_accepts_unquoted_ncname_targets() {
+    let run = |expression: &str| {
+        Stylesheet::compile(&format!(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:sequence select="{expression}"/></xsl:template></xsl:stylesheet>"#))
+            .unwrap()
+            .transform("<r><?a x?><?b y?></r>")
+            .unwrap()
+    };
+    assert_eq!(run("r/processing-instruction(a)/name()"), "a");
+    assert_eq!(run("r/processing-instruction('b')/name()"), "b");
+    assert_eq!(run("count(r/processing-instruction())"), "2");
+    assert_eq!(
+        run("(r/processing-instruction() except r/processing-instruction(a))/name()"),
+        "b"
+    );
+}

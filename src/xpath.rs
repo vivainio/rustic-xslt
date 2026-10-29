@@ -962,11 +962,16 @@ impl Parser {
                                 "comment" => Test::Comment,
                                 "document-node" => Test::Document,
                                 "processing-instruction" => {
-                                    let target = if let Token::String(s) = self.peek().clone() {
-                                        self.next();
-                                        Some(s)
-                                    } else {
-                                        None
+                                    let target = match self.peek().clone() {
+                                        Token::String(s) => {
+                                            self.next();
+                                            Some(s)
+                                        }
+                                        Token::Name(s) if !s.contains(':') => {
+                                            self.next();
+                                            Some(s)
+                                        }
+                                        _ => None,
                                     };
                                     Test::Pi(target)
                                 }
