@@ -1132,3 +1132,13 @@ conformance claims. Smaller tested increments are committed independently.
   conflicting declarations XTSE1290; unknown names raise FODF1280.
 - The QT3 driver turns decimal-format environments into declarations: 230 of the 269
   fn-format-number cases now pass.
+
+## Increment 96: fn:parse-json
+
+- Added parse-json() with strict RFC 8259 parsing into maps, arrays, strings,
+  doubles and booleans (null is the empty sequence), surrogate-pair escapes,
+  U+FFFD for characters outside the XML Char production, the duplicates
+  (use-first, use-last, reject), liberal and escape options, FOJS0001/FOJS0003/
+  FOJS0005 errors and a nesting limit. The fallback option and the file-reading
+  json-doc()/unparsed-text() functions are not implemented.
+- 123 of the 154 fn-parse-json cases pass and are in the gate.

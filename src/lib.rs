@@ -8,6 +8,7 @@ mod deep_equal;
 mod format_number;
 mod indent;
 mod integer_type;
+mod json;
 mod maps;
 mod mode;
 mod node;

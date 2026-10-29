@@ -188,3 +188,50 @@ fn map_find_searches_nested_containers() {
         ("array:size(map:find(map { 'a': 1 }, 'zz'))", "0"),
     ]);
 }
+#[test]
+fn parse_json_builds_maps_arrays_and_atomic_values() {
+    check(&[
+        (
+            r#"parse-json('{"a": 1, "b": [true, false, null, "x"]}')?a"#,
+            "1",
+        ),
+        (
+            r#"parse-json('{"a": 1, "b": [true, false, null, "x"]}')?b?4"#,
+            "x",
+        ),
+        (
+            r#"array:size(parse-json('{"b": [true, false, null, "x"]}')?b)"#,
+            "4",
+        ),
+        (r#"empty(parse-json('{"b": [null]}')?b?1)"#, "true"),
+        (r#"parse-json('"café 😀"')"#, "café 😀"),
+        ("parse-json('12.5e1') instance of xs:double", "true"),
+        ("parse-json('-0') instance of xs:double", "true"),
+        ("parse-json('  [1, 2, 3]  ')?*", "1 2 3"),
+        ("empty(parse-json('null'))", "true"),
+        ("map:size(parse-json('{}'))", "0"),
+        (r#"parse-json('{"a": 1, "a": 2}')?a"#, "1"),
+        (
+            r#"parse-json('{"a": 1, "a": 2}', map { 'duplicates': 'use-last' })?a"#,
+            "2",
+        ),
+        (r#"parse-json('"\ud800"')"#, "\u{FFFD}"),
+        ("empty(parse-json(()))", "true"),
+    ]);
+    for expr in [
+        "parse-json('')",
+        "parse-json('{')",
+        "parse-json('[1,]')",
+        "parse-json('01')",
+        "parse-json('1.')",
+        "parse-json(concat('\"a', codepoints-to-string(9), 'b\"'))",
+        r#"parse-json('"\x"')"#,
+        "parse-json('[1] 2')",
+        "parse-json('nul')",
+        r#"parse-json('{"a": 1, "a": 2}', map { 'duplicates': 'reject' })"#,
+        "parse-json('1', map { 'duplicates': 'bogus' })",
+    ] {
+        assert!(run(expr).is_err(), "{expr}");
+    }
+    assert_eq!(run("parse-json('[')").unwrap_err().code, "FOJS0001");
+}

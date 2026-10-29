@@ -1513,6 +1513,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "for-each" | "filter" => (2, 2),
         "fold-left" | "fold-right" | "for-each-pair" => (3, 3),
         "format-number" => (2, 3),
+        "parse-json" => (1, 2),
         "math:pi" => (0, 0),
         "math:exp" | "math:exp10" | "math:log" | "math:log10" | "math:sqrt" | "math:sin"
         | "math:cos" | "math:tan" | "math:asin" | "math:acos" | "math:atan" => (1, 1),
@@ -3244,6 +3245,44 @@ fn function<'a>(
             path.push_str(step);
         }
         return Ok(vec![Item::String(path)]);
+    }
+    if name == "parse-json" {
+        let text = match args[0].as_slice() {
+            [] => return Ok(vec![]),
+            _ => crate::string_functions::string(&args[0], false, backwards)?,
+        };
+        for _ in text.bytes() {
+            budget.tick()?;
+        }
+        let mut options = crate::json::Options {
+            duplicates: crate::json::Duplicates::UseFirst,
+            liberal: false,
+            escape: false,
+        };
+        if let Some(supplied) = args.get(1) {
+            let map = crate::maps::entries(supplied)?;
+            if let Some(v) = map.get(&Item::String("liberal".into())) {
+                options.liberal = match v.as_slice() {
+                    [Item::Boolean(b)] => *b,
+                    _ => return Err(err("XPTY0004", "the liberal option must be a boolean")),
+                };
+            }
+            if let Some(v) = map.get(&Item::String("escape".into())) {
+                options.escape = match v.as_slice() {
+                    [Item::Boolean(b)] => *b,
+                    _ => return Err(err("XPTY0004", "the escape option must be a boolean")),
+                };
+            }
+            if let Some(v) = map.get(&Item::String("duplicates".into())) {
+                options.duplicates = match v.as_slice() {
+                    [Item::String(s)] if s == "use-first" => crate::json::Duplicates::UseFirst,
+                    [Item::String(s)] if s == "use-last" => crate::json::Duplicates::UseLast,
+                    [Item::String(s)] if s == "reject" => crate::json::Duplicates::Reject,
+                    _ => return Err(err("FOJS0005", "invalid duplicates option")),
+                };
+            }
+        }
+        return crate::json::parse(&text, &options);
     }
     if name == "format-number" {
         let format = match args.get(2).map(Vec::as_slice) {

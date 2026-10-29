@@ -481,7 +481,11 @@ fn decimal_formats_customize_separators_digits_and_special_values() {
     );
     let arabic = r#"<xsl:decimal-format name="ar" zero-digit="&#x660;"/>"#;
     assert_eq!(
-        run(arabic, "format-number(1234, '\u{660}\u{660}\u{660}\u{660}', 'ar')").unwrap(),
+        run(
+            arabic,
+            "format-number(1234, '\u{660}\u{660}\u{660}\u{660}', 'ar')"
+        )
+        .unwrap(),
         "\u{661}\u{662}\u{663}\u{664}"
     );
     let qualified = r#"<xsl:decimal-format name="f:fmt" percent="p"/>"#;
