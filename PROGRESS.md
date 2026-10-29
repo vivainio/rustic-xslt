@@ -1932,3 +1932,12 @@ conformance claims. Smaller tested increments are committed independently.
 - Validation: full all-feature Rust tests before this change; focused
   result-document tests, all-target/all-feature Clippy and the full 880-case
   pinned XSLT gate pass after the change without regressions.
+
+## Increment 165: CDATA and character-map interaction regression
+
+- Confirmed the serializer follows the W3C character-map rule that CDATA text
+  suppresses character mapping. Added a regression covering CDATA text together
+  with mapped attributes and ordinary mapped text in the same result.
+- Reference: https://www.w3.org/TR/xslt-xquery-serialization-30/#character-maps
+- Validation: all four character-map tests, all-target/all-feature Clippy,
+  formatting and diff checks pass. No runtime behavior changed.

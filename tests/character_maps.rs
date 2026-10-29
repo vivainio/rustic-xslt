@@ -35,3 +35,16 @@ fn result_document_maps_are_checked_in_unexecuted_branches() {
     assert_eq!(error.code, "XTSE1590");
     assert_eq!(error.phase, "compile");
 }
+
+#[test]
+fn cdata_text_suppresses_maps_while_attributes_and_other_text_use_them() {
+    let declarations = r#"<xsl:output omit-xml-declaration="yes" cdata-section-elements="c" use-character-maps="m"/><xsl:character-map name="m"><xsl:output-character character="a" string="MAPPED"/></xsl:character-map>"#;
+    assert_eq!(
+        run(
+            declarations,
+            "<out><c attr='a'>a &amp; b</c><normal>a</normal></out>"
+        )
+        .unwrap(),
+        "<out><c attr=\"MAPPED\"><![CDATA[a & b]]></c><normal>MAPPED</normal></out>"
+    );
+}
