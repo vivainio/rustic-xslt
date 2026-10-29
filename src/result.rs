@@ -40,7 +40,13 @@ fn html_name(name: &Name, markup: Markup) -> Option<String> {
         Markup::Xhtml => name.uri.as_deref() == Some(XHTML),
         Markup::Xml => false,
     };
-    in_html.then(|| name.local.to_ascii_lowercase())
+    in_html.then(|| {
+        if markup == Markup::Xhtml {
+            name.local.clone()
+        } else {
+            name.local.to_ascii_lowercase()
+        }
+    })
 }
 pub(crate) const XHTML: &str = "http://www.w3.org/1999/xhtml";
 /// Output encodings. The result is always a Rust string; characters outside the

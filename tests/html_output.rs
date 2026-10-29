@@ -228,3 +228,14 @@ fn generated_metadata_counts_toward_output_limits() {
         }
     }
 }
+
+#[test]
+fn xhtml_void_element_recognition_is_case_sensitive() {
+    assert_eq!(
+        run(
+            r#"method="xhtml" omit-xml-declaration="yes" include-content-type="no""#,
+            "<div xmlns='http://www.w3.org/1999/xhtml'><br/><BR/><img/><IMG/></div>"
+        ),
+        "<div xmlns=\"http://www.w3.org/1999/xhtml\"><br /><BR></BR><img /><IMG></IMG></div>"
+    );
+}

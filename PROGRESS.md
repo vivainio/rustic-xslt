@@ -2196,3 +2196,12 @@ conformance claims. Smaller tested increments are committed independently.
   all-target/all-feature Clippy pass.
 - The metadata implementation audit passed the full all-feature Rust suite and
   all 18,735 recorded QT3 cases before this version-guard correction.
+
+## Increment 193: exact XHTML void-element recognition
+
+- The shared HTML-name helper preserves XHTML local-name case, preventing
+  uppercase XHTML names from receiving lowercase void-element serialization.
+  HTML retains case-insensitive behavior.
+- Added a regression comparing br/img with uppercase BR/IMG in XHTML output.
+- Validation: nineteen serializer tests, all-target/all-feature Clippy and the
+  full 929-case pinned XSLT gate pass without regressions.
