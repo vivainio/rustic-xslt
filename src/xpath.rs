@@ -326,10 +326,9 @@ pub(crate) struct Budget {
     /// Secondary results (href, serialized content) created by `xsl:result-document`.
     pub secondary: Vec<(String, String)>,
     pub result_destinations: std::collections::BTreeSet<String>,
-    /// Principal-result content emitted by a no-href result document nested in a secondary result.
+    /// Serialized principal result emitted by an explicit href-less result document.
     pub principal_output: String,
     pub principal_output_claimed: bool,
-    pub secondary_depth: usize,
     /// Text of the non-terminating `xsl:message` instructions, in order.
     pub messages: Vec<String>,
     pub resolver: Option<crate::ResourceResolver>,
@@ -350,7 +349,6 @@ impl Budget {
             result_destinations: Default::default(),
             principal_output: String::new(),
             principal_output_claimed: false,
-            secondary_depth: 0,
             messages: vec![],
             resolver: None,
             remaining: limits.max_steps,

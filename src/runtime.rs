@@ -2290,7 +2290,6 @@ fn run_tasks<'a>(
                             rule: None,
                         };
                         TRY_DEPTH.with(|d| d.set(d.get() + 1));
-                        budget.secondary_depth += 1;
                         let result = run_tasks(
                             run,
                             budget,
@@ -2298,7 +2297,6 @@ fn run_tasks<'a>(
                             nested,
                             None,
                         );
-                        budget.secondary_depth -= 1;
                         TRY_DEPTH.with(|d| d.set(d.get() - 1));
                         let mut content = result?;
                         if indent && !text_method {

@@ -1875,3 +1875,13 @@ conformance claims. Smaller tested increments are committed independently.
   277 engine failures, 264 harness errors and 153 profile exclusions.
 - Validation: result-document tests, all-target/all-feature Clippy and the full
   pinned XSLT regression gate pass.
+
+## Increment 159: serialization regression audit
+
+- Rechecked the accumulated result-document serialization changes against the
+  full all-feature Rust suite and pinned QT3 workload: all 18,735 recorded QT3
+  cases remain green across 26,966 selected cases.
+- Removed obsolete secondary-depth bookkeeping after unifying explicit principal
+  and secondary serialization, and corrected the principal-output state comment.
+- Validation: full all-feature Rust tests, all-target/all-feature Clippy,
+  formatting, 43 Python harness tests and the pinned QT3 gate pass.
