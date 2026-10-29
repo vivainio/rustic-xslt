@@ -120,7 +120,7 @@ pub(crate) fn lookup<'a>(
         budget.tick()?;
         match (item, keys) {
             (Item::Map(map), None) => {
-                for (_, value) in &map.entries {
+                for (_, value) in map.iter() {
                     out.extend(value.iter().cloned());
                 }
             }
@@ -188,12 +188,8 @@ pub(crate) fn evaluate<'a>(
     budget: &mut Budget,
 ) -> Result<Value<'a>, Diagnostic> {
     match name {
-        "map:size" => Ok(integer_value(map_arg(&args[0])?.entries.len())),
-        "map:keys" => Ok(map_arg(&args[0])?
-            .entries
-            .iter()
-            .map(|(k, _)| k.clone())
-            .collect()),
+        "map:size" => Ok(integer_value(map_arg(&args[0])?.len())),
+        "map:keys" => Ok(map_arg(&args[0])?.iter().map(|(k, _)| k.clone()).collect()),
         "map:contains" => Ok(vec![Item::Boolean(
             map_arg(&args[0])?.get(&key(&args[1])?).is_some(),
         )]),
@@ -203,13 +199,13 @@ pub(crate) fn evaluate<'a>(
             .unwrap_or_default()),
         "map:put" => {
             let mut map = (*map_arg(&args[0])?).clone();
-            budget.charge(map.entries.len())?;
+            budget.charge(map.len())?;
             map.insert(key(&args[1])?, args[2].clone());
             Ok(wrap_map(map))
         }
         "map:entry" => {
             let mut map = MapValue::default();
-            map.entries.push((key(&args[0])?, args[1].clone()));
+            map.push_new(key(&args[0])?, args[1].clone());
             Ok(wrap_map(map))
         }
         "map:remove" => {
@@ -217,8 +213,7 @@ pub(crate) fn evaluate<'a>(
             for k in &args[1] {
                 budget.tick()?;
                 let k = key(std::slice::from_ref(k))?;
-                map.entries
-                    .retain(|(existing, _)| !crate::deep_equal::atomic_equal(existing, &k, true));
+                map.remove(&k);
             }
             Ok(wrap_map(map))
         }
@@ -246,15 +241,11 @@ pub(crate) fn evaluate<'a>(
             for item in &args[0] {
                 budget.tick()?;
                 let map = map_arg(std::slice::from_ref(item))?;
-                for (k, v) in &map.entries {
+                for (k, v) in map.iter() {
                     budget.tick()?;
-                    match merged
-                        .entries
-                        .iter_mut()
-                        .find(|(e, _)| crate::deep_equal::atomic_equal(e, k, true))
-                    {
-                        None => merged.entries.push((k.clone(), v.clone())),
-                        Some((_, existing)) => match duplicates.as_str() {
+                    match merged.get_mut(k) {
+                        None => merged.push_new(k.clone(), v.clone()),
+                        Some(existing) => match duplicates.as_str() {
                             "use-last" => *existing = v.clone(),
                             "combine" => existing.extend(v.iter().cloned()),
                             "reject" => return Err(err("FOJS0003", "duplicate map key")),
@@ -281,7 +272,7 @@ pub(crate) fn evaluate<'a>(
                         if let Some(value) = map.get(&wanted) {
                             found.push(value.clone());
                         }
-                        for (_, value) in map.entries.iter().rev() {
+                        for (_, value) in map.iter().rev() {
                             pending.extend(value.iter().rev().cloned());
                         }
                     }

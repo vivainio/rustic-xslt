@@ -91,25 +91,75 @@ pub(crate) struct InlineFunction {
     pub body: Expr,
 }
 /// A map keeps insertion order; keys are atomic values compared with `op:same-key`.
+/// A hash index over normalized keys keeps lookups close to constant time.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct MapValue<'a> {
-    pub entries: Vec<(Item<'a>, Value<'a>)>,
+    entries: Vec<(Item<'a>, Value<'a>)>,
+    index: std::collections::HashMap<u64, Vec<usize>>,
+}
+fn key_hash(key: &Item<'_>) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    match key {
+        Item::String(s) | Item::Untyped(s) | Item::AnyUri(s) | Item::DerivedString(_, s) => {
+            (0u8, s).hash(&mut hasher)
+        }
+        Item::Number(n) => {
+            let d = n.double();
+            if d.is_nan() {
+                1u8.hash(&mut hasher);
+            } else {
+                (2u8, if d == 0.0 { 0.0f64 } else { d }.to_bits()).hash(&mut hasher);
+            }
+        }
+        Item::Boolean(b) => (3u8, b).hash(&mut hasher),
+        Item::QName(q) => (4u8, &q.uri, &q.local).hash(&mut hasher),
+        Item::Binary(_, bytes) => (5u8, bytes).hash(&mut hasher),
+        _ => 6u8.hash(&mut hasher),
+    }
+    hasher.finish()
 }
 impl<'a> MapValue<'a> {
-    pub fn get(&self, key: &Item<'_>) -> Option<&Value<'a>> {
-        self.entries
+    fn position(&self, key: &Item<'_>) -> Option<usize> {
+        self.index
+            .get(&key_hash(key))?
             .iter()
-            .find(|(k, _)| crate::deep_equal::atomic_equal(k, key, true))
-            .map(|(_, v)| v)
+            .copied()
+            .find(|i| crate::deep_equal::atomic_equal(&self.entries[*i].0, key, true))
+    }
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+    pub fn iter(&self) -> std::slice::Iter<'_, (Item<'a>, Value<'a>)> {
+        self.entries.iter()
+    }
+    pub fn get(&self, key: &Item<'_>) -> Option<&Value<'a>> {
+        self.position(key).map(|i| &self.entries[i].1)
+    }
+    pub fn get_mut(&mut self, key: &Item<'_>) -> Option<&mut Value<'a>> {
+        self.position(key).map(|i| &mut self.entries[i].1)
+    }
+    /// Append an entry whose key is known to be absent.
+    pub fn push_new(&mut self, key: Item<'a>, value: Value<'a>) {
+        self.index
+            .entry(key_hash(&key))
+            .or_default()
+            .push(self.entries.len());
+        self.entries.push((key, value));
     }
     pub fn insert(&mut self, key: Item<'a>, value: Value<'a>) {
-        match self
-            .entries
-            .iter_mut()
-            .find(|(k, _)| crate::deep_equal::atomic_equal(k, &key, true))
-        {
-            Some((_, v)) => *v = value,
-            None => self.entries.push((key, value)),
+        match self.get_mut(&key) {
+            Some(existing) => *existing = value,
+            None => self.push_new(key, value),
+        }
+    }
+    pub fn remove(&mut self, key: &Item<'_>) {
+        if let Some(position) = self.position(key) {
+            self.entries.remove(position);
+            self.index.clear();
+            for (i, (k, _)) in self.entries.iter().enumerate() {
+                self.index.entry(key_hash(k)).or_default().push(i);
+            }
         }
     }
 }
@@ -2246,7 +2296,7 @@ pub(crate) fn eval<'a>(
                     return Err(err("XQDY0137", "duplicate key in map constructor"));
                 }
                 let value = eval(value, focus, vars, budget, depth + 1, backwards)?;
-                map.entries.push((key, value));
+                map.push_new(key, value);
             }
             vec![Item::Map(std::rc::Rc::new(map))]
         }
@@ -2747,7 +2797,7 @@ fn higher_order<'a>(
         "map:for-each" => {
             let f = function_arg(&args[1])?;
             let mut out = vec![];
-            for (k, v) in &crate::maps::entries(&args[0])?.entries {
+            for (k, v) in crate::maps::entries(&args[0])?.iter() {
                 out.extend(call(&f, vec![vec![k.clone()], v.clone()], budget)?);
             }
             Ok(out)

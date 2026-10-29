@@ -62,9 +62,8 @@ pub(crate) fn atomic_equal_with(
         (Item::Binary(ak, a), Item::Binary(bk, b)) => ak == bk && a == b,
         (Item::Temporal(a), Item::Temporal(b)) => a.compare(b) == Some(Ordering::Equal),
         (Item::Map(a), Item::Map(b)) => {
-            a.entries.len() == b.entries.len()
-                && a.entries
-                    .iter()
+            a.len() == b.len()
+                && a.iter()
                     .all(|(k, v)| b.get(k).is_some_and(|other| members_equal(v, other)))
         }
         (Item::Array(a), Item::Array(b)) => {

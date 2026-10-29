@@ -235,3 +235,36 @@ fn parse_json_builds_maps_arrays_and_atomic_values() {
     }
     assert_eq!(run("parse-json('[')").unwrap_err().code, "FOJS0001");
 }
+#[test]
+fn large_maps_stay_fast_and_keys_follow_same_key_equality() {
+    check(&[
+        (
+            "map:size(map:merge(for $i in 1 to 5000 return map:entry($i, $i)))",
+            "5000",
+        ),
+        (
+            "let $m := map:merge(for $i in 1 to 3000 return map:entry(string($i), $i)) return $m('2999') + $m('1')",
+            "3000",
+        ),
+        ("map:get(map { 1: 'a' }, 1.0)", "a"),
+        ("map:get(map { 1: 'a' }, xs:double(1))", "a"),
+        ("map:get(map { 'k': 'a' }, xs:untypedAtomic('k'))", "a"),
+        (
+            "map:contains(map { xs:double('NaN'): 1 }, xs:double('NaN'))",
+            "true",
+        ),
+        ("map:get(map { 0.0e0: 'z' }, xs:double('-0'))", "z"),
+        (
+            "map:size(map:remove(map { 1: 'a', 2: 'b', 3: 'c' }, 2))",
+            "2",
+        ),
+        (
+            "map:get(map:remove(map { 1: 'a', 2: 'b', 3: 'c' }, 2), 3)",
+            "c",
+        ),
+        (
+            "map:keys(map:remove(map { 'x': 1, 'y': 2, 'z': 3 }, 'x'))",
+            "y z",
+        ),
+    ]);
+}
