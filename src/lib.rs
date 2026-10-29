@@ -144,6 +144,7 @@ pub struct Stylesheet {
     modes: std::collections::BTreeMap<String, mode::Mode>,
     globals: Vec<compile::Binding>,
     functions: xpath::FunctionTable,
+    keys: xpath::KeyTable,
     space_rules: Vec<whitespace::Rule>,
 }
 impl Stylesheet {

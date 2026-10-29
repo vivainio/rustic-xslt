@@ -131,6 +131,9 @@ fn safe_expression(e: &Expr, global: bool) -> Result<(), Diagnostic> {
                         "generate-id() requires node identities across streamed records",
                     ));
                 }
+                if name == "key" {
+                    return Err(unsupported("key() searches beyond the streamed record"));
+                }
                 if name == "lang" {
                     return Err(unsupported(
                         "lang() can depend on ancestors outside the streamed record",

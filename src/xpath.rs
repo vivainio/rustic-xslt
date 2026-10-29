@@ -142,9 +142,17 @@ pub(crate) struct UserFunction {
 /// Global variables are also bound under this prefix so function bodies can reach
 /// them even when a caller's local variable shadows the plain name.
 pub(crate) const GLOBAL_PREFIX: &str = "\u{0}global:";
+/// One `xsl:key` declaration: nodes matching `branches` are indexed by the `use` values.
+#[derive(Debug)]
+pub(crate) struct KeyDefinition {
+    pub branches: Vec<crate::pattern::Branch>,
+    pub value: Expr,
+}
+pub(crate) type KeyTable = std::sync::Arc<BTreeMap<String, Vec<KeyDefinition>>>;
 pub(crate) type FunctionTable = std::sync::Arc<BTreeMap<(String, usize), UserFunction>>;
 pub(crate) struct Budget {
     pub functions: FunctionTable,
+    pub keys: KeyTable,
     remaining: u64,
     pub max_depth: usize,
     pub now: crate::temporal::Temporal,
@@ -153,6 +161,7 @@ impl Budget {
     pub fn new(limits: Limits) -> Self {
         Self {
             functions: FunctionTable::default(),
+            keys: KeyTable::default(),
             remaining: limits.max_steps,
             max_depth: limits.max_depth,
             now: crate::temporal::Temporal::now(),
@@ -850,6 +859,16 @@ impl Parser {
                             false,
                         )
                     } else {
+                        if local == "key"
+                            && let Some(Expr::String(key_name)) = args.first_mut()
+                            && key_name.contains(':')
+                        {
+                            *key_name = crate::qname::resolve(
+                                key_name.trim(),
+                                &self.namespaces,
+                                "FOCA0002",
+                            )?;
+                        }
                         Expr::Call(local, args)
                     }
                 }
@@ -1125,6 +1144,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "contains-token" => (2, 3),
         "resolve-uri" => (1, 2),
         "sort" => (1, 2),
+        "key" => (2, 3),
         "path" => (0, 1),
         "matches" => (2, 3),
         "replace" => (3, 4),
@@ -1766,7 +1786,9 @@ pub(crate) fn eval<'a>(
                 .iter()
                 .map(|e| eval(e, focus, vars, budget, depth + 1, backwards))
                 .collect::<Result<Vec<_>, _>>()?;
-            if name.starts_with("Q{") {
+            if name == "key" {
+                call_key(args, focus, vars, budget, backwards)?
+            } else if name.starts_with("Q{") {
                 call_user_function(name, args, vars, budget, depth, backwards)?
             } else {
                 function(name, &args, focus, budget, backwards)?
@@ -1774,6 +1796,73 @@ pub(crate) fn eval<'a>(
         }
     };
     Ok(result)
+}
+fn call_key<'a>(
+    args: Vec<Value<'a>>,
+    focus: &Focus<'a>,
+    vars: &Variables<'a>,
+    budget: &mut Budget,
+    backwards: bool,
+) -> Result<Value<'a>, Diagnostic> {
+    let name = match args[0].as_slice() {
+        [item] => atomize(item).string(),
+        _ => return Err(err("XPTY0004", "key name must be a singleton string")),
+    };
+    let keys = budget.keys.clone();
+    let definitions = keys
+        .get(&name)
+        .ok_or_else(|| err("XTDE1260", format!("unknown key: {name}")))?;
+    let start = match args.get(2).map(Vec::as_slice) {
+        Some([Item::Node(n)]) => *n,
+        Some(_) => return Err(err("XTTE1100", "key top argument must be a single node")),
+        None => match focus.item {
+            Item::Node(n) => n,
+            _ => return Err(err("XTDE1270", "key requires a context node")),
+        },
+    };
+    let mut wanted = std::collections::BTreeSet::new();
+    for item in &args[1] {
+        budget.tick()?;
+        wanted.insert(atomize(item).string());
+    }
+    let mut found = vec![];
+    if wanted.is_empty() {
+        return Ok(vec![]);
+    }
+    let mut candidates = start.root().descendants();
+    candidates.push(start.root());
+    for node in candidates.clone() {
+        if node.is_element() {
+            candidates.extend(node.attributes());
+        }
+    }
+    for node in candidates {
+        budget.tick()?;
+        for definition in definitions {
+            let mut matched = false;
+            for branch in &definition.branches {
+                if crate::pattern::matches(branch, node, vars, budget, backwards)? {
+                    matched = true;
+                    break;
+                }
+            }
+            if !matched {
+                continue;
+            }
+            let at = Focus {
+                item: Item::Node(node),
+                position: 1,
+                size: 1,
+            };
+            for value in eval(&definition.value, &at, vars, budget, 1, backwards)? {
+                if wanted.contains(&atomize(&value).string()) {
+                    found.push(node);
+                    break;
+                }
+            }
+        }
+    }
+    Ok(ordered(found))
 }
 fn call_user_function<'a>(
     name: &str,

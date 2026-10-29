@@ -989,3 +989,12 @@ conformance claims. Smaller tested increments are committed independently.
 - Function bodies see global variables and their own parameters only; globals are
   also bound under a reserved prefix so a caller's local variable cannot shadow them.
 - Calls to unknown stylesheet functions fail at run time with XPST0017.
+
+## Increment 81: xsl:key and key()
+
+- Added xsl:key declarations (match pattern and use expression, several
+  declarations per name) and key() with optional top node. Names with prefixes are
+  expanded at compile time; unknown keys raise XTDE1260.
+- Lookup scans the context tree (elements and attributes) without an index, so
+  repeated key() calls over large documents are linear each; collations, composite
+  keys and body-style use are rejected explicitly. Record streaming rejects key().

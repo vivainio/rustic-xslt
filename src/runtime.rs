@@ -427,6 +427,7 @@ pub(crate) fn transform_record(
     inherited_preserve: bool,
 ) -> Result<String, Diagnostic> {
     budget.functions = sheet.functions.clone();
+    budget.keys = sheet.keys.clone();
     let prepared = crate::whitespace::prepare(sheet, source, inherited_preserve)?;
     let source = prepared.as_deref().unwrap_or(source);
     let doc = crate::parse(source, "parse")?;
@@ -491,6 +492,7 @@ fn execute<'a>(
     trees: &crate::trees::Trees<'a>,
 ) -> Result<String, Diagnostic> {
     budget.functions = sheet.functions.clone();
+    budget.keys = sheet.keys.clone();
     let mut parameters = Variables::new();
     for (name, value) in &options.parameters {
         budget.tick()?;

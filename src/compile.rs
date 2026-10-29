@@ -947,6 +947,7 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
         templates: vec![],
         globals: vec![],
         functions: Default::default(),
+        keys: Default::default(),
         space_rules: vec![],
         default_mode: default_mode(root)?,
         modes: BTreeMap::new(),
@@ -961,6 +962,7 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
     };
     let mut output_seen = false;
     let mut functions: BTreeMap<(String, usize), xpath::UserFunction> = BTreeMap::new();
+    let mut keys: BTreeMap<String, Vec<xpath::KeyDefinition>> = BTreeMap::new();
     for n in root.children() {
         if n.is_text() && !xml_space(n.text().unwrap_or_default()) {
             return Err(error(n, "unexpected top-level text"));
@@ -1242,6 +1244,32 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
                     _ => return Err(error(n, "invalid omit-xml-declaration")),
                 };
             }
+            "key" => {
+                attrs(n, &["name", "match", "use", "collation", "composite"])?;
+                let id = component_name(
+                    n,
+                    n.attribute("name")
+                        .ok_or_else(|| static_error(n, "XTSE0010", "key requires a name"))?,
+                )?;
+                if n.attribute("collation").is_some() || boolean_attribute(n, "composite", false)? {
+                    return Err(error(
+                        n,
+                        "key collations and composite keys are not implemented",
+                    ));
+                }
+                let pattern = n
+                    .attribute("match")
+                    .ok_or_else(|| static_error(n, "XTSE0010", "key requires a match pattern"))?;
+                let branches = crate::pattern::parse(pattern, namespaces(n))?;
+                let Some(select) = n.attribute("use") else {
+                    return Err(error(n, "xsl:key requires the use attribute here"));
+                };
+                empty(n)?;
+                keys.entry(id).or_default().push(xpath::KeyDefinition {
+                    branches,
+                    value: expr(n, select)?,
+                });
+            }
             "function" => {
                 attrs(
                     n,
@@ -1351,6 +1379,7 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
         }
     }
     sheet.functions = std::sync::Arc::new(functions);
+    sheet.keys = std::sync::Arc::new(keys);
     validate(&sheet)?;
     Ok(sheet)
 }
@@ -1584,6 +1613,11 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
             BindingValue::Body(body) | BindingValue::Document(body) | BindingValue::Raw(body) => {
                 instructions(body, globals.clone(), &templates)?
             }
+        }
+    }
+    for definitions in sheet.keys.values() {
+        for definition in definitions {
+            expression(&definition.value, &globals)?;
         }
     }
     for function in sheet.functions.values() {
