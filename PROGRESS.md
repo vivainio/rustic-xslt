@@ -1817,3 +1817,13 @@ conformance claims. Smaller tested increments are committed independently.
 - Added a regression for an unknown map under `xsl:if test="false()"`.
 - Validation: character-map tests, all-target/all-feature Clippy and the full
   868-case pinned XSLT regression gate pass without regressions.
+
+## Increment 153: boolean result-document AVTs
+
+- `indent`, `omit-xml-declaration` and `byte-order-mark` on result documents
+  accept AVTs, validate dynamic boolean values and participate in static scope
+  checks. Literal invalid values retain compile-time validation.
+- The pinned XSLT gate has 872 passing cases (four new, zero regressions),
+  283 engine failures, 264 harness errors and 153 profile exclusions.
+- Validation: result-document tests, all-target/all-feature Clippy and the full
+  pinned XSLT regression gate pass.

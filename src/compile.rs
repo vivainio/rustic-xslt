@@ -90,10 +90,10 @@ pub(crate) struct ResultDocumentSpec {
     pub href: Vec<Expr>,
     pub method: Option<String>,
     pub format: Option<(Vec<Expr>, BTreeMap<String, String>)>,
-    pub omit_declaration: Option<bool>,
+    pub omit_declaration: Option<Vec<Expr>>,
     pub standalone: Option<Option<bool>>,
-    pub byte_order_mark: Option<bool>,
-    pub indent: Option<bool>,
+    pub byte_order_mark: Option<Vec<Expr>>,
+    pub indent: Option<Vec<Expr>>,
     pub encoding: Option<crate::result::Encoding>,
     pub cdata: Option<(Vec<Expr>, BTreeMap<String, String>)>,
     pub character_maps: Vec<String>,
@@ -1294,9 +1294,14 @@ fn body(
                         }) {
                             return Err(error(n, "unsupported result document method"));
                         }
-                        let flag = |name: &str| -> Result<Option<bool>, Diagnostic> {
+                        let flag = |name: &str| -> Result<Option<Vec<Expr>>, Diagnostic> {
                             n.attribute(name)
-                                .map(|_| boolean_attribute(n, name, false))
+                                .map(|value| {
+                                    if !value.contains('{') && !value.contains('}') {
+                                        boolean_attribute(n, name, false)?;
+                                    }
+                                    avt(n, value)
+                                })
                                 .transpose()
                         };
                         out.push(Instruction::ResultDocument(Box::new(ResultDocumentSpec {
@@ -3348,9 +3353,15 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                         }
                     }
                     parts(&spec.href, &scope)?;
-                    for value in [&spec.doctype_public, &spec.doctype_system]
-                        .into_iter()
-                        .flatten()
+                    for value in [
+                        &spec.doctype_public,
+                        &spec.doctype_system,
+                        &spec.indent,
+                        &spec.omit_declaration,
+                        &spec.byte_order_mark,
+                    ]
+                    .into_iter()
+                    .flatten()
                     {
                         parts(value, &scope)?;
                     }

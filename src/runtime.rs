@@ -2172,8 +2172,30 @@ fn run_tasks<'a>(
                             "xhtml" => Markup::Xhtml,
                             _ => Markup::Xml,
                         };
+                        let mut flag =
+                            |value: &Option<Vec<xpath::Expr>>| -> Result<Option<bool>, Diagnostic> {
+                                value
+                                    .as_ref()
+                                    .map(|value| {
+                                        let value =
+                                            parts(value, &focus, &env, budget, sheet.backwards)?;
+                                        match value.trim() {
+                                            "yes" | "true" | "1" => Ok(true),
+                                            "no" | "false" | "0" => Ok(false),
+                                            _ => Err(Diagnostic::new(
+                                                "XTDE0030",
+                                                "invalid boolean serialization attribute",
+                                                "run",
+                                            )),
+                                        }
+                                    })
+                                    .transpose()
+                            };
+                        let indent_override = flag(&spec.indent)?;
+                        let omit_override = flag(&spec.omit_declaration)?;
+                        let bom_override = flag(&spec.byte_order_mark)?;
                         let encoding = spec.encoding.unwrap_or(settings.encoding);
-                        let indent = spec.indent.unwrap_or(settings.indent);
+                        let indent = indent_override.unwrap_or(settings.indent);
                         let mut doctype = settings.doctype.clone();
                         if spec.doctype_public.is_some() || spec.doctype_system.is_some() {
                             let inherited = doctype.unwrap_or_default();
@@ -2230,8 +2252,7 @@ fn run_tasks<'a>(
                         if indent && !text_method {
                             content = crate::indent::indent(&content, markup == Markup::Html);
                         }
-                        let omit = spec
-                            .omit_declaration
+                        let omit = omit_override
                             .or(settings.omit_specified.then_some(settings.omit_declaration))
                             .unwrap_or(method == "html" || text_method);
                         if !text_method
@@ -2248,7 +2269,7 @@ fn run_tasks<'a>(
                             }
                         }
                         content = encoding.apply(&content, !text_method)?;
-                        if spec.byte_order_mark.unwrap_or(settings.byte_order_mark)
+                        if bom_override.unwrap_or(settings.byte_order_mark)
                             && encoding == crate::result::Encoding::Utf8
                         {
                             content.insert(0, '\u{feff}');
