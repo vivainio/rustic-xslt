@@ -32,14 +32,11 @@ fn builtin_rules_and_escaping() {
 }
 #[test]
 fn compile_rejects_unimplemented_semantics() {
-    for body in [
-        r#"<xsl:template match="/"><xsl:value-of select="unknown-function()"/></xsl:template>"#,
-        r#"<xsl:template match="/"><out xsl:use-attribute-sets="missing"/></xsl:template>"#,
-    ] {
-        let err = Stylesheet::compile(&sheet(body)).unwrap_err();
-        assert!(["RUST_XSLT_UNSUPPORTED", "XPST0017"].contains(&err.code.as_str()));
-        assert!(err.line > 0);
-    }
+    let body =
+        r#"<xsl:template match="/"><xsl:value-of select="unknown-function()"/></xsl:template>"#;
+    let err = Stylesheet::compile(&sheet(body)).unwrap_err();
+    assert!(["RUST_XSLT_UNSUPPORTED", "XPST0017"].contains(&err.code.as_str()));
+    assert!(err.line > 0);
 }
 #[test]
 fn static_default_priority_and_last_declaration() {

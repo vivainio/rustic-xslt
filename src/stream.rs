@@ -256,6 +256,18 @@ fn safe_global_body(body: &[Instruction]) -> Result<(), Diagnostic> {
                 }
                 safe_global_body(body)?;
             }
+            Instruction::UseSets(_) => {
+                return Err(unsupported(
+                    "attribute sets are not supported when streaming",
+                ));
+            }
+            Instruction::LiteralAttributes(attributes) => {
+                for (_, parts) in attributes {
+                    for e in parts {
+                        safe_expression(e, true)?;
+                    }
+                }
+            }
             Instruction::ComputedElement(n, _, body) => {
                 name(n)?;
                 safe_global_body(body)?;
@@ -427,6 +439,18 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                             }
                         }
                         bodies.push(body);
+                    }
+                    Instruction::UseSets(_) => {
+                        return Err(unsupported(
+                            "attribute sets are not supported when streaming",
+                        ));
+                    }
+                    Instruction::LiteralAttributes(attributes) => {
+                        for (_, parts) in attributes {
+                            for e in parts {
+                                safe_expression(e, false)?;
+                            }
+                        }
                     }
                     Instruction::ForEachGroup(..) => {
                         return Err(unsupported(

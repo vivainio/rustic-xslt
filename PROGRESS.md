@@ -1015,3 +1015,10 @@ conformance claims. Smaller tested increments are committed independently.
 - Exactly one grouping attribute is required (XTSE1080). Groups may be sorted with xsl:sort keys that
   see current-group() and current-grouping-key(). Collations and composite keys are
   rejected as unimplemented; record streaming rejects grouping.
+
+## Increment 84: attribute sets
+
+- Added xsl:attribute-set (merged declarations, use-attribute-sets chains) and
+  use-attribute-sets on literal result elements and xsl:element. Literal attributes
+  and later xsl:attribute instructions override set attributes; unknown sets are
+  XTSE0710 and cycles XTSE0720. xsl:copy and record streaming do not apply sets yet.

@@ -145,6 +145,7 @@ pub struct Stylesheet {
     globals: Vec<compile::Binding>,
     functions: xpath::FunctionTable,
     keys: xpath::KeyTable,
+    attribute_sets: std::collections::BTreeMap<String, compile::AttributeSet>,
     space_rules: Vec<whitespace::Rule>,
 }
 impl Stylesheet {

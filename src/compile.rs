@@ -38,6 +38,13 @@ pub(crate) enum Instruction {
     Bind(Binding),
     Call(String, Vec<Binding>),
     NextMatch(Vec<Binding>),
+    UseSets(Vec<String>),
+    LiteralAttributes(Vec<(crate::result::Name, Vec<Expr>)>),
+}
+#[derive(Debug, Default)]
+pub(crate) struct AttributeSet {
+    pub uses: Vec<String>,
+    pub body: Vec<Instruction>,
 }
 #[derive(Debug)]
 pub(crate) enum Grouping {
@@ -386,6 +393,8 @@ pub(crate) fn raw_result_body(body: &[Instruction]) -> bool {
         | Instruction::Value(..)
         | Instruction::Comment(_)
         | Instruction::Message(..)
+        | Instruction::UseSets(_)
+        | Instruction::LiteralAttributes(_)
         | Instruction::Pi(..)
         | Instruction::Attribute(..) => true,
         Instruction::ForEach(_, _, body)
@@ -758,11 +767,23 @@ fn body(
                         continue;
                     }
                     "element" => {
-                        attrs(n, &["name", "namespace", "inherit-namespaces"])?;
+                        attrs(
+                            n,
+                            &[
+                                "name",
+                                "namespace",
+                                "inherit-namespaces",
+                                "use-attribute-sets",
+                            ],
+                        )?;
+                        let mut inner = body(n, depth + 1, false)?;
+                        if let Some(sets) = n.attribute("use-attribute-sets") {
+                            inner.insert(0, Instruction::UseSets(set_names(n, sets)?));
+                        }
                         out.push(Instruction::ComputedElement(
                             computed_name(n)?,
                             boolean_attribute(n, "inherit-namespaces", true)?,
-                            body(n, depth + 1, false)?,
+                            inner,
                         ));
                     }
                     "attribute" => {
@@ -948,6 +969,7 @@ fn body(
                             "exclude-result-prefixes",
                             "inherit-namespaces",
                             "default-mode",
+                            "use-attribute-sets",
                         ]
                         .contains(&a.name())
                         {
@@ -967,15 +989,29 @@ fn body(
                 element
                     .namespaces
                     .retain(|_, uri| uri != XSL && !excluded.contains(uri));
+                let mut inner = body(n, depth + 1, false)?;
+                if let Some(sets) = n.attribute((XSL, "use-attribute-sets")) {
+                    // Literal attributes follow the sets so that they take precedence.
+                    inner.insert(0, Instruction::LiteralAttributes(attributes));
+                    inner.insert(0, Instruction::UseSets(set_names(n, sets)?));
+                    attributes = vec![];
+                }
                 out.push(Instruction::Element {
                     element,
                     attributes,
-                    body: body(n, depth + 1, false)?,
+                    body: inner,
                 });
             }
         }
     }
     Ok(out)
+}
+fn set_names(n: Node<'_, '_>, value: &str) -> Result<Vec<String>, Diagnostic> {
+    value
+        .split([' ', '\t', '\r', '\n'])
+        .filter(|s| !s.is_empty())
+        .map(|s| component_name(n, s))
+        .collect()
 }
 fn default_mode(n: Node<'_, '_>) -> Result<String, Diagnostic> {
     for ancestor in n.ancestors().filter(|n| n.is_element()) {
@@ -1027,6 +1063,7 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
         globals: vec![],
         functions: Default::default(),
         keys: Default::default(),
+        attribute_sets: BTreeMap::new(),
         space_rules: vec![],
         default_mode: default_mode(root)?,
         modes: BTreeMap::new(),
@@ -1042,6 +1079,7 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
     let mut output_seen = false;
     let mut functions: BTreeMap<(String, usize), xpath::UserFunction> = BTreeMap::new();
     let mut keys: BTreeMap<String, Vec<xpath::KeyDefinition>> = BTreeMap::new();
+    let mut attribute_sets: BTreeMap<String, AttributeSet> = BTreeMap::new();
     for n in root.children() {
         if n.is_text() && !xml_space(n.text().unwrap_or_default()) {
             return Err(error(n, "unexpected top-level text"));
@@ -1323,6 +1361,37 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
                     _ => return Err(error(n, "invalid omit-xml-declaration")),
                 };
             }
+            "attribute-set" => {
+                attrs(
+                    n,
+                    &["name", "use-attribute-sets", "visibility", "streamable"],
+                )?;
+                let id = component_name(
+                    n,
+                    n.attribute("name").ok_or_else(|| {
+                        static_error(n, "XTSE0010", "attribute-set requires a name")
+                    })?,
+                )?;
+                let uses = n
+                    .attribute("use-attribute-sets")
+                    .map(|s| set_names(n, s))
+                    .transpose()?
+                    .unwrap_or_default();
+                let content = body(n, 1, false)?;
+                if content
+                    .iter()
+                    .any(|i| !matches!(i, Instruction::Attribute(..)))
+                {
+                    return Err(static_error(
+                        n,
+                        "XTSE0010",
+                        "attribute sets may only contain xsl:attribute",
+                    ));
+                }
+                let entry = attribute_sets.entry(id).or_default();
+                entry.uses.extend(uses);
+                entry.body.extend(content);
+            }
             "key" => {
                 attrs(n, &["name", "match", "use", "collation", "composite"])?;
                 let id = component_name(
@@ -1459,6 +1528,7 @@ pub(crate) fn compile(source: &str) -> Result<Stylesheet, Diagnostic> {
     }
     sheet.functions = std::sync::Arc::new(functions);
     sheet.keys = std::sync::Arc::new(keys);
+    sheet.attribute_sets = attribute_sets;
     validate(&sheet)?;
     Ok(sheet)
 }
@@ -1469,6 +1539,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
     type Scope = BTreeSet<String>;
     struct TemplateNames<'a> {
         named: BTreeMap<String, &'a Template>,
+        attribute_sets: BTreeSet<String>,
         backwards: bool,
     }
     fn expression(e: &Expr, scope: &Scope) -> Result<(), Diagnostic> {
@@ -1581,6 +1652,22 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     cname(n, &scope)?;
                     value(c, &scope, templates)?;
                 }
+                Instruction::UseSets(names) => {
+                    for name in names {
+                        if !templates.attribute_sets.contains(name) {
+                            return Err(Diagnostic::new(
+                                "XTSE0710",
+                                format!("unknown attribute set: {name}"),
+                                "compile",
+                            ));
+                        }
+                    }
+                }
+                Instruction::LiteralAttributes(attributes) => {
+                    for (_, value) in attributes {
+                        parts(value, &scope)?;
+                    }
+                }
                 Instruction::Comment(c) | Instruction::Message(c, _) => {
                     value(c, &scope, templates)?
                 }
@@ -1690,7 +1777,31 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
         Ok(())
     }
     let globals: Scope = sheet.globals.iter().map(|b| b.name.clone()).collect();
+    for (name, set) in &sheet.attribute_sets {
+        let mut pending: Vec<&String> = set.uses.iter().collect();
+        let mut seen = BTreeSet::new();
+        while let Some(used) = pending.pop() {
+            let Some(inner) = sheet.attribute_sets.get(used) else {
+                return Err(Diagnostic::new(
+                    "XTSE0710",
+                    format!("unknown attribute set: {used}"),
+                    "compile",
+                ));
+            };
+            if used == name {
+                return Err(Diagnostic::new(
+                    "XTSE0720",
+                    format!("attribute set uses itself: {name}"),
+                    "compile",
+                ));
+            }
+            if seen.insert(used) {
+                pending.extend(&inner.uses);
+            }
+        }
+    }
     let templates = TemplateNames {
+        attribute_sets: sheet.attribute_sets.keys().cloned().collect(),
         named: sheet
             .templates
             .iter()

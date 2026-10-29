@@ -1604,6 +1604,57 @@ fn run_tasks<'a>(
                             ));
                         }
                     }
+                    Instruction::UseSets(names) => {
+                        fn expand<'s>(
+                            sheet: &'s Stylesheet,
+                            name: &str,
+                            out: &mut Vec<&'s [Instruction]>,
+                        ) {
+                            if let Some(set) = sheet.attribute_sets.get(name) {
+                                for used in &set.uses {
+                                    expand(sheet, used, out);
+                                }
+                                out.push(&set.body);
+                            }
+                        }
+                        let mut bodies = vec![];
+                        for name in names {
+                            expand(sheet, name, &mut bodies);
+                        }
+                        for set_body in bodies.into_iter().rev() {
+                            tasks.push(Task::Body(
+                                set_body,
+                                0,
+                                Frame {
+                                    focus: focus.clone(),
+                                    env: env.clone(),
+                                    depth: depth + 1,
+                                    mode: mode.clone(),
+                                    tunnel: tunnel.clone(),
+                                    rule: None,
+                                },
+                            ));
+                        }
+                    }
+                    Instruction::LiteralAttributes(attributes) => {
+                        for (name, parts) in attributes {
+                            let mut value = String::new();
+                            for part in parts {
+                                let mut v =
+                                    xpath::eval(part, &focus, &env, budget, 0, sheet.backwards)?;
+                                if sheet.backwards {
+                                    v.truncate(1);
+                                }
+                                value.push_str(&xpath::simple_string(
+                                    &v,
+                                    " ",
+                                    usize::MAX,
+                                    sheet.backwards,
+                                )?);
+                            }
+                            output.attribute(name.clone(), value)?;
+                        }
+                    }
                     Instruction::ForEachGroup(e, grouping, sorts, body) => {
                         let value = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
                         let groups = form_groups(value, grouping, &env, budget, sheet.backwards)?;
