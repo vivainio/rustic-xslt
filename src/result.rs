@@ -484,7 +484,11 @@ impl Output {
             let input_value_uri = !name.local.eq_ignore_ascii_case("value")
                 || e.attributes.iter().any(|(attribute, value)| {
                     attribute.uri.is_none()
-                        && attribute.local.eq_ignore_ascii_case("type")
+                        && if markup == Markup::Xhtml {
+                            attribute.local == "type"
+                        } else {
+                            attribute.local.eq_ignore_ascii_case("type")
+                        }
                         && value.eq_ignore_ascii_case("url")
                 });
             let uri = input_value_uri

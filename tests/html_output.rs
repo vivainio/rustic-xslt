@@ -133,3 +133,20 @@ fn xhtml_uri_attribute_matching_is_case_sensitive() {
     assert!(output.contains("<a href=\"%C3%A9\" HREF=\"é\""));
     assert!(output.contains("<A href=\"é\""));
 }
+
+#[test]
+fn xml_output_ignores_uri_escaping_and_xhtml_type_names_are_exact() {
+    assert_eq!(
+        run(
+            r#"method="xml" omit-xml-declaration="yes" escape-uri-attributes="yes""#,
+            "<a href='a&#x30a;'/>"
+        ),
+        "<a href=\"a\u{30a}\"></a>"
+    );
+    let output = run(
+        r#"method="xhtml" omit-xml-declaration="yes""#,
+        "<div xmlns='http://www.w3.org/1999/xhtml'><input type='url' value='é'/><input TYPE='url' value='é'/></div>",
+    );
+    assert!(output.contains("type=\"url\" value=\"%C3%A9\""));
+    assert!(output.contains("TYPE=\"url\" value=\"é\""));
+}

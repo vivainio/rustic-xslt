@@ -2102,3 +2102,12 @@ conformance claims. Smaller tested increments are committed independently.
   inherited through all serializer-preserving capture paths.
 - Validation: thirteen streaming tests, all-target/all-feature Clippy, formatting
   and diff checks pass. No runtime behavior changed in this increment.
+
+## Increment 183: URI method and XHTML input-type boundaries
+
+- XHTML URL-input recognition requires the exact `type` attribute name; HTML
+  retains case-insensitive matching. Uppercase XHTML TYPE remains ordinary data.
+- Added a regression proving XML output ignores URI escaping and preserves
+  decomposed URI text, alongside exact XHTML input-type matching.
+- Validation: twelve HTML/XHTML serializer tests, all-target/all-feature Clippy
+  and the full 897-case pinned XSLT gate pass without regressions.
