@@ -1606,6 +1606,10 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "document" => (1, 2),
         "system-property" | "element-available" | "type-available" => (1, 1),
         "function-available" => (1, 2),
+        "default-language" | "static-base-uri" | "available-environment-variables" => (0, 0),
+        "environment-variable" => (1, 1),
+        "base-uri" | "document-uri" => (0, 1),
+        "collation-key" => (1, 2),
         "unparsed-text" | "unparsed-text-available" => (1, 2),
         "unparsed-text-lines" => (1, 2),
         "json-doc" => (1, 2),
@@ -3197,6 +3201,9 @@ fn function<'a>(
             "current-date",
             "current-time",
             "implicit-timezone",
+            "default-language",
+            "static-base-uri",
+            "available-environment-variables",
             "math:pi",
         ]
         .contains(&name)
@@ -3520,6 +3527,43 @@ fn function<'a>(
                 crate::json::parse(&text, &options)
             }
         };
+    }
+    match name {
+        "default-language" => return Ok(vec![Item::String("en".into())]),
+        "static-base-uri" => return Ok(vec![]),
+        "available-environment-variables" => {
+            return Ok(std::env::vars().map(|(k, _)| Item::String(k)).collect());
+        }
+        "environment-variable" => {
+            let var = crate::string_functions::string(&args[0], false, backwards)?;
+            return Ok(std::env::var(&var)
+                .ok()
+                .map(Item::String)
+                .into_iter()
+                .collect());
+        }
+        "base-uri" | "document-uri" => {
+            // Source documents carry no URI in this API.
+            if args.len() == 1 && args[0].len() > 1 {
+                return Err(err("XPTY0004", "expected an optional node"));
+            }
+            return Ok(vec![]);
+        }
+        "collation-key" => {
+            let text = crate::string_functions::string(&args[0], false, backwards)?;
+            let collation = match args.get(1) {
+                Some(uri) => crate::collation::Collation::parse(&crate::string_functions::string(
+                    uri, false, backwards,
+                )?)?,
+                None => crate::collation::Collation::Codepoint,
+            };
+            budget.charge(text.len())?;
+            return Ok(vec![Item::Binary(
+                crate::binary::BinaryType::Base64,
+                collation.sort_key(&text),
+            )]);
+        }
+        _ => {}
     }
     if matches!(
         name,

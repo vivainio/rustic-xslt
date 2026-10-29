@@ -530,3 +530,48 @@ fn uca_collations_compare_by_strength_and_support_search() {
         "FOCH0002"
     );
 }
+#[test]
+fn collation_keys_order_like_the_collation_and_environment_functions_exist() {
+    let run = |expression: &str| {
+        Stylesheet::compile(&format!(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:sequence select="{expression}"/></xsl:template></xsl:stylesheet>"#))
+            .unwrap()
+            .transform("<r/>")
+            .unwrap()
+    };
+    let primary = "'http://www.w3.org/2013/collation/UCA?strength=primary'";
+    for (expression, expected) in [
+        (
+            "collation-key('abc') eq collation-key('abc')".to_string(),
+            "true",
+        ),
+        (
+            "collation-key('abc') eq collation-key('ABC')".to_string(),
+            "false",
+        ),
+        (
+            format!("collation-key('abc', {primary}) eq collation-key('ABC', {primary})"),
+            "true",
+        ),
+        (
+            format!("collation-key('café', {primary}) eq collation-key('cafe', {primary})"),
+            "true",
+        ),
+        (
+            format!("collation-key('a', {primary}) lt collation-key('b', {primary})"),
+            "true",
+        ),
+        (
+            format!("collation-key('a1', {primary}) lt collation-key('aa', {primary})"),
+            "true",
+        ),
+        ("default-language()".to_string(), "en"),
+        (
+            "empty(environment-variable('RUST_XSLT_SURELY_UNSET_VARIABLE'))".to_string(),
+            "true",
+        ),
+        ("empty(static-base-uri())".to_string(), "true"),
+        ("empty(base-uri(/))".to_string(), "true"),
+    ] {
+        assert_eq!(run(&expression), expected, "{expression}");
+    }
+}

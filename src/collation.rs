@@ -268,6 +268,73 @@ impl Collation {
         Ordering::Equal
     }
 
+    /// A byte string whose lexicographic order matches `compare` (for `fn:collation-key`).
+    pub(crate) fn sort_key(self, text: &str) -> Vec<u8> {
+        let Self::Uca {
+            strength,
+            numeric,
+            ignore_variable,
+            upper_first,
+            case_level,
+        } = self
+        else {
+            return match self {
+                Self::Codepoint => text.as_bytes().to_vec(),
+                _ => self
+                    .units(text)
+                    .iter()
+                    .flat_map(|u| u.base.to_string().into_bytes())
+                    .collect(),
+            };
+        };
+        let units: Vec<Unit> = self
+            .units(text)
+            .into_iter()
+            .filter(|u| !(ignore_variable && Self::variable(u)))
+            .collect();
+        let mut key = vec![];
+        let mut i = 0;
+        while i < units.len() {
+            let (class, c) = Self::primary(&units[i]);
+            if numeric && class == 1 && units[i].base.is_ascii_digit() {
+                let mut value = 0u64;
+                while i < units.len() && units[i].base.is_ascii_digit() {
+                    value = value
+                        .saturating_mul(10)
+                        .saturating_add(u64::from(units[i].base.to_digit(10).unwrap()));
+                    i += 1;
+                }
+                key.push(1);
+                key.extend(value.to_be_bytes());
+                key.extend(0u32.to_be_bytes());
+            } else {
+                key.push(class);
+                key.extend((c as u32).to_be_bytes());
+                i += 1;
+            }
+        }
+        if strength >= Strength::Secondary {
+            key.push(0);
+            for unit in &units {
+                for accent in &unit.accents {
+                    key.extend((*accent as u32).to_be_bytes());
+                }
+                key.push(0xFF);
+            }
+        }
+        if strength >= Strength::Tertiary || case_level {
+            key.push(0);
+            for unit in &units {
+                key.push(u8::from(unit.upper != upper_first));
+            }
+        }
+        if strength == Strength::Identical {
+            key.push(0);
+            key.extend(text.as_bytes());
+        }
+        key
+    }
+
     /// Whether two strings are equal under this collation.
     pub(crate) fn equal(self, a: &str, b: &str) -> bool {
         self.compare(a, b) == Ordering::Equal

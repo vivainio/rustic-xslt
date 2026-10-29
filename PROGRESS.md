@@ -1334,3 +1334,10 @@ conformance claims. Smaller tested increments are committed independently.
 
 - xsl:assert raises XTMM9001 with its message (select or body) when the test is
   false and does nothing otherwise.
+
+## Increment 119: collation keys and environment functions
+
+- Added collation-key() (byte keys that order like the selected collation, including
+  the UCA approximation), default-language() ("en"), environment-variable(),
+  available-environment-variables(), static-base-uri() and base-uri()/document-uri()
+  (always empty: source documents carry no URI in this API).
