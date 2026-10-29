@@ -1074,7 +1074,8 @@ fn execute<'a>(
     let globals = Rc::new(globals);
     let mut output = Output::new(limits.max_output_bytes, sheet.text_output)
         .with_serialization(sheet.markup, sheet.doctype.clone())
-        .with_cdata(sheet.cdata_elements.clone());
+        .with_cdata(sheet.cdata_elements.clone())
+        .with_char_map(sheet.char_map.clone());
     if declaration && !sheet.text_output && !sheet.omit_declaration {
         output.push(&format!(
             "<?xml version=\"1.0\" encoding=\"{}\"?>",
@@ -2091,7 +2092,8 @@ fn run_tasks<'a>(
                             sheet.text_output,
                         )
                         .with_serialization(output.serialization().0, None)
-                        .with_cdata(output.cdata());
+                        .with_cdata(output.cdata())
+                        .with_char_map(output.char_map());
                         let inner = Frame {
                             focus: focus.clone(),
                             env: env.clone(),
@@ -2135,7 +2137,8 @@ fn run_tasks<'a>(
                             sheet.text_output,
                         )
                         .with_serialization(output.serialization().0, None)
-                        .with_cdata(output.cdata());
+                        .with_cdata(output.cdata())
+                        .with_char_map(output.char_map());
                         let inner = Frame {
                             focus,
                             env,
@@ -2183,7 +2186,8 @@ fn run_tasks<'a>(
                             sheet.text_output,
                         )
                         .with_serialization(output.serialization().0, None)
-                        .with_cdata(output.cdata());
+                        .with_cdata(output.cdata())
+                        .with_char_map(output.char_map());
                         let try_frame = Frame {
                             focus: focus.clone(),
                             env: env.clone(),

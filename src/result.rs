@@ -128,8 +128,35 @@ pub(crate) struct Output {
     doctype: Option<Doctype>,
     /// Expanded names of elements whose text is written as CDATA sections.
     cdata: std::sync::Arc<Vec<String>>,
+    /// Character maps: mapped characters are written verbatim, unescaped.
+    char_map: std::sync::Arc<BTreeMap<char, String>>,
 }
 impl Output {
+    pub fn with_char_map(mut self, map: std::sync::Arc<BTreeMap<char, String>>) -> Self {
+        self.char_map = map;
+        self
+    }
+    pub fn char_map(&self) -> std::sync::Arc<BTreeMap<char, String>> {
+        self.char_map.clone()
+    }
+    /// Escape `value`, copying mapped characters through unchanged.
+    fn escape_mapped(&self, value: &str, attribute: bool) -> String {
+        if self.char_map.is_empty() {
+            return escape(value, attribute);
+        }
+        let mut out = String::new();
+        let mut plain = String::new();
+        for c in value.chars() {
+            if let Some(replacement) = self.char_map.get(&c) {
+                out.push_str(&escape(&std::mem::take(&mut plain), attribute));
+                out.push_str(replacement);
+            } else {
+                plain.push(c);
+            }
+        }
+        out.push_str(&escape(&plain, attribute));
+        out
+    }
     pub fn with_cdata(mut self, cdata: std::sync::Arc<Vec<String>>) -> Self {
         self.cdata = cdata;
         self
@@ -158,6 +185,7 @@ impl Output {
             markup: Markup::Xml,
             doctype: None,
             cdata: Default::default(),
+            char_map: Default::default(),
         }
     }
     pub fn simple(max: usize, separator: String) -> Self {
@@ -332,7 +360,8 @@ impl Output {
             if markup == Markup::Html {
                 self.push(&value.replace('&', "&amp;").replace('"', "&quot;"))?;
             } else {
-                self.push(&escape(value, true))?;
+                let escaped = self.escape_mapped(value, true);
+                self.push(&escaped)?;
             }
             self.push("\"")?;
         }
@@ -516,7 +545,8 @@ impl Output {
         } else if self.text || raw {
             self.push(s)
         } else {
-            self.push(&escape(s, false))
+            let escaped = self.escape_mapped(s, false);
+            self.push(&escaped)
         }
     }
     pub fn comment(&mut self, s: &str) -> Result<(), Diagnostic> {

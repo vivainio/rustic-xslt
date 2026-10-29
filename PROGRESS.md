@@ -1315,3 +1315,10 @@ conformance claims. Smaller tested increments are committed independently.
 - xsl:output cdata-section-elements writes the text content of the listed elements
   (expanded names, accumulated across declarations) as CDATA sections, splitting any
   `]]>` in the content. Not applied to result documents or the text method.
+
+## Increment 116: character maps
+
+- xsl:character-map with xsl:output-character, nested use-character-maps and the
+  xsl:output use-character-maps attribute: mapped characters in text and attribute
+  values are written verbatim (unescaped); unknown maps are XTSE1590, cycles XTSE1600
+  and duplicate names XTSE1580. Maps apply to the principal result only.

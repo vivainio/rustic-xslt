@@ -1826,6 +1826,48 @@ fn error_test(
     }
     Ok((Some(String::new()), Some(token.to_owned())))
 }
+/// Flatten the character maps named by `use-character-maps`, following nested uses.
+fn resolve_character_maps(
+    maps: &BTreeMap<String, CharacterMap>,
+    used: &[String],
+) -> Result<BTreeMap<char, String>, Diagnostic> {
+    fn visit(
+        name: &str,
+        maps: &BTreeMap<String, CharacterMap>,
+        stack: &mut Vec<String>,
+        out: &mut BTreeMap<char, String>,
+    ) -> Result<(), Diagnostic> {
+        let Some((uses, entries)) = maps.get(name) else {
+            return Err(Diagnostic::new(
+                "XTSE1590",
+                format!("unknown character map: {name}"),
+                "compile",
+            ));
+        };
+        if stack.iter().any(|s| s == name) {
+            return Err(Diagnostic::new(
+                "XTSE1600",
+                format!("character map uses itself: {name}"),
+                "compile",
+            ));
+        }
+        stack.push(name.to_owned());
+        for used in uses {
+            visit(used, maps, stack, out)?;
+        }
+        stack.pop();
+        // Characters of the using map override those of the maps it uses.
+        for (c, s) in entries {
+            out.insert(*c, s.clone());
+        }
+        Ok(())
+    }
+    let mut out = BTreeMap::new();
+    for name in used {
+        visit(name, maps, &mut vec![], &mut out)?;
+    }
+    Ok(out)
+}
 fn set_names(n: Node<'_, '_>, value: &str) -> Result<Vec<String>, Diagnostic> {
     value
         .split([' ', '\t', '\r', '\n'])
@@ -1872,11 +1914,14 @@ struct Declarations<'a> {
     functions: &'a mut BTreeMap<(String, usize), xpath::UserFunction>,
     keys: &'a mut BTreeMap<String, Vec<xpath::KeyDefinition>>,
     attribute_sets: &'a mut BTreeMap<String, AttributeSet>,
+    character_maps: &'a mut BTreeMap<String, CharacterMap>,
+    output_character_maps: &'a mut Vec<String>,
     decimal_formats: &'a mut BTreeMap<String, crate::format_number::Format>,
     counter: &'a mut u32,
     global_precedence: &'a mut BTreeMap<String, u32>,
     function_precedence: &'a mut BTreeMap<(String, usize), u32>,
 }
+type CharacterMap = (Vec<String>, Vec<(char, String)>);
 type Resolver<'a> = &'a dyn Fn(&str) -> Result<String, Diagnostic>;
 fn declarations(
     root: Node<'_, '_>,
@@ -1891,6 +1936,8 @@ fn declarations(
         functions,
         keys,
         attribute_sets,
+        character_maps,
+        output_character_maps,
         decimal_formats,
         counter,
         global_precedence,
@@ -1939,6 +1986,8 @@ fn declarations(
                 functions,
                 keys,
                 attribute_sets,
+                character_maps,
+                output_character_maps,
                 decimal_formats,
                 counter,
                 global_precedence,
@@ -2254,8 +2303,17 @@ fn declarations(
                         "byte-order-mark",
                         "standalone",
                         "cdata-section-elements",
+                        "use-character-maps",
                     ],
                 )?;
+                if let Some(names) = n.attribute("use-character-maps") {
+                    output_character_maps.extend(
+                        names
+                            .split_whitespace()
+                            .map(|name| component_name(n, name))
+                            .collect::<Result<Vec<_>, _>>()?,
+                    );
+                }
                 if let Some(names) = n.attribute("cdata-section-elements") {
                     let mut all = (*sheet.cdata_elements).clone();
                     for name in names.split_whitespace() {
@@ -2343,6 +2401,8 @@ fn declarations(
                         functions,
                         keys,
                         attribute_sets,
+                        character_maps,
+                        output_character_maps,
                         decimal_formats,
                         counter,
                         global_precedence,
@@ -2437,6 +2497,52 @@ fn declarations(
                     ));
                 }
                 decimal_formats.insert(id, format);
+            }
+            "character-map" => {
+                attrs(n, &["name", "use-character-maps"])?;
+                let id = component_name(
+                    n,
+                    n.attribute("name").ok_or_else(|| {
+                        static_error(n, "XTSE0010", "character-map requires a name")
+                    })?,
+                )?;
+                if character_maps.contains_key(&id) {
+                    return Err(static_error(n, "XTSE1580", "duplicate character map"));
+                }
+                let uses = n
+                    .attribute("use-character-maps")
+                    .map(|s| set_names(n, s))
+                    .transpose()?
+                    .unwrap_or_default();
+                let mut entries = vec![];
+                for c in n.children() {
+                    if c.is_text() && !xml_space(c.text().unwrap_or_default()) {
+                        return Err(static_error(
+                            c,
+                            "XTSE0010",
+                            "unexpected text in xsl:character-map",
+                        ));
+                    }
+                    if !c.is_element() {
+                        continue;
+                    }
+                    if c.tag_name().namespace() != Some(XSL)
+                        || c.tag_name().name() != "output-character"
+                    {
+                        return Err(static_error(c, "XTSE0010", "expected xsl:output-character"));
+                    }
+                    attrs(c, &["character", "string"])?;
+                    let mut chars = required(c, "character")?.chars();
+                    let (Some(ch), None) = (chars.next(), chars.next()) else {
+                        return Err(static_error(
+                            c,
+                            "XTSE0020",
+                            "character must be a single character",
+                        ));
+                    };
+                    entries.push((ch, required(c, "string")?.to_owned()));
+                }
+                character_maps.insert(id, (uses, entries));
             }
             "attribute-set" => {
                 attrs(
@@ -2639,6 +2745,7 @@ pub(crate) fn compile(
         markup: crate::result::Markup::Xml,
         encoding: Default::default(),
         cdata_elements: Default::default(),
+        char_map: Default::default(),
         doctype: None,
         text_output: false,
         backwards: root.attribute("version") == Some("1.0"),
@@ -2652,6 +2759,8 @@ pub(crate) fn compile(
     let mut functions: BTreeMap<(String, usize), xpath::UserFunction> = BTreeMap::new();
     let mut keys: BTreeMap<String, Vec<xpath::KeyDefinition>> = BTreeMap::new();
     let mut attribute_sets: BTreeMap<String, AttributeSet> = BTreeMap::new();
+    let mut character_maps: BTreeMap<String, CharacterMap> = BTreeMap::new();
+    let mut output_character_maps: Vec<String> = vec![];
     let mut decimal_formats: BTreeMap<String, crate::format_number::Format> = BTreeMap::new();
     let mut precedence_counter = 0u32;
     let mut global_precedence: BTreeMap<String, u32> = BTreeMap::new();
@@ -2664,6 +2773,8 @@ pub(crate) fn compile(
             functions: &mut functions,
             keys: &mut keys,
             attribute_sets: &mut attribute_sets,
+            character_maps: &mut character_maps,
+            output_character_maps: &mut output_character_maps,
             decimal_formats: &mut decimal_formats,
             counter: &mut precedence_counter,
             global_precedence: &mut global_precedence,
@@ -2676,6 +2787,10 @@ pub(crate) fn compile(
     sheet.functions = std::sync::Arc::new(functions);
     sheet.keys = std::sync::Arc::new(keys);
     sheet.attribute_sets = attribute_sets;
+    sheet.char_map = std::sync::Arc::new(resolve_character_maps(
+        &character_maps,
+        &output_character_maps,
+    )?);
     sheet.decimal_formats = std::sync::Arc::new(decimal_formats);
     sheet.document_uris = xpath::take_document_uris();
     validate(&sheet)?;
