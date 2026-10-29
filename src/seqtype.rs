@@ -19,6 +19,7 @@ pub(crate) enum Kind {
     Pi,
     String,
     Untyped,
+    AnyUri,
     Boolean,
     QName,
     Integer,
@@ -137,6 +138,7 @@ impl SequenceType {
                 match local {
                     "string" => Kind::String,
                     "untypedAtomic" => Kind::Untyped,
+                    "anyURI" => Kind::AnyUri,
                     "boolean" => Kind::Boolean,
                     "QName" => Kind::QName,
                     "integer" => Kind::Integer,
@@ -162,6 +164,7 @@ impl SequenceType {
             self.kind,
             Kind::String
                 | Kind::Untyped
+                | Kind::AnyUri
                 | Kind::Boolean
                 | Kind::QName
                 | Kind::Integer
@@ -203,6 +206,7 @@ impl SequenceType {
             (Kind::Pi, Item::Node(n)) => n.is_pi(),
             (Kind::String, Item::String(_))
             | (Kind::Untyped, Item::Untyped(_))
+            | (Kind::AnyUri, Item::AnyUri(_))
             | (Kind::Boolean, Item::Boolean(_))
             | (Kind::QName, Item::QName(_)) => true,
             (Kind::Integer, Item::Number(Number::Integer(_))) => true,
@@ -213,6 +217,7 @@ impl SequenceType {
             (
                 Kind::Atomic,
                 Item::String(_)
+                | Item::AnyUri(_)
                 | Item::Untyped(_)
                 | Item::Boolean(_)
                 | Item::Number(_)
@@ -243,7 +248,10 @@ impl SequenceType {
                 item = crate::xpath::atomize(&item);
             }
             item = match (&self.kind, item) {
-                (Kind::String, Item::Untyped(s)) => Item::String(s),
+                (Kind::String, Item::Untyped(s) | Item::AnyUri(s)) => Item::String(s),
+                (Kind::AnyUri, Item::Untyped(s)) => {
+                    Item::AnyUri(crate::string_functions::collapse_xml_whitespace(&s))
+                }
                 (Kind::Boolean, Item::Untyped(s)) => {
                     Item::Boolean(match s.trim_matches([' ', '\t', '\r', '\n']) {
                         "true" | "1" => true,

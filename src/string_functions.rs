@@ -7,6 +7,13 @@ use crate::{
 use num_traits::ToPrimitive;
 use std::collections::BTreeMap;
 use unicode_normalization::UnicodeNormalization;
+pub(crate) fn collapse_xml_whitespace(value: &str) -> String {
+    value
+        .split([' ', '\t', '\n', '\r'])
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
 fn type_error() -> Diagnostic {
     Diagnostic::new(
         "XPTY0004",
@@ -30,7 +37,7 @@ pub(crate) fn string(
         return Err(type_error());
     }
     match xpath::atomize(&value[0]) {
-        Item::String(s) | Item::Untyped(s) => Ok(s),
+        Item::String(s) | Item::Untyped(s) | Item::AnyUri(s) => Ok(s),
         item if backwards => Ok(item.string()),
         _ => Err(type_error()),
     }

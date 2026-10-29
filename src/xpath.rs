@@ -72,6 +72,7 @@ pub(crate) enum Item<'a> {
     Node(XNode<'a>),
     String(String),
     Untyped(String),
+    AnyUri(String),
     Number(Number),
     Boolean(bool),
     QName(crate::qname::AtomicQName),
@@ -90,7 +91,7 @@ impl Item<'_> {
         match self {
             Self::Absent => String::new(),
             Self::Node(n) => n.string(),
-            Self::String(s) | Self::Untyped(s) => s.clone(),
+            Self::String(s) | Self::Untyped(s) | Self::AnyUri(s) => s.clone(),
             Self::Number(n) => n.string(),
             Self::Boolean(b) => b.to_string(),
             Self::QName(name) => name.lexical(),
@@ -113,6 +114,7 @@ impl Item<'_> {
                 }
             }
             Self::Number(n) => n.double(),
+            Self::AnyUri(_) | Self::QName(_) => f64::NAN,
             _ => self.string().trim().parse().unwrap_or(f64::NAN),
         }
     }
@@ -150,7 +152,7 @@ pub(crate) fn boolean(value: &[Item<'_>]) -> Result<bool, Diagnostic> {
         [] => Ok(false),
         [Item::Node(_), ..] => Ok(true),
         [Item::Boolean(b)] => Ok(*b),
-        [Item::String(s) | Item::Untyped(s)] => Ok(!s.is_empty()),
+        [Item::String(s) | Item::Untyped(s) | Item::AnyUri(s)] => Ok(!s.is_empty()),
         [Item::Number(n)] => Ok(n.boolean()),
         _ => Err(err(
             "FORG0006",
@@ -1018,10 +1020,11 @@ impl Parser {
 fn function_arity(name: &str) -> Option<(usize, usize)> {
     Some(match name {
         "xs:string" | "xs:untypedAtomic" | "xs:integer" | "xs:decimal" | "xs:double"
-        | "xs:float" | "xs:boolean" | "xs:QName" => (1, 1),
+        | "xs:float" | "xs:boolean" | "xs:QName" | "xs:anyURI" => (1, 1),
         "true" | "false" | "position" | "last" => (0, 0),
         "error" => (0, 3),
         "QName" => (2, 2),
+        "namespace-uri-from-QName" => (1, 1),
         "string" | "number" | "normalize-space" | "string-length" | "name" | "local-name"
         | "namespace-uri" | "root" => (0, 1),
         "count" | "boolean" | "not" | "exists" | "empty" | "data" | "reverse" | "head" | "tail" => {
@@ -1257,6 +1260,7 @@ pub(crate) fn eval<'a>(
                         let kind = match ty.kind {
                             crate::seqtype::Kind::String => "string",
                             crate::seqtype::Kind::Untyped => "untypedAtomic",
+                            crate::seqtype::Kind::AnyUri => "anyURI",
                             crate::seqtype::Kind::Boolean => "boolean",
                             crate::seqtype::Kind::Integer => "integer",
                             crate::seqtype::Kind::Decimal => "decimal",
@@ -1675,6 +1679,12 @@ fn numeric(v: &[Item<'_>], backwards: bool) -> Result<Number, Diagnostic> {
 fn compare(a: &Item<'_>, b: &Item<'_>, op: &str, backwards: bool) -> Result<bool, Diagnostic> {
     use std::cmp::Ordering;
     let (mut a, mut b) = (atomize(a), atomize(b));
+    if let Item::AnyUri(s) = a {
+        a = Item::String(s);
+    }
+    if let Item::AnyUri(s) = b {
+        b = Item::String(s);
+    }
     if matches!(a, Item::QName(_)) || matches!(b, Item::QName(_)) {
         return match (&a, &b) {
             (Item::QName(a), Item::QName(b)) if op == "=" => Ok(a.equal(b)),
@@ -1732,6 +1742,20 @@ fn compare(a: &Item<'_>, b: &Item<'_>, op: &str, backwards: bool) -> Result<bool
         _ => false,
     })
 }
+fn optional_qname(value: &[Item<'_>]) -> Result<Option<crate::qname::AtomicQName>, Diagnostic> {
+    match value {
+        [] => Ok(None),
+        [item] => match atomize(item) {
+            Item::QName(name) => Ok(Some(name)),
+            Item::Untyped(_) => Err(err(
+                "XPTY0117",
+                "untyped values cannot be converted to namespace-sensitive QName arguments",
+            )),
+            _ => Err(err("XPTY0004", "argument must be an optional QName")),
+        },
+        _ => Err(err("XPTY0004", "argument must be an optional QName")),
+    }
+}
 fn function<'a>(
     name: &str,
     args: &[Value<'a>],
@@ -1740,11 +1764,8 @@ fn function<'a>(
     backwards: bool,
 ) -> Result<Value<'a>, Diagnostic> {
     if name == "error" {
-        let code = match args.first().map(Vec::as_slice).unwrap_or(&[]) {
-            [] => "FOER0000".into(),
-            [Item::QName(name)] => name.error_code(),
-            _ => return Err(err("XPTY0004", "error code must be an optional QName")),
-        };
+        let code = optional_qname(args.first().map(Vec::as_slice).unwrap_or(&[]))?
+            .map_or_else(|| "FOER0000".into(), |name| name.error_code());
         let description = if let Some(description) = args.get(1) {
             let [item] = description.as_slice() else {
                 return Err(err(
@@ -1753,7 +1774,7 @@ fn function<'a>(
                 ));
             };
             match atomize(item) {
-                Item::String(s) | Item::Untyped(s) => s,
+                Item::String(s) | Item::Untyped(s) | Item::AnyUri(s) => s,
                 _ => return Err(err("XPTY0004", "error description must be a string")),
             }
         } else {
@@ -1780,6 +1801,11 @@ fn function<'a>(
             .map_or_else(String::new, |item| item.string_compat(backwards)))
     };
     let s = || scalar(first);
+    if name == "namespace-uri-from-QName" {
+        return Ok(optional_qname(first)?.map_or_else(Vec::new, |name| {
+            vec![Item::AnyUri(name.uri.unwrap_or_default())]
+        }));
+    }
     if name == "QName" {
         let uri = crate::string_functions::string(&args[0], true, false)?;
         let lexical = crate::string_functions::string(&args[1], false, false)?;
@@ -1850,12 +1876,30 @@ fn function<'a>(
             return Err(err("XPTY0004", "constructor requires a singleton"));
         }
         let item = &first[0];
+        if matches!(item, Item::AnyUri(_)) && !matches!(kind, "string" | "untypedAtomic" | "anyURI")
+        {
+            return Err(err("XPTY0004", "anyURI cannot be cast to this atomic type"));
+        }
         if matches!(item, Item::QName(_)) && !matches!(kind, "string" | "untypedAtomic") {
             return Err(err("XPTY0004", "QName cannot be cast to this atomic type"));
         }
         return Ok(vec![match kind {
             "string" => Item::String(item.string()),
             "untypedAtomic" => Item::Untyped(item.string()),
+            "anyURI" => match atomize(item) {
+                Item::String(s) | Item::Untyped(s) | Item::AnyUri(s) => {
+                    for _ in s.bytes() {
+                        budget.tick()?;
+                    }
+                    Item::AnyUri(crate::string_functions::collapse_xml_whitespace(&s))
+                }
+                _ => {
+                    return Err(err(
+                        "XPTY0004",
+                        "anyURI constructor requires a string, untyped atomic or URI",
+                    ));
+                }
+            },
             "boolean" => Item::Boolean(match item {
                 Item::Boolean(b) => *b,
                 Item::Number(n) => n.boolean(),
@@ -2042,7 +2086,11 @@ fn function<'a>(
                 }
                 _ => return Err(err("XPTY0004", "name function requires one node")),
             };
-            Item::String(text)
+            if name == "namespace-uri" {
+                Item::AnyUri(text)
+            } else {
+                Item::String(text)
+            }
         }
         _ => unreachable!(),
     };

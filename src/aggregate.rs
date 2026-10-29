@@ -38,7 +38,7 @@ pub(crate) fn evaluate<'a>(
             return Err(error("XPTY0004", "collation must be a singleton string"));
         };
         let item = atomize(item);
-        if !matches!(item, Item::String(_) | Item::Untyped(_)) {
+        if !matches!(item, Item::String(_) | Item::Untyped(_) | Item::AnyUri(_)) {
             return Err(error("XPTY0004", "collation must be a string"));
         }
         if item.string() != "http://www.w3.org/2005/xpath-functions/collation/codepoint" {
@@ -64,6 +64,7 @@ pub(crate) fn evaluate<'a>(
         budget.tick()?;
         values.push(match atomize(item) {
             Item::Untyped(s) => Item::Number(Number::cast("double", &s)?),
+            Item::AnyUri(s) => Item::String(s),
             other => other,
         });
     }

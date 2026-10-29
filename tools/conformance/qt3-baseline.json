@@ -17,6 +17,7 @@
     "fn-lower-case",
     "fn-max",
     "fn-min",
+    "fn-namespace-uri-from-QName",
     "fn-normalize-unicode",
     "fn-one-or-more",
     "fn-remove",
@@ -31,6 +32,9 @@
     "fn-upper-case",
     "fn-zero-or-one",
     "op-QName-equal",
+    "op-anyURI-equal",
+    "op-anyURI-greater-than",
+    "op-anyURI-less-than",
     "op-bang",
     "op-concat",
     "op-except",
@@ -45,7 +49,8 @@
     "prod-LetClause",
     "prod-PathExpr",
     "prod-QuantifiedExpr",
-    "prod-SequenceType"
+    "prod-SequenceType",
+    "xs-anyURI"
   ],
   "passing_cases": [
     [
@@ -207,6 +212,10 @@
     [
       "fn-abs",
       "fn-abs-more-args-082"
+    ],
+    [
+      "fn-abs",
+      "fn-abs-more-args-086"
     ],
     [
       "fn-abs",
@@ -550,6 +559,10 @@
     ],
     [
       "fn-avg",
+      "fn-avg-mix-args-034"
+    ],
+    [
+      "fn-avg",
       "fn-avg-mix-args-035"
     ],
     [
@@ -575,6 +588,10 @@
     [
       "fn-avg",
       "fn-avg-mix-args-041"
+    ],
+    [
+      "fn-avg",
+      "fn-avg-mix-args-042"
     ],
     [
       "fn-avg",
@@ -779,6 +796,14 @@
     [
       "fn-avg",
       "K-SeqAVGFunc-31"
+    ],
+    [
+      "fn-avg",
+      "K-SeqAVGFunc-32"
+    ],
+    [
+      "fn-avg",
+      "K-SeqAVGFunc-33"
     ],
     [
       "fn-avg",
@@ -1598,6 +1623,10 @@
     ],
     [
       "fn-compare",
+      "compare-012"
+    ],
+    [
+      "fn-compare",
       "compare-013"
     ],
     [
@@ -1734,6 +1763,14 @@
     ],
     [
       "fn-deep-equal",
+      "fn-deep-equal-mix-args-011"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-012"
+    ],
+    [
+      "fn-deep-equal",
       "fn-deep-equal-mix-args-013"
     ],
     [
@@ -1854,7 +1891,15 @@
     ],
     [
       "fn-deep-equal",
+      "K-SeqDeepEqualFunc-16"
+    ],
+    [
+      "fn-deep-equal",
       "K-SeqDeepEqualFunc-17"
+    ],
+    [
+      "fn-deep-equal",
+      "K-SeqDeepEqualFunc-18"
     ],
     [
       "fn-deep-equal",
@@ -2658,6 +2703,10 @@
     ],
     [
       "fn-insert-before",
+      "fn-insert-before-mix-args-005"
+    ],
+    [
+      "fn-insert-before",
       "fn-insert-before-mix-args-006"
     ],
     [
@@ -3166,6 +3215,14 @@
     ],
     [
       "fn-max",
+      "K-SeqMAXFunc-39"
+    ],
+    [
+      "fn-max",
+      "K-SeqMAXFunc-40"
+    ],
+    [
+      "fn-max",
       "K-SeqMAXFunc-41"
     ],
     [
@@ -3238,11 +3295,27 @@
     ],
     [
       "fn-max",
+      "K2-SeqMAXFunc-1"
+    ],
+    [
+      "fn-max",
+      "K2-SeqMAXFunc-2"
+    ],
+    [
+      "fn-max",
+      "K2-SeqMAXFunc-3"
+    ],
+    [
+      "fn-max",
       "K2-SeqMAXFunc-4"
     ],
     [
       "fn-max",
       "K2-SeqMAXFunc-5"
+    ],
+    [
+      "fn-max",
+      "K2-SeqMAXFunc-6"
     ],
     [
       "fn-max",
@@ -3255,6 +3328,10 @@
     [
       "fn-max",
       "fn-max-11"
+    ],
+    [
+      "fn-max",
+      "fn-max-16"
     ],
     [
       "fn-max",
@@ -3542,6 +3619,14 @@
     ],
     [
       "fn-min",
+      "K-SeqMINFunc-39"
+    ],
+    [
+      "fn-min",
+      "K-SeqMINFunc-40"
+    ],
+    [
+      "fn-min",
       "K-SeqMINFunc-41"
     ],
     [
@@ -3582,7 +3667,23 @@
     ],
     [
       "fn-min",
+      "K2-SeqMINFunc-1"
+    ],
+    [
+      "fn-min",
+      "K2-SeqMINFunc-2"
+    ],
+    [
+      "fn-min",
+      "K2-SeqMINFunc-3"
+    ],
+    [
+      "fn-min",
       "K2-SeqMINFunc-4"
+    ],
+    [
+      "fn-min",
+      "K2-SeqMINFunc-5"
     ],
     [
       "fn-min",
@@ -3631,6 +3732,10 @@
     [
       "fn-min",
       "fn-min-11"
+    ],
+    [
+      "fn-min",
+      "fn-min-16"
     ],
     [
       "fn-normalize-unicode",
@@ -3990,7 +4095,23 @@
     ],
     [
       "fn-remove",
+      "fn-remove-mix-args-005"
+    ],
+    [
+      "fn-remove",
+      "fn-remove-mix-args-006"
+    ],
+    [
+      "fn-remove",
+      "fn-remove-mix-args-007"
+    ],
+    [
+      "fn-remove",
       "fn-remove-mix-args-008"
+    ],
+    [
+      "fn-remove",
+      "fn-remove-mix-args-009"
     ],
     [
       "fn-remove",
@@ -4495,6 +4616,10 @@
     [
       "fn-subsequence",
       "fn-subsequence-mix-args-004"
+    ],
+    [
+      "fn-subsequence",
+      "fn-subsequence-mix-args-005"
     ],
     [
       "fn-subsequence",
@@ -5287,6 +5412,18 @@
     [
       "fn-sum",
       "K-SeqSUMFunc-23"
+    ],
+    [
+      "fn-sum",
+      "K-SeqSUMFunc-24"
+    ],
+    [
+      "fn-sum",
+      "K-SeqSUMFunc-25"
+    ],
+    [
+      "fn-sum",
+      "K-SeqSUMFunc-26"
     ],
     [
       "fn-sum",
@@ -6566,6 +6703,14 @@
     ],
     [
       "op-QName-equal",
+      "value-comparison-1"
+    ],
+    [
+      "op-QName-equal",
+      "value-comparison-2"
+    ],
+    [
+      "op-QName-equal",
       "K-QNameEQ-1"
     ],
     [
@@ -6583,6 +6728,10 @@
     [
       "op-QName-equal",
       "K-QNameEQ-5"
+    ],
+    [
+      "op-QName-equal",
+      "K-QNameEQ-6"
     ],
     [
       "op-QName-equal",
@@ -7666,6 +7815,14 @@
     ],
     [
       "prod-IfExpr",
+      "K-CondExpr-8"
+    ],
+    [
+      "prod-IfExpr",
+      "K-CondExpr-9"
+    ],
+    [
+      "prod-IfExpr",
       "K2-CondExpr-4"
     ],
     [
@@ -8515,6 +8672,262 @@
     [
       "prod-SequenceType",
       "sequence-type-21"
+    ],
+    [
+      "fn-namespace-uri-from-QName",
+      "NamespaceURIFromQNameFunc006"
+    ],
+    [
+      "fn-namespace-uri-from-QName",
+      "NamespaceURIFromQNameFunc007"
+    ],
+    [
+      "fn-namespace-uri-from-QName",
+      "NamespaceURIFromQNameFunc009"
+    ],
+    [
+      "fn-namespace-uri-from-QName",
+      "NamespaceURIFromQNameFunc011"
+    ],
+    [
+      "fn-namespace-uri-from-QName",
+      "NamespaceURIFromQNameFunc015a"
+    ],
+    [
+      "fn-namespace-uri-from-QName",
+      "NamespaceURIFromQNameFunc016"
+    ],
+    [
+      "fn-namespace-uri-from-QName",
+      "K-NamespaceURIFromQNameFunc-1"
+    ],
+    [
+      "fn-namespace-uri-from-QName",
+      "K-NamespaceURIFromQNameFunc-2"
+    ],
+    [
+      "fn-namespace-uri-from-QName",
+      "K-NamespaceURIFromQNameFunc-3"
+    ],
+    [
+      "fn-namespace-uri-from-QName",
+      "K-NamespaceURIFromQNameFunc-4"
+    ],
+    [
+      "fn-namespace-uri-from-QName",
+      "K-NamespaceURIFromQNameFunc-5"
+    ],
+    [
+      "xs-anyURI",
+      "cbcl-anyURI-001"
+    ],
+    [
+      "xs-anyURI",
+      "cbcl-anyURI-002"
+    ],
+    [
+      "xs-anyURI",
+      "cbcl-anyURI-003"
+    ],
+    [
+      "xs-anyURI",
+      "cbcl-anyURI-004b"
+    ],
+    [
+      "xs-anyURI",
+      "cbcl-anyURI-005"
+    ],
+    [
+      "xs-anyURI",
+      "cbcl-anyURI-006b"
+    ],
+    [
+      "xs-anyURI",
+      "cbcl-anyURI-007"
+    ],
+    [
+      "xs-anyURI",
+      "cbcl-anyURI-008"
+    ],
+    [
+      "xs-anyURI",
+      "cbcl-anyURI-009b"
+    ],
+    [
+      "xs-anyURI",
+      "cbcl-anyURI-010"
+    ],
+    [
+      "xs-anyURI",
+      "cbcl-anyURI-011"
+    ],
+    [
+      "xs-anyURI",
+      "cbcl-anyURI-012b"
+    ],
+    [
+      "xs-anyURI",
+      "cbcl-anyURI-013"
+    ],
+    [
+      "op-anyURI-equal",
+      "K-AnyURIEqual-1"
+    ],
+    [
+      "op-anyURI-equal",
+      "K-AnyURIEqual-2"
+    ],
+    [
+      "op-anyURI-equal",
+      "K-AnyURIEqual-3"
+    ],
+    [
+      "op-anyURI-equal",
+      "K-AnyURIEqual-4"
+    ],
+    [
+      "op-anyURI-equal",
+      "K-AnyURIEqual-5"
+    ],
+    [
+      "op-anyURI-equal",
+      "K-AnyURIEqual-6"
+    ],
+    [
+      "op-anyURI-equal",
+      "K-AnyURIEqual-7"
+    ],
+    [
+      "op-anyURI-equal",
+      "K-AnyURIEqual-8"
+    ],
+    [
+      "op-anyURI-equal",
+      "K-AnyURIEqual-9"
+    ],
+    [
+      "op-anyURI-equal",
+      "K-AnyURIEqual-10"
+    ],
+    [
+      "op-anyURI-equal",
+      "K2-AnyURIEqual-1"
+    ],
+    [
+      "op-anyURI-equal",
+      "K2-AnyURIEqual-2"
+    ],
+    [
+      "op-anyURI-equal",
+      "K2-AnyURIEqual-3"
+    ],
+    [
+      "op-anyURI-equal",
+      "K2-AnyURIEqual-4"
+    ],
+    [
+      "op-anyURI-equal",
+      "K2-AnyURIEqual-5"
+    ],
+    [
+      "op-anyURI-equal",
+      "K2-AnyURIEqual-6"
+    ],
+    [
+      "op-anyURI-equal",
+      "K2-AnyURIEqual-7"
+    ],
+    [
+      "op-anyURI-equal",
+      "K2-AnyURIEqual-8"
+    ],
+    [
+      "op-anyURI-equal",
+      "K2-AnyURIEqual-9"
+    ],
+    [
+      "op-anyURI-equal",
+      "K2-AnyURIEqual-10"
+    ],
+    [
+      "op-anyURI-equal",
+      "K2-AnyURIEqual-11"
+    ],
+    [
+      "op-anyURI-equal",
+      "K2-AnyURIEqual-12"
+    ],
+    [
+      "op-anyURI-greater-than",
+      "K2-AnyURILeGe-1"
+    ],
+    [
+      "op-anyURI-greater-than",
+      "K2-AnyURILeGe-2"
+    ],
+    [
+      "op-anyURI-greater-than",
+      "K2-AnyURILeGe-3"
+    ],
+    [
+      "op-anyURI-greater-than",
+      "K2-AnyURILeGe-4"
+    ],
+    [
+      "op-anyURI-greater-than",
+      "K2-AnyURILeGe-5"
+    ],
+    [
+      "op-anyURI-greater-than",
+      "K2-AnyURILeGe-6"
+    ],
+    [
+      "op-anyURI-greater-than",
+      "K2-AnyURILeGe-7"
+    ],
+    [
+      "op-anyURI-greater-than",
+      "K2-AnyURILeGe-8"
+    ],
+    [
+      "op-anyURI-greater-than",
+      "K2-AnyURILeGe-9"
+    ],
+    [
+      "op-anyURI-greater-than",
+      "K2-AnyURILeGe-10"
+    ],
+    [
+      "op-anyURI-less-than",
+      "K2-AnyURILtGt-1"
+    ],
+    [
+      "op-anyURI-less-than",
+      "K2-AnyURILtGt-2"
+    ],
+    [
+      "op-anyURI-less-than",
+      "K2-AnyURILtGt-3"
+    ],
+    [
+      "op-anyURI-less-than",
+      "K2-AnyURILtGt-4"
+    ],
+    [
+      "op-anyURI-less-than",
+      "K2-AnyURILtGt-5"
+    ],
+    [
+      "op-anyURI-less-than",
+      "K2-AnyURILtGt-6"
+    ],
+    [
+      "op-anyURI-less-than",
+      "K2-AnyURILtGt-7"
+    ],
+    [
+      "op-anyURI-less-than",
+      "K2-AnyURILtGt-8"
     ]
   ]
 }

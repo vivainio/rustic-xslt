@@ -742,5 +742,19 @@ conformance claims. Smaller tested increments are committed independently.
   1,081 engine failures / 71 harness errors / 651 profile exclusions.
 - All 25 selected fn:QName cases pass, with optional/XQuery profiles excluded.
 
-Next: URI atomic values and further XPath coverage.
+## Increment 61: URI atomic values
+
+- xs:anyURI constructor/casts and sequence types preserve distinct atomic values,
+  collapse XML whitespace and support promotion to strings for function arguments.
+- Comparison, deep equality, min/max, string functions and effective boolean values
+  handle URI values with their required string semantics; forbidden casts fail.
+- namespace-uri and namespace-uri-from-QName return URI values. QName-sensitive
+  function conversion reports XPTY0117 for untyped inputs under modern XPath.
+- 368 Rust integration tests, 27 harness tests and Clippy/format pass. All 381 XSLT
+  passes remain; fifty QT3 sets: 4,007 cases, 2,219 pass / 1,045 engine failures /
+  72 harness errors / 671 profile exclusions. Gate grows by 102.
+- All selected anyURI constructor/comparison cases pass. A legacy XPath namespace
+  conversion error-code distinction remains a named version-semantics gap.
+
+Next: numeric rounding and further XPath coverage.
 

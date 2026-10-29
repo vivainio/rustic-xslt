@@ -29,7 +29,7 @@ pub(crate) fn evaluate(args: &[Value<'_>], budget: &mut Budget) -> Result<bool, 
             ));
         };
         let item = atomize(item);
-        if !matches!(item, Item::String(_) | Item::Untyped(_)) {
+        if !matches!(item, Item::String(_) | Item::Untyped(_) | Item::AnyUri(_)) {
             return Err(Diagnostic::new(
                 "XPTY0004",
                 "collation requires a string",
@@ -55,7 +55,10 @@ pub(crate) fn evaluate(args: &[Value<'_>], budget: &mut Budget) -> Result<bool, 
                 a.compare(b) == Some(Ordering::Equal)
                     || a.compare(a).is_none() && b.compare(b).is_none()
             }
-            (Item::String(a) | Item::Untyped(a), Item::String(b) | Item::Untyped(b)) => a == b,
+            (
+                Item::String(a) | Item::Untyped(a) | Item::AnyUri(a),
+                Item::String(b) | Item::Untyped(b) | Item::AnyUri(b),
+            ) => a == b,
             (Item::Boolean(a), Item::Boolean(b)) => a == b,
             (Item::QName(a), Item::QName(b)) => a.equal(b),
             _ => false,
