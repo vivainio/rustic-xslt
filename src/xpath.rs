@@ -1561,7 +1561,6 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
             (1, 1)
         }
         "trace" => (1, 2),
-        "nilled" => (1, 1),
         "error" => (0, 3),
         "QName" => (2, 2),
         "namespace-uri-from-QName" | "prefix-from-QName" | "local-name-from-QName" => (1, 1),
@@ -1569,10 +1568,9 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "lang" => (1, 2),
         "in-scope-prefixes" | "innermost" | "outermost" | "unordered" => (1, 1),
         "string" | "number" | "normalize-space" | "string-length" | "name" | "local-name"
-        | "namespace-uri" | "node-name" | "has-children" | "generate-id" | "root" => (0, 1),
-        "count" | "boolean" | "not" | "exists" | "empty" | "data" | "reverse" | "head" | "tail" => {
-            (1, 1)
-        }
+        | "namespace-uri" | "node-name" | "has-children" | "generate-id" | "root" | "data"
+        | "nilled" => (0, 1),
+        "count" | "boolean" | "not" | "exists" | "empty" | "reverse" | "head" | "tail" => (1, 1),
         "sum" | "min" | "max" | "distinct-values" => (1, 2),
         "avg" | "exactly-one" | "zero-or-one" | "one-or-more" | "upper-case" | "lower-case" => {
             (1, 1)
@@ -2532,6 +2530,12 @@ fn call_named<'a>(
 /// have no typed value (FOTY0013).
 pub(crate) fn flatten_arrays(value: Value<'_>) -> Result<Value<'_>, Diagnostic> {
     if !value.iter().any(|i| matches!(i, Item::Array(_))) {
+        if value
+            .iter()
+            .any(|i| matches!(i, Item::Map(_) | Item::Function(_)))
+        {
+            return Err(err("FOTY0013", "maps and functions cannot be atomized"));
+        }
         return Ok(value);
     }
     let mut out = Vec::with_capacity(value.len());

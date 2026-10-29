@@ -2675,6 +2675,14 @@
       "K-BaseURIFunc-1"
     ],
     [
+      "fn-base-uri",
+      "K-BaseURIFunc-2"
+    ],
+    [
+      "fn-base-uri",
+      "fn-base-uri-3"
+    ],
+    [
       "fn-boolean",
       "K-SeqBooleanFunc-1"
     ],
@@ -3949,6 +3957,62 @@
     [
       "fn-codepoints-to-string",
       "fn-codepoints-to-string1args-4"
+    ],
+    [
+      "fn-collation-key",
+      "collation-key-001"
+    ],
+    [
+      "fn-collation-key",
+      "collation-key-002"
+    ],
+    [
+      "fn-collation-key",
+      "collation-key-003"
+    ],
+    [
+      "fn-collation-key",
+      "collation-key-004"
+    ],
+    [
+      "fn-collation-key",
+      "collation-key-005"
+    ],
+    [
+      "fn-collation-key",
+      "collation-key-006"
+    ],
+    [
+      "fn-collation-key",
+      "collation-key-007"
+    ],
+    [
+      "fn-collation-key",
+      "collation-key-008"
+    ],
+    [
+      "fn-collation-key",
+      "collation-key-009l"
+    ],
+    [
+      "fn-collation-key",
+      "collation-key-011"
+    ],
+    [
+      "fn-collation-key",
+      "collation-key-012"
+    ],
+    [
+      "fn-collation-key",
+      "collation-key-013"
+    ],
+    [
+      "fn-collation-key",
+      "collation-key-015"
+    ],
+    [
+      "fn-collation-key",
+      "collation-key-901"
     ],
     [
       "fn-compare",
@@ -5632,10 +5696,6 @@
     ],
     [
       "fn-data",
-      "K-DataFunc-1"
-    ],
-    [
-      "fn-data",
       "K-DataFunc-2"
     ],
     [
@@ -5648,7 +5708,19 @@
     ],
     [
       "fn-data",
+      "K2-DataFunc-1"
+    ],
+    [
+      "fn-data",
       "K2-DataFunc-2"
+    ],
+    [
+      "fn-data",
+      "K2-DataFunc-4"
+    ],
+    [
+      "fn-data",
+      "K2-DataFunc-5"
     ],
     [
       "fn-data",
@@ -7161,6 +7233,22 @@
     [
       "fn-default-collation",
       "fn-default-collation-2"
+    ],
+    [
+      "fn-default-language",
+      "default-language-002"
+    ],
+    [
+      "fn-default-language",
+      "default-language-003"
+    ],
+    [
+      "fn-default-language",
+      "default-language-004"
+    ],
+    [
+      "fn-default-language",
+      "default-language-005"
     ],
     [
       "fn-distinct-values",
@@ -12108,6 +12196,10 @@
     ],
     [
       "fn-function-lookup",
+      "fn-function-lookup-005"
+    ],
+    [
+      "fn-function-lookup",
       "fn-function-lookup-007"
     ],
     [
@@ -12124,7 +12216,27 @@
     ],
     [
       "fn-function-lookup",
+      "fn-function-lookup-013"
+    ],
+    [
+      "fn-function-lookup",
       "fn-function-lookup-015"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-017"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-019"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-021"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-023"
     ],
     [
       "fn-function-lookup",
@@ -13388,6 +13500,22 @@
     ],
     [
       "fn-function-lookup",
+      "fn-function-lookup-389"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-390"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-391"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-392"
+    ],
+    [
+      "fn-function-lookup",
       "fn-function-lookup-401"
     ],
     [
@@ -13441,6 +13569,10 @@
     [
       "fn-function-lookup",
       "fn-function-lookup-414"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-415"
     ],
     [
       "fn-function-lookup",
@@ -14008,6 +14140,10 @@
     ],
     [
       "fn-function-lookup",
+      "fn-function-lookup-734"
+    ],
+    [
+      "fn-function-lookup",
       "fn-function-lookup-736"
     ],
     [
@@ -14032,11 +14168,35 @@
     ],
     [
       "fn-function-lookup",
+      "fn-function-lookup-748"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-749"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-750"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-751"
+    ],
+    [
+      "fn-function-lookup",
       "fn-function-lookup-752"
     ],
     [
       "fn-function-lookup",
       "fn-function-lookup-753"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-754"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-755"
     ],
     [
       "fn-function-lookup",
@@ -15349,6 +15509,162 @@
     [
       "fn-innermost",
       "fn-innermost-007"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-009"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-011"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-012"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-013"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-014"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-015"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-016"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-023"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-024"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-025"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-026"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-027"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-028"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-029"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-030"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-031"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-032"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-033"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-034"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-035"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-036"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-037"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-038"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-039"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-040"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-041"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-042"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-043"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-044"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-045"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-046"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-047"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-048"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-049"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-050"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-051"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-052"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-053"
+    ],
+    [
+      "fn-innermost",
+      "fn-innermost-054"
     ],
     [
       "fn-insert-before",
@@ -23352,10 +23668,6 @@
     ],
     [
       "fn-nilled",
-      "K-NilledFunc-1"
-    ],
-    [
-      "fn-nilled",
       "K-NilledFunc-2"
     ],
     [
@@ -23376,7 +23688,35 @@
     ],
     [
       "fn-nilled",
+      "fn-nilled-23"
+    ],
+    [
+      "fn-nilled",
+      "fn-nilled-24"
+    ],
+    [
+      "fn-nilled",
+      "fn-nilled-25"
+    ],
+    [
+      "fn-nilled",
+      "fn-nilled-26"
+    ],
+    [
+      "fn-nilled",
+      "fn-nilled-28"
+    ],
+    [
+      "fn-nilled",
+      "fn-nilled-29"
+    ],
+    [
+      "fn-nilled",
       "fn-nilled-3"
+    ],
+    [
+      "fn-nilled",
+      "fn-nilled-30"
     ],
     [
       "fn-node-name",
@@ -24529,6 +24869,162 @@
     [
       "fn-outermost",
       "fn-outermost-007"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-009"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-011"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-012"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-013"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-014"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-015"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-016"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-023"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-024"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-025"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-026"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-027"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-028"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-029"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-030"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-031"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-032"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-033"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-034"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-035"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-036"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-037"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-038"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-039"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-040"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-041"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-042"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-043"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-044"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-045"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-046"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-047"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-048"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-049"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-050"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-051"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-052"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-053"
+    ],
+    [
+      "fn-outermost",
+      "fn-outermost-054"
     ],
     [
       "fn-parse-json",
@@ -28761,6 +29257,10 @@
     [
       "fn-static-base-uri",
       "K-StaticBaseURIFunc-2"
+    ],
+    [
+      "fn-static-base-uri",
+      "K-StaticBaseURIFunc-3"
     ],
     [
       "fn-static-base-uri",
@@ -39804,7 +40304,15 @@
     ],
     [
       "op-is-same-node",
+      "nodeexpression12"
+    ],
+    [
+      "op-is-same-node",
       "nodeexpression13"
+    ],
+    [
+      "op-is-same-node",
+      "nodeexpression15"
     ],
     [
       "op-is-same-node",
@@ -40204,7 +40712,15 @@
     ],
     [
       "op-node-after",
+      "nodeexpression44"
+    ],
+    [
+      "op-node-after",
       "nodeexpression45"
+    ],
+    [
+      "op-node-after",
+      "nodeexpression47"
     ],
     [
       "op-node-after",
@@ -40300,7 +40816,15 @@
     ],
     [
       "op-node-before",
+      "nodeexpression28"
+    ],
+    [
+      "op-node-before",
       "nodeexpression29"
+    ],
+    [
+      "op-node-before",
+      "nodeexpression31"
     ],
     [
       "op-node-before",
@@ -64692,23 +65216,7 @@
     ],
     [
       "prod-FunctionCall",
-      "function-call-reserved-function-names-034"
-    ],
-    [
-      "prod-FunctionCall",
-      "function-call-reserved-function-names-035"
-    ],
-    [
-      "prod-FunctionCall",
       "function-call-reserved-function-names-036"
-    ],
-    [
-      "prod-FunctionCall",
-      "function-call-reserved-function-names-041"
-    ],
-    [
-      "prod-FunctionCall",
-      "function-call-reserved-function-names-045"
     ],
     [
       "prod-GeneralComp.eq",
@@ -64996,6 +65504,10 @@
     ],
     [
       "prod-GeneralComp.eq",
+      "generalexpression10"
+    ],
+    [
+      "prod-GeneralComp.eq",
       "generalexpression11"
     ],
     [
@@ -65013,6 +65525,10 @@
     [
       "prod-GeneralComp.eq",
       "generalexpression18"
+    ],
+    [
+      "prod-GeneralComp.eq",
+      "generalexpression19"
     ],
     [
       "prod-GeneralComp.eq",
@@ -65044,6 +65560,10 @@
     ],
     [
       "prod-GeneralComp.eq",
+      "generalexpression29"
+    ],
+    [
+      "prod-GeneralComp.eq",
       "generalexpression3"
     ],
     [
@@ -65069,6 +65589,10 @@
     [
       "prod-GeneralComp.eq",
       "generalexpression38"
+    ],
+    [
+      "prod-GeneralComp.eq",
+      "generalexpression39"
     ],
     [
       "prod-GeneralComp.eq",
@@ -65100,6 +65624,10 @@
     ],
     [
       "prod-GeneralComp.eq",
+      "generalexpression79"
+    ],
+    [
+      "prod-GeneralComp.eq",
       "generalexpression8"
     ],
     [
@@ -65128,7 +65656,39 @@
     ],
     [
       "prod-GeneralComp.eq",
+      "generalexpression89"
+    ],
+    [
+      "prod-GeneralComp.eq",
       "generalexpression9"
+    ],
+    [
+      "prod-GeneralComp.eq",
+      "generalexpression90"
+    ],
+    [
+      "prod-GeneralComp.eq",
+      "generalexpression91"
+    ],
+    [
+      "prod-GeneralComp.eq",
+      "generalexpression92"
+    ],
+    [
+      "prod-GeneralComp.eq",
+      "generalexpression93"
+    ],
+    [
+      "prod-GeneralComp.eq",
+      "generalexpression97"
+    ],
+    [
+      "prod-GeneralComp.eq",
+      "generalexpression98"
+    ],
+    [
+      "prod-GeneralComp.eq",
+      "generalexpression99"
     ],
     [
       "prod-GeneralComp.ge",
@@ -65192,6 +65752,10 @@
     ],
     [
       "prod-GeneralComp.ge",
+      "generalexpression505"
+    ],
+    [
+      "prod-GeneralComp.ge",
       "generalexpression506"
     ],
     [
@@ -65209,6 +65773,10 @@
     [
       "prod-GeneralComp.ge",
       "generalexpression513"
+    ],
+    [
+      "prod-GeneralComp.ge",
+      "generalexpression514"
     ],
     [
       "prod-GeneralComp.ge",
@@ -65236,6 +65804,10 @@
     ],
     [
       "prod-GeneralComp.ge",
+      "generalexpression524"
+    ],
+    [
+      "prod-GeneralComp.ge",
       "generalexpression525"
     ],
     [
@@ -65257,6 +65829,10 @@
     [
       "prod-GeneralComp.ge",
       "generalexpression533"
+    ],
+    [
+      "prod-GeneralComp.ge",
+      "generalexpression534"
     ],
     [
       "prod-GeneralComp.ge",
@@ -65284,6 +65860,10 @@
     ],
     [
       "prod-GeneralComp.ge",
+      "generalexpression574"
+    ],
+    [
+      "prod-GeneralComp.ge",
       "generalexpression575"
     ],
     [
@@ -65305,6 +65885,38 @@
     [
       "prod-GeneralComp.ge",
       "generalexpression583"
+    ],
+    [
+      "prod-GeneralComp.ge",
+      "generalexpression584"
+    ],
+    [
+      "prod-GeneralComp.ge",
+      "generalexpression585"
+    ],
+    [
+      "prod-GeneralComp.ge",
+      "generalexpression586"
+    ],
+    [
+      "prod-GeneralComp.ge",
+      "generalexpression587"
+    ],
+    [
+      "prod-GeneralComp.ge",
+      "generalexpression588"
+    ],
+    [
+      "prod-GeneralComp.ge",
+      "generalexpression592"
+    ],
+    [
+      "prod-GeneralComp.ge",
+      "generalexpression593"
+    ],
+    [
+      "prod-GeneralComp.ge",
+      "generalexpression594"
     ],
     [
       "prod-GeneralComp.ge",
@@ -65412,6 +66024,10 @@
     ],
     [
       "prod-GeneralComp.gt",
+      "generalexpression406"
+    ],
+    [
+      "prod-GeneralComp.gt",
       "generalexpression407"
     ],
     [
@@ -65429,6 +66045,10 @@
     [
       "prod-GeneralComp.gt",
       "generalexpression414"
+    ],
+    [
+      "prod-GeneralComp.gt",
+      "generalexpression415"
     ],
     [
       "prod-GeneralComp.gt",
@@ -65456,6 +66076,10 @@
     ],
     [
       "prod-GeneralComp.gt",
+      "generalexpression425"
+    ],
+    [
+      "prod-GeneralComp.gt",
       "generalexpression426"
     ],
     [
@@ -65477,6 +66101,10 @@
     [
       "prod-GeneralComp.gt",
       "generalexpression434"
+    ],
+    [
+      "prod-GeneralComp.gt",
+      "generalexpression435"
     ],
     [
       "prod-GeneralComp.gt",
@@ -65504,6 +66132,10 @@
     ],
     [
       "prod-GeneralComp.gt",
+      "generalexpression475"
+    ],
+    [
+      "prod-GeneralComp.gt",
       "generalexpression476"
     ],
     [
@@ -65525,6 +66157,34 @@
     [
       "prod-GeneralComp.gt",
       "generalexpression484"
+    ],
+    [
+      "prod-GeneralComp.gt",
+      "generalexpression485"
+    ],
+    [
+      "prod-GeneralComp.gt",
+      "generalexpression486"
+    ],
+    [
+      "prod-GeneralComp.gt",
+      "generalexpression487"
+    ],
+    [
+      "prod-GeneralComp.gt",
+      "generalexpression488"
+    ],
+    [
+      "prod-GeneralComp.gt",
+      "generalexpression489"
+    ],
+    [
+      "prod-GeneralComp.gt",
+      "generalexpression493"
+    ],
+    [
+      "prod-GeneralComp.gt",
+      "generalexpression494"
     ],
     [
       "prod-GeneralComp.gt",
@@ -65588,6 +66248,10 @@
     ],
     [
       "prod-GeneralComp.le",
+      "generalexpression307"
+    ],
+    [
+      "prod-GeneralComp.le",
       "generalexpression308"
     ],
     [
@@ -65605,6 +66269,10 @@
     [
       "prod-GeneralComp.le",
       "generalexpression315"
+    ],
+    [
+      "prod-GeneralComp.le",
+      "generalexpression316"
     ],
     [
       "prod-GeneralComp.le",
@@ -65632,6 +66300,10 @@
     ],
     [
       "prod-GeneralComp.le",
+      "generalexpression326"
+    ],
+    [
+      "prod-GeneralComp.le",
       "generalexpression327"
     ],
     [
@@ -65653,6 +66325,10 @@
     [
       "prod-GeneralComp.le",
       "generalexpression335"
+    ],
+    [
+      "prod-GeneralComp.le",
+      "generalexpression336"
     ],
     [
       "prod-GeneralComp.le",
@@ -65680,6 +66356,10 @@
     ],
     [
       "prod-GeneralComp.le",
+      "generalexpression376"
+    ],
+    [
+      "prod-GeneralComp.le",
       "generalexpression377"
     ],
     [
@@ -65701,6 +66381,38 @@
     [
       "prod-GeneralComp.le",
       "generalexpression385"
+    ],
+    [
+      "prod-GeneralComp.le",
+      "generalexpression386"
+    ],
+    [
+      "prod-GeneralComp.le",
+      "generalexpression387"
+    ],
+    [
+      "prod-GeneralComp.le",
+      "generalexpression388"
+    ],
+    [
+      "prod-GeneralComp.le",
+      "generalexpression389"
+    ],
+    [
+      "prod-GeneralComp.le",
+      "generalexpression390"
+    ],
+    [
+      "prod-GeneralComp.le",
+      "generalexpression394"
+    ],
+    [
+      "prod-GeneralComp.le",
+      "generalexpression395"
+    ],
+    [
+      "prod-GeneralComp.le",
+      "generalexpression396"
     ],
     [
       "prod-GeneralComp.le",
@@ -65824,6 +66536,10 @@
     ],
     [
       "prod-GeneralComp.lt",
+      "generalexpression208"
+    ],
+    [
+      "prod-GeneralComp.lt",
       "generalexpression209"
     ],
     [
@@ -65841,6 +66557,10 @@
     [
       "prod-GeneralComp.lt",
       "generalexpression216"
+    ],
+    [
+      "prod-GeneralComp.lt",
+      "generalexpression217"
     ],
     [
       "prod-GeneralComp.lt",
@@ -65868,6 +66588,10 @@
     ],
     [
       "prod-GeneralComp.lt",
+      "generalexpression227"
+    ],
+    [
+      "prod-GeneralComp.lt",
       "generalexpression228"
     ],
     [
@@ -65889,6 +66613,10 @@
     [
       "prod-GeneralComp.lt",
       "generalexpression236"
+    ],
+    [
+      "prod-GeneralComp.lt",
+      "generalexpression237"
     ],
     [
       "prod-GeneralComp.lt",
@@ -65916,6 +66644,10 @@
     ],
     [
       "prod-GeneralComp.lt",
+      "generalexpression277"
+    ],
+    [
+      "prod-GeneralComp.lt",
       "generalexpression278"
     ],
     [
@@ -65937,6 +66669,38 @@
     [
       "prod-GeneralComp.lt",
       "generalexpression286"
+    ],
+    [
+      "prod-GeneralComp.lt",
+      "generalexpression287"
+    ],
+    [
+      "prod-GeneralComp.lt",
+      "generalexpression288"
+    ],
+    [
+      "prod-GeneralComp.lt",
+      "generalexpression289"
+    ],
+    [
+      "prod-GeneralComp.lt",
+      "generalexpression290"
+    ],
+    [
+      "prod-GeneralComp.lt",
+      "generalexpression291"
+    ],
+    [
+      "prod-GeneralComp.lt",
+      "generalexpression295"
+    ],
+    [
+      "prod-GeneralComp.lt",
+      "generalexpression296"
+    ],
+    [
+      "prod-GeneralComp.lt",
+      "generalexpression297"
     ],
     [
       "prod-GeneralComp.lt",
@@ -66132,6 +66896,10 @@
     ],
     [
       "prod-GeneralComp.ne",
+      "generalexpression109"
+    ],
+    [
+      "prod-GeneralComp.ne",
       "generalexpression110"
     ],
     [
@@ -66149,6 +66917,10 @@
     [
       "prod-GeneralComp.ne",
       "generalexpression117"
+    ],
+    [
+      "prod-GeneralComp.ne",
+      "generalexpression118"
     ],
     [
       "prod-GeneralComp.ne",
@@ -66176,6 +66948,10 @@
     ],
     [
       "prod-GeneralComp.ne",
+      "generalexpression128"
+    ],
+    [
+      "prod-GeneralComp.ne",
       "generalexpression129"
     ],
     [
@@ -66197,6 +66973,10 @@
     [
       "prod-GeneralComp.ne",
       "generalexpression137"
+    ],
+    [
+      "prod-GeneralComp.ne",
+      "generalexpression138"
     ],
     [
       "prod-GeneralComp.ne",
@@ -66224,6 +67004,10 @@
     ],
     [
       "prod-GeneralComp.ne",
+      "generalexpression178"
+    ],
+    [
+      "prod-GeneralComp.ne",
       "generalexpression179"
     ],
     [
@@ -66245,6 +67029,38 @@
     [
       "prod-GeneralComp.ne",
       "generalexpression187"
+    ],
+    [
+      "prod-GeneralComp.ne",
+      "generalexpression188"
+    ],
+    [
+      "prod-GeneralComp.ne",
+      "generalexpression189"
+    ],
+    [
+      "prod-GeneralComp.ne",
+      "generalexpression190"
+    ],
+    [
+      "prod-GeneralComp.ne",
+      "generalexpression191"
+    ],
+    [
+      "prod-GeneralComp.ne",
+      "generalexpression192"
+    ],
+    [
+      "prod-GeneralComp.ne",
+      "generalexpression196"
+    ],
+    [
+      "prod-GeneralComp.ne",
+      "generalexpression197"
+    ],
+    [
+      "prod-GeneralComp.ne",
+      "generalexpression198"
     ],
     [
       "prod-IfExpr",
@@ -66449,6 +67265,14 @@
     [
       "prod-InlineFunctionExpr",
       "inline-fn-027"
+    ],
+    [
+      "prod-InlineFunctionExpr",
+      "inline-fn-030"
+    ],
+    [
+      "prod-InlineFunctionExpr",
+      "inline-fn-031"
     ],
     [
       "prod-InlineFunctionExpr",
@@ -68820,6 +69644,10 @@
     ],
     [
       "prod-NamedFunctionRef",
+      "function-literal-005"
+    ],
+    [
+      "prod-NamedFunctionRef",
       "function-literal-007"
     ],
     [
@@ -68836,7 +69664,27 @@
     ],
     [
       "prod-NamedFunctionRef",
+      "function-literal-013"
+    ],
+    [
+      "prod-NamedFunctionRef",
       "function-literal-015"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-017"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-019"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-021"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-023"
     ],
     [
       "prod-NamedFunctionRef",
@@ -70116,6 +70964,22 @@
     ],
     [
       "prod-NamedFunctionRef",
+      "function-literal-389"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-390"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-391"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-392"
+    ],
+    [
+      "prod-NamedFunctionRef",
       "function-literal-401"
     ],
     [
@@ -70169,6 +71033,10 @@
     [
       "prod-NamedFunctionRef",
       "function-literal-414"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-415"
     ],
     [
       "prod-NamedFunctionRef",
@@ -74133,6 +75001,10 @@
     [
       "prod-ValueComp",
       "value-comparison-10"
+    ],
+    [
+      "prod-ValueComp",
+      "value-comparison-11"
     ],
     [
       "prod-ValueComp",

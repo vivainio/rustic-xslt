@@ -28,8 +28,8 @@ def dependencies(node):
     for d in node.findall(NS + "dependency"):
         kind, value = d.get("type"), d.get("value", "")
         if kind == "spec":
-            xpath = any(v.startswith("XP") for v in value.split())
-            if not xpath or d.get("satisfied", "true") == "false":
+            xpath = any(v in {"XP31", "XP31+", "XP30+", "XP20+"} for v in value.split())
+            if xpath == (d.get("satisfied", "true") == "false"):
                 raise ProfileExcluded(f"requires another language/version profile: {value}")
         elif kind == "feature" and value == "schema-aware":
             if d.get("satisfied", "true") != "false":

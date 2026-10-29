@@ -3,6 +3,30 @@ fn sheet(expr: &str) -> Stylesheet {
     Stylesheet::compile(&format!(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:sequence select="{expr}"/></xsl:template></xsl:stylesheet>"#)).unwrap()
 }
 #[test]
+fn data_and_nilled_default_to_the_current_item() {
+    let xml = "<r a='value'>text<c/></r>";
+    for (expr, expected) in [
+        ("r/data() instance of xs:untypedAtomic", "true"),
+        ("r/@a/data()", "value"),
+        ("(1, 2, 3) ! data()", "1 2 3"),
+        ("[1, [2, 3]] ! data()", "1 2 3"),
+        ("r/nilled()", "false"),
+        ("empty(nilled())", "true"),
+        ("empty(r/@a/nilled())", "true"),
+        ("(data#0)() instance of xs:untypedAtomic", "true"),
+        ("r/(nilled#0)()", "false"),
+    ] {
+        assert_eq!(sheet(expr).transform(xml).unwrap(), expected, "{expr}");
+    }
+    for (expr, code) in [
+        ("map{} ! data()", "FOTY0013"),
+        ("(data#0) ! data()", "FOTY0013"),
+        ("1 ! nilled()", "XPTY0004"),
+    ] {
+        assert_eq!(sheet(expr).transform(xml).unwrap_err().code, code, "{expr}");
+    }
+}
+#[test]
 fn node_extrema_remove_duplicates_and_restore_document_order() {
     let xml = "<r a='v'><a><b/></a><c/></r>";
     for (expr, expected) in [

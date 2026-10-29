@@ -1346,4 +1346,53 @@ conformance claims. Smaller tested increments are committed independently.
 
 - The development driver accepts a `resources` map backing the resolver, and the QT3
   bridge binds `<source role="$var">` environments through doc() and `<resource>`
-  entries by URI. Counts were not refreshed after this change.
+  entries by URI.
+
+## Increment 121: QT3 resource regression gate
+
+- Refreshed the pinned 26,966-case selection after resource support: 18,557 pass,
+  599 engine failures, 765 harness errors and 7,045 profile exclusions. All 18,511
+  previous gate cases still pass; added the 46 new passing cases to the gate.
+  Previously blocked cases now reaching the engine account for the increased
+  failure count; these remain explicit failures, not passes.
+- Added a harness regression covering source-variable URI defaults, explicit
+  resource URIs, resource content and UTF-8 BOM removal.
+- Validation: cargo test --offline, Clippy with warnings denied, all 28 Python
+  harness tests and the pinned QT3 regression gate pass.
+
+## Increment 122: context-defaulting functions and atomization
+
+- data() and nilled() accept the zero-argument forms, using the current item.
+  Missing context raises XPDY0002; nilled() still requires a node, and data()
+  recursively atomizes arrays while rejecting maps/functions with FOTY0013.
+- Fixed the array-flattening fast path that previously let maps and functions
+  through atomization when no arrays were present.
+- QT3 now selects XPath 3.1-compatible spec dependencies and respects negative
+  dependencies. Exclusively XPath 2.0/3.0 cases are profile exclusions rather
+  than being evaluated with incompatible version semantics. Six old gate entries
+  fall into these profiles; all other previous gate cases retain passing status.
+- Added 17 passing cases: the gate now contains 18,568 passes out of 26,966
+  selected cases, with 557 engine failures, 764 harness errors and 7,077 profile
+  exclusions. Validated the full selection, then reran all 16 sets affected by
+  the profile-selection correction and merged their results.
+- Validation: full offline Rust tests, Clippy with warnings denied, formatting,
+  and all 29 Python harness tests pass.
+
+## Increment 123: documents in global bindings
+
+- Load literal-URI documents before evaluating global bindings, so global
+  variables and parameters can use doc(), document() and doc-available(). Each
+  URI is resolved once per transformation and shares node identity across global
+  bindings, stylesheet functions and template expressions.
+- Parse loaded resources as XML documents, preserving top-level comments/PIs
+  without creating text nodes from prolog/epilog whitespace. Invalid XML and
+  multiple-root fragments remain unavailable; retained source-byte limit failures
+  propagate as XPDY0130 instead of being swallowed as missing documents.
+- Added regressions for forward global dependencies, shared document identity,
+  resolver call counts, missing resolvers, XML declarations/BOMs, document
+  structure, malformed resources and source-byte limits.
+- Full pinned QT3 gate: 18,729 pass (161 new passes, zero regressions), 396 engine
+  failures, 764 harness errors and 7,077 profile exclusions across 26,966 cases.
+  All passing cases are recorded in the regression baseline.
+- Validation: full offline Rust tests, Clippy with warnings denied, formatting,
+  all 29 Python harness tests and the full pinned QT3 regression gate pass.

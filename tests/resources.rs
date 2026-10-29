@@ -91,3 +91,86 @@ fn doc_loads_documents_named_by_literal_uris() {
     assert_eq!(run("doc('nope.xml')", &o).unwrap_err().code, "FODC0002");
     assert_eq!(run("doc('lib.xml') is doc('lib.xml')", &o).unwrap(), "true");
 }
+
+#[test]
+fn global_bindings_load_documents_before_evaluation() {
+    let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let observed = calls.clone();
+    let options = TransformOptions {
+        resolver: Some(ResourceResolver::new(move |_| {
+            observed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok("<lib><b>one</b><b>two</b></lib>".into())
+        })),
+        ..TransformOptions::default()
+    };
+    let sheet = Stylesheet::compile(r#"
+        <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:f="urn:test">
+          <xsl:output method="text"/>
+          <xsl:variable name="count" select="count($doc/lib/b)"/>
+          <xsl:variable name="doc" select="doc('lib.xml')"/>
+          <xsl:variable name="available" select="doc-available('lib.xml')"/>
+          <xsl:function name="f:loaded"><xsl:sequence select="doc('lib.xml')"/></xsl:function>
+          <xsl:template match="/">
+            <xsl:sequence select="$count, $available, $doc is doc('lib.xml'), $doc is f:loaded()"/>
+          </xsl:template>
+        </xsl:stylesheet>"#).unwrap();
+    assert_eq!(
+        sheet.transform_with_options("<r/>", &options).unwrap(),
+        "2 true true true"
+    );
+    assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+    assert_eq!(sheet.transform("<r/>").unwrap_err().code, "FODC0002");
+}
+
+#[test]
+fn loaded_documents_use_xml_document_parsing_and_limits() {
+    let options = TransformOptions {
+        resolver: Some(ResourceResolver::new(|uri| {
+            Ok(match uri {
+                "valid.xml" => "\u{feff}<?xml version='1.0'?>\n<!--before--><r/>\n<?after data?>\n",
+                "fragment.xml" => "<a/><b/>",
+                "text.xml" => "text",
+                _ => "<broken>",
+            }
+            .into())
+        })),
+        ..TransformOptions::default()
+    };
+    assert_eq!(
+        run("count(doc('valid.xml')/node())", &options).unwrap(),
+        "3"
+    );
+    assert_eq!(
+        run("count(doc('valid.xml')/text())", &options).unwrap(),
+        "0"
+    );
+    assert_eq!(
+        run(
+            "doc('valid.xml')/r/parent::node() is doc('valid.xml')",
+            &options
+        )
+        .unwrap(),
+        "true"
+    );
+    for uri in ["fragment.xml", "text.xml", "broken.xml"] {
+        assert_eq!(
+            run(&format!("doc-available('{uri}')"), &options).unwrap(),
+            "false"
+        );
+        assert_eq!(
+            run(&format!("doc('{uri}')"), &options).unwrap_err().code,
+            "FODC0002"
+        );
+    }
+    let small = TransformOptions {
+        limits: rust_xslt::Limits {
+            max_temporary_bytes: 4,
+            ..Default::default()
+        },
+        ..options
+    };
+    assert_eq!(
+        run("doc('valid.xml')", &small).unwrap_err().code,
+        "XPDY0130"
+    );
+}

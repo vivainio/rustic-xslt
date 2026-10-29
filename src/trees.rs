@@ -15,6 +15,19 @@ pub(crate) struct Trees<'a> {
     used: Cell<usize>,
 }
 impl<'a> Trees<'a> {
+    pub fn load_document(&self, xml: String) -> Result<Value<'a>, Diagnostic> {
+        if xml.len() > self.max.saturating_sub(self.used.get()) {
+            return Err(Diagnostic::new(
+                "XPDY0130",
+                "temporary-tree source-byte limit exceeded",
+                "run",
+            ));
+        }
+        self.used.set(self.used.get() + xml.len());
+        let text: &'a str = self.sources.alloc(xml).as_str();
+        let doc: &'a roxmltree::Document<'a> = self.documents.alloc(crate::parse(text, "run")?);
+        Ok(vec![Item::Node(XNode::tree(doc.root()))])
+    }
     pub fn new(
         sources: &'a Arena<String>,
         documents: &'a Arena<roxmltree::Document<'a>>,

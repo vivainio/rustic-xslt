@@ -38,6 +38,27 @@ class QT3Assertions(unittest.TestCase):
             assertion(node('<root><assert-deep-eq>1</assert-deep-eq></root>'), {}, "1", {"namespaces": {}, "source": ""}, Driver())
 
 class QT3Setup(unittest.TestCase):
+    def test_spec_dependencies_select_xpath_31_and_respect_negation(self):
+        for value in ['XP20 XQ10', 'XP30 XQ30', 'XQ31+']:
+            with self.assertRaises(ProfileExcluded):
+                dependencies(node(f'<root><test-case><dependency type="spec" value="{value}"/></test-case></root>'))
+        for value in ['XP31', 'XP31+ XQ31+', 'XP30+', 'XP20+']:
+            dependencies(node(f'<root><test-case><dependency type="spec" value="{value}"/></test-case></root>'))
+            with self.assertRaises(ProfileExcluded):
+                dependencies(node(f'<root><test-case><dependency type="spec" value="{value}" satisfied="false"/></test-case></root>'))
+        dependencies(node('<root><test-case><dependency type="spec" value="XP20" satisfied="false"/></test-case></root>'))
+
+    def test_source_variables_and_resources_retain_uris_and_content(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            (base / 'source.xml').write_text('\ufeff<r/>', encoding='utf-8')
+            (base / 'data.txt').write_text('resource content', encoding='utf-8')
+            setup = node('<root><environment><source role="$doc" file="source.xml" uri="urn:source"/><source role="$other" file="source.xml"/><resource file="data.txt" uri="urn:data"/></environment></root>')
+            result = environment(setup, {id(setup): (setup, base)})
+            self.assertEqual(result['source'], '')
+            self.assertEqual(result['source_variables'], [('doc', 'urn:source'), ('other', 'source.xml')])
+            self.assertEqual(result['resources'], {'urn:source': '<r/>', 'source.xml': '<r/>', 'urn:data': 'resource content'})
+
     def test_only_explicit_alternative_profiles_are_excluded(self):
         with self.assertRaises(ProfileExcluded):
             dependencies(ET.fromstring(f'<test-case xmlns="{NS[1:-1]}"><dependency type="spec" value="XQ30+"/></test-case>'))
