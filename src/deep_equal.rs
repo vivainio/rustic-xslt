@@ -33,6 +33,7 @@ pub(crate) fn atomic_equal(a: &Item<'_>, b: &Item<'_>, nan_equal: bool) -> bool 
         (Item::Boolean(a), Item::Boolean(b)) => a == b,
         (Item::QName(a), Item::QName(b)) => a.equal(b),
         (Item::Binary(ak, a), Item::Binary(bk, b)) => ak == bk && a == b,
+        (Item::Temporal(a), Item::Temporal(b)) => a.compare(b) == Some(Ordering::Equal),
         _ => false,
     }
 }

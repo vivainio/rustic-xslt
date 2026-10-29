@@ -78,6 +78,7 @@ pub(crate) enum Item<'a> {
     Boolean(bool),
     QName(crate::qname::AtomicQName),
     Binary(crate::binary::BinaryType, Vec<u8>),
+    Temporal(crate::temporal::Temporal),
 }
 pub(crate) type Value<'a> = Vec<Item<'a>>;
 pub(crate) type Variables<'a> = BTreeMap<String, Value<'a>>;
@@ -100,6 +101,7 @@ impl Item<'_> {
             Self::Boolean(b) => b.to_string(),
             Self::QName(name) => name.lexical(),
             Self::Binary(kind, bytes) => kind.encode(bytes),
+            Self::Temporal(t) => t.string(),
         }
     }
     pub fn string_compat(&self, backwards: bool) -> String {
@@ -119,7 +121,7 @@ impl Item<'_> {
                 }
             }
             Self::Number(n) => n.double(),
-            Self::AnyUri(_) | Self::QName(_) | Self::Binary(_, _) => f64::NAN,
+            Self::AnyUri(_) | Self::QName(_) | Self::Binary(_, _) | Self::Temporal(_) => f64::NAN,
             _ => self.string().trim().parse().unwrap_or(f64::NAN),
         }
     }
@@ -133,12 +135,14 @@ pub(crate) struct Focus<'a> {
 pub(crate) struct Budget {
     remaining: u64,
     pub max_depth: usize,
+    pub now: crate::temporal::Temporal,
 }
 impl Budget {
     pub fn new(limits: Limits) -> Self {
         Self {
             remaining: limits.max_steps,
             max_depth: limits.max_depth,
+            now: crate::temporal::Temporal::now(),
         }
     }
     pub fn charge(&mut self, steps: usize) -> Result<(), Diagnostic> {
@@ -1031,12 +1035,40 @@ impl Parser {
         })
     }
 }
+/// Splits names such as `year-from-date` into the accepted type and component.
+fn temporal_accessor(name: &str) -> Option<(crate::temporal::TemporalType, &str)> {
+    let (component, kind) = name.split_once("-from-")?;
+    let kind = crate::temporal::TemporalType::parse(kind)?;
+    let valid = if kind.is_duration() {
+        matches!(
+            component,
+            "years" | "months" | "days" | "hours" | "minutes" | "seconds"
+        )
+    } else {
+        match component {
+            "year" | "month" | "day" => kind != crate::temporal::TemporalType::Time,
+            "hours" | "minutes" | "seconds" => kind != crate::temporal::TemporalType::Date,
+            "timezone" => true,
+            _ => false,
+        }
+    };
+    valid.then_some((kind, component))
+}
 fn function_arity(name: &str) -> Option<(usize, usize)> {
     Some(match name {
         "xs:string" | "xs:untypedAtomic" | "xs:integer" | "xs:decimal" | "xs:double"
         | "xs:float" | "xs:boolean" | "xs:QName" | "xs:anyURI" | "xs:hexBinary"
         | "xs:base64Binary" => (1, 1),
-        "true" | "false" | "position" | "last" | "default-collation" => (0, 0),
+        "true" | "false" | "position" | "last" | "default-collation" | "current-dateTime"
+        | "current-date" | "current-time" | "implicit-timezone" => (0, 0),
+        name if temporal_accessor(name).is_some() => (1, 1),
+        name if name
+            .strip_prefix("xs:")
+            .and_then(crate::temporal::TemporalType::parse)
+            .is_some() =>
+        {
+            (1, 1)
+        }
         "trace" => (1, 2),
         "nilled" => (1, 1),
         "error" => (0, 3),
@@ -1306,6 +1338,7 @@ pub(crate) fn eval<'a>(
                             crate::seqtype::Kind::AnyUri => "anyURI",
                             crate::seqtype::Kind::Boolean => "boolean",
                             crate::seqtype::Kind::Binary(kind) => kind.name(),
+                            crate::seqtype::Kind::Temporal(kind) => kind.name(),
                             crate::seqtype::Kind::Integer => "integer",
                             crate::seqtype::Kind::DerivedInteger(kind) => kind.name(),
                             crate::seqtype::Kind::Decimal => "decimal",
@@ -1769,6 +1802,7 @@ fn compare(a: &Item<'_>, b: &Item<'_>, op: &str, backwards: bool) -> Result<bool
             Ok(match other {
                 Item::Number(_) => Item::Number(Number::cast("double", &s)?),
                 Item::Binary(kind, _) => Item::Binary(*kind, kind.decode(&s)?),
+                Item::Temporal(t) => Item::Temporal(crate::temporal::Temporal::parse(t.kind, &s)?),
                 Item::Boolean(_) => Item::Boolean(match s.trim_matches([' ', '\t', '\r', '\n']) {
                     "true" | "1" => true,
                     "false" | "0" => false,
@@ -1784,6 +1818,21 @@ fn compare(a: &Item<'_>, b: &Item<'_>, op: &str, backwards: bool) -> Result<bool
             (Item::String(a), Item::String(b)) => Some(a.cmp(b)),
             (Item::Boolean(a), Item::Boolean(b)) => Some(a.cmp(b)),
             (Item::Binary(ak, a), Item::Binary(bk, b)) if ak == bk => Some(a.cmp(b)),
+            (Item::Temporal(a), Item::Temporal(b)) => {
+                let ordered = !matches!(op, "=" | "!=");
+                if ordered
+                    && a.kind.is_duration()
+                    && (a.kind == crate::temporal::TemporalType::Duration
+                        || b.kind == crate::temporal::TemporalType::Duration)
+                {
+                    return Err(err("XPTY0004", "xs:duration values are not ordered"));
+                }
+                Some(
+                    a.compare(b).ok_or_else(|| {
+                        err("XPTY0004", "incomparable date, time or duration types")
+                    })?,
+                )
+            }
             _ => return Err(err("XPTY0004", "incomparable atomic types")),
         }
     };
@@ -1842,7 +1891,18 @@ fn function<'a>(
     }
     if args.is_empty()
         && matches!(focus.item, Item::Absent)
-        && !["true", "false", "position", "last", "default-collation"].contains(&name)
+        && ![
+            "true",
+            "false",
+            "position",
+            "last",
+            "default-collation",
+            "current-dateTime",
+            "current-date",
+            "current-time",
+            "implicit-timezone",
+        ]
+        .contains(&name)
     {
         return Err(err("XPDY0002", "context item is absent"));
     }
@@ -1935,6 +1995,40 @@ fn function<'a>(
             current = node.parent();
         }
         return Ok(vec![Item::Boolean(false)]);
+    }
+    if let Some(now) = match name {
+        "current-dateTime" => Some(budget.now.clone()),
+        "current-date" => budget.now.cast(crate::temporal::TemporalType::Date).ok(),
+        "current-time" => budget.now.cast(crate::temporal::TemporalType::Time).ok(),
+        "implicit-timezone" => Some(crate::temporal::Temporal::implicit_timezone()),
+        _ => None,
+    } {
+        return Ok(vec![Item::Temporal(now)]);
+    }
+    if let Some((kind, component)) = temporal_accessor(name) {
+        let value = match first.as_slice() {
+            [] => return Ok(vec![]),
+            [item] => match atomize(item) {
+                Item::Temporal(t) => t,
+                Item::Untyped(s) => crate::temporal::Temporal::parse(kind, &s)?,
+                _ => return Err(err("XPTY0004", "accessor requires a temporal value")),
+            },
+            _ => return Err(err("XPTY0004", "accessor requires an optional singleton")),
+        };
+        if !kind.accepts(value.kind) {
+            return Err(err(
+                "XPTY0004",
+                "accessor argument has the wrong temporal type",
+            ));
+        }
+        return Ok(match component {
+            "timezone" => value.timezone().map(Item::Temporal).into_iter().collect(),
+            "seconds" => vec![Item::Number(Number::cast("decimal", &value.seconds())?)],
+            _ => {
+                let n = value.component(component).expect("known component");
+                vec![Item::Number(Number::Integer(n.into()))]
+            }
+        });
     }
     if name == "default-collation" {
         return Ok(vec![Item::AnyUri(
@@ -2240,6 +2334,23 @@ fn function<'a>(
             return Err(err("XPTY0004", "constructor requires a singleton"));
         }
         let item = &first[0];
+        if let Some(kind) = crate::temporal::TemporalType::parse(kind) {
+            return Ok(vec![Item::Temporal(match atomize(item) {
+                Item::Temporal(t) => t.cast(kind)?,
+                Item::String(text) | Item::Untyped(text) | Item::DerivedString(_, text) => {
+                    for _ in text.bytes() {
+                        budget.tick()?;
+                    }
+                    crate::temporal::Temporal::parse(kind, &text)?
+                }
+                _ => {
+                    return Err(err(
+                        "XPTY0004",
+                        "temporal constructor requires a string or temporal value",
+                    ));
+                }
+            })]);
+        }
         if let Some(kind) = crate::binary::BinaryType::parse(kind) {
             let bytes = match atomize(item) {
                 Item::Binary(_, bytes) => bytes,

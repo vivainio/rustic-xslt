@@ -24,6 +24,7 @@ pub(crate) enum Kind {
     Boolean,
     QName,
     Binary(crate::binary::BinaryType),
+    Temporal(crate::temporal::TemporalType),
     Integer,
     DerivedInteger(crate::integer_type::IntegerType),
     Decimal,
@@ -147,6 +148,9 @@ impl SequenceType {
                     name if crate::binary::BinaryType::parse(name).is_some() => {
                         Kind::Binary(crate::binary::BinaryType::parse(name).unwrap())
                     }
+                    name if crate::temporal::TemporalType::parse(name).is_some() => {
+                        Kind::Temporal(crate::temporal::TemporalType::parse(name).unwrap())
+                    }
                     "integer" => Kind::Integer,
                     "decimal" => Kind::Decimal,
                     "float" => Kind::Float,
@@ -181,6 +185,7 @@ impl SequenceType {
                 | Kind::Boolean
                 | Kind::QName
                 | Kind::Binary(_)
+                | Kind::Temporal(_)
                 | Kind::Integer
                 | Kind::DerivedInteger(_)
                 | Kind::Decimal
@@ -229,6 +234,7 @@ impl SequenceType {
             | (Kind::Boolean, Item::Boolean(_))
             | (Kind::QName, Item::QName(_)) => true,
             (Kind::Binary(target), Item::Binary(actual, _)) => target == actual,
+            (Kind::Temporal(target), Item::Temporal(actual)) => target.accepts(actual.kind),
             (Kind::Integer, Item::Number(Number::Integer(_) | Number::DerivedInteger(_, _))) => {
                 true
             }
@@ -253,7 +259,8 @@ impl SequenceType {
                 | Item::Boolean(_)
                 | Item::Number(_)
                 | Item::QName(_)
-                | Item::Binary(_, _),
+                | Item::Binary(_, _)
+                | Item::Temporal(_),
             ) => true,
             _ => false,
         }
@@ -290,6 +297,9 @@ impl SequenceType {
                 (Kind::Binary(kind), Item::Untyped(s)) => {
                     Item::Binary(*kind, kind.decode(&s).map_err(|_| failure())?)
                 }
+                (Kind::Temporal(kind), Item::Untyped(s)) => Item::Temporal(
+                    crate::temporal::Temporal::parse(*kind, &s).map_err(|_| failure())?,
+                ),
                 (Kind::Boolean, Item::Untyped(s)) => {
                     Item::Boolean(match s.trim_matches([' ', '\t', '\r', '\n']) {
                         "true" | "1" => true,

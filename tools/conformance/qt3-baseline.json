@@ -749,6 +749,18 @@
     ],
     [
       "fn-abs",
+      "fn-abs-more-args-083"
+    ],
+    [
+      "fn-abs",
+      "fn-abs-more-args-084"
+    ],
+    [
+      "fn-abs",
+      "fn-abs-more-args-085"
+    ],
+    [
+      "fn-abs",
       "fn-abs-more-args-086"
     ],
     [
@@ -1033,6 +1045,10 @@
     ],
     [
       "fn-avg",
+      "K-SeqAVGFunc-38"
+    ],
+    [
+      "fn-avg",
       "K-SeqAVGFunc-4"
     ],
     [
@@ -1089,7 +1105,23 @@
     ],
     [
       "fn-avg",
+      "cbcl-avg-005"
+    ],
+    [
+      "fn-avg",
+      "cbcl-avg-007"
+    ],
+    [
+      "fn-avg",
       "cbcl-avg-009"
+    ],
+    [
+      "fn-avg",
+      "cbcl-avg-011"
+    ],
+    [
+      "fn-avg",
+      "cbcl-avg-012"
     ],
     [
       "fn-avg",
@@ -1102,6 +1134,18 @@
     [
       "fn-avg",
       "fn-avg-2"
+    ],
+    [
+      "fn-avg",
+      "fn-avg-7"
+    ],
+    [
+      "fn-avg",
+      "fn-avg-8"
+    ],
+    [
+      "fn-avg",
+      "fn-avg-9"
     ],
     [
       "fn-avg",
@@ -1206,6 +1250,10 @@
     [
       "fn-avg",
       "fn-avg-mix-args-027"
+    ],
+    [
+      "fn-avg",
+      "fn-avg-mix-args-028"
     ],
     [
       "fn-avg",
@@ -1338,6 +1386,22 @@
     [
       "fn-avg",
       "fn-avg-mix-args-061"
+    ],
+    [
+      "fn-avg",
+      "fn-avg-mix-args-062"
+    ],
+    [
+      "fn-avg",
+      "fn-avg-mix-args-063"
+    ],
+    [
+      "fn-avg",
+      "fn-avg-mix-args-064"
+    ],
+    [
+      "fn-avg",
+      "fn-avg-mix-args-065"
     ],
     [
       "fn-avg",
@@ -2109,6 +2173,30 @@
     ],
     [
       "fn-codepoint-equal",
+      "K2-CodepointEqual-1"
+    ],
+    [
+      "fn-codepoint-equal",
+      "K2-CodepointEqual-2"
+    ],
+    [
+      "fn-codepoint-equal",
+      "K2-CodepointEqual-3"
+    ],
+    [
+      "fn-codepoint-equal",
+      "K2-CodepointEqual-4"
+    ],
+    [
+      "fn-codepoint-equal",
+      "K2-CodepointEqual-5"
+    ],
+    [
+      "fn-codepoint-equal",
+      "K2-CodepointEqual-6"
+    ],
+    [
+      "fn-codepoint-equal",
       "fn-codepoint-equal-1"
     ],
     [
@@ -2533,6 +2621,30 @@
     ],
     [
       "fn-compare",
+      "K2-CompareFunc-4"
+    ],
+    [
+      "fn-compare",
+      "K2-CompareFunc-5"
+    ],
+    [
+      "fn-compare",
+      "K2-CompareFunc-6"
+    ],
+    [
+      "fn-compare",
+      "K2-CompareFunc-7"
+    ],
+    [
+      "fn-compare",
+      "K2-CompareFunc-8"
+    ],
+    [
+      "fn-compare",
+      "K2-CompareFunc-9"
+    ],
+    [
+      "fn-compare",
       "compare-001"
     ],
     [
@@ -2730,6 +2842,30 @@
     [
       "fn-contains",
       "K-ContainsFunc-9"
+    ],
+    [
+      "fn-contains",
+      "K2-ContainsFunc-1"
+    ],
+    [
+      "fn-contains",
+      "K2-ContainsFunc-2"
+    ],
+    [
+      "fn-contains",
+      "K2-ContainsFunc-3"
+    ],
+    [
+      "fn-contains",
+      "K2-ContainsFunc-4"
+    ],
+    [
+      "fn-contains",
+      "K2-ContainsFunc-5"
+    ],
+    [
+      "fn-contains",
+      "K2-ContainsFunc-6"
     ],
     [
       "fn-contains",
@@ -3065,7 +3201,19 @@
     ],
     [
       "fn-deep-equal",
+      "K2-SeqDeepEqualFunc-1"
+    ],
+    [
+      "fn-deep-equal",
       "K2-SeqDeepEqualFunc-35"
+    ],
+    [
+      "fn-deep-equal",
+      "K2-SeqDeepEqualFunc-4"
+    ],
+    [
+      "fn-deep-equal",
+      "K2-SeqDeepEqualFunc-43"
     ],
     [
       "fn-deep-equal",
@@ -3074,6 +3222,10 @@
     [
       "fn-deep-equal",
       "K2-SeqDeepEqualFunc-9"
+    ],
+    [
+      "fn-deep-equal",
+      "cbcl-deep-equal-008"
     ],
     [
       "fn-deep-equal",
@@ -3182,6 +3334,22 @@
     [
       "fn-deep-equal",
       "fn-deep-equal-mix-args-027"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-028"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-029"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-030"
+    ],
+    [
+      "fn-deep-equal",
+      "fn-deep-equal-mix-args-031"
     ],
     [
       "fn-deep-equal",
@@ -3461,7 +3629,15 @@
     ],
     [
       "fn-distinct-values",
+      "K-SeqDistinctValuesFunc-13"
+    ],
+    [
+      "fn-distinct-values",
       "K-SeqDistinctValuesFunc-14"
+    ],
+    [
+      "fn-distinct-values",
+      "K-SeqDistinctValuesFunc-15"
     ],
     [
       "fn-distinct-values",
@@ -3809,6 +3985,10 @@
     ],
     [
       "fn-encode-for-uri",
+      "K-EncodeURIfunc-6"
+    ],
+    [
+      "fn-encode-for-uri",
       "fn-encode-for-uri-1"
     ],
     [
@@ -3938,6 +4118,30 @@
     [
       "fn-ends-with",
       "K-EndsWithFunc-9"
+    ],
+    [
+      "fn-ends-with",
+      "K2-EndsWithFunc-1"
+    ],
+    [
+      "fn-ends-with",
+      "K2-EndsWithFunc-2"
+    ],
+    [
+      "fn-ends-with",
+      "K2-EndsWithFunc-3"
+    ],
+    [
+      "fn-ends-with",
+      "K2-EndsWithFunc-4"
+    ],
+    [
+      "fn-ends-with",
+      "K2-EndsWithFunc-5"
+    ],
+    [
+      "fn-ends-with",
+      "K2-EndsWithFunc-6"
     ],
     [
       "fn-ends-with",
@@ -4158,6 +4362,14 @@
     [
       "fn-error",
       "cbcl-error-025"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-026"
+    ],
+    [
+      "fn-error",
+      "cbcl-error-027"
     ],
     [
       "fn-error",
@@ -4398,6 +4610,10 @@
     [
       "fn-escape-html-uri",
       "K-EscapeHTMLURIFunc-5"
+    ],
+    [
+      "fn-escape-html-uri",
+      "K-EscapeHTMLURIFunc-6"
     ],
     [
       "fn-escape-html-uri",
@@ -5229,6 +5445,10 @@
     ],
     [
       "fn-head",
+      "head-002"
+    ],
+    [
+      "fn-head",
       "head-003"
     ],
     [
@@ -5529,7 +5749,27 @@
     ],
     [
       "fn-insert-before",
+      "K-SeqInsertBeforeFunc-17"
+    ],
+    [
+      "fn-insert-before",
+      "K-SeqInsertBeforeFunc-18"
+    ],
+    [
+      "fn-insert-before",
+      "K-SeqInsertBeforeFunc-19"
+    ],
+    [
+      "fn-insert-before",
       "K-SeqInsertBeforeFunc-2"
+    ],
+    [
+      "fn-insert-before",
+      "K-SeqInsertBeforeFunc-20"
+    ],
+    [
+      "fn-insert-before",
+      "K-SeqInsertBeforeFunc-21"
     ],
     [
       "fn-insert-before",
@@ -5636,6 +5876,18 @@
       "fn-insert-before-mix-args-017"
     ],
     [
+      "fn-insert-before",
+      "fn-insert-before-mix-args-018"
+    ],
+    [
+      "fn-insert-before",
+      "fn-insert-before-mix-args-019"
+    ],
+    [
+      "fn-insert-before",
+      "fn-insert-before-mix-args-020"
+    ],
+    [
       "fn-iri-to-uri",
       "K-IRIToURIfunc-1"
     ],
@@ -5646,6 +5898,10 @@
     [
       "fn-iri-to-uri",
       "K-IRIToURIfunc-3"
+    ],
+    [
+      "fn-iri-to-uri",
+      "K-IRIToURIfunc-4"
     ],
     [
       "fn-iri-to-uri",
@@ -5998,6 +6254,10 @@
     [
       "fn-local-name-from-QName",
       "LocalNameFromQNameFunc016"
+    ],
+    [
+      "fn-local-name-from-QName",
+      "LocalNameFromQNameFunc017"
     ],
     [
       "fn-local-name-from-QName",
@@ -6410,6 +6670,14 @@
     [
       "fn-max",
       "fn-max-3"
+    ],
+    [
+      "fn-max",
+      "fn-max-8"
+    ],
+    [
+      "fn-max",
+      "fn-max-9"
     ],
     [
       "fn-max",
@@ -7125,6 +7393,14 @@
     ],
     [
       "fn-min",
+      "fn-min-8"
+    ],
+    [
+      "fn-min",
+      "fn-min-9"
+    ],
+    [
+      "fn-min",
       "fn-mindbl1args-1"
     ],
     [
@@ -7592,6 +7868,10 @@
       "NamespaceURIFromQNameFunc016"
     ],
     [
+      "fn-namespace-uri-from-QName",
+      "NamespaceURIFromQNameFunc017"
+    ],
+    [
       "fn-node-name",
       "K-NodeNameFunc-1a"
     ],
@@ -7826,6 +8106,10 @@
     [
       "fn-one-or-more",
       "K2-SeqOneOrMoreFunc-1"
+    ],
+    [
+      "fn-one-or-more",
+      "cbcl-one-or-more-004"
     ],
     [
       "fn-one-or-more",
@@ -8153,7 +8437,31 @@
     ],
     [
       "fn-remove",
+      "K-SeqRemoveFunc-19"
+    ],
+    [
+      "fn-remove",
       "K-SeqRemoveFunc-2"
+    ],
+    [
+      "fn-remove",
+      "K-SeqRemoveFunc-20"
+    ],
+    [
+      "fn-remove",
+      "K-SeqRemoveFunc-21"
+    ],
+    [
+      "fn-remove",
+      "K-SeqRemoveFunc-22"
+    ],
+    [
+      "fn-remove",
+      "K-SeqRemoveFunc-23"
+    ],
+    [
+      "fn-remove",
+      "K-SeqRemoveFunc-24"
     ],
     [
       "fn-remove",
@@ -8280,6 +8588,18 @@
       "fn-remove-mix-args-017"
     ],
     [
+      "fn-remove",
+      "fn-remove-mix-args-018"
+    ],
+    [
+      "fn-remove",
+      "fn-remove-mix-args-019"
+    ],
+    [
+      "fn-remove",
+      "fn-remove-mix-args-020"
+    ],
+    [
       "fn-resolve-QName",
       "K-ResolveQNameConstructFunc-1"
     ],
@@ -8361,6 +8681,14 @@
     ],
     [
       "fn-reverse",
+      "K-SeqReverseFunc-20"
+    ],
+    [
+      "fn-reverse",
+      "K-SeqReverseFunc-21"
+    ],
+    [
+      "fn-reverse",
       "K-SeqReverseFunc-3"
     ],
     [
@@ -8378,6 +8706,10 @@
     [
       "fn-reverse",
       "K-SeqReverseFunc-7"
+    ],
+    [
+      "fn-reverse",
+      "K-SeqReverseFunc-8"
     ],
     [
       "fn-reverse",
@@ -10209,6 +10541,30 @@
     ],
     [
       "fn-starts-with",
+      "K2-StartsWithFunc-1"
+    ],
+    [
+      "fn-starts-with",
+      "K2-StartsWithFunc-2"
+    ],
+    [
+      "fn-starts-with",
+      "K2-StartsWithFunc-3"
+    ],
+    [
+      "fn-starts-with",
+      "K2-StartsWithFunc-4"
+    ],
+    [
+      "fn-starts-with",
+      "K2-StartsWithFunc-5"
+    ],
+    [
+      "fn-starts-with",
+      "K2-StartsWithFunc-6"
+    ],
+    [
+      "fn-starts-with",
       "cbcl-starts-with-001"
     ],
     [
@@ -10422,6 +10778,10 @@
     [
       "fn-string-join",
       "fn-string-join-28"
+    ],
+    [
+      "fn-string-join",
+      "fn-string-join-29"
     ],
     [
       "fn-string-join",
@@ -10749,7 +11109,63 @@
     ],
     [
       "fn-subsequence",
+      "K-SeqSubsequenceFunc-31"
+    ],
+    [
+      "fn-subsequence",
+      "K-SeqSubsequenceFunc-32"
+    ],
+    [
+      "fn-subsequence",
+      "K-SeqSubsequenceFunc-33"
+    ],
+    [
+      "fn-subsequence",
+      "K-SeqSubsequenceFunc-34"
+    ],
+    [
+      "fn-subsequence",
+      "K-SeqSubsequenceFunc-35"
+    ],
+    [
+      "fn-subsequence",
+      "K-SeqSubsequenceFunc-36"
+    ],
+    [
+      "fn-subsequence",
+      "K-SeqSubsequenceFunc-37"
+    ],
+    [
+      "fn-subsequence",
+      "K-SeqSubsequenceFunc-38"
+    ],
+    [
+      "fn-subsequence",
+      "K-SeqSubsequenceFunc-39"
+    ],
+    [
+      "fn-subsequence",
       "K-SeqSubsequenceFunc-4"
+    ],
+    [
+      "fn-subsequence",
+      "K-SeqSubsequenceFunc-40"
+    ],
+    [
+      "fn-subsequence",
+      "K-SeqSubsequenceFunc-41"
+    ],
+    [
+      "fn-subsequence",
+      "K-SeqSubsequenceFunc-42"
+    ],
+    [
+      "fn-subsequence",
+      "K-SeqSubsequenceFunc-43"
+    ],
+    [
+      "fn-subsequence",
+      "K-SeqSubsequenceFunc-44"
     ],
     [
       "fn-subsequence",
@@ -10770,6 +11186,10 @@
     [
       "fn-subsequence",
       "K-SeqSubsequenceFunc-9"
+    ],
+    [
+      "fn-subsequence",
+      "K2-SeqSubsequenceFunc-1"
     ],
     [
       "fn-subsequence",
@@ -10818,6 +11238,10 @@
     [
       "fn-subsequence",
       "cbcl-subsequence-005"
+    ],
+    [
+      "fn-subsequence",
+      "cbcl-subsequence-006"
     ],
     [
       "fn-subsequence",
@@ -10978,6 +11402,18 @@
     [
       "fn-subsequence",
       "fn-subsequence-mix-args-020"
+    ],
+    [
+      "fn-subsequence",
+      "fn-subsequence-mix-args-021"
+    ],
+    [
+      "fn-subsequence",
+      "fn-subsequence-mix-args-022"
+    ],
+    [
+      "fn-subsequence",
+      "fn-subsequence-mix-args-023"
     ],
     [
       "fn-subsequence",
@@ -11549,7 +11985,15 @@
     ],
     [
       "fn-sum",
+      "K-SeqSUMFunc-31"
+    ],
+    [
+      "fn-sum",
       "K-SeqSUMFunc-32"
+    ],
+    [
+      "fn-sum",
+      "K-SeqSUMFunc-33"
     ],
     [
       "fn-sum",
@@ -11614,6 +12058,42 @@
     [
       "fn-sum",
       "cbcl-sum-func-006"
+    ],
+    [
+      "fn-sum",
+      "fn-sum-10"
+    ],
+    [
+      "fn-sum",
+      "fn-sum-12"
+    ],
+    [
+      "fn-sum",
+      "fn-sum-13"
+    ],
+    [
+      "fn-sum",
+      "fn-sum-14"
+    ],
+    [
+      "fn-sum",
+      "fn-sum-2"
+    ],
+    [
+      "fn-sum",
+      "fn-sum-5"
+    ],
+    [
+      "fn-sum",
+      "fn-sum-7"
+    ],
+    [
+      "fn-sum",
+      "fn-sum-8"
+    ],
+    [
+      "fn-sum",
+      "fn-sum-9"
     ],
     [
       "fn-sum",
@@ -12481,6 +12961,10 @@
     ],
     [
       "fn-unordered",
+      "K-SeqUnorderedFunc-5"
+    ],
+    [
+      "fn-unordered",
       "K-SeqUnorderedFunc-6"
     ],
     [
@@ -12606,6 +13090,18 @@
     [
       "fn-unordered",
       "fn-unordered-mix-args-020"
+    ],
+    [
+      "fn-unordered",
+      "fn-unordered-mix-args-021"
+    ],
+    [
+      "fn-unordered",
+      "fn-unordered-mix-args-022"
+    ],
+    [
+      "fn-unordered",
+      "fn-unordered-mix-args-023"
     ],
     [
       "fn-upper-case",
@@ -13997,6 +14493,10 @@
     ],
     [
       "op-except",
+      "fn-except-node-args-006"
+    ],
+    [
+      "op-except",
       "fn-except-node-args-007"
     ],
     [
@@ -14006,6 +14506,10 @@
     [
       "op-except",
       "fn-except-node-args-009"
+    ],
+    [
+      "op-except",
+      "fn-except-node-args-010"
     ],
     [
       "op-except",
@@ -14437,6 +14941,10 @@
     ],
     [
       "op-intersect",
+      "fn-intersect-node-args-006"
+    ],
+    [
+      "op-intersect",
       "fn-intersect-node-args-007"
     ],
     [
@@ -14446,6 +14954,10 @@
     [
       "op-intersect",
       "fn-intersect-node-args-009"
+    ],
+    [
+      "op-intersect",
+      "fn-intersect-node-args-010"
     ],
     [
       "op-intersect",
@@ -15365,6 +15877,82 @@
     ],
     [
       "op-to",
+      "RangeExpr-413"
+    ],
+    [
+      "op-to",
+      "RangeExpr-413a"
+    ],
+    [
+      "op-to",
+      "RangeExpr-413b"
+    ],
+    [
+      "op-to",
+      "RangeExpr-413c"
+    ],
+    [
+      "op-to",
+      "RangeExpr-413d"
+    ],
+    [
+      "op-to",
+      "RangeExpr-413e"
+    ],
+    [
+      "op-to",
+      "RangeExpr-414"
+    ],
+    [
+      "op-to",
+      "RangeExpr-414a"
+    ],
+    [
+      "op-to",
+      "RangeExpr-414b"
+    ],
+    [
+      "op-to",
+      "RangeExpr-414c"
+    ],
+    [
+      "op-to",
+      "RangeExpr-414d"
+    ],
+    [
+      "op-to",
+      "RangeExpr-415"
+    ],
+    [
+      "op-to",
+      "RangeExpr-415a"
+    ],
+    [
+      "op-to",
+      "RangeExpr-415b"
+    ],
+    [
+      "op-to",
+      "RangeExpr-416"
+    ],
+    [
+      "op-to",
+      "RangeExpr-416a"
+    ],
+    [
+      "op-to",
+      "RangeExpr-416b"
+    ],
+    [
+      "op-to",
+      "RangeExpr-600"
+    ],
+    [
+      "op-to",
+      "RangeExpr-601"
+    ],
+    [
+      "op-to",
       "rangeExpr-1"
     ],
     [
@@ -15481,11 +16069,31 @@
     ],
     [
       "op-to",
+      "rangeExpr-36"
+    ],
+    [
+      "op-to",
+      "rangeExpr-37"
+    ],
+    [
+      "op-to",
+      "rangeExpr-39"
+    ],
+    [
+      "op-to",
       "rangeExpr-4"
     ],
     [
       "op-to",
+      "rangeExpr-40"
+    ],
+    [
+      "op-to",
       "rangeExpr-41"
+    ],
+    [
+      "op-to",
+      "rangeExpr-42"
     ],
     [
       "op-to",
@@ -15809,6 +16417,10 @@
     ],
     [
       "prod-ForClause",
+      "K-ForExprWithout-18"
+    ],
+    [
+      "prod-ForClause",
       "K-ForExprWithout-19"
     ],
     [
@@ -15817,7 +16429,19 @@
     ],
     [
       "prod-ForClause",
+      "K-ForExprWithout-20"
+    ],
+    [
+      "prod-ForClause",
       "K-ForExprWithout-21"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-22"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-23"
     ],
     [
       "prod-ForClause",
@@ -15945,6 +16569,14 @@
     ],
     [
       "prod-ForClause",
+      "K-ForExprWithout-55"
+    ],
+    [
+      "prod-ForClause",
+      "K-ForExprWithout-56"
+    ],
+    [
+      "prod-ForClause",
       "K-ForExprWithout-6"
     ],
     [
@@ -16029,7 +16661,39 @@
     ],
     [
       "prod-IfExpr",
+      "K-CondExpr-10"
+    ],
+    [
+      "prod-IfExpr",
+      "K-CondExpr-11"
+    ],
+    [
+      "prod-IfExpr",
+      "K-CondExpr-12"
+    ],
+    [
+      "prod-IfExpr",
       "K-CondExpr-2"
+    ],
+    [
+      "prod-IfExpr",
+      "K-CondExpr-3"
+    ],
+    [
+      "prod-IfExpr",
+      "K-CondExpr-4"
+    ],
+    [
+      "prod-IfExpr",
+      "K-CondExpr-5"
+    ],
+    [
+      "prod-IfExpr",
+      "K-CondExpr-6"
+    ],
+    [
+      "prod-IfExpr",
+      "K-CondExpr-7"
     ],
     [
       "prod-IfExpr",
@@ -16469,6 +17133,10 @@
     ],
     [
       "prod-QuantifiedExpr",
+      "K-QuantExprWithout-7"
+    ],
+    [
+      "prod-QuantifiedExpr",
       "K-QuantExprWithout-70"
     ],
     [
@@ -16506,6 +17174,10 @@
     [
       "prod-QuantifiedExpr",
       "K-QuantExprWithout-79"
+    ],
+    [
+      "prod-QuantifiedExpr",
+      "K-QuantExprWithout-8"
     ],
     [
       "prod-QuantifiedExpr",
@@ -16697,7 +17369,15 @@
     ],
     [
       "prod-QuantifiedExpr",
+      "quantExpr-29"
+    ],
+    [
+      "prod-QuantifiedExpr",
       "quantExpr-3"
+    ],
+    [
+      "prod-QuantifiedExpr",
+      "quantExpr-30"
     ],
     [
       "prod-QuantifiedExpr",
@@ -16714,6 +17394,10 @@
     [
       "prod-QuantifiedExpr",
       "quantExpr-6"
+    ],
+    [
+      "prod-QuantifiedExpr",
+      "quantExpr-60"
     ],
     [
       "prod-QuantifiedExpr",
@@ -16838,6 +17522,10 @@
     [
       "prod-QuantifiedExpr",
       "quantexpr-58"
+    ],
+    [
+      "prod-QuantifiedExpr",
+      "quantexpr-59"
     ],
     [
       "prod-SequenceType",

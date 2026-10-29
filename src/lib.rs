@@ -19,6 +19,7 @@ mod sort;
 mod stream;
 mod string_functions;
 mod string_type;
+mod temporal;
 mod trees;
 mod whitespace;
 mod xpath;

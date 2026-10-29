@@ -910,3 +910,22 @@ conformance claims. Smaller tested increments are committed independently.
   substring results preserve original text.
 - QT3: 5,750 cases, 4,268 pass / 356 engine failures / 229 harness errors / 897
   exclusions; the gate records 4,268 with no regressions.
+
+## Increment 75: date, time and duration values
+
+- Added xs:dateTime, xs:date, xs:time, xs:duration, xs:yearMonthDuration and
+  xs:dayTimeDuration as atomic values with strict lexical validation (leap years,
+  24:00:00, time zone bounds), canonical strings, nanosecond fractions and casts
+  between related types (dateTime to date/time, date to dateTime, duration
+  subtypes).
+- Value comparison normalizes time zones using UTC as the implicit time zone;
+  durations compare by months and nanoseconds, xs:duration ordering is a type
+  error, and mixed temporal families are XPTY0004. deep-equal and distinct-values
+  use the same equality.
+- Component accessors (year-from-date and relatives, *-from-duration,
+  timezone-from-*), implicit-timezone() and current-dateTime/date/time(), which
+  are fixed per execution budget.
+- Not yet: duration/date arithmetic, gYear-family types, adjust-*-to-timezone,
+  date formatting, min/max/sort over temporal values.
+- Pinned QT3 selection: 5,750 cases, 4,440 pass / 184 engine failures / 229 harness
+  errors / 897 exclusions; the gate records 4,440 with no regressions.
