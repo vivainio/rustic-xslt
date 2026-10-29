@@ -32,7 +32,7 @@ pub(crate) enum Instruction {
         body: Vec<Instruction>,
     },
     ForEach(Expr, Vec<Sort>, Vec<Instruction>),
-    ForEachGroup(Expr, Grouping, Vec<Instruction>),
+    ForEachGroup(Expr, Grouping, Vec<Sort>, Vec<Instruction>),
     If(Expr, Vec<Instruction>),
     Choose(Vec<(Option<Expr>, Vec<Instruction>)>),
     Bind(Binding),
@@ -364,7 +364,7 @@ fn top_sequence(body: &[Instruction]) -> bool {
         | Instruction::Copy { .. }
         | Instruction::Document(_) => true,
         Instruction::ForEach(_, _, b)
-        | Instruction::ForEachGroup(_, _, b)
+        | Instruction::ForEachGroup(_, _, _, b)
         | Instruction::If(_, b) => top_sequence(b),
         Instruction::Choose(bs) => bs.iter().any(|(_, b)| top_sequence(b)),
         _ => false,
@@ -389,7 +389,7 @@ pub(crate) fn raw_result_body(body: &[Instruction]) -> bool {
         | Instruction::Pi(..)
         | Instruction::Attribute(..) => true,
         Instruction::ForEach(_, _, body)
-        | Instruction::ForEachGroup(_, _, body)
+        | Instruction::ForEachGroup(_, _, _, body)
         | Instruction::If(_, body) => raw_result_body(body),
         Instruction::Choose(branches) => branches.iter().all(|(_, body)| raw_result_body(body)),
     })
@@ -400,7 +400,7 @@ fn element_result_body(body: &[Instruction]) -> bool {
             true
         }
         Instruction::ForEach(_, _, body)
-        | Instruction::ForEachGroup(_, _, body)
+        | Instruction::ForEachGroup(_, _, _, body)
         | Instruction::If(_, body) => element_result_body(body),
         Instruction::Choose(branches) => branches.iter().all(|(_, body)| element_result_body(body)),
         _ => false,
@@ -750,7 +750,10 @@ fn body(
                     }
                     "sort"
                         if parent.tag_name().namespace() == Some(XSL)
-                            && parent.tag_name().name() == "for-each" =>
+                            && matches!(
+                                parent.tag_name().name(),
+                                "for-each" | "for-each-group"
+                            ) =>
                     {
                         continue;
                     }
@@ -868,12 +871,10 @@ fn body(
                             }
                             _ => Grouping::Ending(crate::pattern::parse(value, namespaces(n))?),
                         };
-                        if !sorts(n)?.is_empty() {
-                            return Err(error(n, "sorting groups is not implemented"));
-                        }
                         out.push(Instruction::ForEachGroup(
                             expr(n, required(n, "select")?)?,
                             grouping,
+                            sorts(n)?,
                             body(n, depth + 1, false)?,
                         ));
                     }
@@ -1622,10 +1623,13 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     expression(e, &scope)?;
                     instructions(body, scope.clone(), templates)?;
                 }
-                Instruction::ForEachGroup(e, grouping, body) => {
+                Instruction::ForEachGroup(e, grouping, keys, body) => {
                     expression(e, &scope)?;
                     if let Grouping::By(g) | Grouping::Adjacent(g) = grouping {
                         expression(g, &scope)?;
+                    }
+                    for k in keys {
+                        expression(&k.select, &scope)?;
                     }
                     instructions(body, scope.clone(), templates)?;
                 }

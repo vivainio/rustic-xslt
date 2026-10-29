@@ -1604,19 +1604,40 @@ fn run_tasks<'a>(
                             ));
                         }
                     }
-                    Instruction::ForEachGroup(e, grouping, body) => {
+                    Instruction::ForEachGroup(e, grouping, sorts, body) => {
                         let value = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
                         let groups = form_groups(value, grouping, &env, budget, sheet.backwards)?;
-                        let size = groups.len();
-                        for (index, (key, members)) in groups.into_iter().enumerate().rev() {
+                        let mut scopes = vec![];
+                        for (key, members) in &groups {
                             let mut inner = (*env).clone();
+                            inner.insert(xpath::CURRENT_GROUP.into(), members.clone());
+                            match key {
+                                Some(key) => inner.insert(xpath::CURRENT_KEY.into(), key.clone()),
+                                None => inner.remove(xpath::CURRENT_KEY),
+                            };
+                            scopes.push(inner);
+                        }
+                        let order = if sorts.is_empty() {
+                            (0..groups.len()).collect()
+                        } else {
+                            let firsts =
+                                groups.iter().map(|(_, m)| m[0].clone()).collect::<Vec<_>>();
+                            crate::sort::order(
+                                &firsts,
+                                sorts,
+                                &env,
+                                Some(&scopes),
+                                budget,
+                                sheet.backwards,
+                            )?
+                        };
+                        let size = groups.len();
+                        let mut scopes: Vec<_> = scopes.into_iter().map(Some).collect();
+                        let mut groups: Vec<_> = groups.into_iter().map(Some).collect();
+                        for (index, source) in order.into_iter().enumerate().rev() {
+                            let (_, members) = groups[source].take().unwrap();
+                            let inner = scopes[source].take().unwrap();
                             let first = members[0].clone();
-                            inner.insert(xpath::CURRENT_GROUP.into(), members);
-                            if let Some(key) = key {
-                                inner.insert(xpath::CURRENT_KEY.into(), key);
-                            } else {
-                                inner.remove(xpath::CURRENT_KEY);
-                            }
                             tasks.push(Task::Body(
                                 body,
                                 0,

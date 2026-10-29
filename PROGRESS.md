@@ -1012,6 +1012,6 @@ conformance claims. Smaller tested increments are committed independently.
   order), group-adjacent (single key per item, XTTE1100), group-starting-with and
   group-ending-with (node patterns, XTTE1120), plus current-group() and
   current-grouping-key() with XTDE1061/XTDE1071 outside a suitable context.
-- Exactly one grouping attribute is required (XTSE1080). Collations, composite keys
-  and xsl:sort inside groups are rejected as unimplemented; record streaming rejects
-  grouping.
+- Exactly one grouping attribute is required (XTSE1080). Groups may be sorted with xsl:sort keys that
+  see current-group() and current-grouping-key(). Collations and composite keys are
+  rejected as unimplemented; record streaming rejects grouping.

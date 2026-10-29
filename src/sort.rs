@@ -44,6 +44,23 @@ pub(crate) fn sort<'a>(
     if sorts.is_empty() {
         return Ok(value);
     }
+    let order = order(&value, sorts, env, None, budget, backwards)?;
+    let mut value: Vec<_> = value.into_iter().map(Some).collect();
+    Ok(order
+        .into_iter()
+        .map(|i| value[i].take().unwrap())
+        .collect())
+}
+/// Sorted positions of `value`; `per_item` supplies a different variable scope
+/// for each item (used to expose each group's `current-group()` to its sort keys).
+pub(crate) fn order<'a>(
+    value: &[crate::xpath::Item<'a>],
+    sorts: &[Sort],
+    env: &Variables<'a>,
+    per_item: Option<&[Variables<'a>]>,
+    budget: &mut Budget,
+    backwards: bool,
+) -> Result<Vec<usize>, Diagnostic> {
     let size = value.len();
     let mut keys = Vec::with_capacity(size);
     for (i, item) in value.iter().enumerate() {
@@ -54,7 +71,8 @@ pub(crate) fn sort<'a>(
         };
         let mut row = vec![];
         for key in sorts {
-            let mut v = xpath::eval(&key.select, &focus, env, budget, 0, backwards)?;
+            let scope = per_item.map_or(env, |scopes| &scopes[i]);
+            let mut v = xpath::eval(&key.select, &focus, scope, budget, 0, backwards)?;
             if backwards {
                 v.truncate(1);
             }
@@ -116,9 +134,5 @@ pub(crate) fn sort<'a>(
         std::mem::swap(&mut order, &mut spare);
         width *= 2;
     }
-    let mut value: Vec<_> = value.into_iter().map(Some).collect();
-    Ok(order
-        .into_iter()
-        .map(|i| value[i].take().unwrap())
-        .collect())
+    Ok(order)
 }

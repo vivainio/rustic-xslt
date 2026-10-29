@@ -71,3 +71,18 @@ fn grouping_declaration_errors() {
         "XTDE1061"
     );
 }
+#[test]
+fn groups_can_be_sorted_by_keys_that_see_the_group() {
+    assert_eq!(
+        run(r#"<xsl:for-each-group select="r/i" group-by="@k"><xsl:sort select="current-grouping-key()" order="descending"/>[<xsl:value-of select="current-grouping-key()"/>]</xsl:for-each-group>"#).unwrap(),
+        "[y][x][c][b][a]"
+    );
+    assert_eq!(
+        run(r#"<xsl:for-each-group select="r/i" group-by="@k"><xsl:sort select="count(current-group())" data-type="number" order="descending"/><xsl:sort select="current-grouping-key()"/>[<xsl:value-of select="current-grouping-key()"/>]</xsl:for-each-group>"#).unwrap(),
+        "[a][b][c][x][y]"
+    );
+    assert_eq!(
+        run(r#"<xsl:for-each-group select="r/i" group-by="@k"><xsl:sort select="current-grouping-key()" order="descending"/><xsl:value-of select="position()"/>,</xsl:for-each-group>"#).unwrap(),
+        "1,2,3,4,5,"
+    );
+}
