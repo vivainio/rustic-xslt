@@ -27,6 +27,8 @@ pub(crate) enum Instruction {
     Attribute(ComputedName, Content),
     Comment(Content),
     Message(Content, bool),
+    /// The failing branch of `xsl:assert`: raises XTMM9001 with the message text.
+    AssertFailure(Content),
     Pi(Vec<Expr>, Content),
     Element {
         element: crate::result::Element,
@@ -494,6 +496,7 @@ pub(crate) fn raw_result_body(body: &[Instruction]) -> bool {
         | Instruction::Value(..)
         | Instruction::Comment(_)
         | Instruction::Message(..)
+        | Instruction::AssertFailure(_)
         | Instruction::UseSets(_)
         | Instruction::Iterate { .. }
         | Instruction::NextIteration(_)
@@ -1497,6 +1500,13 @@ fn body(
                             matching: matching.unwrap_or_default(),
                             non_matching: non_matching.unwrap_or_default(),
                         });
+                    }
+                    "assert" => {
+                        attrs(n, &["test", "select", "error-code"])?;
+                        out.push(Instruction::If(
+                            Expr::Call("not".into(), vec![expr(n, required(n, "test")?)?]),
+                            vec![Instruction::AssertFailure(content(n, depth + 1)?)],
+                        ));
                     }
                     "message" => {
                         attrs(n, &["select", "terminate", "error-code"])?;
@@ -3112,9 +3122,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                         parts(value, &scope)?;
                     }
                 }
-                Instruction::Comment(c) | Instruction::Message(c, _) => {
-                    value(c, &scope, templates)?
-                }
+                Instruction::Comment(c)
+                | Instruction::Message(c, _)
+                | Instruction::AssertFailure(c) => value(c, &scope, templates)?,
                 Instruction::Pi(n, c) => {
                     parts(n, &scope)?;
                     value(c, &scope, templates)?;

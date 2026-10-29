@@ -29,3 +29,26 @@ fn messages_are_collected_in_order_for_callers_that_ask() {
     assert_eq!(result.principal, "x");
     assert_eq!(result.messages, vec!["first", "2", "third !"]);
 }
+#[test]
+fn assertions_fail_with_their_message_and_pass_silently() {
+    assert_eq!(
+        run("a<xsl:assert test='1 = 1'>never</xsl:assert>b").unwrap(),
+        "ab"
+    );
+    let failure =
+        run("<xsl:assert test='1 = 2'>value was <xsl:value-of select='1 + 1'/></xsl:assert>")
+            .unwrap_err();
+    assert_eq!(failure.code, "XTMM9001");
+    assert!(
+        failure.message.contains("value was 2"),
+        "{}",
+        failure.message
+    );
+    assert_eq!(
+        run("<xsl:assert test=\"false()\" select=\"'plain'\"/>")
+            .unwrap_err()
+            .code,
+        "XTMM9001"
+    );
+    assert!(run("<xsl:assert/>").is_err());
+}

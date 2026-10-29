@@ -1329,3 +1329,8 @@ conformance claims. Smaller tested increments are committed independently.
   templates (evaluated once per sort in the instruction's focus, XTDE0030 for invalid
   values); collation, lang and stable are accepted, with collations applying to text
   keys (XTDE1035 when unsupported).
+
+## Increment 118: xsl:assert
+
+- xsl:assert raises XTMM9001 with its message (select or body) when the test is
+  false and does nothing otherwise.

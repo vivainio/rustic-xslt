@@ -282,6 +282,7 @@ enum Capture {
     Attribute(result::Name),
     Comment,
     Message(bool),
+    Assertion,
     Pi(String),
 }
 fn parts(
@@ -398,6 +399,7 @@ fn finish_capture(
             }
             output.comment(&value)
         }
+        Capture::Assertion => Err(Diagnostic::new("XTMM9001", value, "run")),
         Capture::Message(terminate) => {
             if terminate {
                 Err(Diagnostic::new("XTMM9000", value, "run"))
@@ -1681,6 +1683,24 @@ fn run_tasks<'a>(
                         capture(
                             content,
                             Capture::Comment,
+                            Frame {
+                                focus,
+                                env,
+                                depth: depth + 1,
+                                mode,
+                                tunnel: tunnel.clone(),
+                                rule,
+                            },
+                            sheet,
+                            budget,
+                            &mut output,
+                            &mut tasks,
+                        )?;
+                    }
+                    Instruction::AssertFailure(content) => {
+                        capture(
+                            content,
+                            Capture::Assertion,
                             Frame {
                                 focus,
                                 env,

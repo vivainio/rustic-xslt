@@ -310,7 +310,9 @@ fn safe_global_body(body: &[Instruction]) -> Result<(), Diagnostic> {
                 name(n)?;
                 content(c)?;
             }
-            Instruction::Comment(c) | Instruction::Message(c, _) => content(c)?,
+            Instruction::Comment(c)
+            | Instruction::Message(c, _)
+            | Instruction::AssertFailure(c) => content(c)?,
             Instruction::Pi(es, c) => {
                 for e in es {
                     safe_expression(e, true)?;
@@ -421,9 +423,9 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                         safe_name(n)?;
                         safe_content(c, &mut bodies)?;
                     }
-                    Instruction::Comment(c) | Instruction::Message(c, _) => {
-                        safe_content(c, &mut bodies)?
-                    }
+                    Instruction::Comment(c)
+                    | Instruction::Message(c, _)
+                    | Instruction::AssertFailure(c) => safe_content(c, &mut bodies)?,
                     Instruction::Pi(parts, c) => {
                         for e in parts {
                             safe_expression(e, false)?;
