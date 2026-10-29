@@ -469,7 +469,7 @@ impl Output {
         let parent_head = self.stack.len() > 1
             && self.metadata.enabled
             && self.stack.get(self.stack.len() - 2).is_some_and(|parent| {
-                html_name(&parent.element.name, markup).as_deref() == Some("head")
+                metadata_name(&parent.element.name, markup).as_deref() == Some("head")
             });
         let parent_suppressed = self.stack.len() > 1 && self.stack[self.stack.len() - 2].suppressed;
         let Some(open) = self.stack.last_mut() else {
@@ -481,7 +481,7 @@ impl Output {
         open.pending = false;
         open.suppressed |= parent_suppressed
             || (parent_head
-                && html_name(&open.element.name, markup).as_deref() == Some("meta")
+                && metadata_name(&open.element.name, markup).as_deref() == Some("meta")
                 && open.element.attributes.iter().any(|(name, value)| {
                     name.uri.is_none()
                         && name.local.eq_ignore_ascii_case("http-equiv")
@@ -589,7 +589,7 @@ impl Output {
             self.push("\"")?;
         }
         self.push(close)?;
-        if self.metadata.enabled && html_element.as_deref() == Some("head") {
+        if self.metadata.enabled && metadata_name(&e.name, markup).as_deref() == Some("head") {
             let content = escape(
                 &format!(
                     "{}; charset={}",
@@ -599,8 +599,16 @@ impl Output {
                 true,
             );
             let ending = if markup == Markup::Xhtml { " />" } else { ">" };
+            let meta_name = if markup == Markup::Xhtml {
+                e.name
+                    .qname
+                    .split_once(':')
+                    .map_or_else(|| "meta".to_owned(), |(prefix, _)| format!("{prefix}:meta"))
+            } else {
+                "meta".to_owned()
+            };
             self.push(&format!(
-                "<meta http-equiv=\"Content-Type\" content=\"{content}\"{ending}"
+                "<{meta_name} http-equiv=\"Content-Type\" content=\"{content}\"{ending}"
             ))?;
         }
         Ok(())
@@ -986,4 +994,12 @@ fn uri_attribute(element: &str, attribute: &str) -> bool {
     elements
         .split_ascii_whitespace()
         .any(|candidate| candidate == element)
+}
+
+fn metadata_name(name: &Name, markup: Markup) -> Option<String> {
+    if markup == Markup::Xhtml {
+        (name.uri.as_deref() == Some(XHTML)).then(|| name.local.clone())
+    } else {
+        html_name(name, markup)
+    }
 }

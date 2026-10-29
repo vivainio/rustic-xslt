@@ -164,3 +164,13 @@ fn content_type_metadata_replaces_only_matching_direct_children() {
     assert!(disabled.contains("content=\"old\""));
     assert!(!disabled.contains("charset="));
 }
+
+#[test]
+fn xhtml_metadata_uses_the_head_namespace_and_exact_names() {
+    let output = run(
+        r#"method="xhtml" omit-xml-declaration="yes""#,
+        "<h:html xmlns:h='http://www.w3.org/1999/xhtml'><h:head><h:title>T</h:title></h:head><h:HEAD/></h:html>",
+    );
+    assert!(output.contains("<h:head><h:meta http-equiv=\"Content-Type\""));
+    assert_eq!(output.matches("charset=").count(), 1);
+}

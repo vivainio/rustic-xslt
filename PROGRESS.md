@@ -2141,3 +2141,13 @@ conformance claims. Smaller tested increments are committed independently.
 - Added direct replacement and disabled-setting regressions. The pinned XSLT
   gate has 928 passes (31 new, zero regressions), 227 failures, 264 harness errors
   and 153 exclusions. Focused serializer/result-document tests and Clippy pass.
+
+## Increment 187: XHTML metadata namespace and case handling
+
+- Generated XHTML meta elements reuse the head element's prefix, preserving
+  their XHTML namespace when no default namespace is available.
+- Metadata insertion and replacement use exact XHTML element names while HTML
+  retains case-insensitive recognition. Added a prefixed-head/uppercase-head
+  regression confirming exactly one generated metadata element.
+- Validation: fourteen serializer tests, all-target/all-feature Clippy and the
+  full 928-case pinned XSLT gate pass without regressions.
