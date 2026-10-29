@@ -1082,3 +1082,12 @@ conformance claims. Smaller tested increments are committed independently.
   flags, regex-group() (unmatched and out-of-range groups are empty strings),
   XTDE1150 for patterns that match the empty string and XTSE1130 for a missing
   body. The fn:analyze-string function still needs element construction in XPath.
+
+## Increment 91: indent="yes"
+
+- xsl:output indent="yes" now re-flows the serialized document: element-only
+  content goes onto indented lines (two spaces), elements with character content
+  (mixed content) are left byte-for-byte, comments and processing instructions are
+  indented like elements, and a newline follows the XML declaration. Whitespace-only
+  text between elements of element-only content is dropped. Record streaming does
+  not indent.

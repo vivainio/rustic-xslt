@@ -1396,9 +1396,7 @@ fn declarations(
                         "only UTF-8 output encoding is currently supported",
                     ));
                 }
-                if n.attribute("indent").is_some_and(|s| s != "no") {
-                    return Err(error(n, "indentation is not implemented yet"));
-                }
+                sheet.indent = boolean_attribute(n, "indent", false)?;
                 if n.attribute("version").is_some_and(|s| s != "1.0") {
                     return Err(error(n, "only XML 1.0 output is currently supported"));
                 }
@@ -1649,6 +1647,7 @@ pub(crate) fn compile(
         default_mode: default_mode(root)?,
         modes: BTreeMap::new(),
         omit_declaration: false,
+        indent: false,
         text_output: false,
         backwards: root.attribute("version") == Some("1.0"),
         version: match root.attribute("version") {

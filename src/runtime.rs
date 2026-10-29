@@ -816,7 +816,11 @@ fn execute<'a>(
         trees,
         globals,
     };
-    run_tasks(&run, budget, tasks, output, None)
+    let result = run_tasks(&run, budget, tasks, output, None)?;
+    if sheet.indent && declaration && !sheet.text_output {
+        return Ok(crate::indent::indent(&result));
+    }
+    Ok(result)
 }
 fn run_tasks<'a>(
     run: &Run<'a, '_>,

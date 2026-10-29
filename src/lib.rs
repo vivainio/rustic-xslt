@@ -6,6 +6,7 @@ mod collation;
 mod compile;
 mod deep_equal;
 mod format_number;
+mod indent;
 mod integer_type;
 mod maps;
 mod mode;
@@ -139,6 +140,7 @@ pub struct TransformOptions {
 pub struct Stylesheet {
     templates: Vec<compile::Template>,
     omit_declaration: bool,
+    indent: bool,
     text_output: bool,
     backwards: bool,
     version: u8,
