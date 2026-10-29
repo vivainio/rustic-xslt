@@ -191,6 +191,9 @@ fn matches_inner<'a>(
     budget: &mut Budget,
     backwards: bool,
 ) -> Result<bool, Diagnostic> {
+    let mut current_scope = vars.clone();
+    current_scope.insert(xpath::CURRENT_ITEM.into(), vec![Item::Node(node)]);
+    let vars = &current_scope;
     if branch.steps.is_empty() {
         return if let Some(selected) = &branch.selected {
             selection_contains(selected, node, vars, budget, backwards)
@@ -221,7 +224,7 @@ fn selection_contains<'a>(
         position: 1,
         size: 1,
     };
-    Ok(xpath::eval(selected, &focus, vars, budget, 0, backwards)?
+    Ok(xpath::eval(selected, &focus, vars, budget, 1, backwards)?
         .iter()
         .any(|item| matches!(item, Item::Node(n) if *n == node)))
 }
@@ -253,7 +256,7 @@ fn step_matches<'a>(
                     position: 1,
                     size: 1,
                 };
-                if !xpath::eval(&e, &focus, vars, budget, 0, backwards)?
+                if !xpath::eval(&e, &focus, vars, budget, 1, backwards)?
                     .iter()
                     .any(|v| matches!(v, Item::Node(n) if *n == node))
                 {

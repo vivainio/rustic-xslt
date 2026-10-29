@@ -1469,3 +1469,18 @@ conformance claims. Smaller tested increments are committed independently.
   failures, 195 harness errors and 149 profile exclusions across 1,159 cases.
 - Validation: full offline Rust tests, Clippy with warnings denied, formatting,
   whitespace checks and the expanded XSLT gate pass.
+
+## Increment 129: current item semantics
+
+- Added current(), retaining the outer stylesheet expression's context item
+  through predicates, path steps and nested XPath focus changes. Patterns retain
+  the candidate node, and key use expressions retain the indexed node.
+- Missing current items raise XTDE1360. Named current#0 references and
+  function-lookup retain the item at creation and report their function metadata.
+  Dynamic evaluate establishes its own current item from the supplied context.
+- Added focused regressions for nested instruction contexts, atomic current
+  items, matching, keys, missing context and retained function references.
+- Expanded the pinned XSLT gate to 594 passes (ten new, zero regressions) across
+  1,160 cases: 222 engine failures, 195 harness errors, 149 profile exclusions.
+- Validation: full offline Rust tests, Clippy with warnings denied, formatting,
+  whitespace checks and the expanded pinned XSLT gate pass.

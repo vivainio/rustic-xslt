@@ -167,6 +167,8 @@ impl<'a> MapValue<'a> {
 pub(crate) enum FunctionValue<'a> {
     Inline(std::sync::Arc<InlineFunction>, Variables<'a>),
     Named(String, usize),
+    /// current#0 retains the current item at the point the reference is created.
+    Current(Item<'a>),
     /// A map or array used where a function item is expected.
     Map(std::rc::Rc<MapValue<'a>>),
     Array(std::rc::Rc<Vec<Value<'a>>>),
@@ -178,6 +180,7 @@ impl FunctionValue<'_> {
         match self {
             Self::Inline(def, _) => def.params.len(),
             Self::Named(_, arity) => *arity,
+            Self::Current(_) => 0,
             Self::Map(_) | Self::Array(_) => 1,
             Self::Partial(_, slots) => slots.iter().filter(|s| s.is_none()).count(),
         }
@@ -280,6 +283,7 @@ pub(crate) struct KeyDefinition {
     pub collation_uri: String,
 }
 /// Variable names under which `xsl:for-each-group` publishes the current group.
+pub(crate) const CURRENT_ITEM: &str = "\u{0}current-item";
 pub(crate) const CURRENT_GROUP: &str = "\u{0}current-group";
 pub(crate) const REGEX_GROUPS: &str = "\u{0}regex-groups";
 pub(crate) const CURRENT_KEY: &str = "\u{0}current-grouping-key";
@@ -1625,7 +1629,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "function-lookup" | "apply" => (2, 2),
         name if crate::maps::arity(name).is_some() => crate::maps::arity(name).unwrap(),
         "key" => (2, 3),
-        "current-group" | "current-grouping-key" => (0, 0),
+        "current" | "current-group" | "current-grouping-key" => (0, 0),
         "regex-group" => (1, 1),
         "path" => (0, 1),
         "matches" => (2, 3),
@@ -1734,6 +1738,17 @@ pub(crate) fn eval<'a>(
     if depth > budget.max_depth.min(128) {
         return Err(err("XPDY0130", "XPath depth limit exceeded"));
     }
+    let current_scope;
+    let vars = if depth == 0 {
+        current_scope = {
+            let mut scope = vars.clone();
+            scope.insert(CURRENT_ITEM.into(), vec![focus.item.clone()]);
+            scope
+        };
+        &current_scope
+    } else {
+        vars
+    };
     let result = match e {
         Expr::String(s) => vec![Item::String(s.clone())],
         Expr::Number(n) => vec![Item::Number(n.clone())],
@@ -2333,10 +2348,7 @@ pub(crate) fn eval<'a>(
             vars.clone(),
         )))],
         Expr::FunctionRef(name, arity) => {
-            vec![Item::Function(std::rc::Rc::new(FunctionValue::Named(
-                name.clone(),
-                *arity,
-            )))]
+            vec![Item::Function(named_function(name.clone(), *arity, vars))]
         }
         Expr::Evaluate {
             xpath,
@@ -2386,6 +2398,7 @@ pub(crate) fn eval<'a>(
                     size: 0,
                 },
             };
+            scope.insert(CURRENT_ITEM.into(), vec![inner.item.clone()]);
             eval(&parsed, &inner, &scope, budget, depth + 1, backwards)?
         }
         Expr::Sorted(inner, keys) => {
@@ -2433,7 +2446,12 @@ fn call_named<'a>(
     depth: usize,
     backwards: bool,
 ) -> Result<Value<'a>, Diagnostic> {
-    Ok(if name == "current-group" {
+    Ok(if name == "current" {
+        match vars.get(CURRENT_ITEM).and_then(|value| value.first()) {
+            Some(item) if !matches!(item, Item::Absent) => vec![item.clone()],
+            _ => return Err(err("XTDE1360", "there is no current item")),
+        }
+    } else if name == "current-group" {
         vars.get(CURRENT_GROUP).cloned().ok_or_else(|| {
             err(
                 "XTDE1061",
@@ -2568,6 +2586,23 @@ fn function_arg<'a>(value: &[Item<'a>]) -> Result<std::rc::Rc<FunctionValue<'a>>
         _ => Err(err("XPTY0004", "a single function item is required")),
     }
 }
+fn named_function<'a>(
+    name: String,
+    arity: usize,
+    vars: &Variables<'a>,
+) -> std::rc::Rc<FunctionValue<'a>> {
+    std::rc::Rc::new(if name == "current" && arity == 0 {
+        FunctionValue::Current(
+            vars.get(CURRENT_ITEM)
+                .and_then(|value| value.first())
+                .cloned()
+                .unwrap_or(Item::Absent),
+        )
+    } else {
+        FunctionValue::Named(name, arity)
+    })
+}
+
 fn call_function_item<'a>(
     f: &FunctionValue<'a>,
     args: Vec<Value<'a>>,
@@ -2588,6 +2623,13 @@ fn call_function_item<'a>(
         ));
     }
     match f {
+        FunctionValue::Current(item) => {
+            if matches!(item, Item::Absent) {
+                Err(err("XTDE1360", "there is no current item"))
+            } else {
+                Ok(vec![item.clone()])
+            }
+        }
         FunctionValue::Named(name, _) => {
             call_named(name, args, focus, vars, budget, depth + 1, backwards)
         }
@@ -2654,8 +2696,10 @@ fn higher_order<'a>(
         }
         "function-name" => {
             let f = function_arg(&args[0])?;
-            let FunctionValue::Named(name, _) = &*f else {
-                return Ok(vec![]);
+            let name = match &*f {
+                FunctionValue::Named(name, _) => name.as_str(),
+                FunctionValue::Current(_) => "current",
+                _ => return Ok(vec![]),
             };
             let (uri, prefix, local) = if let Some(rest) = name.strip_prefix("Q{") {
                 let (uri, local) = rest.split_once('}').unwrap_or(("", rest));
@@ -2688,7 +2732,7 @@ fn higher_order<'a>(
                 (
                     "http://www.w3.org/2005/xpath-functions".into(),
                     Some("fn"),
-                    name.clone(),
+                    name.to_owned(),
                 )
             };
             let lexical = match prefix {
@@ -2755,11 +2799,7 @@ fn higher_order<'a>(
                 }
             };
             Ok(known
-                .map(|n| {
-                    vec![Item::Function(std::rc::Rc::new(FunctionValue::Named(
-                        n, arity,
-                    )))]
-                })
+                .map(|n| vec![Item::Function(named_function(n, arity, vars))])
                 .unwrap_or_default())
         }
         "for-each" => {
@@ -2975,7 +3015,7 @@ fn call_key<'a>(
     if budget.active_keys.contains(&active) {
         return Err(err("XTDE0640", "circular dependency in key definitions"));
     }
-    if budget.active_keys.len() >= budget.max_depth {
+    if budget.active_keys.len() >= budget.max_depth.min(128) {
         return Err(err("XPDY0130", "key dependency depth limit exceeded"));
     }
     budget.active_keys.push(active);
@@ -3006,10 +3046,12 @@ fn call_key<'a>(
                     position: 1,
                     size: 1,
                 };
+                let mut key_scope = scope.clone();
+                key_scope.insert(CURRENT_ITEM.into(), vec![Item::Node(node)]);
                 let values = eval(
                     &definition.value,
                     &at,
-                    &scope,
+                    &key_scope,
                     budget,
                     1,
                     definition.backwards,

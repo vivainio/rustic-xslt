@@ -5,6 +5,7 @@
     "call-template",
     "choose",
     "copy",
+    "current",
     "id",
     "initial-mode",
     "initial-template",
@@ -60,7 +61,15 @@
     ],
     [
       "apply-templates",
+      "conflict-resolution-0501"
+    ],
+    [
+      "apply-templates",
       "conflict-resolution-0502"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-0503"
     ],
     [
       "apply-templates",
@@ -97,6 +106,10 @@
     [
       "apply-templates",
       "conflict-resolution-1401"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-1501"
     ],
     [
       "apply-templates",
@@ -556,6 +569,10 @@
     ],
     [
       "copy",
+      "copy-2101"
+    ],
+    [
+      "copy",
       "copy-2201"
     ],
     [
@@ -739,6 +756,10 @@
       "element-0608"
     ],
     [
+      "current",
+      "current-001"
+    ],
+    [
       "initial-mode",
       "initial-mode-001"
     ],
@@ -777,6 +798,10 @@
     [
       "initial-template",
       "initial-template-902"
+    ],
+    [
+      "key",
+      "key-001"
     ],
     [
       "key",
@@ -1236,6 +1261,10 @@
     ],
     [
       "match",
+      "match-049"
+    ],
+    [
+      "match",
       "match-057"
     ],
     [
@@ -1312,6 +1341,10 @@
     ],
     [
       "match",
+      "match-099"
+    ],
+    [
+      "match",
       "match-100"
     ],
     [
@@ -1384,7 +1417,15 @@
     ],
     [
       "match",
+      "match-126"
+    ],
+    [
+      "match",
       "match-215"
+    ],
+    [
+      "match",
+      "match-216"
     ],
     [
       "match",
