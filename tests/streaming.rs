@@ -350,3 +350,31 @@ fn generated_input_is_incremental_and_record_buffers_do_not_grow_with_count() {
     assert_eq!(small.peak_event_bytes, large.peak_event_bytes);
     assert_eq!(small.peak_input_depth, large.peak_input_depth);
 }
+
+#[test]
+fn aggregate_record_limits_include_xml_escaping() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output encoding="UTF-8" omit-xml-declaration="yes"/><xsl:template name="record"><a>&amp;</a></xsl:template></xsl:stylesheet>"#).unwrap();
+    let input = "<records><record/><record/></records>";
+    let mut output = Vec::new();
+    let options = StreamOptions {
+        limits: rust_xslt::Limits {
+            max_output_bytes: 22,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(
+        sheet
+            .stream_records(Cursor::new(input), &mut output, &options)
+            .unwrap_err()
+            .code,
+        "XPDY0130"
+    );
+    assert_eq!(output, b"<a>&amp;</a>");
+    output.clear();
+    let stats = sheet
+        .stream_records(Cursor::new(input), &mut output, &StreamOptions::default())
+        .unwrap();
+    assert_eq!(output, b"<a>&amp;</a><a>&amp;</a>");
+    assert_eq!(stats.output_bytes, output.len());
+}

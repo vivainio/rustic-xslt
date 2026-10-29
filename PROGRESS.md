@@ -1988,3 +1988,13 @@ conformance claims. Smaller tested increments are committed independently.
 - Added US-ASCII rejection and Latin-1 preservation regressions.
 - Validation: seven encoding tests, all-target/all-feature Clippy and the full
   882-case pinned XSLT gate pass without regressions.
+
+## Increment 171: aggregate streaming serialization limit regression
+
+- Added a two-record XML regression confirming that escaped output bytes count
+  toward the aggregate streaming limit and that a failing second record leaves
+  only the first completed record in the writer. Successful runs report the
+  actual escaped output size.
+- Record streaming remains restricted to UTF-8 output.
+- Validation: all twelve streaming tests and formatting pass; all-target and
+  all-feature Clippy passed during this test increment.
