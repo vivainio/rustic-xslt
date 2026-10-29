@@ -95,6 +95,7 @@ pub(crate) struct ResultDocumentSpec {
     pub byte_order_mark: Option<Vec<Expr>>,
     pub indent: Option<Vec<Expr>>,
     pub encoding: Option<Vec<Expr>>,
+    pub output_version: Option<Vec<Expr>>,
     pub cdata: Option<(Vec<Expr>, BTreeMap<String, String>)>,
     pub character_maps: Vec<String>,
     pub doctype_public: Option<Vec<Expr>>,
@@ -1269,6 +1270,7 @@ fn body(
                                 "byte-order-mark",
                                 "indent",
                                 "encoding",
+                                "output-version",
                                 "doctype-public",
                                 "doctype-system",
                                 "cdata-section-elements",
@@ -1334,6 +1336,10 @@ fn body(
                             byte_order_mark: flag("byte-order-mark")?,
                             indent: flag("indent")?,
                             encoding,
+                            output_version: n
+                                .attribute("output-version")
+                                .map(|value| avt(n, value))
+                                .transpose()?,
                             cdata: n
                                 .attribute("cdata-section-elements")
                                 .map(|value| {
@@ -3373,6 +3379,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                         &spec.standalone,
                         &spec.encoding,
                         &spec.method,
+                        &spec.output_version,
                     ]
                     .into_iter()
                     .flatten()

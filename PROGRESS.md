@@ -1865,3 +1865,13 @@ conformance claims. Smaller tested increments are committed independently.
 - Added a regression for nested result documents targeting the same URI.
 - Validation: all six result-document tests, all-target/all-feature Clippy and
   the full 875-case pinned XSLT regression gate pass without regressions.
+
+## Increment 158: result-document output-version AVTs
+
+- Result-document `output-version` accepts AVTs for XML 1.0 output. Text output
+  ignores this parameter; other serialization versions remain explicit gaps.
+  Version expressions participate in static variable-scope checks.
+- The pinned XSLT gate has 878 passing cases (three new, zero regressions),
+  277 engine failures, 264 harness errors and 153 profile exclusions.
+- Validation: result-document tests, all-target/all-feature Clippy and the full
+  pinned XSLT regression gate pass.

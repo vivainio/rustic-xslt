@@ -2177,6 +2177,16 @@ fn run_tasks<'a>(
                                 "run",
                             ));
                         }
+                        if let Some(version) = &spec.output_version {
+                            let version = parts(version, &focus, &env, budget, sheet.backwards)?;
+                            if method != "text" && !(method == "xml" && version.trim() == "1.0") {
+                                return Err(Diagnostic::new(
+                                    "RUST_XSLT_UNSUPPORTED",
+                                    format!("unsupported {method} output version: {version}"),
+                                    "run",
+                                ));
+                            }
+                        }
                         let text_method = method == "text";
                         let markup = match method {
                             "html" => Markup::Html,
