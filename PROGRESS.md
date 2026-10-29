@@ -2045,3 +2045,12 @@ conformance claims. Smaller tested increments are committed independently.
   was clean before recording this audit. The XSLT baseline remains 882 cases.
 - Remaining result-document serialization gaps include URI-attribute escaping
   and HTML content-type metadata settings.
+
+## Increment 177: URI serialization requirements from the W3C specification
+
+- Inspected the remaining URI-escaping fixtures and serializer attribute path.
+  Recorded the complete URI attribute/element table, normalization and escaping
+  order, namespace constraints and character-map interactions in
+  tools/conformance/URI_SERIALIZATION.md for the next implementation slice.
+- No runtime behavior changed. The implementation must propagate settings
+  through both named output definitions and result-document AVTs.
