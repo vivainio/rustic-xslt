@@ -1195,3 +1195,15 @@ conformance claims. Smaller tested increments are committed independently.
   digit families), a/A, i/I, w/W/Ww, the ordinal modifier, negative numbers, empty
   input and FODF1310 for malformed pictures; unrecognized tokens fall back to "1".
   Language-dependent forms are not implemented.
+
+## Increment 102: format-date, format-time and format-dateTime
+
+- Added the three formatting functions with picture strings: Y, M, D, d, F, W, w, E, C,
+  H, h, P, m, s, f, Z and z markers, escaped brackets, numbering modifiers (digit
+  families, zero padding, a/A, i/I, w/W/Ww, N/n/Nn names, ordinal), width modifiers,
+  truncated fractional seconds, time zone pictures (+hh:mm families, GMT forms,
+  military letters, the t modifier) and FOFD1340/FOFD1350 errors for malformed
+  pictures or unavailable components. English only; calendars and places are
+  accepted but ignored.
+- The QT3 driver binds environment parameters as global variables and treats
+  language=en as supported; 243 of the 315 format-date/time cases pass.

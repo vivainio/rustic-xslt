@@ -51,7 +51,7 @@ class QT3Setup(unittest.TestCase):
             parent = node('<root><environment name="parent"><source role="." file="source.xml"/><namespace prefix="p" uri="urn:p"/></environment></root>')
             reference = node('<root><environment ref="parent"/></root>')
             registry = {"parent": (parent, base), id(parent): (parent, base), id(reference): (reference, base / 'absent')}
-            self.assertEqual(environment(reference, registry), {"source": "<r/>", "namespaces": {"p": "urn:p"}, "decimal_formats": []})
+            self.assertEqual(environment(reference, registry), {"source": "<r/>", "namespaces": {"p": "urn:p"}, "decimal_formats": [], "params": []})
 
 if __name__ == '__main__':
     unittest.main()

@@ -6,6 +6,7 @@ mod binary;
 mod collation;
 mod compile;
 mod deep_equal;
+mod format_datetime;
 mod format_number;
 mod indent;
 mod integer_type;

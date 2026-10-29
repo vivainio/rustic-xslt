@@ -1515,6 +1515,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "format-number" => (2, 3),
         "parse-json" => (1, 2),
         "format-integer" => (2, 3),
+        "format-dateTime" | "format-date" | "format-time" => (2, 5),
         "math:pi" => (0, 0),
         "math:exp" | "math:exp10" | "math:log" | "math:log10" | "math:sqrt" | "math:sin"
         | "math:cos" | "math:tan" | "math:asin" | "math:acos" | "math:atan" => (1, 1),
@@ -3246,6 +3247,42 @@ fn function<'a>(
             path.push_str(step);
         }
         return Ok(vec![Item::String(path)]);
+    }
+    if let Some(kind) = match name {
+        "format-dateTime" => Some(crate::temporal::TemporalType::DateTime),
+        "format-date" => Some(crate::temporal::TemporalType::Date),
+        "format-time" => Some(crate::temporal::TemporalType::Time),
+        _ => None,
+    } {
+        if args.len() != 2 && args.len() != 5 {
+            return Err(err(
+                "XPST0017",
+                "wrong number of arguments to the date formatting function",
+            ));
+        }
+        let value = match args[0].as_slice() {
+            [] => return Ok(vec![]),
+            [item] => match atomize(item) {
+                Item::Temporal(t) if t.kind == kind => t,
+                Item::Untyped(s) => crate::temporal::Temporal::parse(kind, &s)?,
+                _ => {
+                    return Err(err(
+                        "XPTY0004",
+                        "date formatting requires the matching temporal type",
+                    ));
+                }
+            },
+            _ => {
+                return Err(err(
+                    "XPTY0004",
+                    "date formatting requires an optional singleton",
+                ));
+            }
+        };
+        let picture = crate::string_functions::string(&args[1], false, backwards)?;
+        return Ok(vec![Item::String(crate::format_datetime::format(
+            &value, &picture,
+        )?)]);
     }
     if name == "format-integer" {
         let value = match args[0].as_slice() {

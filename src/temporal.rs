@@ -797,3 +797,66 @@ impl Temporal {
         Ok((self.nanos / NANOS_PER_MINUTE) as i32)
     }
 }
+
+/// Calendar fields for `fn:format-date` and relatives.
+pub(crate) struct Fields {
+    pub year: i64,
+    pub month: u8,
+    pub day: u8,
+    pub hour: u32,
+    pub minute: u32,
+    pub second: u32,
+    pub nanos: u32,
+    pub tz: Option<i32>,
+}
+
+impl Temporal {
+    pub fn fields(&self) -> Fields {
+        Fields {
+            year: self.year,
+            month: self.month,
+            day: self.day,
+            hour: (self.nanos / NANOS_PER_HOUR) as u32,
+            minute: (self.nanos / NANOS_PER_MINUTE % 60) as u32,
+            second: (self.nanos / NANOS_PER_SECOND % 60) as u32,
+            nanos: (self.nanos % NANOS_PER_SECOND) as u32,
+            tz: self.tz,
+        }
+    }
+}
+
+/// Day of the week with Monday = 1 … Sunday = 7.
+pub(crate) fn iso_weekday(year: i64, month: u8, day: u8) -> u32 {
+    let days = days_from_civil(year, month, day);
+    ((days + 3).rem_euclid(7) + 1) as u32
+}
+
+pub(crate) fn day_of_year(year: i64, month: u8, day: u8) -> u32 {
+    (days_from_civil(year, month, day) - days_from_civil(year, 1, 1) + 1) as u32
+}
+
+/// ISO 8601 week number and week-based year.
+pub(crate) fn iso_week(year: i64, month: u8, day: u8) -> (i64, u32) {
+    let weekday = i64::from(iso_weekday(year, month, day));
+    let ordinal = i64::from(day_of_year(year, month, day));
+    let week = (ordinal - weekday + 10) / 7;
+    if week < 1 {
+        let previous = year - 1;
+        let weeks = weeks_in_year(previous);
+        (previous, weeks)
+    } else if week as u32 > weeks_in_year(year) {
+        (year + 1, 1)
+    } else {
+        (year, week as u32)
+    }
+}
+
+fn weeks_in_year(year: i64) -> u32 {
+    let jan1 = iso_weekday(year, 1, 1);
+    let leap = days_in_month(year, 2) == 29;
+    if jan1 == 4 || (leap && jan1 == 3) {
+        53
+    } else {
+        52
+    }
+}

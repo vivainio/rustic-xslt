@@ -377,3 +377,76 @@ fn gregorian_fragments_have_canonical_forms_equality_and_casts() {
         assert!(run(expr.replace(">=", "&gt;=").as_str()).is_err(), "{expr}");
     }
 }
+#[test]
+fn date_time_formatting_pictures_cover_components_names_and_zones() {
+    for (expr, expected) in [
+        (
+            "format-date(xs:date('2024-03-05'), '[Y]-[M01]-[D01]')",
+            "2024-03-05",
+        ),
+        (
+            "format-date(xs:date('2024-03-05'), '[D1o] [MNn] [Y]')",
+            "5th March 2024",
+        ),
+        (
+            "format-date(xs:date('2024-03-05'), '[FNn], [D] [MNn,3-3]')",
+            "Tuesday, 5 Mar",
+        ),
+        (
+            "format-date(xs:date('2024-03-05'), '[Y01]/[M01]/[D01]')",
+            "24/03/05",
+        ),
+        ("format-date(xs:date('2024-03-05'), '[d]')", "65"),
+        (
+            "format-date(xs:date('2024-03-05'), '[[literal]]')",
+            "[literal]",
+        ),
+        (
+            "format-time(xs:time('13:05:09.25'), '[H01]:[m01]:[s01].[f01]')",
+            "13:05:09.25",
+        ),
+        (
+            "format-time(xs:time('13:05:09'), '[h]:[m01] [PN]')",
+            "1:05 PM",
+        ),
+        (
+            "format-time(xs:time('00:05:09'), '[h]:[m01] [Pn]')",
+            "12:05 am",
+        ),
+        (
+            "format-dateTime(xs:dateTime('2024-03-05T13:05:09+05:30'), '[H01]:[m01] [Z]')",
+            "13:05 +05:30",
+        ),
+        (
+            "format-dateTime(xs:dateTime('2024-03-05T13:05:09-08:00'), '[z]')",
+            "GMT-08:00",
+        ),
+        (
+            "format-dateTime(xs:dateTime('2024-03-05T13:05:09Z'), '[Z0t]')",
+            "Z",
+        ),
+        (
+            "format-dateTime(xs:dateTime('2024-03-05T13:05:09+01:00'), '[ZZ]')",
+            "B",
+        ),
+        (
+            "format-dateTime(xs:dateTime('2024-03-05T13:05:09'), '[Z]')",
+            "",
+        ),
+        ("format-date(xs:date('2024-03-05'), '[Y0001]')", "2024"),
+        ("format-date(xs:date('2024-03-05'), '[YI]')", "MMXXIV"),
+        ("format-date(xs:date('2024-12-31'), '[W]')", "1"),
+        ("empty(format-date((), '[Y]'))", "true"),
+    ] {
+        assert_eq!(run(expr).unwrap(), expected, "{expr}");
+    }
+    for expr in [
+        "format-date(xs:date('2024-03-05'), '[H]')",
+        "format-time(xs:time('13:05:09'), '[Y]')",
+        "format-date(xs:date('2024-03-05'), '[Q]')",
+        "format-date(xs:date('2024-03-05'), '[Y')",
+        "format-date(xs:date('2024-03-05'), 'x]')",
+    ] {
+        assert!(run(expr).is_err(), "{expr}");
+    }
+}
