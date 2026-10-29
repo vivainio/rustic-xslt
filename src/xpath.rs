@@ -1000,6 +1000,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         }
         "substring" | "compare" => (2, 3),
         "codepoint-equal" => (2, 2),
+        "normalize-unicode" => (1, 2),
         "codepoints-to-string" | "string-to-codepoints" => (1, 1),
         "translate" => (3, 3),
         "remove" => (2, 2),
@@ -1711,6 +1712,7 @@ fn function<'a>(
             | "string-to-codepoints"
             | "compare"
             | "codepoint-equal"
+            | "normalize-unicode"
     ) {
         return crate::string_functions::evaluate(name, args, budget, backwards);
     }

@@ -12,6 +12,7 @@
     "fn-lower-case",
     "fn-max",
     "fn-min",
+    "fn-normalize-unicode",
     "fn-one-or-more",
     "fn-remove",
     "fn-reverse",
@@ -590,6 +591,102 @@
       "cbcl-avg-013"
     ],
     [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-1"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-2"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-2a"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-2b"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-3"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-4"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-5"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-6"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-7"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-8"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-9"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-10"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-11"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-12"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-13"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-14"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-15"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-16"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-17"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-18"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-19"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-20"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-21"
+    ],
+    [
+      "fn-codepoint-equal",
+      "fn-codepoint-equal-22"
+    ],
+    [
       "fn-codepoints-to-string",
       "fn-codepoints-to-string1args-1"
     ],
@@ -844,6 +941,230 @@
     [
       "fn-codepoints-to-string",
       "cbcl-codepoints-to-string-027"
+    ],
+    [
+      "fn-compare",
+      "fn-compare2args-1"
+    ],
+    [
+      "fn-compare",
+      "fn-compare2args-2"
+    ],
+    [
+      "fn-compare",
+      "fn-compare2args-3"
+    ],
+    [
+      "fn-compare",
+      "fn-compare2args-4"
+    ],
+    [
+      "fn-compare",
+      "fn-compare2args-5"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-1"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-2"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-3"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-4"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-5"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-6"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-7"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-8"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-9"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-10"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-11"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-12"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-13"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-14"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-15"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-16"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-17"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-18"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-19"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-20"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-21"
+    ],
+    [
+      "fn-compare",
+      "fn-compare-22"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-1"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-2"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-3"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-4"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-5"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-6"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-7"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-8"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-9"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-10"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-11"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-12"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-13"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-14"
+    ],
+    [
+      "fn-compare",
+      "K-compareFunc-15"
+    ],
+    [
+      "fn-compare",
+      "compare-001"
+    ],
+    [
+      "fn-compare",
+      "compare-002"
+    ],
+    [
+      "fn-compare",
+      "compare-003"
+    ],
+    [
+      "fn-compare",
+      "compare-004"
+    ],
+    [
+      "fn-compare",
+      "compare-005"
+    ],
+    [
+      "fn-compare",
+      "compare-006"
+    ],
+    [
+      "fn-compare",
+      "compare-007"
+    ],
+    [
+      "fn-compare",
+      "compare-008"
+    ],
+    [
+      "fn-compare",
+      "compare-009"
+    ],
+    [
+      "fn-compare",
+      "compare-011"
+    ],
+    [
+      "fn-compare",
+      "compare-013"
+    ],
+    [
+      "fn-compare",
+      "K2-CompareFunc-1"
+    ],
+    [
+      "fn-compare",
+      "K2-CompareFunc-2"
+    ],
+    [
+      "fn-compare",
+      "K2-CompareFunc-3"
     ],
     [
       "fn-deep-equal",
@@ -6670,320 +6991,140 @@
       "sequence-type-21"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-1"
+      "fn-normalize-unicode",
+      "fn-normalize-unicode1args-1"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-2"
+      "fn-normalize-unicode",
+      "fn-normalize-unicode1args-2"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-2a"
+      "fn-normalize-unicode",
+      "fn-normalize-unicode1args-6"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-2b"
+      "fn-normalize-unicode",
+      "fn-normalize-unicode1args-7"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-3"
+      "fn-normalize-unicode",
+      "fn-normalize-unicode1args-8"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-4"
+      "fn-normalize-unicode",
+      "fn-normalize-unicode2args-1"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-5"
+      "fn-normalize-unicode",
+      "fn-normalize-unicode2args-2"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-6"
+      "fn-normalize-unicode",
+      "fn-normalize-unicode2args-3"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-7"
+      "fn-normalize-unicode",
+      "fn-normalize-unicode2args-4"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-8"
+      "fn-normalize-unicode",
+      "fn-normalize-unicode2args-5"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-9"
+      "fn-normalize-unicode",
+      "fn-normalize-unicode2args-6"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-10"
+      "fn-normalize-unicode",
+      "fn-normalize-unicode-1"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-11"
+      "fn-normalize-unicode",
+      "fn-normalize-unicode-2"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-12"
+      "fn-normalize-unicode",
+      "fn-normalize-unicode-3"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-13"
+      "fn-normalize-unicode",
+      "fn-normalize-unicode-4"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-14"
+      "fn-normalize-unicode",
+      "fn-normalize-unicode-5"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-15"
+      "fn-normalize-unicode",
+      "fn-normalize-unicode-6"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-16"
+      "fn-normalize-unicode",
+      "fn-normalize-unicode-7"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-17"
+      "fn-normalize-unicode",
+      "fn-normalize-unicode-8"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-18"
+      "fn-normalize-unicode",
+      "fn-normalize-unicode-9"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-19"
+      "fn-normalize-unicode",
+      "fn-normalize-unicode-10"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-20"
+      "fn-normalize-unicode",
+      "K-NormalizeUnicodeFunc-1"
     ],
     [
-      "fn-codepoint-equal",
-      "fn-codepoint-equal-21"
+      "fn-normalize-unicode",
+      "K-NormalizeUnicodeFunc-2"
     ],
     [
-      "fn-compare",
-      "fn-compare2args-1"
+      "fn-normalize-unicode",
+      "K-NormalizeUnicodeFunc-3"
     ],
     [
-      "fn-compare",
-      "fn-compare2args-2"
+      "fn-normalize-unicode",
+      "K-NormalizeUnicodeFunc-4"
     ],
     [
-      "fn-compare",
-      "fn-compare2args-3"
+      "fn-normalize-unicode",
+      "K-NormalizeUnicodeFunc-5"
     ],
     [
-      "fn-compare",
-      "fn-compare2args-4"
+      "fn-normalize-unicode",
+      "K-NormalizeUnicodeFunc-9"
     ],
     [
-      "fn-compare",
-      "fn-compare2args-5"
+      "fn-normalize-unicode",
+      "K-NormalizeUnicodeFunc-10"
     ],
     [
-      "fn-compare",
-      "fn-compare-1"
+      "fn-normalize-unicode",
+      "K-NormalizeUnicodeFunc-11"
     ],
     [
-      "fn-compare",
-      "fn-compare-2"
+      "fn-normalize-unicode",
+      "K-NormalizeUnicodeFunc-12"
     ],
     [
-      "fn-compare",
-      "fn-compare-3"
+      "fn-normalize-unicode",
+      "cbcl-fn-normalize-unicode-002"
     ],
     [
-      "fn-compare",
-      "fn-compare-4"
+      "fn-normalize-unicode",
+      "cbcl-fn-normalize-unicode-003"
     ],
     [
-      "fn-compare",
-      "fn-compare-5"
+      "fn-normalize-unicode",
+      "cbcl-fn-normalize-unicode-004"
     ],
     [
-      "fn-compare",
-      "fn-compare-6"
-    ],
-    [
-      "fn-compare",
-      "fn-compare-7"
-    ],
-    [
-      "fn-compare",
-      "fn-compare-8"
-    ],
-    [
-      "fn-compare",
-      "fn-compare-9"
-    ],
-    [
-      "fn-compare",
-      "fn-compare-10"
-    ],
-    [
-      "fn-compare",
-      "fn-compare-11"
-    ],
-    [
-      "fn-compare",
-      "fn-compare-12"
-    ],
-    [
-      "fn-compare",
-      "fn-compare-13"
-    ],
-    [
-      "fn-compare",
-      "fn-compare-14"
-    ],
-    [
-      "fn-compare",
-      "fn-compare-15"
-    ],
-    [
-      "fn-compare",
-      "fn-compare-16"
-    ],
-    [
-      "fn-compare",
-      "fn-compare-17"
-    ],
-    [
-      "fn-compare",
-      "fn-compare-18"
-    ],
-    [
-      "fn-compare",
-      "fn-compare-19"
-    ],
-    [
-      "fn-compare",
-      "fn-compare-20"
-    ],
-    [
-      "fn-compare",
-      "fn-compare-21"
-    ],
-    [
-      "fn-compare",
-      "fn-compare-22"
-    ],
-    [
-      "fn-compare",
-      "K-compareFunc-1"
-    ],
-    [
-      "fn-compare",
-      "K-compareFunc-2"
-    ],
-    [
-      "fn-compare",
-      "K-compareFunc-3"
-    ],
-    [
-      "fn-compare",
-      "K-compareFunc-4"
-    ],
-    [
-      "fn-compare",
-      "K-compareFunc-5"
-    ],
-    [
-      "fn-compare",
-      "K-compareFunc-6"
-    ],
-    [
-      "fn-compare",
-      "K-compareFunc-7"
-    ],
-    [
-      "fn-compare",
-      "K-compareFunc-8"
-    ],
-    [
-      "fn-compare",
-      "K-compareFunc-9"
-    ],
-    [
-      "fn-compare",
-      "K-compareFunc-10"
-    ],
-    [
-      "fn-compare",
-      "K-compareFunc-11"
-    ],
-    [
-      "fn-compare",
-      "K-compareFunc-12"
-    ],
-    [
-      "fn-compare",
-      "K-compareFunc-13"
-    ],
-    [
-      "fn-compare",
-      "K-compareFunc-14"
-    ],
-    [
-      "fn-compare",
-      "K-compareFunc-15"
-    ],
-    [
-      "fn-compare",
-      "compare-001"
-    ],
-    [
-      "fn-compare",
-      "compare-002"
-    ],
-    [
-      "fn-compare",
-      "compare-003"
-    ],
-    [
-      "fn-compare",
-      "compare-004"
-    ],
-    [
-      "fn-compare",
-      "compare-005"
-    ],
-    [
-      "fn-compare",
-      "compare-006"
-    ],
-    [
-      "fn-compare",
-      "compare-007"
-    ],
-    [
-      "fn-compare",
-      "compare-008"
-    ],
-    [
-      "fn-compare",
-      "compare-009"
-    ],
-    [
-      "fn-compare",
-      "compare-011"
-    ],
-    [
-      "fn-compare",
-      "compare-013"
-    ],
-    [
-      "fn-compare",
-      "K2-CompareFunc-1"
-    ],
-    [
-      "fn-compare",
-      "K2-CompareFunc-2"
-    ],
-    [
-      "fn-compare",
-      "K2-CompareFunc-3"
+      "fn-normalize-unicode",
+      "cbcl-fn-normalize-unicode-005"
     ]
   ]
 }

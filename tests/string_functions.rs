@@ -270,3 +270,73 @@ fn string_comparisons_validate_types_collations_and_arity() {
         );
     }
 }
+
+#[test]
+fn unicode_normalization_supports_canonical_and_compatibility_forms() {
+    for (expr, expected) in [
+        ("normalize-unicode('é')", "é"),
+        ("normalize-unicode('é','NFD')", "é"),
+        ("normalize-unicode('ﬃ①','NFKC')", "ffi1"),
+        ("normalize-unicode('ﬃé','NFKD')", "ffié"),
+        ("normalize-unicode('é','')", "é"),
+        ("normalize-unicode('é',' nfc ')", "é"),
+        ("normalize-unicode('é','  ')", "é"),
+        ("normalize-unicode('가','NFC')", "가"),
+        ("normalize-unicode('가','NFD')", "가"),
+        ("normalize-unicode(()) instance of xs:string", "true"),
+        ("codepoint-equal(normalize-unicode('é'), 'é')", "true"),
+    ] {
+        assert_eq!(evaluate(expr), expected, "{expr}");
+    }
+}
+#[test]
+fn unicode_normalization_reorders_combining_marks() {
+    assert_eq!(
+        evaluate(
+            "string-to-codepoints(normalize-unicode(codepoints-to-string((97,789,768)), 'NFD'))"
+        ),
+        "97 768 789"
+    );
+}
+#[test]
+fn normalization_forms_and_function_conversion_are_validated() {
+    for (expr, code) in [
+        ("normalize-unicode('a','UNKNOWN')", "FOCH0003"),
+        ("normalize-unicode('a','FULLY-NORMALIZED')", "FOCH0003"),
+        ("normalize-unicode(1)", "XPTY0004"),
+        ("normalize-unicode('a',())", "XPTY0004"),
+        ("normalize-unicode(('a','b'))", "XPTY0004"),
+    ] {
+        assert_eq!(
+            Stylesheet::compile(&source(expr, "3.0"))
+                .unwrap()
+                .transform("<r/>")
+                .unwrap_err()
+                .code,
+            code,
+            "{expr}"
+        );
+    }
+    assert_eq!(
+        Stylesheet::compile(&source("normalize-unicode()", "3.0"))
+            .unwrap_err()
+            .code,
+        "XPST0017"
+    );
+}
+#[test]
+fn unicode_normalization_consumes_shared_budget() {
+    let expr = format!("normalize-unicode('{}','NFKD')", "ﬃ".repeat(200));
+    let s = Stylesheet::compile(&source(&expr, "3.0")).unwrap();
+    let opts = TransformOptions {
+        limits: Limits {
+            max_steps: 100,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(
+        s.transform_with_options("<r/>", &opts).unwrap_err().code,
+        "XPDY0130"
+    );
+}

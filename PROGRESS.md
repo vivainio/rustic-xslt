@@ -663,5 +663,18 @@ conformance claims. Smaller tested increments are committed independently.
 - Thirty-eight QT3 sets: 3,332 cases, 1,736 pass / 914 engine failures / 64 harness
   errors / 618 profile exclusions. Gate adds 79 string-comparison cases.
 
-Next: Unicode normalization and further XPath coverage.
+## Increment 55: Unicode normalization
+
+- normalize-unicode supports default NFC, NFD, NFKC, NFKD and empty identity forms;
+  normalization names trim XML whitespace and ignore ASCII case.
+- Pinned pure Rust unicode-normalization 0.1.25 (Unicode 17.0), available offline.
+  Canonical ordering, composition/decomposition and compatibility expansion retain
+  scalar correctness; input/output traversals consume the shared execution budget.
+- Unsupported forms report FOCH0003; FULLY-NORMALIZED remains an optional gap.
+- 343 Rust integration tests, 27 harness tests and Clippy/format pass. All 381
+  XSLT and previous QT3 gate cases remain green.
+- Thirty-nine QT3 sets: 3,380 cases, 1,771 pass / 917 engine failures / 71 harness
+  errors / 621 profile exclusions. Gate grows by 35 normalization-related cases.
+
+Next: further XPath atomic/function coverage.
 

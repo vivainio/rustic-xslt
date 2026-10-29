@@ -6,6 +6,7 @@ use crate::{
 };
 use num_traits::ToPrimitive;
 use std::collections::BTreeMap;
+use unicode_normalization::UnicodeNormalization;
 fn type_error() -> Diagnostic {
     Diagnostic::new(
         "XPTY0004",
@@ -127,6 +128,37 @@ pub(crate) fn evaluate<'a>(
     }
     let mut result = String::new();
     match name {
+        "normalize-unicode" => {
+            let form = args
+                .get(1)
+                .map(|v| string(v, false, backwards))
+                .transpose()?
+                .unwrap_or_else(|| "NFC".into());
+            let form = form
+                .trim_matches([' ', '\t', '\n', '\r'])
+                .to_ascii_uppercase();
+            for _ in input.bytes() {
+                budget.tick()?;
+            }
+            let normalized: Box<dyn Iterator<Item = char> + '_> = match form.as_str() {
+                "NFC" => Box::new(input.nfc()),
+                "NFD" => Box::new(input.nfd()),
+                "NFKC" => Box::new(input.nfkc()),
+                "NFKD" => Box::new(input.nfkd()),
+                "" => Box::new(input.chars()),
+                _ => {
+                    return Err(Diagnostic::new(
+                        "FOCH0003",
+                        "unsupported Unicode normalization form",
+                        "run",
+                    ));
+                }
+            };
+            for c in normalized {
+                budget.tick()?;
+                result.push(c);
+            }
+        }
         "upper-case" | "lower-case" => {
             for _ in input.bytes() {
                 budget.tick()?;
