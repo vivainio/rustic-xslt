@@ -718,6 +718,9 @@ pub(crate) fn transform<R: BufRead, W: Write>(
     options: &StreamOptions,
 ) -> Result<StreamStats, Diagnostic> {
     let path = validate(sheet, options)?;
+    if let Some(media) = &sheet.media_type {
+        crate::result::validate_media_type(media)?;
+    }
     let mut budget = Budget::new(options.limits);
     let mut reader = Reader::from_reader(EventInput {
         inner: input,

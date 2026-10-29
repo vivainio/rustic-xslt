@@ -404,3 +404,18 @@ fn record_serialization_respects_uri_escaping_settings() {
         assert_eq!(stats.records, 2);
     }
 }
+
+#[test]
+fn invalid_media_types_fail_before_streaming_preamble_even_without_records() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="html" byte-order-mark="yes" media-type="text/html; charset=UTF-8"/><xsl:template name="record"><html/></xsl:template></xsl:stylesheet>"#).unwrap();
+    let mut output = Vec::new();
+    let error = sheet
+        .stream_records(
+            Cursor::new("<records/>"),
+            &mut output,
+            &StreamOptions::default(),
+        )
+        .unwrap_err();
+    assert_eq!(error.code, "SEPM0016");
+    assert!(output.is_empty());
+}

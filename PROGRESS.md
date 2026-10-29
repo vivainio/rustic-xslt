@@ -2214,3 +2214,11 @@ conformance claims. Smaller tested increments are committed independently.
 - Added dynamic charset rejection and quoted-semicolon preservation regressions.
 - Validation: fourteen result-document tests, all-target/all-feature Clippy and
   the full 929-case pinned XSLT gate pass without regressions.
+
+## Increment 195: validate streaming media types before output
+
+- Streaming validates the selected media type before constructing its reader or
+  writing its preamble. Invalid charset parameters fail even with zero records.
+- Added a BOM-enabled regression verifying that rejection leaves output empty.
+- Validation: fourteen streaming tests, all-target/all-feature Clippy, formatting
+  and diff checks pass.
