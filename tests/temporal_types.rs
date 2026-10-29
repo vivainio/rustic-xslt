@@ -182,3 +182,140 @@ fn types_instances_and_accessors() {
         assert!(run(expr).is_err(), "{expr}");
     }
 }
+#[test]
+fn oversized_years_and_durations_fail_without_panicking() {
+    for expr in [
+        "xs:date('99999999999999999999-01-01')",
+        "xs:date('2000000000-01-01')",
+        "xs:duration('P99999999999999999999999999999D')",
+        "xs:duration('P9999999999999999999Y')",
+    ] {
+        assert!(run(expr).is_err(), "{expr}");
+    }
+}
+#[test]
+fn arithmetic_adjusts_calendar_values_and_durations() {
+    for (expr, expected) in [
+        (
+            "xs:dateTime('2000-01-31T10:00:00') + xs:yearMonthDuration('P1M')",
+            "2000-02-29T10:00:00",
+        ),
+        (
+            "xs:date('2000-03-31') - xs:yearMonthDuration('P1M')",
+            "2000-02-29",
+        ),
+        (
+            "xs:dateTime('2000-12-31T23:59:59Z') + xs:dayTimeDuration('PT1S')",
+            "2001-01-01T00:00:00Z",
+        ),
+        (
+            "xs:dayTimeDuration('P1D') + xs:date('2000-02-28')",
+            "2000-02-29",
+        ),
+        (
+            "xs:date('2000-02-28') + xs:dayTimeDuration('PT36H')",
+            "2000-02-29",
+        ),
+        (
+            "xs:time('23:30:00') + xs:dayTimeDuration('PT1H')",
+            "00:30:00",
+        ),
+        (
+            "xs:time('00:30:00') - xs:dayTimeDuration('PT1H')",
+            "23:30:00",
+        ),
+        (
+            "xs:dateTime('2000-01-01T00:00:00Z') - xs:dateTime('1999-12-31T00:00:00Z')",
+            "P1D",
+        ),
+        ("xs:date('2000-03-01') - xs:date('2000-02-01')", "P29D"),
+        ("xs:time('12:00:00') - xs:time('10:30:00')", "PT1H30M"),
+        ("xs:time('10:00:00+02:00') - xs:time('10:00:00Z')", "-PT2H"),
+        (
+            "xs:yearMonthDuration('P1Y') + xs:yearMonthDuration('P2M')",
+            "P1Y2M",
+        ),
+        (
+            "xs:dayTimeDuration('PT1H') - xs:dayTimeDuration('PT2H')",
+            "-PT1H",
+        ),
+        ("xs:yearMonthDuration('P1Y') * 2.5", "P2Y6M"),
+        ("3 * xs:dayTimeDuration('PT20M')", "PT1H"),
+        ("xs:dayTimeDuration('PT1H') div 4", "PT15M"),
+        (
+            "xs:yearMonthDuration('P2Y') div xs:yearMonthDuration('P6M')",
+            "4",
+        ),
+        (
+            "xs:dayTimeDuration('PT1H') div xs:dayTimeDuration('PT15M')",
+            "4",
+        ),
+        ("empty(xs:date('2000-01-01') + ())", "true"),
+        (
+            "dateTime(xs:date('2000-01-02'), xs:time('03:04:05'))",
+            "2000-01-02T03:04:05",
+        ),
+        (
+            "dateTime(xs:date('2000-01-02Z'), xs:time('03:04:05'))",
+            "2000-01-02T03:04:05Z",
+        ),
+        (
+            "dateTime(xs:date('2000-01-02+01:00'), xs:time('03:04:05+01:00'))",
+            "2000-01-02T03:04:05+01:00",
+        ),
+        ("empty(dateTime((), xs:time('03:04:05')))", "true"),
+        (
+            "adjust-dateTime-to-timezone(xs:dateTime('2000-01-01T10:00:00'))",
+            "2000-01-01T10:00:00Z",
+        ),
+        (
+            "adjust-dateTime-to-timezone(xs:dateTime('2000-01-01T10:00:00Z'), xs:dayTimeDuration('-PT5H'))",
+            "2000-01-01T05:00:00-05:00",
+        ),
+        (
+            "adjust-dateTime-to-timezone(xs:dateTime('2000-01-01T10:00:00+05:00'), ())",
+            "2000-01-01T10:00:00",
+        ),
+        (
+            "adjust-dateTime-to-timezone(xs:dateTime('2000-01-01T10:00:00'), xs:dayTimeDuration('PT3H'))",
+            "2000-01-01T10:00:00+03:00",
+        ),
+        (
+            "adjust-date-to-timezone(xs:date('2000-01-01Z'), xs:dayTimeDuration('-PT5H'))",
+            "1999-12-31-05:00",
+        ),
+        (
+            "adjust-time-to-timezone(xs:time('01:00:00Z'), xs:dayTimeDuration('-PT5H'))",
+            "20:00:00-05:00",
+        ),
+        ("empty(adjust-time-to-timezone(()))", "true"),
+        (
+            "min((xs:date('2001-02-03'), xs:date('2000-01-01')))",
+            "2000-01-01",
+        ),
+        (
+            "max((xs:dayTimeDuration('PT1H'), xs:dayTimeDuration('PT61M')))",
+            "PT1H1M",
+        ),
+    ] {
+        assert_eq!(run(expr).unwrap(), expected, "{expr}");
+    }
+    for expr in [
+        "xs:date('2000-01-01') + xs:date('2000-01-02')",
+        "xs:time('10:00:00') + xs:yearMonthDuration('P1M')",
+        "xs:date('2000-01-01') - xs:time('10:00:00')",
+        "xs:yearMonthDuration('P1Y') * xs:yearMonthDuration('P1Y')",
+        "xs:yearMonthDuration('P1Y') div 0",
+        "xs:dayTimeDuration('P1D') * xs:double('NaN')",
+        "xs:dayTimeDuration('P1D') div xs:dayTimeDuration('PT0S')",
+        "xs:yearMonthDuration('P1Y') div xs:dayTimeDuration('P1D')",
+        "dateTime(xs:date('2000-01-01Z'), xs:time('01:00:00+01:00'))",
+        "adjust-dateTime-to-timezone(xs:dateTime('2000-01-01T10:00:00'), xs:dayTimeDuration('PT15H'))",
+        "adjust-dateTime-to-timezone(xs:dateTime('2000-01-01T10:00:00'), xs:dayTimeDuration('PT1M1S'))",
+        "adjust-date-to-timezone(xs:dateTime('2000-01-01T10:00:00'))",
+        "xs:date('999999999-12-31') + xs:dayTimeDuration('P999999999D')",
+        "min((xs:date('2000-01-01'), xs:time('10:00:00')))",
+    ] {
+        assert!(run(expr).is_err(), "{expr}");
+    }
+}

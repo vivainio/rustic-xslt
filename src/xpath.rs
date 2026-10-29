@@ -1062,6 +1062,10 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "true" | "false" | "position" | "last" | "default-collation" | "current-dateTime"
         | "current-date" | "current-time" | "implicit-timezone" => (0, 0),
         name if temporal_accessor(name).is_some() => (1, 1),
+        "dateTime" => (2, 2),
+        "adjust-dateTime-to-timezone" | "adjust-date-to-timezone" | "adjust-time-to-timezone" => {
+            (1, 2)
+        }
         name if name
             .strip_prefix("xs:")
             .and_then(crate::temporal::TemporalType::parse)
@@ -1725,6 +1729,12 @@ pub(crate) fn eval<'a>(
                     if !backwards && (a.is_empty() || b.is_empty()) {
                         return Ok(vec![]);
                     }
+                    if !backwards && let ([left], [right]) = (a.as_slice(), b.as_slice()) {
+                        let (left, right) = (atomize(left), atomize(right));
+                        if matches!(left, Item::Temporal(_)) || matches!(right, Item::Temporal(_)) {
+                            return Ok(vec![temporal_arithmetic(op, &left, &right)?]);
+                        }
+                    }
                     let x = numeric(&a, backwards)?;
                     let y = numeric(&b, backwards)?;
                     vec![Item::Number(x.arithmetic(&y, op)?)]
@@ -1740,6 +1750,31 @@ pub(crate) fn eval<'a>(
         }
     };
     Ok(result)
+}
+fn temporal_arithmetic<'a>(
+    op: &str,
+    left: &Item<'a>,
+    right: &Item<'a>,
+) -> Result<Item<'a>, Diagnostic> {
+    let wrong = || {
+        err(
+            "XPTY0004",
+            "unsupported operand types for temporal arithmetic",
+        )
+    };
+    Ok(match (left, right, op) {
+        (Item::Temporal(a), Item::Temporal(b), "+") => Item::Temporal(a.add(b)?),
+        (Item::Temporal(a), Item::Temporal(b), "-") => Item::Temporal(a.sub(b)?),
+        (Item::Temporal(a), Item::Temporal(b), "div") => {
+            let (x, y) = a.ratio(b)?;
+            Item::Number(Number::Integer(x.into()).arithmetic(&Number::Integer(y.into()), "div")?)
+        }
+        (Item::Temporal(a), Item::Number(n), "*" | "div") => {
+            Item::Temporal(a.scale(n.double(), op == "div")?)
+        }
+        (Item::Number(n), Item::Temporal(a), "*") => Item::Temporal(a.scale(n.double(), false)?),
+        _ => return Err(wrong()),
+    })
 }
 fn numeric(v: &[Item<'_>], backwards: bool) -> Result<Number, Diagnostic> {
     if backwards {
@@ -1822,8 +1857,7 @@ fn compare(a: &Item<'_>, b: &Item<'_>, op: &str, backwards: bool) -> Result<bool
                 let ordered = !matches!(op, "=" | "!=");
                 if ordered
                     && a.kind.is_duration()
-                    && (a.kind == crate::temporal::TemporalType::Duration
-                        || b.kind == crate::temporal::TemporalType::Duration)
+                    && (a.kind != b.kind || a.kind == crate::temporal::TemporalType::Duration)
                 {
                     return Err(err("XPTY0004", "xs:duration values are not ordered"));
                 }
@@ -2004,6 +2038,62 @@ fn function<'a>(
         _ => None,
     } {
         return Ok(vec![Item::Temporal(now)]);
+    }
+    if name == "dateTime" {
+        let one = |v: &[Item<'a>], kind| -> Result<Option<crate::temporal::Temporal>, Diagnostic> {
+            match v {
+                [] => Ok(None),
+                [item] => match atomize(item) {
+                    Item::Temporal(t) if t.kind == kind => Ok(Some(t)),
+                    Item::Untyped(s) => Ok(Some(crate::temporal::Temporal::parse(kind, &s)?)),
+                    _ => Err(err("XPTY0004", "dateTime requires a date and a time")),
+                },
+                _ => Err(err("XPTY0004", "dateTime requires singleton arguments")),
+            }
+        };
+        let date = one(&args[0], crate::temporal::TemporalType::Date)?;
+        let time = one(&args[1], crate::temporal::TemporalType::Time)?;
+        return Ok(match (date, time) {
+            (Some(date), Some(time)) => {
+                vec![Item::Temporal(crate::temporal::Temporal::combine(
+                    &date, &time,
+                )?)]
+            }
+            _ => vec![],
+        });
+    }
+    if let Some(kind) = match name {
+        "adjust-dateTime-to-timezone" => Some(crate::temporal::TemporalType::DateTime),
+        "adjust-date-to-timezone" => Some(crate::temporal::TemporalType::Date),
+        "adjust-time-to-timezone" => Some(crate::temporal::TemporalType::Time),
+        _ => None,
+    } {
+        let value = match first.as_slice() {
+            [] => return Ok(vec![]),
+            [item] => match atomize(item) {
+                Item::Temporal(t) if t.kind == kind => t,
+                Item::Untyped(s) => crate::temporal::Temporal::parse(kind, &s)?,
+                _ => {
+                    return Err(err(
+                        "XPTY0004",
+                        "timezone adjustment requires a matching value",
+                    ));
+                }
+            },
+            _ => return Err(err("XPTY0004", "timezone adjustment requires a singleton")),
+        };
+        let zone = match args.get(1).map(Vec::as_slice) {
+            None => Some(0),
+            Some([]) => None,
+            Some([item]) => match atomize(item) {
+                Item::Temporal(t) if t.kind == crate::temporal::TemporalType::DayTimeDuration => {
+                    Some(t.as_timezone()?)
+                }
+                _ => return Err(err("XPTY0004", "timezone must be an xs:dayTimeDuration")),
+            },
+            Some(_) => return Err(err("XPTY0004", "timezone must be a singleton")),
+        };
+        return Ok(vec![Item::Temporal(value.adjust(zone)?)]);
     }
     if let Some((kind, component)) = temporal_accessor(name) {
         let value = match first.as_slice() {

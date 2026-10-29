@@ -929,3 +929,17 @@ conformance claims. Smaller tested increments are committed independently.
   date formatting, min/max/sort over temporal values.
 - Pinned QT3 selection: 5,750 cases, 4,440 pass / 184 engine failures / 229 harness
   errors / 897 exclusions; the gate records 4,440 with no regressions.
+
+## Increment 76: temporal arithmetic and time zone functions
+
+- Added date/time/duration arithmetic: dateTime/date/time plus or minus day-time
+  durations, dateTime/date plus or minus year-month durations (day clamping),
+  differences of same-type moments, duration sums, differences, scaling by numbers
+  (rounding half toward positive infinity) and division, including exact
+  duration-by-duration ratios.
+- Added dateTime(), adjust-dateTime/date/time-to-timezone() and min()/max() over
+  same-type temporal values. Ordering across duration subtypes is a type error.
+- Bounded years and duration components so hostile lexical values return errors
+  instead of overflowing.
+- QT3 now selects 8,187 cases (39 more sets): 6,593 pass / 168 engine failures /
+  235 harness errors / 1,191 exclusions; the gate records 6,593 with no regressions.

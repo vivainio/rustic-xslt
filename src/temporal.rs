@@ -4,6 +4,8 @@ use crate::Diagnostic;
 use regex::Regex;
 use std::{cmp::Ordering, sync::LazyLock};
 
+const MAX_YEAR: u64 = 1_000_000_000;
+const MAX_COMPONENT: i128 = 1_000_000_000_000_000_000;
 const NANOS_PER_SECOND: i128 = 1_000_000_000;
 const NANOS_PER_MINUTE: i128 = 60 * NANOS_PER_SECOND;
 const NANOS_PER_HOUR: i128 = 60 * NANOS_PER_MINUTE;
@@ -192,6 +194,9 @@ impl Temporal {
                 return Err(invalid(name));
             }
             value.year = get(1).unwrap().parse().map_err(|_| invalid(name))?;
+            if value.year.unsigned_abs() > MAX_YEAR {
+                return Err(Diagnostic::new("FODT0001", "year is out of range", "run"));
+            }
             value.month = number(2) as u8;
             value.day = number(3) as u8;
             if !(1..=12).contains(&value.month)
@@ -233,7 +238,9 @@ impl Temporal {
         let part = |i: usize| -> Result<i128, Diagnostic> {
             get(i)
                 .map_or(Ok(0), |s| s.parse::<i128>())
-                .map_err(|_| invalid("duration"))
+                .ok()
+                .filter(|n| *n < MAX_COMPONENT)
+                .ok_or_else(|| Diagnostic::new("FODT0002", "duration component overflow", "run"))
         };
         if !any(2..=7) || text.ends_with('T') {
             return Err(invalid("duration"));
@@ -470,5 +477,214 @@ impl Temporal {
                 format!("{frac:09}").trim_end_matches('0')
             )
         }
+    }
+
+    fn type_error() -> Diagnostic {
+        Diagnostic::new(
+            "XPTY0004",
+            "unsupported operand types for date, time or duration arithmetic",
+            "run",
+        )
+    }
+
+    fn checked_year(self) -> Result<Self, Diagnostic> {
+        if self.year.unsigned_abs() > MAX_YEAR {
+            return Err(Diagnostic::new(
+                "FODT0001",
+                "date arithmetic overflow",
+                "run",
+            ));
+        }
+        Ok(self)
+    }
+
+    fn add_months(&self, months: i64) -> Result<Self, Diagnostic> {
+        let mut value = self.clone();
+        let total = self
+            .year
+            .checked_mul(12)
+            .and_then(|y| y.checked_add(i64::from(self.month) - 1))
+            .and_then(|m| m.checked_add(months))
+            .ok_or_else(|| Diagnostic::new("FODT0001", "date arithmetic overflow", "run"))?;
+        value.year = total.div_euclid(12);
+        value.month = total.rem_euclid(12) as u8 + 1;
+        value.day = value.day.min(days_in_month(value.year, value.month));
+        value.checked_year()
+    }
+
+    fn add_nanos(&self, delta: i128) -> Result<Self, Diagnostic> {
+        let mut value = self.clone();
+        if self.kind == TemporalType::Time {
+            value.nanos = (self.nanos + delta).rem_euclid(NANOS_PER_DAY);
+            return Ok(value);
+        }
+        let local = i128::from(days_from_civil(self.year, self.month, self.day)) * NANOS_PER_DAY
+            + self.nanos
+            + delta;
+        let days = i64::try_from(local.div_euclid(NANOS_PER_DAY))
+            .map_err(|_| Diagnostic::new("FODT0001", "date arithmetic overflow", "run"))?;
+        if days.unsigned_abs() > MAX_YEAR * 366 {
+            return Err(Diagnostic::new(
+                "FODT0001",
+                "date arithmetic overflow",
+                "run",
+            ));
+        }
+        (value.year, value.month, value.day) = civil_from_days(days);
+        value.nanos = if self.kind == TemporalType::Date {
+            0
+        } else {
+            local.rem_euclid(NANOS_PER_DAY)
+        };
+        value.checked_year()
+    }
+
+    fn duration_sum(&self, rhs: &Self, sign: i64) -> Result<Self, Diagnostic> {
+        let overflow = || Diagnostic::new("FODT0002", "duration overflow", "run");
+        Ok(Self {
+            months: self
+                .months
+                .checked_add(sign.checked_mul(rhs.months).ok_or_else(overflow)?)
+                .ok_or_else(overflow)?,
+            nanos: self.nanos + i128::from(sign) * rhs.nanos,
+            ..self.clone()
+        })
+    }
+
+    pub fn add(&self, rhs: &Self) -> Result<Self, Diagnostic> {
+        use TemporalType::*;
+        match (self.kind, rhs.kind) {
+            (YearMonthDuration, YearMonthDuration) | (DayTimeDuration, DayTimeDuration) => {
+                self.duration_sum(rhs, 1)
+            }
+            (DateTime | Date, YearMonthDuration) => self.add_months(rhs.months),
+            (DateTime | Date | Time, DayTimeDuration) => self.add_nanos(rhs.nanos),
+            (YearMonthDuration | DayTimeDuration, DateTime | Date | Time) => rhs.add(self),
+            _ => Err(Self::type_error()),
+        }
+    }
+
+    pub fn sub(&self, rhs: &Self) -> Result<Self, Diagnostic> {
+        use TemporalType::*;
+        match (self.kind, rhs.kind) {
+            (YearMonthDuration, YearMonthDuration) | (DayTimeDuration, DayTimeDuration) => {
+                self.duration_sum(rhs, -1)
+            }
+            (DateTime | Date, YearMonthDuration) => self.add_months(-rhs.months),
+            (DateTime | Date | Time, DayTimeDuration) => self.add_nanos(-rhs.nanos),
+            (a, b) if a == b && matches!(a, DateTime | Date | Time) => Ok(Self {
+                kind: DayTimeDuration,
+                nanos: self.instant() - rhs.instant(),
+                ..Self::moment(DayTimeDuration)
+            }),
+            _ => Err(Self::type_error()),
+        }
+    }
+
+    /// Multiplies (or divides) a yearMonthDuration or dayTimeDuration by a number.
+    pub fn scale(&self, factor: f64, divide: bool) -> Result<Self, Diagnostic> {
+        use TemporalType::*;
+        if !matches!(self.kind, YearMonthDuration | DayTimeDuration) {
+            return Err(Self::type_error());
+        }
+        if factor.is_nan() {
+            return Err(Diagnostic::new(
+                "FOCA0005",
+                "NaN supplied as duration factor",
+                "run",
+            ));
+        }
+        let factor = if divide { 1.0 / factor } else { factor };
+        let overflow = || Diagnostic::new("FODT0002", "duration overflow", "run");
+        if divide && factor.is_infinite() {
+            return Err(Diagnostic::new(
+                "FODT0002",
+                "division of a duration by zero",
+                "run",
+            ));
+        }
+        // Rounds half toward positive infinity, like fn:round.
+        let months = (self.months as f64 * factor + 0.5).floor();
+        let nanos = (self.nanos as f64 * factor + 0.5).floor();
+        if !months.is_finite()
+            || !nanos.is_finite()
+            || months.abs() > 9.0e18
+            || nanos.abs() > 1.0e38
+        {
+            return Err(overflow());
+        }
+        Ok(Self {
+            months: months as i64,
+            nanos: nanos as i128,
+            ..self.clone()
+        })
+    }
+
+    /// Ratio of two durations of the same subtype, as decimal text.
+    pub fn ratio(&self, rhs: &Self) -> Result<(i128, i128), Diagnostic> {
+        use TemporalType::*;
+        let (a, b) = match (self.kind, rhs.kind) {
+            (YearMonthDuration, YearMonthDuration) => {
+                (i128::from(self.months), i128::from(rhs.months))
+            }
+            (DayTimeDuration, DayTimeDuration) => (self.nanos, rhs.nanos),
+            _ => return Err(Self::type_error()),
+        };
+        if b == 0 {
+            return Err(Diagnostic::new(
+                "FOAR0001",
+                "division of a duration by zero",
+                "run",
+            ));
+        }
+        Ok((a, b))
+    }
+
+    /// Moves to the given time zone: values without a zone keep their local
+    /// fields and gain the zone, values with a zone are shifted.
+    pub fn adjust(&self, tz: Option<i32>) -> Result<Self, Diagnostic> {
+        let mut value = self.clone();
+        value.tz = tz;
+        match (self.tz, tz) {
+            (Some(old), Some(new)) => {
+                let delta = i128::from(new - old) * NANOS_PER_MINUTE;
+                let mut shifted = self.add_nanos(delta)?;
+                shifted.tz = tz;
+                Ok(shifted)
+            }
+            _ => Ok(value),
+        }
+    }
+
+    /// Combines a date and a time, rejecting conflicting time zones.
+    pub fn combine(date: &Self, time: &Self) -> Result<Self, Diagnostic> {
+        let tz = match (date.tz, time.tz) {
+            (Some(a), Some(b)) if a != b => {
+                return Err(Diagnostic::new(
+                    "FORG0008",
+                    "date and time have different time zones",
+                    "run",
+                ));
+            }
+            (a, b) => a.or(b),
+        };
+        Ok(Self {
+            kind: TemporalType::DateTime,
+            nanos: time.nanos,
+            tz,
+            ..date.clone()
+        })
+    }
+
+    /// Duration with a whole-minute zone offset, if it is a valid zone.
+    pub fn as_timezone(&self) -> Result<i32, Diagnostic> {
+        let bad = || Diagnostic::new("FODT0003", "invalid time zone duration", "run");
+        if self.kind != TemporalType::DayTimeDuration
+            || self.nanos % NANOS_PER_MINUTE != 0
+            || self.nanos.abs() > 14 * NANOS_PER_HOUR
+        {
+            return Err(bad());
+        }
+        Ok((self.nanos / NANOS_PER_MINUTE) as i32)
     }
 }

@@ -146,7 +146,11 @@ pub(crate) fn evaluate<'a>(
     });
     let booleans = values.iter().all(|v| matches!(v, Item::Boolean(_)));
     let binaries = matches!(&values[0], Item::Binary(kind, _) if values.iter().all(|v| matches!(v, Item::Binary(other, _) if kind == other)));
-    if !strings && !booleans && !binaries {
+    let temporals = matches!(&values[0], Item::Temporal(first) if values.iter().all(|v| {
+        matches!(v, Item::Temporal(other)
+            if first.kind == other.kind && other.kind != crate::temporal::TemporalType::Duration)
+    }));
+    if !strings && !booleans && !binaries && !temporals {
         return Err(error(
             "FORG0006",
             "min/max values must have comparable types",
@@ -162,6 +166,7 @@ pub(crate) fn evaluate<'a>(
             ) => a.cmp(b),
             (Item::Boolean(a), Item::Boolean(b)) => a.cmp(b),
             (Item::Binary(_, a), Item::Binary(_, b)) => a.cmp(b),
+            (Item::Temporal(a), Item::Temporal(b)) => a.compare(b).expect("comparable temporals"),
             _ => unreachable!(),
         };
         if name == "min" && order.is_gt() || name == "max" && order.is_lt() {
