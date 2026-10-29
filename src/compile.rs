@@ -53,6 +53,7 @@ pub(crate) enum Instruction {
         catches: Vec<Catch>,
     },
     WherePopulated(Vec<Instruction>),
+    ResultDocument(Box<ResultDocumentSpec>),
     Namespace(Vec<Expr>, Content),
     Break(Vec<Instruction>),
     AnalyzeString {
@@ -68,6 +69,15 @@ pub(crate) enum Instruction {
 #[derive(Debug)]
 pub(crate) struct Catch {
     pub errors: Vec<(Option<String>, Option<String>)>,
+    pub body: Vec<Instruction>,
+}
+/// A secondary result created by `xsl:result-document`.
+#[derive(Debug)]
+pub(crate) struct ResultDocumentSpec {
+    pub href: Vec<Expr>,
+    pub method: String,
+    pub omit_declaration: Option<bool>,
+    pub indent: Option<bool>,
     pub body: Vec<Instruction>,
 }
 pub(crate) const ERROR_NAMESPACE: &str = "http://www.w3.org/2005/xqt-errors";
@@ -461,6 +471,7 @@ pub(crate) fn raw_result_body(body: &[Instruction]) -> bool {
         | Instruction::Number(_)
         | Instruction::WherePopulated(_)
         | Instruction::Namespace(..)
+        | Instruction::ResultDocument(_)
         | Instruction::Try { .. }
         | Instruction::AnalyzeString { .. }
         | Instruction::LiteralAttributes(_)
@@ -1063,6 +1074,49 @@ fn body(
                             ordinal: optional_avt("ordinal")?,
                             grouping_separator: optional_avt("grouping-separator")?,
                             grouping_size: optional_avt("grouping-size")?,
+                        })));
+                    }
+                    "result-document" => {
+                        attrs(
+                            n,
+                            &[
+                                "href",
+                                "format",
+                                "method",
+                                "omit-xml-declaration",
+                                "indent",
+                                "encoding",
+                                "validation",
+                                "type",
+                            ],
+                        )?;
+                        if n.attribute("format").is_some() {
+                            return Err(error(n, "named output definitions are not implemented"));
+                        }
+                        if n.attribute("encoding")
+                            .is_some_and(|e| !e.eq_ignore_ascii_case("utf-8"))
+                        {
+                            return Err(error(n, "only UTF-8 result documents are supported"));
+                        }
+                        let method = n.attribute("method").unwrap_or("xml");
+                        if !matches!(method, "xml" | "html" | "xhtml" | "text") {
+                            return Err(error(n, "unsupported result document method"));
+                        }
+                        let flag = |name: &str| -> Result<Option<bool>, Diagnostic> {
+                            n.attribute(name)
+                                .map(|_| boolean_attribute(n, name, false))
+                                .transpose()
+                        };
+                        out.push(Instruction::ResultDocument(Box::new(ResultDocumentSpec {
+                            href: n
+                                .attribute("href")
+                                .map(|h| avt(n, h))
+                                .transpose()?
+                                .unwrap_or_default(),
+                            method: method.to_owned(),
+                            omit_declaration: flag("omit-xml-declaration")?,
+                            indent: flag("indent")?,
+                            body: body(n, depth + 1, false)?,
                         })));
                     }
                     "where-populated" => {
@@ -2683,6 +2737,10 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 }
                 Instruction::WherePopulated(body) => {
                     instructions(body, scope.clone(), templates)?;
+                }
+                Instruction::ResultDocument(spec) => {
+                    parts(&spec.href, &scope)?;
+                    instructions(&spec.body, scope.clone(), templates)?;
                 }
                 Instruction::Namespace(name, content) => {
                     parts(name, &scope)?;

@@ -1218,3 +1218,12 @@ conformance claims. Smaller tested increments are committed independently.
   conflicts with the element's own prefix).
 - The static variable check now also covers inline functions, dynamic calls, partial
   applications, map and array constructors, lookups, perform-sort and evaluate.
+
+## Increment 104: xsl:result-document
+
+- Added xsl:result-document (AVT href, method xml/html/xhtml/text, indent,
+  omit-xml-declaration, UTF-8 only) and Stylesheet::transform_with_documents(),
+  which returns the principal result plus each secondary document with its href.
+  Plain transform() ignores secondary results. Duplicate or missing hrefs raise
+  XTDE1490; named output definitions (format), other encodings and nested streaming
+  are not implemented.

@@ -236,6 +236,8 @@ pub(crate) struct Budget {
     pub functions: FunctionTable,
     pub keys: KeyTable,
     pub decimal_formats: DecimalFormats,
+    /// Secondary results (href, serialized content) created by `xsl:result-document`.
+    pub secondary: Vec<(String, String)>,
     remaining: u64,
     pub max_depth: usize,
     pub now: crate::temporal::Temporal,
@@ -246,6 +248,7 @@ impl Budget {
             functions: FunctionTable::default(),
             keys: KeyTable::default(),
             decimal_formats: DecimalFormats::default(),
+            secondary: vec![],
             remaining: limits.max_steps,
             max_depth: limits.max_depth,
             now: crate::temporal::Temporal::now(),

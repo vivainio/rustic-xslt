@@ -139,6 +139,18 @@ pub struct TransformOptions {
     pub limits: Limits,
 }
 
+/// A secondary result created by `xsl:result-document`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResultDocument {
+    pub href: String,
+    pub content: String,
+}
+/// The principal result and any secondary result documents.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TransformResult {
+    pub principal: String,
+    pub documents: Vec<ResultDocument>,
+}
 /// Immutable compiled instructions, reusable across threads and transformations.
 #[derive(Debug)]
 pub struct Stylesheet {
@@ -183,6 +195,22 @@ impl Stylesheet {
         options: &StreamOptions,
     ) -> Result<StreamStats, Diagnostic> {
         stream::transform(self, input, output, options)
+    }
+    /// Transform and also return the documents created by `xsl:result-document`,
+    /// each with the href it was written to.
+    pub fn transform_with_documents(
+        &self,
+        source: &str,
+        options: &TransformOptions,
+    ) -> Result<TransformResult, Diagnostic> {
+        let (principal, documents) = runtime::transform_all(self, source, options)?;
+        Ok(TransformResult {
+            principal,
+            documents: documents
+                .into_iter()
+                .map(|(href, content)| ResultDocument { href, content })
+                .collect(),
+        })
     }
     pub fn transform_with_options(
         &self,

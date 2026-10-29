@@ -762,6 +762,32 @@ fn focus_sequence(value: Value<'_>) -> Vec<Focus<'_>> {
         })
         .collect()
 }
+/// Transform and also return the documents created by `xsl:result-document`.
+pub(crate) fn transform_all(
+    sheet: &Stylesheet,
+    source: &str,
+    options: &TransformOptions,
+) -> Result<(String, Vec<(String, String)>), Diagnostic> {
+    let prepared = crate::whitespace::prepare(sheet, source, false)?;
+    let source = prepared.as_deref().unwrap_or(source);
+    let absent = source.is_empty() && options.initial_template.is_some();
+    let doc = crate::parse(if absent { "<_absent/>" } else { source }, "parse")?;
+    let root = Focus {
+        item: if absent {
+            Item::Absent
+        } else {
+            Item::Node(XNode::tree(doc.root()))
+        },
+        position: 1,
+        size: 1,
+    };
+    let sources = typed_arena::Arena::new();
+    let documents = typed_arena::Arena::new();
+    let trees = crate::trees::Trees::new(&sources, &documents, options.limits.max_temporary_bytes);
+    let mut budget = Budget::new(options.limits);
+    let principal = execute(sheet, root, options, &mut budget, true, &trees)?;
+    Ok((principal, std::mem::take(&mut budget.secondary)))
+}
 pub(crate) fn transform(
     sheet: &Stylesheet,
     source: &str,
@@ -1526,6 +1552,7 @@ fn run_tasks<'a>(
                             | Instruction::Number(_)
                             | Instruction::WherePopulated(_)
                             | Instruction::Namespace(..)
+                            | Instruction::ResultDocument(_)
                             | Instruction::If(..)
                             | Instruction::Choose(_)
                             | Instruction::Element { .. }
@@ -1916,6 +1943,71 @@ fn run_tasks<'a>(
                             &mut output,
                             &mut tasks,
                         )?;
+                    }
+                    Instruction::ResultDocument(spec) => {
+                        use crate::result::Markup;
+                        if TRY_DEPTH.with(|d| d.get()) >= 32 {
+                            return Err(limit());
+                        }
+                        let href = parts(&spec.href, &focus, &env, budget, sheet.backwards)?;
+                        if href.is_empty() {
+                            return Err(Diagnostic::new(
+                                "XTDE1490",
+                                "xsl:result-document needs an href",
+                                "run",
+                            ));
+                        }
+                        if budget
+                            .secondary
+                            .iter()
+                            .any(|(existing, _)| *existing == href)
+                        {
+                            return Err(Diagnostic::new(
+                                "XTDE1490",
+                                format!("two result documents for {href}"),
+                                "run",
+                            ));
+                        }
+                        let text_method = spec.method == "text";
+                        let markup = match spec.method.as_str() {
+                            "html" => Markup::Html,
+                            "xhtml" => Markup::Xhtml,
+                            _ => Markup::Xml,
+                        };
+                        let nested = Output::new(limits.max_output_bytes, text_method)
+                            .with_serialization(markup, None);
+                        let inner = Frame {
+                            focus,
+                            env,
+                            depth: depth + 1,
+                            mode,
+                            tunnel: tunnel.clone(),
+                            rule: None,
+                        };
+                        TRY_DEPTH.with(|d| d.set(d.get() + 1));
+                        let result = run_tasks(
+                            run,
+                            budget,
+                            vec![Task::Body(&spec.body, 0, inner)],
+                            nested,
+                            None,
+                        );
+                        TRY_DEPTH.with(|d| d.set(d.get() - 1));
+                        let mut content = result?;
+                        if spec.indent.unwrap_or(false) && !text_method {
+                            content = crate::indent::indent(&content);
+                        }
+                        let omit = spec
+                            .omit_declaration
+                            .unwrap_or(spec.method == "html" || text_method);
+                        if !omit {
+                            content =
+                                format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>{content}");
+                            if spec.indent.unwrap_or(false) {
+                                content = content.replacen("?><", "?>\n<", 1);
+                            }
+                        }
+                        budget.secondary.push((href, content));
                     }
                     Instruction::WherePopulated(content) => {
                         if TRY_DEPTH.with(|d| d.get()) >= 32 {
