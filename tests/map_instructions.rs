@@ -32,7 +32,7 @@ fn duplicate_keys_and_misplaced_entries_are_errors() {
 fn perform_sort_orders_a_sequence_by_keys() {
     let select = r#"<xsl:value-of select="(for $i in r/i return string($i/@k))"/>|<xsl:variable name="s"><xsl:perform-sort select="r/i"><xsl:sort select="." order="descending" data-type="number"/></xsl:perform-sort></xsl:variable><xsl:variable name="t" as="element()*"><xsl:perform-sort select="r/i"><xsl:sort select="number(.)" order="descending"/></xsl:perform-sort></xsl:variable><xsl:value-of select="for $n in $t return string($n/@k)"/>"#;
     assert_eq!(run(select, SOURCE).unwrap(), "a b c|c b a");
-    let body = r#"<xsl:variable name="t" as="xs:integer*" xmlns:xs="http://www.w3.org/2001/XMLSchema"><xsl:perform-sort><xsl:sort select="-."/><xsl:sequence select="(3, 1, 2)"/></xsl:perform-sort></xsl:variable><xsl:value-of select="$t"/>"#;
+    let body = r#"<xsl:variable name="t" as="xs:integer*" xmlns:xs="http://www.w3.org/2001/XMLSchema"><xsl:perform-sort><xsl:sort select="-." data-type="number"/><xsl:sequence select="(3, 1, 2)"/></xsl:perform-sort></xsl:variable><xsl:value-of select="$t"/>"#;
     assert_eq!(run(body, SOURCE).unwrap(), "3 2 1");
     assert!(run(r#"<xsl:perform-sort select="r/i"/>"#, SOURCE).is_err());
 }
