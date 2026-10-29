@@ -490,9 +490,14 @@ impl Output {
             let uri = input_value_uri
                 && self.escape_uri_attributes
                 && name.uri.is_none()
-                && html_element.as_deref().is_some_and(|element| {
-                    uri_attribute(element, &name.local.to_ascii_lowercase())
-                });
+                && if markup == Markup::Xhtml {
+                    e.name.uri.as_deref() == Some(XHTML)
+                        && uri_attribute(&e.name.local, &name.local)
+                } else {
+                    html_element.as_deref().is_some_and(|element| {
+                        uri_attribute(element, &name.local.to_ascii_lowercase())
+                    })
+                };
             let encoded;
             let value =
                 if uri {

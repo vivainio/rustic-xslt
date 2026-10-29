@@ -123,3 +123,13 @@ fn namespaced_attributes_do_not_use_html_uri_escaping() {
     assert!(output.contains(" href=\"%C3%A9\""));
     assert!(output.contains(" p:href=\"é\""));
 }
+
+#[test]
+fn xhtml_uri_attribute_matching_is_case_sensitive() {
+    let output = run(
+        r#"method="xhtml" omit-xml-declaration="yes""#,
+        "<div xmlns='http://www.w3.org/1999/xhtml'><a href='é' HREF='é'/><A href='é'/></div>",
+    );
+    assert!(output.contains("<a href=\"%C3%A9\" HREF=\"é\""));
+    assert!(output.contains("<A href=\"é\""));
+}

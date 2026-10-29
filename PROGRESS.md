@@ -2074,3 +2074,13 @@ conformance claims. Smaller tested increments are committed independently.
   ordinary attributes and namespaced attributes.
 - The pinned XSLT gate has 897 passes (one new, zero regressions), 258 failures,
   264 harness errors and 153 exclusions. Focused tests and Clippy pass.
+
+## Increment 180: case-sensitive XHTML URI attribute recognition
+
+- XHTML URI recognition uses exact element and attribute local names in the
+  XHTML namespace. HTML keeps case-insensitive recognition. Differently cased
+  XHTML names no longer inherit lowercase URI serialization rules.
+- Added a regression comparing lowercase href with uppercase element and
+  attribute names under the XHTML serializer.
+- Validation: eleven HTML/XHTML serializer tests, all-target/all-feature Clippy
+  and the full 897-case pinned XSLT gate pass without regressions.
