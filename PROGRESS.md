@@ -1904,3 +1904,12 @@ conformance claims. Smaller tested increments are committed independently.
 - Added a regression for an HTML result document with a public-only DOCTYPE.
 - Validation: seven result-document tests, all-target/all-feature Clippy and
   the full 880-case pinned XSLT regression gate pass without regressions.
+
+## Increment 162: dynamic CDATA QName diagnostics
+
+- Invalid QName lists produced by result-document CDATA AVTs now report
+  `XTDE0030` in the run phase, including undeclared prefixes. Shared QName
+  resolution no longer leaks compile-phase diagnostics into this dynamic path.
+- Added coverage for malformed dynamic QNames and undeclared dynamic prefixes.
+- Validation: eight result-document tests, all-target/all-feature Clippy and
+  the full 880-case pinned XSLT regression gate pass without regressions.

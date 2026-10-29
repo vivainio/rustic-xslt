@@ -104,3 +104,16 @@ fn html_result_documents_retain_public_only_doctypes() {
         "<!DOCTYPE html PUBLIC \"PUBLIC\">\n<html></html>"
     );
 }
+
+#[test]
+fn dynamic_cdata_qname_errors_are_runtime_diagnostics() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><xsl:result-document cdata-section-elements="{r/@name}"><out/></xsl:result-document></xsl:template></xsl:stylesheet>"#).unwrap();
+    for source in [
+        r#"<r name="missing:item"/>"#,
+        r#"<r name="bad:name:again"/>"#,
+    ] {
+        let error = sheet.transform(source).unwrap_err();
+        assert_eq!(error.code, "XTDE0030");
+        assert_eq!(error.phase, "run");
+    }
+}

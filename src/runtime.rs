@@ -2098,9 +2098,14 @@ fn run_tasks<'a>(
                         if let Some((value, bindings)) = &spec.cdata {
                             let value = parts(value, &focus, &env, budget, sheet.backwards)?;
                             for name in value.split_whitespace() {
-                                extra_cdata.push(crate::qname::resolve_element(
-                                    name, bindings, "XTDE0030",
-                                )?);
+                                extra_cdata.push(
+                                    crate::qname::resolve_element(name, bindings, "XTDE0030")
+                                        .map_err(|mut error| {
+                                            error.code = "XTDE0030".into();
+                                            error.phase = "run";
+                                            error
+                                        })?,
+                                );
                             }
                         }
                         if href.is_empty() {
