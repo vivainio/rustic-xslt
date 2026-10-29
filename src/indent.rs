@@ -12,7 +12,12 @@ enum Token<'a> {
     Markup(&'a str),
 }
 
-fn tokenize(xml: &str) -> Vec<Token<'_>> {
+/// HTML void elements never have an end tag.
+const VOID: &[&str] = &[
+    "area", "base", "basefont", "br", "col", "embed", "frame", "hr", "img", "input", "isindex",
+    "link", "meta", "param", "source", "track", "wbr",
+];
+fn tokenize(xml: &str, html: bool) -> Vec<Token<'_>> {
     let bytes = xml.as_bytes();
     let mut tokens = vec![];
     let mut i = 0;
@@ -52,7 +57,14 @@ fn tokenize(xml: &str) -> Vec<Token<'_>> {
             1 if text.starts_with("</") => Token::End(text),
             1 => Token::Start {
                 text,
-                empty: text.ends_with("/>"),
+                empty: text.ends_with("/>")
+                    || html && {
+                        let name: String = text[1..]
+                            .chars()
+                            .take_while(|c| !c.is_whitespace() && *c != '>' && *c != '/')
+                            .collect();
+                        VOID.contains(&name.to_ascii_lowercase().as_str())
+                    },
             },
             2 => Token::Text(text),
             _ => Token::Markup(text),
@@ -62,8 +74,9 @@ fn tokenize(xml: &str) -> Vec<Token<'_>> {
     tokens
 }
 
-pub(crate) fn indent(xml: &str) -> String {
-    let tokens = tokenize(xml);
+/// `html` marks HTML output, where void elements such as `<br>` are self-contained.
+pub(crate) fn indent(xml: &str, html: bool) -> String {
+    let tokens = tokenize(xml, html);
     // First pass: which elements have character content?
     let mut mixed = vec![false; tokens.len()];
     let mut open: Vec<usize> = vec![];

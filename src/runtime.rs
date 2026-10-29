@@ -1153,7 +1153,10 @@ fn execute<'a>(
     };
     let result = run_tasks(&run, budget, tasks, output, None)?;
     if sheet.indent && declaration && !sheet.text_output {
-        return Ok(crate::indent::indent(&result));
+        return Ok(crate::indent::indent(
+            &result,
+            sheet.markup == crate::result::Markup::Html,
+        ));
     }
     Ok(result)
 }
@@ -2045,7 +2048,7 @@ fn run_tasks<'a>(
                         TRY_DEPTH.with(|d| d.set(d.get() - 1));
                         let mut content = result?;
                         if spec.indent.unwrap_or(false) && !text_method {
-                            content = crate::indent::indent(&content);
+                            content = crate::indent::indent(&content, markup == Markup::Html);
                         }
                         let omit = spec
                             .omit_declaration

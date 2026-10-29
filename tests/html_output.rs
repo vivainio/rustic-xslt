@@ -66,3 +66,13 @@ fn doctype_declarations_precede_the_root_element() {
         "<!DOCTYPE html SYSTEM \"about:legacy-compat\">\n<html></html>"
     );
 }
+#[test]
+fn indentation_keeps_html_void_elements_balanced() {
+    assert_eq!(
+        run(
+            r#"method="html" indent="yes""#,
+            "<html><body><br/><p>t<b>x</b></p><img src='a'/><div><hr/></div></body></html>"
+        ),
+        "<html>\n  <body>\n    <br>\n    <p>t<b>x</b></p>\n    <img src=\"a\">\n    <div>\n      <hr>\n    </div>\n  </body>\n</html>"
+    );
+}
