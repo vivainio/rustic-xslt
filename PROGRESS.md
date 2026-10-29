@@ -943,3 +943,17 @@ conformance claims. Smaller tested increments are committed independently.
   instead of overflowing.
 - QT3 now selects 8,187 cases (39 more sets): 6,593 pass / 168 engine failures /
   235 harness errors / 1,191 exclusions; the gate records 6,593 with no regressions.
+
+## Increment 77: Gregorian fragment types and Unicode block properties
+
+- Added xs:gYear, xs:gYearMonth, xs:gMonth, xs:gMonthDay and xs:gDay: strict
+  lexical forms (leap-day month-days, year limits), canonical strings, casts from
+  dateTime/date, time-zone-normalized equality and type-error ordering.
+- Regular expressions accept XML Schema block properties (\p{IsBasicLatin} and
+  negations, usable inside classes); unknown block names raise FORX0002 and
+  surrogate blocks match nothing.
+- The QT3 gate now covers 323 sets (26,002 cases): 15,469 pass / 1,205 engine
+  failures / 2,388 harness errors / 6,940 exclusions with no regressions among the
+  recorded passing cases, and the new regex block cases add to the recorded set.
+  Remaining large buckets: higher-order-function dependency (1,604 harness errors),
+  maps and arrays, regex backreferences, resolve-uri/id/path/sort.

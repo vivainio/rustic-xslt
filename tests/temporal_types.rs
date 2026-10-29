@@ -319,3 +319,61 @@ fn arithmetic_adjusts_calendar_values_and_durations() {
         assert!(run(expr).is_err(), "{expr}");
     }
 }
+#[test]
+fn gregorian_fragments_have_canonical_forms_equality_and_casts() {
+    for (expr, expected) in [
+        ("xs:gYear('2001')", "2001"),
+        ("xs:gYear(' -0044Z ')", "-0044Z"),
+        ("xs:gYearMonth('2001-02+05:00')", "2001-02+05:00"),
+        ("xs:gMonth('--02')", "--02"),
+        ("xs:gMonthDay('--02-29')", "--02-29"),
+        ("xs:gDay('---31Z')", "---31Z"),
+        ("xs:gYear(xs:dateTime('2001-02-03T04:05:06Z'))", "2001Z"),
+        ("xs:gYearMonth(xs:date('2001-02-03'))", "2001-02"),
+        ("xs:gMonth(xs:date('2001-02-03-05:00'))", "--02-05:00"),
+        (
+            "xs:gMonthDay(xs:dateTime('2001-02-03T00:00:00'))",
+            "--02-03",
+        ),
+        ("xs:gDay(xs:date('2001-02-03'))", "---03"),
+        ("xs:gYear('2001') eq xs:gYear('2001')", "true"),
+        ("xs:gYear('2001Z') eq xs:gYear('2001+00:00')", "true"),
+        ("xs:gYear('2001+01:00') eq xs:gYear('2001Z')", "false"),
+        ("xs:gMonthDay('--02-03') ne xs:gMonthDay('--02-04')", "true"),
+        ("xs:gDay('---05') = xs:gDay('---05')", "true"),
+        ("xs:gMonth('--05') instance of xs:gMonth", "true"),
+        ("xs:gMonth('--05') instance of xs:gDay", "false"),
+        ("xs:gDay('---05') instance of xs:anyAtomicType", "true"),
+        ("'--13' castable as xs:gMonth", "false"),
+        (
+            "string(xs:gYearMonth('2001-02') cast as xs:gYearMonth)",
+            "2001-02",
+        ),
+        (
+            "count(distinct-values((xs:gYear('2001'), xs:gYear('2001'))))",
+            "1",
+        ),
+    ] {
+        assert_eq!(run(expr).unwrap(), expected, "{expr}");
+    }
+    for expr in [
+        "xs:gYear('01')",
+        "xs:gYear('02001')",
+        "xs:gYearMonth('2001-13')",
+        "xs:gMonth('2')",
+        "xs:gMonthDay('--02-30')",
+        "xs:gMonthDay('--04-31')",
+        "xs:gDay('---32')",
+        "xs:gDay('---00')",
+        "xs:gDay('--05')",
+        "xs:gYear(xs:time('01:02:03'))",
+        "xs:gYear(xs:gMonth('--01'))",
+        "xs:dateTime(xs:gYear('2001'))",
+        "xs:gYear('2001') lt xs:gYear('2002')",
+        "xs:gDay('---01') >= xs:gDay('---01')",
+        "xs:gYear('2001') = xs:gDay('---01')",
+        "min((xs:gYear('2001'), xs:gYear('2002')))",
+    ] {
+        assert!(run(expr.replace(">=", "&gt;=").as_str()).is_err(), "{expr}");
+    }
+}

@@ -98,3 +98,26 @@ fn regex_matching_and_replacement_expansion_use_the_shared_budget() {
         );
     }
 }
+#[test]
+fn unicode_block_properties_match_block_ranges() {
+    for (expr, expected) in [
+        ("matches('abc', '^\\p{IsBasicLatin}+$')", "true"),
+        ("matches('é', '\\p{IsBasicLatin}')", "false"),
+        ("matches('é', '\\p{IsLatin-1Supplement}')", "true"),
+        ("matches('é', '\\P{IsBasicLatin}')", "true"),
+        ("matches('ж', '[\\p{IsCyrillic}x]')", "true"),
+        ("matches('a', '[\\P{IsCyrillic}]')", "true"),
+        ("matches('日本', '^\\p{IsCJKUnifiedIdeographs}+$')", "true"),
+        ("matches('a', '\\p{IsHighSurrogates}')", "false"),
+        ("matches('a', '\\P{IsHighSurrogates}')", "true"),
+        ("replace('aйb', '\\p{IsCyrillic}', '-')", "a-b"),
+    ] {
+        assert_eq!(sheet(expr).transform("<r/>").unwrap(), expected, "{expr}");
+    }
+    for expr in [
+        "matches('a', '\\p{IsNoSuchBlock}')",
+        "matches('a', '\\p{Isbasiclatin}')",
+    ] {
+        assert!(sheet(expr).transform("<r/>").is_err(), "{expr}");
+    }
+}

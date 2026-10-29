@@ -148,7 +148,7 @@ pub(crate) fn evaluate<'a>(
     let binaries = matches!(&values[0], Item::Binary(kind, _) if values.iter().all(|v| matches!(v, Item::Binary(other, _) if kind == other)));
     let temporals = matches!(&values[0], Item::Temporal(first) if values.iter().all(|v| {
         matches!(v, Item::Temporal(other)
-            if first.kind == other.kind && other.kind != crate::temporal::TemporalType::Duration)
+            if first.kind == other.kind && other.kind.is_ordered())
     }));
     if !strings && !booleans && !binaries && !temporals {
         return Err(error(

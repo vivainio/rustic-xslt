@@ -1855,11 +1855,11 @@ fn compare(a: &Item<'_>, b: &Item<'_>, op: &str, backwards: bool) -> Result<bool
             (Item::Binary(ak, a), Item::Binary(bk, b)) if ak == bk => Some(a.cmp(b)),
             (Item::Temporal(a), Item::Temporal(b)) => {
                 let ordered = !matches!(op, "=" | "!=");
-                if ordered
-                    && a.kind.is_duration()
-                    && (a.kind != b.kind || a.kind == crate::temporal::TemporalType::Duration)
-                {
-                    return Err(err("XPTY0004", "xs:duration values are not ordered"));
+                if ordered && (!a.kind.is_ordered() || (a.kind.is_duration() && a.kind != b.kind)) {
+                    return Err(err(
+                        "XPTY0004",
+                        "these date, time or duration values are not ordered",
+                    ));
                 }
                 Some(
                     a.compare(b).ok_or_else(|| {

@@ -21,6 +21,11 @@ pub(crate) enum TemporalType {
     Duration,
     YearMonthDuration,
     DayTimeDuration,
+    GYear,
+    GYearMonth,
+    GMonth,
+    GMonthDay,
+    GDay,
 }
 
 impl TemporalType {
@@ -32,6 +37,11 @@ impl TemporalType {
             "duration" => Self::Duration,
             "yearMonthDuration" => Self::YearMonthDuration,
             "dayTimeDuration" => Self::DayTimeDuration,
+            "gYear" => Self::GYear,
+            "gYearMonth" => Self::GYearMonth,
+            "gMonth" => Self::GMonth,
+            "gMonthDay" => Self::GMonthDay,
+            "gDay" => Self::GDay,
             _ => return None,
         })
     }
@@ -43,6 +53,11 @@ impl TemporalType {
             Self::Duration => "duration",
             Self::YearMonthDuration => "yearMonthDuration",
             Self::DayTimeDuration => "dayTimeDuration",
+            Self::GYear => "gYear",
+            Self::GYearMonth => "gYearMonth",
+            Self::GMonth => "gMonth",
+            Self::GMonthDay => "gMonthDay",
+            Self::GDay => "gDay",
         }
     }
     pub fn is_duration(self) -> bool {
@@ -50,6 +65,17 @@ impl TemporalType {
             self,
             Self::Duration | Self::YearMonthDuration | Self::DayTimeDuration
         )
+    }
+    /// Gregorian fragment types support equality but no ordering.
+    pub fn is_gregorian_fragment(self) -> bool {
+        matches!(
+            self,
+            Self::GYear | Self::GYearMonth | Self::GMonth | Self::GMonthDay | Self::GDay
+        )
+    }
+    /// Whether `<` and `>` are defined between two values of this type.
+    pub fn is_ordered(self) -> bool {
+        !self.is_gregorian_fragment() && self != Self::Duration
     }
     /// Whether a value of type `actual` is an instance of `self`.
     pub fn accepts(self, actual: Self) -> bool {
@@ -86,6 +112,15 @@ static DATE_TIME: LazyLock<Regex> = LazyLock::new(|| {
     ))
     .unwrap()
 });
+static G_YEAR: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(&format!(r"^(-?\d{{4,}}){TZ}$")).unwrap());
+static G_YEAR_MONTH: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(&format!(r"^(-?\d{{4,}})-(\d\d){TZ}$")).unwrap());
+static G_MONTH: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(&format!(r"^--(\d\d){TZ}$")).unwrap());
+static G_MONTH_DAY: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(&format!(r"^--(\d\d)-(\d\d){TZ}$")).unwrap());
+static G_DAY: LazyLock<Regex> = LazyLock::new(|| Regex::new(&format!(r"^---(\d\d){TZ}$")).unwrap());
 static DURATION: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r"^(-)?P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)(?:\.(\d+))?S)?)?$",
@@ -172,8 +207,59 @@ impl Temporal {
             TemporalType::Duration
             | TemporalType::YearMonthDuration
             | TemporalType::DayTimeDuration => Self::parse_duration(kind, text),
+            TemporalType::GYear
+            | TemporalType::GYearMonth
+            | TemporalType::GMonth
+            | TemporalType::GMonthDay
+            | TemporalType::GDay => Self::parse_fragment(kind, text),
             _ => Self::parse_moment(kind, text),
         }
+    }
+
+    fn parse_fragment(kind: TemporalType, text: &str) -> Result<Self, Diagnostic> {
+        use TemporalType::*;
+        let name = kind.name();
+        let re = match kind {
+            GYear => &G_YEAR,
+            GYearMonth => &G_YEAR_MONTH,
+            GMonth => &G_MONTH,
+            GMonthDay => &G_MONTH_DAY,
+            _ => &G_DAY,
+        };
+        let caps = re.captures(text).ok_or_else(|| invalid(name))?;
+        let last = caps.len() - 1;
+        let field = |i: usize| caps.get(i).unwrap().as_str();
+        let mut value = Self::moment(kind);
+        value.month = 1;
+        value.day = 1;
+        let mut index = 1;
+        if matches!(kind, GYear | GYearMonth) {
+            let digits = field(1).trim_start_matches('-');
+            if digits.len() > 4 && digits.starts_with('0') {
+                return Err(invalid(name));
+            }
+            value.year = field(1).parse().map_err(|_| invalid(name))?;
+            if value.year.unsigned_abs() > MAX_YEAR {
+                return Err(Diagnostic::new("FODT0001", "year is out of range", "run"));
+            }
+            index = 2;
+        }
+        if matches!(kind, GYearMonth | GMonth | GMonthDay) {
+            value.month = field(index).parse().unwrap();
+            if !(1..=12).contains(&value.month) {
+                return Err(invalid(name));
+            }
+            index += 1;
+        }
+        if matches!(kind, GMonthDay | GDay) {
+            value.day = field(index).parse().unwrap();
+            // Month-days are validated against a leap year, so 02-29 is allowed.
+            if value.day == 0 || value.day > days_in_month(1972, value.month) {
+                return Err(invalid(name));
+            }
+        }
+        value.tz = timezone(caps.get(last).map(|m| m.as_str()))?;
+        Ok(value)
     }
 
     fn parse_moment(kind: TemporalType, text: &str) -> Result<Self, Diagnostic> {
@@ -284,18 +370,31 @@ impl Temporal {
                 self.time_string(),
                 self.tz_string()
             ),
+            TemporalType::GYear => format!("{}{}", self.year_string(), self.tz_string()),
+            TemporalType::GYearMonth => {
+                format!(
+                    "{}-{:02}{}",
+                    self.year_string(),
+                    self.month,
+                    self.tz_string()
+                )
+            }
+            TemporalType::GMonth => format!("--{:02}{}", self.month, self.tz_string()),
+            TemporalType::GMonthDay => {
+                format!("--{:02}-{:02}{}", self.month, self.day, self.tz_string())
+            }
+            TemporalType::GDay => format!("---{:02}{}", self.day, self.tz_string()),
             _ => self.duration_string(),
         }
     }
 
-    fn date_string(&self) -> String {
+    fn year_string(&self) -> String {
         let sign = if self.year < 0 { "-" } else { "" };
-        format!(
-            "{sign}{:04}-{:02}-{:02}",
-            self.year.unsigned_abs(),
-            self.month,
-            self.day
-        )
+        format!("{sign}{:04}", self.year.unsigned_abs())
+    }
+
+    fn date_string(&self) -> String {
+        format!("{}-{:02}-{:02}", self.year_string(), self.month, self.day)
     }
 
     fn time_string(&self) -> String {
@@ -400,6 +499,16 @@ impl Temporal {
                 (value.year, value.month, value.day) = REFERENCE_DAY;
             }
             (TemporalType::Date, TemporalType::DateTime) => {}
+            (TemporalType::DateTime | TemporalType::Date, to) if to.is_gregorian_fragment() => {
+                value.nanos = 0;
+                match to {
+                    TemporalType::GYear => (value.month, value.day) = (1, 1),
+                    TemporalType::GYearMonth => value.day = 1,
+                    TemporalType::GMonth => (value.year, value.day) = (REFERENCE_DAY.0, 1),
+                    TemporalType::GMonthDay => value.year = REFERENCE_DAY.0,
+                    _ => (value.year, value.month) = (REFERENCE_DAY.0, 1),
+                }
+            }
             (from, to) if from.is_duration() && to.is_duration() => match to {
                 TemporalType::YearMonthDuration => value.nanos = 0,
                 TemporalType::DayTimeDuration => value.months = 0,

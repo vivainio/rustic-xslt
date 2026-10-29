@@ -75,11 +75,12 @@ fn compile(pattern: &str, flags: &str, budget: &mut Budget) -> Result<Regex, Dia
                                 return Err(invalid());
                             }
                             let property = chars[start + 1..i].iter().collect::<String>();
-                            if property.starts_with("Is") {
-                                return Err(error(
-                                    "RUST_XSLT_UNSUPPORTED",
-                                    "Unicode block regex properties are not implemented",
-                                ));
+                            if let Some(block) = property.strip_prefix("Is") {
+                                let class = crate::unicode_blocks::class(block, escaped == 'P')
+                                    .ok_or_else(invalid)?;
+                                result.push_str(&class);
+                                i += 1;
+                                continue;
                             }
                             // XPath accepts Unicode general categories, not engine-specific scripts/properties.
                             if ![
