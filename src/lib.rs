@@ -180,6 +180,7 @@ pub struct Stylesheet {
     indent: bool,
     markup: result::Markup,
     encoding: result::Encoding,
+    cdata_elements: std::sync::Arc<Vec<String>>,
     doctype: Option<result::Doctype>,
     text_output: bool,
     backwards: bool,

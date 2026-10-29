@@ -126,8 +126,17 @@ pub(crate) struct Output {
     adjacent_atomic: bool,
     markup: Markup,
     doctype: Option<Doctype>,
+    /// Expanded names of elements whose text is written as CDATA sections.
+    cdata: std::sync::Arc<Vec<String>>,
 }
 impl Output {
+    pub fn with_cdata(mut self, cdata: std::sync::Arc<Vec<String>>) -> Self {
+        self.cdata = cdata;
+        self
+    }
+    pub fn cdata(&self) -> std::sync::Arc<Vec<String>> {
+        self.cdata.clone()
+    }
     /// Apply the stylesheet's serialization method and DOCTYPE to the result document.
     pub fn with_serialization(mut self, markup: Markup, doctype: Option<Doctype>) -> Self {
         self.markup = markup;
@@ -148,6 +157,7 @@ impl Output {
             adjacent_atomic: false,
             markup: Markup::Xml,
             doctype: None,
+            cdata: Default::default(),
         }
     }
     pub fn simple(max: usize, separator: String) -> Self {
@@ -491,7 +501,19 @@ impl Output {
                 .last()
                 .and_then(|open| html_name(&open.element.name, self.markup))
                 .is_some_and(|name| name == "script" || name == "style");
-        if self.text || raw {
+        let in_cdata = !self.cdata.is_empty()
+            && self.stack.last().is_some_and(|open| {
+                let name = &open.element.name;
+                let expanded = match name.uri.as_deref() {
+                    Some(uri) if !uri.is_empty() => format!("Q{{{uri}}}{}", name.local),
+                    _ => name.local.clone(),
+                };
+                self.cdata.contains(&expanded)
+            });
+        if in_cdata && !self.text {
+            let safe = s.replace("]]>", "]]]]><![CDATA[>");
+            self.push(&format!("<![CDATA[{safe}]]>"))
+        } else if self.text || raw {
             self.push(s)
         } else {
             self.push(&escape(s, false))

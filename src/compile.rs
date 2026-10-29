@@ -2253,8 +2253,19 @@ fn declarations(
                         "undeclare-prefixes",
                         "byte-order-mark",
                         "standalone",
+                        "cdata-section-elements",
                     ],
                 )?;
+                if let Some(names) = n.attribute("cdata-section-elements") {
+                    let mut all = (*sheet.cdata_elements).clone();
+                    for name in names.split_whitespace() {
+                        let expanded = component_name(n, name)?;
+                        if !all.contains(&expanded) {
+                            all.push(expanded);
+                        }
+                    }
+                    sheet.cdata_elements = std::sync::Arc::new(all);
+                }
                 if let Some(name) = n.attribute("encoding") {
                     sheet.encoding = crate::result::Encoding::parse(name).ok_or_else(|| {
                         error(
@@ -2627,6 +2638,7 @@ pub(crate) fn compile(
         indent: false,
         markup: crate::result::Markup::Xml,
         encoding: Default::default(),
+        cdata_elements: Default::default(),
         doctype: None,
         text_output: false,
         backwards: root.attribute("version") == Some("1.0"),

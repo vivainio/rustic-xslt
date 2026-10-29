@@ -1309,3 +1309,9 @@ conformance claims. Smaller tested increments are committed independently.
   characters outside it become numeric character references (markup methods) or raise
   SERE0008 (text method). Other encodings, and record streaming with a non-UTF-8
   encoding, are rejected.
+
+## Increment 115: cdata-section-elements
+
+- xsl:output cdata-section-elements writes the text content of the listed elements
+  (expanded names, accumulated across declarations) as CDATA sections, splitting any
+  `]]>` in the content. Not applied to result documents or the text method.
