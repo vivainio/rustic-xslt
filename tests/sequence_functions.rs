@@ -251,3 +251,41 @@ fn trace_returns_its_value_and_nilled_default_collation_are_defined() {
         "http://www.w3.org/2005/xpath-functions/collation/codepoint"
     );
 }
+#[test]
+fn sort_orders_atomized_keys_stably_and_keeps_original_items() {
+    for (expr, expected) in [
+        ("sort((3,1,2))", "1 2 3"),
+        ("sort((3,1.5,2e0))", "1.5 2 3"),
+        ("sort(('b','a','C'))", "C a b"),
+        (
+            "sort(('b','a','C'), 'http://www.w3.org/2005/xpath-functions/collation/html-ascii-case-insensitive')",
+            "a b C",
+        ),
+        ("sort((xs:double('NaN'), 1, -1))", "NaN -1 1"),
+        ("sort(())", ""),
+        ("string-join(sort(r/n/@k), ',')", "1,2,3"),
+        (
+            "string-join(for $n in sort(r/n) return string($n/@id), ',')",
+            "b,c,a",
+        ),
+        (
+            "sort((xs:date('2001-01-02'), xs:date('2001-01-01')))",
+            "2001-01-01 2001-01-02",
+        ),
+    ] {
+        assert_eq!(
+            sheet(expr)
+                .transform("<r><n id='a' k='3'>z</n><n id='b' k='1'>x</n><n id='c' k='2'>y</n></r>")
+                .unwrap(),
+            expected,
+            "{expr}"
+        );
+    }
+    for expr in [
+        "sort((1,'a'))",
+        "sort((1,2), 'urn:unknown')",
+        "sort((xs:gYear('2001'), xs:gYear('2002')))",
+    ] {
+        assert!(sheet(expr).transform("<r/>").is_err(), "{expr}");
+    }
+}

@@ -140,3 +140,28 @@ fn processing_instruction_test_accepts_unquoted_ncname_targets() {
         "b"
     );
 }
+#[test]
+fn path_describes_nodes_with_positions_and_expanded_names() {
+    let run = |expression: &str| {
+        Stylesheet::compile(&format!(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:q="urn:q"><xsl:output method="text"/><xsl:template match="/"><xsl:sequence select="{expression}"/></xsl:template></xsl:stylesheet>"#))
+            .unwrap()
+            .transform("<r xmlns:q='urn:q'><a/><q:a k='1'/><a>t<!--c--><?pi x?>u</a></r>")
+            .unwrap()
+    };
+    for (expression, expected) in [
+        ("path(/)", "/"),
+        ("path(/r)", "/Q{}r[1]"),
+        ("path(/r/a[2])", "/Q{}r[1]/Q{}a[2]"),
+        ("path(/r/q:a)", "/Q{}r[1]/Q{urn:q}a[1]"),
+        ("path(/r/*[2]/@k)", "/Q{}r[1]/Q{urn:q}a[1]/@k"),
+        ("path(/r/a[2]/text()[2])", "/Q{}r[1]/Q{}a[2]/text()[2]"),
+        ("path(/r/a[2]/comment())", "/Q{}r[1]/Q{}a[2]/comment()[1]"),
+        (
+            "path(/r/a[2]/processing-instruction())",
+            "/Q{}r[1]/Q{}a[2]/processing-instruction(pi)[1]",
+        ),
+        ("empty(path(()))", "true"),
+    ] {
+        assert_eq!(run(expression), expected, "{expression}");
+    }
+}

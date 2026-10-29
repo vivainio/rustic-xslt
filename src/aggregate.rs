@@ -1,9 +1,11 @@
 //! Aggregate functions over the supported atomic types.
 use crate::{
     Diagnostic,
+    collation::Collation,
     number::Number,
     xpath::{Budget, Item, Value, atomize},
 };
+use std::cmp::Ordering;
 fn error(code: &str, message: &str) -> Diagnostic {
     Diagnostic::new(code, message, "run")
 }
@@ -174,4 +176,76 @@ pub(crate) fn evaluate<'a>(
         }
     }
     Ok(vec![result])
+}
+
+/// `fn:sort` with an optional collation; keys are the atomized items.
+pub(crate) fn sort<'a>(args: &[Value<'a>], budget: &mut Budget) -> Result<Value<'a>, Diagnostic> {
+    let collation = match args.get(1) {
+        Some(uri) => {
+            let uri = crate::string_functions::string(uri, true, false)?;
+            if args[1].is_empty() {
+                Collation::Codepoint
+            } else {
+                Collation::parse(&uri)?
+            }
+        }
+        None => Collation::Codepoint,
+    };
+    let mut keyed = Vec::with_capacity(args[0].len());
+    for item in &args[0] {
+        budget.tick()?;
+        keyed.push((atomize(item), item.clone()));
+    }
+    let order = |a: &Item<'a>, b: &Item<'a>| -> Result<Ordering, Diagnostic> {
+        let strings = |item: &Item<'_>| match item {
+            Item::String(s) | Item::AnyUri(s) | Item::Untyped(s) | Item::DerivedString(_, s) => {
+                Some(s.clone())
+            }
+            _ => None,
+        };
+        if let (Some(x), Some(y)) = (strings(a), strings(b)) {
+            return Ok(collation.compare(&x, &y));
+        }
+        let nan = |item: &Item<'_>| matches!(item, Item::Number(n) if n.compare(n).is_none());
+        match (nan(a), nan(b)) {
+            (true, true) => return Ok(Ordering::Equal),
+            (true, false) => return Ok(Ordering::Less),
+            (false, true) => return Ok(Ordering::Greater),
+            _ => {}
+        }
+        Ok(if crate::xpath::compare(a, b, "<", false)? {
+            Ordering::Less
+        } else if crate::xpath::compare(b, a, "<", false)? {
+            Ordering::Greater
+        } else {
+            Ordering::Equal
+        })
+    };
+    // Stable bottom-up merge sort; a fallible comparator cannot violate a total order.
+    let mut width = 1;
+    while width < keyed.len() {
+        let mut merged = Vec::with_capacity(keyed.len());
+        let mut start = 0;
+        while start < keyed.len() {
+            let mid = (start + width).min(keyed.len());
+            let end = (start + 2 * width).min(keyed.len());
+            let (mut left, mut right) = (start, mid);
+            while left < mid && right < end {
+                budget.tick()?;
+                if order(&keyed[right].0, &keyed[left].0)? == Ordering::Less {
+                    merged.push(keyed[right].clone());
+                    right += 1;
+                } else {
+                    merged.push(keyed[left].clone());
+                    left += 1;
+                }
+            }
+            merged.extend_from_slice(&keyed[left..mid]);
+            merged.extend_from_slice(&keyed[right..end]);
+            start = end;
+        }
+        keyed = merged;
+        width *= 2;
+    }
+    Ok(keyed.into_iter().map(|(_, item)| item).collect())
 }

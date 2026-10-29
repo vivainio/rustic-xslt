@@ -1108,6 +1108,8 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "string-join" => (1, 2),
         "contains-token" => (2, 3),
         "resolve-uri" => (1, 2),
+        "sort" => (1, 2),
+        "path" => (0, 1),
         "matches" => (2, 3),
         "replace" => (3, 4),
         "tokenize" => (1, 3),
@@ -1793,7 +1795,12 @@ fn numeric(v: &[Item<'_>], backwards: bool) -> Result<Number, Diagnostic> {
         )),
     }
 }
-fn compare(a: &Item<'_>, b: &Item<'_>, op: &str, backwards: bool) -> Result<bool, Diagnostic> {
+pub(crate) fn compare(
+    a: &Item<'_>,
+    b: &Item<'_>,
+    op: &str,
+    backwards: bool,
+) -> Result<bool, Diagnostic> {
     use std::cmp::Ordering;
     let (mut a, mut b) = (atomize(a), atomize(b));
     if let Item::DerivedString(_, s) = a {
@@ -2121,6 +2128,72 @@ fn function<'a>(
                 vec![Item::Number(Number::Integer(n.into()))]
             }
         });
+    }
+    if name == "path" {
+        let node = match first.as_slice() {
+            [] => return Ok(vec![]),
+            [Item::Node(node)] => *node,
+            _ => return Err(err("XPTY0004", "path requires an optional node")),
+        };
+        let mut steps = vec![];
+        let mut current = node;
+        while let Some(parent) = current.parent() {
+            budget.tick()?;
+            let (uri, local) = current.name();
+            let qualified = match uri {
+                Some(uri) if !uri.is_empty() => format!("Q{{{uri}}}{local}"),
+                _ if current.is_element() => format!("Q{{}}{local}"),
+                _ => local.to_owned(),
+            };
+            let same = |n: &XNode<'_>| {
+                if current.is_element() {
+                    n.is_element() && n.name() == current.name()
+                } else if current.is_text() {
+                    n.is_text()
+                } else if current.is_comment() {
+                    n.is_comment()
+                } else {
+                    n.is_pi() && n.name() == current.name()
+                }
+            };
+            steps.push(if current.is_attribute() {
+                format!("@{qualified}")
+            } else {
+                let position = parent
+                    .children()
+                    .take_while(|n| *n != current)
+                    .filter(same)
+                    .count()
+                    + 1;
+                let test = if current.is_element() {
+                    qualified
+                } else if current.is_text() {
+                    "text()".into()
+                } else if current.is_comment() {
+                    "comment()".into()
+                } else {
+                    format!("processing-instruction({local})")
+                };
+                format!("{test}[{position}]")
+            });
+            current = parent;
+        }
+        let mut path = if current.is_document() {
+            String::new()
+        } else {
+            "Q{http://www.w3.org/2005/xpath-functions}root()".into()
+        };
+        if steps.is_empty() && current.is_document() {
+            path.push('/');
+        }
+        for step in steps.iter().rev() {
+            path.push('/');
+            path.push_str(step);
+        }
+        return Ok(vec![Item::String(path)]);
+    }
+    if name == "sort" {
+        return crate::aggregate::sort(args, budget);
     }
     if name == "resolve-uri" {
         let text = |v: &[Item<'a>], optional: bool| -> Result<Option<String>, Diagnostic> {

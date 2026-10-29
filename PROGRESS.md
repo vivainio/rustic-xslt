@@ -968,3 +968,12 @@ conformance claims. Smaller tested increments are committed independently.
   FORG0002 for malformed references or non-absolute bases, FONS0005 without a base).
 - Pinned QT3 run over 26,002 cases: 15,882+ pass with no regressions; the gate
   records every passing case, now including cast, token and URI sets.
+
+## Increment 79: sort and path
+
+- Added fn:sort() with an optional collation: atomized keys, stable merge sort that
+  cannot panic on inconsistent orderings, NaN first, type errors for incomparable
+  keys, original items returned. Key functions remain unsupported (no function items).
+- Added fn:path() producing Q{uri}name[position] steps, @attribute steps, text(),
+  comment() and processing-instruction() steps, and the root() prefix for
+  parentless trees.

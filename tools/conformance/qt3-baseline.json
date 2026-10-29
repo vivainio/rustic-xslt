@@ -18627,6 +18627,54 @@
       "fn-outermost-006"
     ],
     [
+      "fn-path",
+      "path001"
+    ],
+    [
+      "fn-path",
+      "path002"
+    ],
+    [
+      "fn-path",
+      "path003"
+    ],
+    [
+      "fn-path",
+      "path004"
+    ],
+    [
+      "fn-path",
+      "path005"
+    ],
+    [
+      "fn-path",
+      "path006"
+    ],
+    [
+      "fn-path",
+      "path007"
+    ],
+    [
+      "fn-path",
+      "path008"
+    ],
+    [
+      "fn-path",
+      "path009"
+    ],
+    [
+      "fn-path",
+      "path010"
+    ],
+    [
+      "fn-path",
+      "path015"
+    ],
+    [
+      "fn-path",
+      "path020"
+    ],
+    [
       "fn-position",
       "K-ContextPositionFunc-1"
     ],
@@ -21933,6 +21981,74 @@
     [
       "fn-seconds-from-time",
       "fn-seconds-from-time1args-3"
+    ],
+    [
+      "fn-sort",
+      "fn-sort-1"
+    ],
+    [
+      "fn-sort",
+      "fn-sort-10"
+    ],
+    [
+      "fn-sort",
+      "fn-sort-11"
+    ],
+    [
+      "fn-sort",
+      "fn-sort-12"
+    ],
+    [
+      "fn-sort",
+      "fn-sort-13"
+    ],
+    [
+      "fn-sort",
+      "fn-sort-2"
+    ],
+    [
+      "fn-sort",
+      "fn-sort-23"
+    ],
+    [
+      "fn-sort",
+      "fn-sort-3"
+    ],
+    [
+      "fn-sort",
+      "fn-sort-4"
+    ],
+    [
+      "fn-sort",
+      "fn-sort-5"
+    ],
+    [
+      "fn-sort",
+      "fn-sort-6"
+    ],
+    [
+      "fn-sort",
+      "fn-sort-7"
+    ],
+    [
+      "fn-sort",
+      "fn-sort-8"
+    ],
+    [
+      "fn-sort",
+      "fn-sort-9"
+    ],
+    [
+      "fn-sort",
+      "fn-sort-error-1"
+    ],
+    [
+      "fn-sort",
+      "fn-sort-frac-1"
+    ],
+    [
+      "fn-sort",
+      "fn-sort-str-1"
     ],
     [
       "fn-starts-with",
