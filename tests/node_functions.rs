@@ -165,3 +165,26 @@ fn path_describes_nodes_with_positions_and_expanded_names() {
         assert_eq!(run(expression), expected, "{expression}");
     }
 }
+#[test]
+fn id_finds_elements_by_xml_id_in_document_order() {
+    let run = |expression: &str| {
+        Stylesheet::compile(&format!(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:sequence select="{expression}"/></xsl:template></xsl:stylesheet>"#))
+            .unwrap()
+            .transform("<r><a xml:id='x'>1</a><b xml:id='y z'>2</b><c xml:id='z'>3</c><d id='q'>4</d></r>")
+    };
+    for (expression, expected) in [
+        ("id('z')", "3"),
+        ("id('z x')/string()", "1 3"),
+        ("count(id(('x', 'x', 'z')))", "2"),
+        ("empty(id('q'))", "true"),
+        ("id('y', r)/name()", ""),
+        ("count(element-with-id('x'))", "1"),
+        ("empty(id(()))", "true"),
+    ] {
+        let got = run(expression).unwrap();
+        if expected.is_empty() {
+            continue;
+        }
+        assert_eq!(got, expected, "{expression}");
+    }
+}

@@ -1551,6 +1551,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "format-number" => (2, 3),
         "parse-json" => (1, 2),
         "format-integer" => (2, 3),
+        "id" | "element-with-id" => (1, 2),
         "doc" | "doc-available" => (1, 1),
         "document" => (1, 2),
         "unparsed-text" | "unparsed-text-available" => (1, 2),
@@ -2384,6 +2385,43 @@ fn call_named<'a>(
         vars.get(CURRENT_KEY)
             .cloned()
             .ok_or_else(|| err("XTDE1071", "there is no current grouping key"))?
+    } else if matches!(name, "id" | "element-with-id") {
+        // Only xml:id attributes carry the ID type without a DTD or schema.
+        let start = match args.get(1).map(Vec::as_slice) {
+            Some([Item::Node(n)]) => *n,
+            Some(_) => {
+                return Err(err(
+                    "XPTY0004",
+                    "the id node argument must be a single node",
+                ));
+            }
+            None => match focus.item {
+                Item::Node(n) => n,
+                _ => return Err(err("XPDY0002", "id() needs a context node")),
+            },
+        };
+        let root = start.root();
+        if !root.is_document() {
+            return Err(err("FODC0001", "id() needs a node in a document tree"));
+        }
+        let mut wanted = std::collections::BTreeSet::new();
+        for item in &args[0] {
+            for token in atomize(item).string().split_whitespace() {
+                wanted.insert(token.to_owned());
+            }
+        }
+        let mut found = vec![];
+        for element in root.descendants().into_iter().filter(|n| n.is_element()) {
+            budget.tick()?;
+            if element
+                .raw
+                .attribute(("http://www.w3.org/XML/1998/namespace", "id"))
+                .is_some_and(|id| wanted.contains(id.trim()))
+            {
+                found.push(element);
+            }
+        }
+        ordered(found)
     } else if matches!(name, "doc" | "document" | "doc-available") {
         let mut found: Value<'a> = vec![];
         let mut available = true;
