@@ -1439,3 +1439,17 @@ conformance claims. Smaller tested increments are committed independently.
   195 harness errors and 149 profile exclusions across 1,159 selected cases.
 - Validation: full offline Rust tests, Clippy with warnings denied, formatting,
   whitespace checks and the expanded XSLT regression gate pass.
+
+## Increment 127: key dependency guards
+
+- Circular key dependencies in match/use expressions now raise XTDE0640 instead
+  of recurring until execution limits or the native stack are exhausted. The
+  guard distinguishes document roots so the same key may depend on another
+  document, and bounds acyclic dependency depth with the shared depth limit.
+- Evaluation removes active dependency markers on both success and failure;
+  caught key errors do not contaminate later lookups. Added direct/mutual cycle,
+  catch/retry, cross-document, repeated lookup and depth-limit regressions.
+- Validation: full offline Rust tests, Clippy with warnings denied, formatting,
+  all 29 Python harness tests and the 580-case pinned XSLT gate pass.
+- Reran the full pinned 26,966-case QT3 selection after increment 124: all 18,729
+  baseline cases still pass (396 failures, 764 harness errors, 7,077 exclusions).

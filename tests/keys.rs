@@ -145,3 +145,79 @@ fn key_rejects_trees_without_document_roots() {
         "XTDE1270"
     );
 }
+
+#[test]
+fn circular_key_dependencies_report_the_standard_error() {
+    for declarations in [
+        r#"<xsl:key name="k" match="item" use="key('k', 'x')"/>"#,
+        r#"<xsl:key name="k" match="key('k', 'x')" use="@id"/>"#,
+        r#"<xsl:key name="k" match="item" use="key('other', 'x')"/><xsl:key name="other" match="item" use="key('k', 'x')"/>"#,
+    ] {
+        assert_eq!(
+            run(declarations, "key('k', 'x')").unwrap_err().code,
+            "XTDE0640"
+        );
+    }
+}
+
+#[test]
+fn failed_key_evaluation_does_not_leave_a_circular_dependency_marker() {
+    let source = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+      <xsl:output method="text"/>
+      <xsl:key name="k" match="item" use="error()"/>
+      <xsl:template match="/">
+        <xsl:try select="key('k', 'x')"><xsl:catch>first</xsl:catch></xsl:try>
+        <xsl:try select="key('k', 'x')"><xsl:catch><xsl:value-of xmlns:e="http://www.w3.org/2005/xqt-errors" select="local-name-from-QName($e:code)"/></xsl:catch></xsl:try>
+      </xsl:template>
+    </xsl:stylesheet>"#;
+    assert_eq!(
+        Stylesheet::compile(source)
+            .unwrap()
+            .transform(SOURCE)
+            .unwrap(),
+        "firstFOER0000"
+    );
+}
+
+#[test]
+fn repeated_and_acyclic_key_dependencies_are_allowed() {
+    let declarations = r#"<xsl:key name="base" match="item" use="@g"/>
+      <xsl:key name="k" match="key('base', 'x')" use="@id"/>"#;
+    assert_eq!(
+        run(
+            declarations,
+            "(count(key('k', 'a')), count(key('k', 'c')), count(key('base', 'y')))"
+        )
+        .unwrap(),
+        "1 1 1"
+    );
+}
+
+#[test]
+fn same_key_may_depend_on_a_different_document() {
+    let declarations = r#"<xsl:variable name="other"><s><item g="x">ok</item></s></xsl:variable>
+      <xsl:key name="k" match="item" use="if (ancestor::r) then key('k', 'x', $other) else @g"/>"#;
+    assert_eq!(run(declarations, "count(key('k', 'ok'))").unwrap(), "4");
+}
+
+#[test]
+fn acyclic_key_dependencies_obey_the_depth_limit() {
+    let mut declarations = String::from(r#"<xsl:key name="k0" match="item" use="@id"/>"#);
+    for i in 1..12 {
+        declarations.push_str(&format!(
+            r#"<xsl:key name="k{i}" match="item" use="key('k{}', 'x')"/>"#,
+            i - 1
+        ));
+    }
+    let sheet = Stylesheet::compile(&format!(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">{declarations}<xsl:template match="/"><xsl:sequence select="key('k11', 'x')"/></xsl:template></xsl:stylesheet>"#)).unwrap();
+    let options = rust_xslt::TransformOptions {
+        limits: rust_xslt::Limits {
+            max_depth: 8,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let error = sheet.transform_with_options(SOURCE, &options).unwrap_err();
+    assert_eq!(error.code, "XPDY0130");
+    assert!(error.message.contains("key dependency depth"));
+}

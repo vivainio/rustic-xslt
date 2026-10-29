@@ -302,6 +302,8 @@ pub(crate) type FunctionTable = std::sync::Arc<BTreeMap<(String, usize), UserFun
 pub(crate) struct Budget {
     pub functions: FunctionTable,
     pub keys: KeyTable,
+    /// Keys currently being evaluated, identified by expanded name and document root.
+    active_keys: Vec<(String, usize, u32)>,
     pub decimal_formats: DecimalFormats,
     /// Secondary results (href, serialized content) created by `xsl:result-document`.
     pub secondary: Vec<(String, String)>,
@@ -317,6 +319,7 @@ impl Budget {
         Self {
             functions: FunctionTable::default(),
             keys: KeyTable::default(),
+            active_keys: vec![],
             decimal_formats: DecimalFormats::default(),
             secondary: vec![],
             messages: vec![],
@@ -2963,57 +2966,70 @@ fn call_key<'a>(
     if wanted.is_empty() {
         return Ok(vec![]);
     }
-    let mut found = vec![];
-    let top = if args.len() == 3 { start } else { start.root() };
-    let mut candidates = top.descendants();
-    for node in candidates.clone() {
-        if node.is_element() {
-            candidates.extend(node.attributes());
-        }
+    let root = start.root().order();
+    let active = (name, root.0, root.1);
+    if budget.active_keys.contains(&active) {
+        return Err(err("XTDE0640", "circular dependency in key definitions"));
     }
-    for node in candidates {
-        budget.tick()?;
-        for definition in definitions {
-            let mut matched = false;
-            for branch in &definition.branches {
-                if crate::pattern::matches(branch, node, &scope, budget, backwards)? {
-                    matched = true;
-                    break;
-                }
+    if budget.active_keys.len() >= budget.max_depth {
+        return Err(err("XPDY0130", "key dependency depth limit exceeded"));
+    }
+    budget.active_keys.push(active);
+    let result = (|| {
+        let mut found = vec![];
+        let top = if args.len() == 3 { start } else { start.root() };
+        let mut candidates = top.descendants();
+        for node in candidates.clone() {
+            if node.is_element() {
+                candidates.extend(node.attributes());
             }
-            if !matched {
-                continue;
-            }
-            let at = Focus {
-                item: Item::Node(node),
-                position: 1,
-                size: 1,
-            };
-            let values = eval(
-                &definition.value,
-                &at,
-                &scope,
-                budget,
-                1,
-                definition.backwards,
-            )?;
-            for value in key_values(values, compatibility, budget)? {
-                let mut equal = false;
-                for requested in &wanted {
-                    budget.tick()?;
-                    if crate::deep_equal::atomic_equal(&value, requested, false) {
-                        equal = true;
+        }
+        for node in candidates {
+            budget.tick()?;
+            for definition in definitions {
+                let mut matched = false;
+                for branch in &definition.branches {
+                    if crate::pattern::matches(branch, node, &scope, budget, backwards)? {
+                        matched = true;
                         break;
                     }
                 }
-                if equal {
-                    found.push(node);
-                    break;
+                if !matched {
+                    continue;
+                }
+                let at = Focus {
+                    item: Item::Node(node),
+                    position: 1,
+                    size: 1,
+                };
+                let values = eval(
+                    &definition.value,
+                    &at,
+                    &scope,
+                    budget,
+                    1,
+                    definition.backwards,
+                )?;
+                for value in key_values(values, compatibility, budget)? {
+                    let mut equal = false;
+                    for requested in &wanted {
+                        budget.tick()?;
+                        if crate::deep_equal::atomic_equal(&value, requested, false) {
+                            equal = true;
+                            break;
+                        }
+                    }
+                    if equal {
+                        found.push(node);
+                        break;
+                    }
                 }
             }
         }
-    }
-    Ok(ordered(found))
+        Ok(ordered(found))
+    })();
+    budget.active_keys.pop();
+    result
 }
 fn call_user_function<'a>(
     name: &str,
