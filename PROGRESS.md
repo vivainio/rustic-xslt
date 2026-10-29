@@ -1777,3 +1777,14 @@ conformance claims. Smaller tested increments are committed independently.
   now has 840 passing cases (eight new, zero regressions), 315 engine failures,
   264 harness errors and 153 profile exclusions across 1,572 selected cases.
 - Validation: focused result-document tests and the pinned XSLT gate pass.
+
+## Increment 149: result-document CDATA lists
+
+- Result documents accept dynamic `cdata-section-elements` QName lists, resolving
+  prefixes in the declaring stylesheet and adding them to output CDATA settings.
+  DOCTYPE AVTs now also participate in static variable-scope validation.
+- The pinned XSLT gate has 842 passing cases (two new, zero regressions),
+  313 engine failures, 264 harness errors and 153 profile exclusions.
+- Validation: focused result-document tests, all-target/all-feature Clippy and
+  the full pinned XSLT gate pass. Named-format selection on href-less results
+  remains a separate serialization gap.

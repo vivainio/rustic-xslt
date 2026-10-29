@@ -2100,6 +2100,15 @@ fn run_tasks<'a>(
                             return Err(limit());
                         }
                         let href = parts(&spec.href, &focus, &env, budget, sheet.backwards)?;
+                        let mut extra_cdata = Vec::new();
+                        if let Some((value, bindings)) = &spec.cdata {
+                            let value = parts(value, &focus, &env, budget, sheet.backwards)?;
+                            for name in value.split_whitespace() {
+                                extra_cdata.push(crate::qname::resolve_element(
+                                    name, bindings, "XTDE0030",
+                                )?);
+                            }
+                        }
                         if href.is_empty() {
                             if budget.principal_output_claimed {
                                 return Err(Diagnostic::new(
@@ -2160,7 +2169,14 @@ fn run_tasks<'a>(
                                 }
                                 let principal = Output::new(limits.max_output_bytes, text_method)
                                     .with_serialization(markup, doctype)
-                                    .with_cdata(sheet.cdata_elements.clone())
+                                    .with_cdata(std::sync::Arc::new(
+                                        sheet
+                                            .cdata_elements
+                                            .iter()
+                                            .cloned()
+                                            .chain(extra_cdata.iter().cloned())
+                                            .collect(),
+                                    ))
                                     .with_char_map(sheet.char_map.clone());
                                 TRY_DEPTH.with(|d| d.set(d.get() + 1));
                                 let output = run_tasks(
@@ -2260,7 +2276,14 @@ fn run_tasks<'a>(
                         }
                         let nested = Output::new(limits.max_output_bytes, text_method)
                             .with_serialization(markup, doctype)
-                            .with_cdata(settings.cdata_elements.clone())
+                            .with_cdata(std::sync::Arc::new(
+                                settings
+                                    .cdata_elements
+                                    .iter()
+                                    .cloned()
+                                    .chain(extra_cdata.iter().cloned())
+                                    .collect(),
+                            ))
                             .with_char_map(settings.char_map.clone());
                         let inner = Frame {
                             focus,

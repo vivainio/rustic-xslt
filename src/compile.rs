@@ -95,6 +95,7 @@ pub(crate) struct ResultDocumentSpec {
     pub byte_order_mark: Option<bool>,
     pub indent: Option<bool>,
     pub encoding: Option<crate::result::Encoding>,
+    pub cdata: Option<(Vec<Expr>, BTreeMap<String, String>)>,
     pub doctype_public: Option<Vec<Expr>>,
     pub doctype_system: Option<Vec<Expr>>,
     pub body: Vec<Instruction>,
@@ -1269,6 +1270,7 @@ fn body(
                                 "encoding",
                                 "doctype-public",
                                 "doctype-system",
+                                "cdata-section-elements",
                                 "validation",
                                 "type",
                             ],
@@ -1314,6 +1316,20 @@ fn body(
                             byte_order_mark: flag("byte-order-mark")?,
                             indent: flag("indent")?,
                             encoding,
+                            cdata: n
+                                .attribute("cdata-section-elements")
+                                .map(|value| {
+                                    let mut bindings = namespaces(n);
+                                    bindings.remove(crate::qname::XPATH_DEFAULT_NAMESPACE);
+                                    if let Some(uri) = n.lookup_namespace_uri(None) {
+                                        bindings.insert(
+                                            crate::qname::XPATH_DEFAULT_NAMESPACE.into(),
+                                            uri.into(),
+                                        );
+                                    }
+                                    avt(n, value).map(|parts| (parts, bindings))
+                                })
+                                .transpose()?,
                             doctype_public: n
                                 .attribute("doctype-public")
                                 .map(|value| avt(n, value))
@@ -3307,6 +3323,15 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 }
                 Instruction::ResultDocument(spec) => {
                     parts(&spec.href, &scope)?;
+                    for value in [&spec.doctype_public, &spec.doctype_system]
+                        .into_iter()
+                        .flatten()
+                    {
+                        parts(value, &scope)?;
+                    }
+                    if let Some((value, _)) = &spec.cdata {
+                        parts(value, &scope)?;
+                    }
                     if let Some((format, _)) = &spec.format {
                         parts(format, &scope)?;
                     }
