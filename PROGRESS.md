@@ -2240,3 +2240,12 @@ conformance claims. Smaller tested increments are committed independently.
 - Added a regression for a result-document media type with an open quote.
 - Validation: sixteen result-document tests, all-target/all-feature Clippy and
   the full 929-case pinned XSLT gate pass without regressions.
+
+## Increment 198: dynamic metadata settings across result destinations
+
+- Added a regression combining dynamic media type, encoding and metadata toggle
+  through try capture for both principal and secondary result documents.
+- The test verifies the actual US-ASCII charset, escaped title content and one
+  generated metadata declaration per result.
+- Validation: seventeen result-document tests, all-target/all-feature Clippy,
+  formatting and diff checks pass. No runtime behavior changed.

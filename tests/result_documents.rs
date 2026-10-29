@@ -191,3 +191,19 @@ fn media_types_reject_unterminated_quoted_parameters() {
     assert_eq!(error.phase, "run");
     assert!(error.message.contains("unterminated"));
 }
+
+#[test]
+fn generated_metadata_uses_each_result_documents_dynamic_settings() {
+    for href in ["", "href='secondary.html'"] {
+        let body = r#"<xsl:variable name="media" select="'application/example'"/><xsl:variable name="encoding" select="'US-ASCII'"/><xsl:variable name="include" select="'yes'"/><xsl:result-document $HREF method="html" encoding="{$encoding}" media-type="{$media}" include-content-type="{$include}"><xsl:try><html><head><title>é</title></head></html><xsl:catch><error/></xsl:catch></xsl:try></xsl:result-document>"#.replace("$HREF", href);
+        let result = run(&body).unwrap();
+        let content = if href.is_empty() {
+            &result.principal
+        } else {
+            &result.documents[0].content
+        };
+        assert!(content.contains("content=\"application/example; charset=US-ASCII\""));
+        assert!(content.contains("<title>&#xE9;</title>"));
+        assert_eq!(content.matches("charset=").count(), 1);
+    }
+}
