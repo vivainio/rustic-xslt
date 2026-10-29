@@ -190,3 +190,57 @@ fn integer_division_atomizes_nodes_as_untyped_numbers() {
         "3"
     );
 }
+
+#[test]
+fn absolute_floor_and_ceiling_keep_exact_values_and_numeric_types() {
+    for (e, want) in [
+        ("abs(-9007199254740993)", "9007199254740993"),
+        ("abs(-0.1)", "0.1"),
+        ("floor(-1.1)", "-2"),
+        ("ceiling(-1.1)", "-1"),
+        ("floor(1.9)", "1"),
+        ("ceiling(1.1)", "2"),
+        ("floor(9007199254740993.9)", "9007199254740993"),
+        ("floor(3) instance of xs:integer", "true"),
+        ("ceiling(3.1) instance of xs:decimal", "true"),
+        ("abs(xs:float('-2')) instance of xs:float", "true"),
+        ("floor(2e0) instance of xs:double", "true"),
+        (
+            "empty(abs(())) and empty(floor(())) and empty(ceiling(()))",
+            "true",
+        ),
+    ] {
+        assert_eq!(evaluate(e), want, "{e}");
+    }
+}
+#[test]
+fn numeric_unary_functions_preserve_special_values_and_signed_zero() {
+    for (e, want) in [
+        ("abs(xs:double('-INF'))", "INF"),
+        ("ceiling(xs:float('INF'))", "INF"),
+        ("floor(xs:double('-INF'))", "-INF"),
+        ("floor(xs:double('NaN'))", "NaN"),
+        ("1e0 div ceiling(-0.2e0)", "-INF"),
+        ("1e0 div abs(-0e0)", "INF"),
+    ] {
+        assert_eq!(evaluate(e), want, "{e}");
+    }
+}
+#[test]
+fn unary_numeric_functions_atomize_nodes_and_reject_non_numeric_atomics() {
+    assert_eq!(
+        transform(&sheet("3.0", "floor(r/@a)"), "<r a='2.9'/>").unwrap(),
+        "2"
+    );
+    for e in ["abs('1')", "floor(true())", "ceiling((1,2))"] {
+        assert_eq!(
+            transform(&sheet("3.0", e), "<r/>").unwrap_err().code,
+            "XPTY0004",
+            "{e}"
+        );
+    }
+    assert_eq!(
+        transform(&sheet("1.0", "floor(r/@missing)"), "<r/>").unwrap(),
+        "NaN"
+    );
+}

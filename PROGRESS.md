@@ -676,5 +676,18 @@ conformance claims. Smaller tested increments are committed independently.
 - Thirty-nine QT3 sets: 3,380 cases, 1,771 pass / 917 engine failures / 71 harness
   errors / 621 profile exclusions. Gate grows by 35 normalization-related cases.
 
-Next: further XPath atomic/function coverage.
+## Increment 56: absolute value, floor and ceiling
+
+- abs/floor/ceiling preserve integer, decimal, float and double result types;
+  integer/decimal operations remain exact beyond IEEE integer precision.
+- Empty modern arguments, untyped node conversion and legacy numeric conversion
+  follow the existing numeric rules; floating signs, infinities and NaN survive.
+- 346 Rust integration tests, 27 harness tests and Clippy/format pass. All 381
+  XSLT and previous QT3 gate cases remain green.
+- Forty-two QT3 sets: 3,750 cases, 1,917 pass / 1,129 engine failures / 71 harness
+  errors / 633 profile exclusions. Gate grows by 146 unary-numeric cases.
+- Remaining selected floor/ceiling assertion failures include the documented
+  floating-point lexical formatting gap, alongside unsupported numeric subtypes.
+
+Next: floating numeric string formatting and further XPath coverage.
 

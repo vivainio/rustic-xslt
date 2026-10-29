@@ -1001,6 +1001,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "substring" | "compare" => (2, 3),
         "codepoint-equal" => (2, 2),
         "normalize-unicode" => (1, 2),
+        "abs" | "floor" | "ceiling" => (1, 1),
         "codepoints-to-string" | "string-to-codepoints" => (1, 1),
         "translate" => (3, 3),
         "remove" => (2, 2),
@@ -1675,6 +1676,14 @@ fn function<'a>(
         Ok(v.first().map_or(String::new(), Item::string))
     };
     let s = || scalar(first);
+    if matches!(name, "abs" | "floor" | "ceiling") {
+        if first.is_empty() && !backwards {
+            return Ok(vec![]);
+        }
+        return Ok(vec![Item::Number(
+            numeric(first, backwards)?.unary_function(name),
+        )]);
+    }
     if name == "root" {
         return match first.as_slice() {
             [] => Ok(vec![]),

@@ -1,12 +1,15 @@
 {
   "suite_revision": "201a6e466940cdfc727f4babfedcde5332b9f578",
   "selected_sets": [
+    "fn-abs",
     "fn-avg",
+    "fn-ceiling",
     "fn-codepoint-equal",
     "fn-codepoints-to-string",
     "fn-compare",
     "fn-deep-equal",
     "fn-exactly-one",
+    "fn-floor",
     "fn-head",
     "fn-insert-before",
     "fn-lower-case",
@@ -2587,6 +2590,142 @@
       "fn-min-11"
     ],
     [
+      "fn-normalize-unicode",
+      "fn-normalize-unicode1args-1"
+    ],
+    [
+      "fn-normalize-unicode",
+      "fn-normalize-unicode1args-2"
+    ],
+    [
+      "fn-normalize-unicode",
+      "fn-normalize-unicode1args-6"
+    ],
+    [
+      "fn-normalize-unicode",
+      "fn-normalize-unicode1args-7"
+    ],
+    [
+      "fn-normalize-unicode",
+      "fn-normalize-unicode1args-8"
+    ],
+    [
+      "fn-normalize-unicode",
+      "fn-normalize-unicode2args-1"
+    ],
+    [
+      "fn-normalize-unicode",
+      "fn-normalize-unicode2args-2"
+    ],
+    [
+      "fn-normalize-unicode",
+      "fn-normalize-unicode2args-3"
+    ],
+    [
+      "fn-normalize-unicode",
+      "fn-normalize-unicode2args-4"
+    ],
+    [
+      "fn-normalize-unicode",
+      "fn-normalize-unicode2args-5"
+    ],
+    [
+      "fn-normalize-unicode",
+      "fn-normalize-unicode2args-6"
+    ],
+    [
+      "fn-normalize-unicode",
+      "fn-normalize-unicode-1"
+    ],
+    [
+      "fn-normalize-unicode",
+      "fn-normalize-unicode-2"
+    ],
+    [
+      "fn-normalize-unicode",
+      "fn-normalize-unicode-3"
+    ],
+    [
+      "fn-normalize-unicode",
+      "fn-normalize-unicode-4"
+    ],
+    [
+      "fn-normalize-unicode",
+      "fn-normalize-unicode-5"
+    ],
+    [
+      "fn-normalize-unicode",
+      "fn-normalize-unicode-6"
+    ],
+    [
+      "fn-normalize-unicode",
+      "fn-normalize-unicode-7"
+    ],
+    [
+      "fn-normalize-unicode",
+      "fn-normalize-unicode-8"
+    ],
+    [
+      "fn-normalize-unicode",
+      "fn-normalize-unicode-9"
+    ],
+    [
+      "fn-normalize-unicode",
+      "fn-normalize-unicode-10"
+    ],
+    [
+      "fn-normalize-unicode",
+      "K-NormalizeUnicodeFunc-1"
+    ],
+    [
+      "fn-normalize-unicode",
+      "K-NormalizeUnicodeFunc-2"
+    ],
+    [
+      "fn-normalize-unicode",
+      "K-NormalizeUnicodeFunc-3"
+    ],
+    [
+      "fn-normalize-unicode",
+      "K-NormalizeUnicodeFunc-4"
+    ],
+    [
+      "fn-normalize-unicode",
+      "K-NormalizeUnicodeFunc-5"
+    ],
+    [
+      "fn-normalize-unicode",
+      "K-NormalizeUnicodeFunc-9"
+    ],
+    [
+      "fn-normalize-unicode",
+      "K-NormalizeUnicodeFunc-10"
+    ],
+    [
+      "fn-normalize-unicode",
+      "K-NormalizeUnicodeFunc-11"
+    ],
+    [
+      "fn-normalize-unicode",
+      "K-NormalizeUnicodeFunc-12"
+    ],
+    [
+      "fn-normalize-unicode",
+      "cbcl-fn-normalize-unicode-002"
+    ],
+    [
+      "fn-normalize-unicode",
+      "cbcl-fn-normalize-unicode-003"
+    ],
+    [
+      "fn-normalize-unicode",
+      "cbcl-fn-normalize-unicode-004"
+    ],
+    [
+      "fn-normalize-unicode",
+      "cbcl-fn-normalize-unicode-005"
+    ],
+    [
       "fn-one-or-more",
       "fn-one-or-moreintg1args-1"
     ],
@@ -3489,6 +3628,10 @@
     [
       "fn-subsequence",
       "cbcl-subsequence-026"
+    ],
+    [
+      "fn-subsequence",
+      "cbcl-subsequence-027"
     ],
     [
       "fn-substring",
@@ -6991,140 +7134,584 @@
       "sequence-type-21"
     ],
     [
-      "fn-normalize-unicode",
-      "fn-normalize-unicode1args-1"
+      "fn-abs",
+      "fn-absintg1args-1"
     ],
     [
-      "fn-normalize-unicode",
-      "fn-normalize-unicode1args-2"
+      "fn-abs",
+      "fn-absintg1args-2"
     ],
     [
-      "fn-normalize-unicode",
-      "fn-normalize-unicode1args-6"
+      "fn-abs",
+      "fn-absintg1args-3"
     ],
     [
-      "fn-normalize-unicode",
-      "fn-normalize-unicode1args-7"
+      "fn-abs",
+      "fn-absdec1args-1"
     ],
     [
-      "fn-normalize-unicode",
-      "fn-normalize-unicode1args-8"
+      "fn-abs",
+      "fn-absdec1args-2"
     ],
     [
-      "fn-normalize-unicode",
-      "fn-normalize-unicode2args-1"
+      "fn-abs",
+      "fn-absdec1args-3"
     ],
     [
-      "fn-normalize-unicode",
-      "fn-normalize-unicode2args-2"
+      "fn-abs",
+      "fn-absdbl1args-1"
     ],
     [
-      "fn-normalize-unicode",
-      "fn-normalize-unicode2args-3"
+      "fn-abs",
+      "fn-absdbl1args-2"
     ],
     [
-      "fn-normalize-unicode",
-      "fn-normalize-unicode2args-4"
+      "fn-abs",
+      "fn-absdbl1args-3"
     ],
     [
-      "fn-normalize-unicode",
-      "fn-normalize-unicode2args-5"
+      "fn-abs",
+      "fn-absflt1args-1"
     ],
     [
-      "fn-normalize-unicode",
-      "fn-normalize-unicode2args-6"
+      "fn-abs",
+      "fn-absflt1args-2"
     ],
     [
-      "fn-normalize-unicode",
-      "fn-normalize-unicode-1"
+      "fn-abs",
+      "fn-absflt1args-3"
     ],
     [
-      "fn-normalize-unicode",
-      "fn-normalize-unicode-2"
+      "fn-abs",
+      "fn-abs-more-args-001"
     ],
     [
-      "fn-normalize-unicode",
-      "fn-normalize-unicode-3"
+      "fn-abs",
+      "fn-abs-more-args-002"
     ],
     [
-      "fn-normalize-unicode",
-      "fn-normalize-unicode-4"
+      "fn-abs",
+      "fn-abs-more-args-003"
     ],
     [
-      "fn-normalize-unicode",
-      "fn-normalize-unicode-5"
+      "fn-abs",
+      "fn-abs-more-args-004"
     ],
     [
-      "fn-normalize-unicode",
-      "fn-normalize-unicode-6"
+      "fn-abs",
+      "fn-abs-more-args-005"
     ],
     [
-      "fn-normalize-unicode",
-      "fn-normalize-unicode-7"
+      "fn-abs",
+      "fn-abs-more-args-006"
     ],
     [
-      "fn-normalize-unicode",
-      "fn-normalize-unicode-8"
+      "fn-abs",
+      "fn-abs-more-args-007"
     ],
     [
-      "fn-normalize-unicode",
-      "fn-normalize-unicode-9"
+      "fn-abs",
+      "fn-abs-more-args-008"
     ],
     [
-      "fn-normalize-unicode",
-      "fn-normalize-unicode-10"
+      "fn-abs",
+      "fn-abs-more-args-009"
     ],
     [
-      "fn-normalize-unicode",
-      "K-NormalizeUnicodeFunc-1"
+      "fn-abs",
+      "fn-abs-more-args-010"
     ],
     [
-      "fn-normalize-unicode",
-      "K-NormalizeUnicodeFunc-2"
+      "fn-abs",
+      "fn-abs-more-args-011"
     ],
     [
-      "fn-normalize-unicode",
-      "K-NormalizeUnicodeFunc-3"
+      "fn-abs",
+      "fn-abs-more-args-012"
     ],
     [
-      "fn-normalize-unicode",
-      "K-NormalizeUnicodeFunc-4"
+      "fn-abs",
+      "fn-abs-more-args-015"
     ],
     [
-      "fn-normalize-unicode",
-      "K-NormalizeUnicodeFunc-5"
+      "fn-abs",
+      "fn-abs-more-args-016"
     ],
     [
-      "fn-normalize-unicode",
-      "K-NormalizeUnicodeFunc-9"
+      "fn-abs",
+      "fn-abs-more-args-025"
     ],
     [
-      "fn-normalize-unicode",
-      "K-NormalizeUnicodeFunc-10"
+      "fn-abs",
+      "fn-abs-more-args-026"
     ],
     [
-      "fn-normalize-unicode",
-      "K-NormalizeUnicodeFunc-11"
+      "fn-abs",
+      "fn-abs-more-args-027"
     ],
     [
-      "fn-normalize-unicode",
-      "K-NormalizeUnicodeFunc-12"
+      "fn-abs",
+      "fn-abs-more-args-028"
     ],
     [
-      "fn-normalize-unicode",
-      "cbcl-fn-normalize-unicode-002"
+      "fn-abs",
+      "fn-abs-more-args-033"
     ],
     [
-      "fn-normalize-unicode",
-      "cbcl-fn-normalize-unicode-003"
+      "fn-abs",
+      "fn-abs-more-args-034"
     ],
     [
-      "fn-normalize-unicode",
-      "cbcl-fn-normalize-unicode-004"
+      "fn-abs",
+      "fn-abs-more-args-035"
     ],
     [
-      "fn-normalize-unicode",
-      "cbcl-fn-normalize-unicode-005"
+      "fn-abs",
+      "fn-abs-more-args-036"
+    ],
+    [
+      "fn-abs",
+      "fn-abs-more-args-077"
+    ],
+    [
+      "fn-abs",
+      "fn-abs-more-args-078"
+    ],
+    [
+      "fn-abs",
+      "fn-abs-more-args-079"
+    ],
+    [
+      "fn-abs",
+      "fn-abs-more-args-080"
+    ],
+    [
+      "fn-abs",
+      "fn-abs-more-args-081"
+    ],
+    [
+      "fn-abs",
+      "fn-abs-more-args-082"
+    ],
+    [
+      "fn-abs",
+      "K-ABSFunc-1"
+    ],
+    [
+      "fn-abs",
+      "K-ABSFunc-2"
+    ],
+    [
+      "fn-abs",
+      "K-ABSFunc-3"
+    ],
+    [
+      "fn-abs",
+      "K-ABSFunc-4"
+    ],
+    [
+      "fn-abs",
+      "K-ABSFunc-5"
+    ],
+    [
+      "fn-abs",
+      "K-ABSFunc-6"
+    ],
+    [
+      "fn-abs",
+      "K2-ABSFunc-1"
+    ],
+    [
+      "fn-abs",
+      "K2-ABSFunc-14"
+    ],
+    [
+      "fn-abs",
+      "K2-ABSFunc-27"
+    ],
+    [
+      "fn-abs",
+      "K2-ABSFunc-28"
+    ],
+    [
+      "fn-abs",
+      "K2-ABSFunc-29"
+    ],
+    [
+      "fn-abs",
+      "K2-ABSFunc-30"
+    ],
+    [
+      "fn-abs",
+      "K2-ABSFunc-31"
+    ],
+    [
+      "fn-abs",
+      "K2-ABSFunc-32"
+    ],
+    [
+      "fn-abs",
+      "K2-ABSFunc-33"
+    ],
+    [
+      "fn-abs",
+      "K2-ABSFunc-34"
+    ],
+    [
+      "fn-abs",
+      "K2-ABSFunc-47"
+    ],
+    [
+      "fn-abs",
+      "K2-ABSFunc-48"
+    ],
+    [
+      "fn-abs",
+      "K2-ABSFunc-49"
+    ],
+    [
+      "fn-abs",
+      "K2-ABSFunc-50"
+    ],
+    [
+      "fn-abs",
+      "cbcl-abs-001"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceilingintg1args-1"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceilingintg1args-2"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceilingintg1args-3"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceilingdec1args-1"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceilingdec1args-2"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceilingdec1args-3"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceilingdbl1args-2"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceilingflt1args-2"
+    ],
+    [
+      "fn-ceiling",
+      "K-CeilingFunc-1"
+    ],
+    [
+      "fn-ceiling",
+      "K-CeilingFunc-2"
+    ],
+    [
+      "fn-ceiling",
+      "K-CeilingFunc-3"
+    ],
+    [
+      "fn-ceiling",
+      "K-CeilingFunc-4"
+    ],
+    [
+      "fn-ceiling",
+      "K-CeilingFunc-5"
+    ],
+    [
+      "fn-ceiling",
+      "K-CeilingFunc-6"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-decimal-1"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-decimal-2"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-decimal-3"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-decimal-4"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-decimal-5"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-decimal-6"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-decimal-7"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-double-1"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-double-2"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-double-3"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-double-4"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-double-5"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-double-6"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-double-7"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-double-8"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-double-9"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-double-10"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-double-11"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-float-1"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-float-2"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-float-3"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-float-4"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-float-5"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-float-6"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-float-7"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-float-8"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-float-9"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-float-10"
+    ],
+    [
+      "fn-ceiling",
+      "fn-ceiling-float-11"
+    ],
+    [
+      "fn-floor",
+      "fn-floorintg1args-1"
+    ],
+    [
+      "fn-floor",
+      "fn-floorintg1args-2"
+    ],
+    [
+      "fn-floor",
+      "fn-floorintg1args-3"
+    ],
+    [
+      "fn-floor",
+      "fn-floordec1args-1"
+    ],
+    [
+      "fn-floor",
+      "fn-floordec1args-2"
+    ],
+    [
+      "fn-floor",
+      "fn-floordec1args-3"
+    ],
+    [
+      "fn-floor",
+      "fn-floordbl1args-2"
+    ],
+    [
+      "fn-floor",
+      "fn-floorflt1args-2"
+    ],
+    [
+      "fn-floor",
+      "K-FloorFunc-1"
+    ],
+    [
+      "fn-floor",
+      "K-FloorFunc-2"
+    ],
+    [
+      "fn-floor",
+      "K-FloorFunc-3"
+    ],
+    [
+      "fn-floor",
+      "K-FloorFunc-4"
+    ],
+    [
+      "fn-floor",
+      "K-FloorFunc-5"
+    ],
+    [
+      "fn-floor",
+      "K-FloorFunc-6"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-decimal-1"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-decimal-2"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-decimal-3"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-decimal-4"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-decimal-5"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-decimal-6"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-decimal-7"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-double-1"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-double-2"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-double-3"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-double-4"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-double-5"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-double-6"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-double-7"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-double-8"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-double-9"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-double-10"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-float-1"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-float-2"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-float-3"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-float-4"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-float-5"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-float-6"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-float-7"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-float-8"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-float-9"
+    ],
+    [
+      "fn-floor",
+      "fn-floor-float-10"
     ]
   ]
 }

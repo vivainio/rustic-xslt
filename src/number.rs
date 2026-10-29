@@ -2,7 +2,7 @@
 use crate::Diagnostic;
 use bigdecimal::BigDecimal;
 use num_bigint::BigInt;
-use num_traits::{FromPrimitive, ToPrimitive, Zero};
+use num_traits::{FromPrimitive, Signed, ToPrimitive, Zero};
 use std::{cmp::Ordering, str::FromStr};
 const MAX_DIGITS: usize = 10_000;
 #[derive(Debug, Clone, PartialEq)]
@@ -169,6 +169,30 @@ impl Number {
             (self.double() as f32).partial_cmp(&(other.double() as f32))
         } else {
             Some(self.decimal().ok()?.cmp(&other.decimal().ok()?))
+        }
+    }
+    pub fn unary_function(&self, name: &str) -> Self {
+        use bigdecimal::RoundingMode;
+        match self {
+            Self::Integer(n) => Self::Integer(if name == "abs" { n.abs() } else { n.clone() }),
+            Self::Decimal(n) => Self::Decimal(match name {
+                "abs" => n.abs(),
+                "floor" => n.with_scale_round(0, RoundingMode::Floor),
+                "ceiling" => n.with_scale_round(0, RoundingMode::Ceiling),
+                _ => unreachable!(),
+            }),
+            Self::Float(n) => Self::Float(match name {
+                "abs" => n.abs(),
+                "floor" => n.floor(),
+                "ceiling" => n.ceil(),
+                _ => unreachable!(),
+            }),
+            Self::Double(n) => Self::Double(match name {
+                "abs" => n.abs(),
+                "floor" => n.floor(),
+                "ceiling" => n.ceil(),
+                _ => unreachable!(),
+            }),
         }
     }
     fn integer_division(&self, rhs: &Self) -> Result<Self, Diagnostic> {
