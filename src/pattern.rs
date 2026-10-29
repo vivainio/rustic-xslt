@@ -244,11 +244,82 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
 pub(crate) fn parse(
     source: &str,
     namespaces: BTreeMap<String, String>,
+    version: u8,
 ) -> Result<Vec<Branch>, Diagnostic> {
+    let trimmed = without_leading_comments(source);
+    if trimmed
+        .strip_prefix('/')
+        .is_some_and(|tail| tail.trim_start().starts_with('['))
+    {
+        return Err(invalid_pattern("a predicate cannot directly follow `/`"));
+    }
+    if version < 3 && trimmed.starts_with('(') {
+        return Err(invalid_pattern("parenthesized patterns require XSLT 3.0"));
+    }
     let e = xpath::parse(source, namespaces)?;
+    validate_version(&e, source, version)?;
     let mut parts = vec![];
     collect(e, &mut parts)?;
     Ok(parts.into_iter().map(into_branch).collect())
+}
+
+fn invalid_pattern(message: &str) -> Diagnostic {
+    Diagnostic::new("XTSE0340", message, "compile")
+}
+
+fn without_leading_comments(mut source: &str) -> &str {
+    loop {
+        source = source.trim_start();
+        if !source.starts_with("(:") {
+            return source;
+        }
+        let mut depth = 1usize;
+        let mut index = 2usize;
+        while index < source.len() {
+            let rest = &source[index..];
+            if rest.starts_with("(:") {
+                depth += 1;
+                index += 2;
+            } else if rest.starts_with(":)") {
+                depth -= 1;
+                index += 2;
+                if depth == 0 {
+                    break;
+                }
+            } else {
+                index += source[index..].chars().next().unwrap().len_utf8();
+            }
+        }
+        if depth != 0 {
+            return source;
+        }
+        source = &source[index..];
+    }
+}
+
+fn validate_version(expression: &Expr, source: &str, version: u8) -> Result<(), Diagnostic> {
+    match expression {
+        Expr::Filter(_, _) if version < 3 => {
+            return Err(invalid_pattern("filtered patterns require XSLT 3.0"));
+        }
+        Expr::Binary(op, _, _) if matches!(op.as_str(), "intersect" | "except") && version < 3 => {
+            return Err(invalid_pattern(
+                "intersect and except patterns require XSLT 3.0",
+            ));
+        }
+        Expr::Binary(op, _, _)
+            if op == "union" && version < 3 && !source.trim_start().starts_with('/') =>
+        {
+            return Err(invalid_pattern(
+                "the `union` keyword in patterns requires XSLT 3.0",
+            ));
+        }
+        Expr::Call(name, _) if name == "root" && version < 3 => {
+            return Err(invalid_pattern("function patterns require XSLT 3.0"));
+        }
+        _ => {}
+    }
+    Ok(())
 }
 
 fn into_branch(p: Parts) -> Branch {

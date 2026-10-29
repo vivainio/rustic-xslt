@@ -88,6 +88,18 @@ fn path_patterns_keep_except_constraints_anchored_to_their_prefix() {
         "AI"
     );
 }
+
+#[test]
+fn match_pattern_syntax_respects_versioned_extensions() {
+    for pattern in ["(a|b)", "and union or", "/[doc]"] {
+        let source = format!(
+            r#"<xsl:stylesheet version="2.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="{pattern}"/></xsl:stylesheet>"#
+        );
+        assert_eq!(Stylesheet::compile(&source).unwrap_err().code, "XTSE0340");
+    }
+    let v3 = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="(a|b)"/></xsl:stylesheet>"#;
+    assert!(Stylesheet::compile(v3).is_ok());
+}
 #[test]
 fn parenthesized_unions_expand_into_alternatives() {
     let templates = r#"<xsl:template match="/"><xsl:apply-templates select="//*"/></xsl:template><xsl:template match="chap/(p|q)">X</xsl:template><xsl:template match="(sec|doc)/p">Y</xsl:template>"#;

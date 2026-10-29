@@ -204,6 +204,13 @@ fn error(n: Node<'_, '_>, message: impl Into<String>) -> Diagnostic {
         column: pos.col,
     }
 }
+fn xslt_version(n: Node<'_, '_>) -> u8 {
+    match n.document().root_element().attribute("version") {
+        Some("1.0") => 1,
+        Some("2.0") => 2,
+        _ => 3,
+    }
+}
 fn static_error(n: Node<'_, '_>, code: &str, message: impl Into<String>) -> Diagnostic {
     let mut e = error(n, message);
     e.code = code.into();
@@ -1222,7 +1229,7 @@ fn body(
                         };
                         let pattern = |name: &str| {
                             n.attribute(name)
-                                .map(|p| crate::pattern::parse(p, namespaces(n)))
+                                .map(|p| crate::pattern::parse(p, namespaces(n), xslt_version(n)))
                                 .transpose()
                         };
                         let optional_avt = |name: &str| -> Result<Vec<Expr>, Diagnostic> {
@@ -1641,10 +1648,16 @@ fn body(
                         let grouping = match *attribute {
                             "group-by" => Grouping::By(expr(n, value)?),
                             "group-adjacent" => Grouping::Adjacent(expr(n, value)?),
-                            "group-starting-with" => {
-                                Grouping::Starting(crate::pattern::parse(value, namespaces(n))?)
-                            }
-                            _ => Grouping::Ending(crate::pattern::parse(value, namespaces(n))?),
+                            "group-starting-with" => Grouping::Starting(crate::pattern::parse(
+                                value,
+                                namespaces(n),
+                                xslt_version(n),
+                            )?),
+                            _ => Grouping::Ending(crate::pattern::parse(
+                                value,
+                                namespaces(n),
+                                xslt_version(n),
+                            )?),
                         };
                         out.push(Instruction::ForEachGroup(
                             expr(n, required(n, "select")?)?,
@@ -2336,7 +2349,7 @@ fn declarations(
                 attrs(n, &["match", "name", "mode", "priority", "as"])?;
                 let p = n
                     .attribute("match")
-                    .map(|p| crate::pattern::parse(p, namespaces(n)))
+                    .map(|p| crate::pattern::parse(p, namespaces(n), xslt_version(n)))
                     .transpose()?;
                 let id = n
                     .attribute("name")
@@ -2825,7 +2838,7 @@ fn declarations(
                 let pattern = n
                     .attribute("match")
                     .ok_or_else(|| static_error(n, "XTSE0010", "key requires a match pattern"))?;
-                let branches = crate::pattern::parse(pattern, namespaces(n))?;
+                let branches = crate::pattern::parse(pattern, namespaces(n), xslt_version(n))?;
                 let Some(select) = n.attribute("use") else {
                     return Err(error(n, "xsl:key requires the use attribute here"));
                 };

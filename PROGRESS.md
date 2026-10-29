@@ -1744,3 +1744,15 @@ conformance claims. Smaller tested increments are committed independently.
   selected cases.
 - Validation: all-feature Rust tests, all-target/all-feature Clippy, 43 Python
   harness tests and the pinned XSLT gate pass.
+
+## Increment 146: versioned match-pattern syntax
+
+- The compiler now rejects XSLT 2.0 parenthesized unions, top-level filtered
+  patterns and `intersect`/`except`, plus a predicate directly after `/`. It
+  accepts these XSLT 3.0 pattern forms. Leading XPath comments are skipped when
+  checking the pattern's opening syntax.
+- Expanded the pinned XSLT gate to 813 passing cases (four new, zero regressions),
+  342 engine failures, 264 harness errors and 153 profile exclusions across 1,572
+  selected cases.
+- Validation: all-feature Rust tests, all-target/all-feature Clippy, 43 Python
+  harness tests and both pinned gates pass.
