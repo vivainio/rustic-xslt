@@ -4096,6 +4096,86 @@
     ],
     [
       "fn-compare",
+      "compare-017"
+    ],
+    [
+      "fn-compare",
+      "compare-018"
+    ],
+    [
+      "fn-compare",
+      "compare-019"
+    ],
+    [
+      "fn-compare",
+      "compare-020"
+    ],
+    [
+      "fn-compare",
+      "compare-021"
+    ],
+    [
+      "fn-compare",
+      "compare-022"
+    ],
+    [
+      "fn-compare",
+      "compare-023"
+    ],
+    [
+      "fn-compare",
+      "compare-024"
+    ],
+    [
+      "fn-compare",
+      "compare-025"
+    ],
+    [
+      "fn-compare",
+      "compare-026"
+    ],
+    [
+      "fn-compare",
+      "compare-027"
+    ],
+    [
+      "fn-compare",
+      "compare-028"
+    ],
+    [
+      "fn-compare",
+      "compare-029"
+    ],
+    [
+      "fn-compare",
+      "compare-030"
+    ],
+    [
+      "fn-compare",
+      "compare-032"
+    ],
+    [
+      "fn-compare",
+      "compare-033"
+    ],
+    [
+      "fn-compare",
+      "compare-036"
+    ],
+    [
+      "fn-compare",
+      "compare-038"
+    ],
+    [
+      "fn-compare",
+      "compare-042"
+    ],
+    [
+      "fn-compare",
+      "compare-045"
+    ],
+    [
+      "fn-compare",
       "fn-compare-1"
     ],
     [
@@ -4696,11 +4776,71 @@
     ],
     [
       "fn-contains",
+      "fn-contains-17"
+    ],
+    [
+      "fn-contains",
+      "fn-contains-18"
+    ],
+    [
+      "fn-contains",
+      "fn-contains-19"
+    ],
+    [
+      "fn-contains",
       "fn-contains-2"
     ],
     [
       "fn-contains",
+      "fn-contains-20"
+    ],
+    [
+      "fn-contains",
+      "fn-contains-22"
+    ],
+    [
+      "fn-contains",
+      "fn-contains-24"
+    ],
+    [
+      "fn-contains",
+      "fn-contains-25"
+    ],
+    [
+      "fn-contains",
+      "fn-contains-26"
+    ],
+    [
+      "fn-contains",
+      "fn-contains-27"
+    ],
+    [
+      "fn-contains",
+      "fn-contains-28"
+    ],
+    [
+      "fn-contains",
+      "fn-contains-29"
+    ],
+    [
+      "fn-contains",
       "fn-contains-3"
+    ],
+    [
+      "fn-contains",
+      "fn-contains-30"
+    ],
+    [
+      "fn-contains",
+      "fn-contains-31"
+    ],
+    [
+      "fn-contains",
+      "fn-contains-35"
+    ],
+    [
+      "fn-contains",
+      "fn-contains-37"
     ],
     [
       "fn-contains",
@@ -6568,6 +6708,10 @@
     ],
     [
       "fn-deep-equal",
+      "fn-deep-equal-maps-13"
+    ],
+    [
+      "fn-deep-equal",
       "fn-deep-equal-maps-15"
     ],
     [
@@ -7804,11 +7948,67 @@
     ],
     [
       "fn-ends-with",
+      "fn-ends-with-17"
+    ],
+    [
+      "fn-ends-with",
+      "fn-ends-with-18"
+    ],
+    [
+      "fn-ends-with",
+      "fn-ends-with-19"
+    ],
+    [
+      "fn-ends-with",
       "fn-ends-with-2"
     ],
     [
       "fn-ends-with",
+      "fn-ends-with-20"
+    ],
+    [
+      "fn-ends-with",
+      "fn-ends-with-22"
+    ],
+    [
+      "fn-ends-with",
+      "fn-ends-with-24"
+    ],
+    [
+      "fn-ends-with",
+      "fn-ends-with-25"
+    ],
+    [
+      "fn-ends-with",
+      "fn-ends-with-26"
+    ],
+    [
+      "fn-ends-with",
+      "fn-ends-with-27"
+    ],
+    [
+      "fn-ends-with",
+      "fn-ends-with-28"
+    ],
+    [
+      "fn-ends-with",
+      "fn-ends-with-29"
+    ],
+    [
+      "fn-ends-with",
       "fn-ends-with-3"
+    ],
+    [
+      "fn-ends-with",
+      "fn-ends-with-30"
+    ],
+    [
+      "fn-ends-with",
+      "fn-ends-with-31"
+    ],
+    [
+      "fn-ends-with",
+      "fn-ends-with-33"
     ],
     [
       "fn-ends-with",
@@ -13132,11 +13332,59 @@
     ],
     [
       "fn-function-lookup",
+      "fn-function-lookup-349"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-351"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-353"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-355"
+    ],
+    [
+      "fn-function-lookup",
       "fn-function-lookup-361"
     ],
     [
       "fn-function-lookup",
       "fn-function-lookup-363"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-365"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-367"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-377"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-379"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-381"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-383"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-385"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-387"
     ],
     [
       "fn-function-lookup",
@@ -13757,6 +14005,14 @@
     [
       "fn-function-lookup",
       "fn-function-lookup-733"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-736"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-738"
     ],
     [
       "fn-function-lookup",
@@ -14672,7 +14928,47 @@
     ],
     [
       "fn-id",
+      "K2-SeqIDFunc-1"
+    ],
+    [
+      "fn-id",
+      "K2-SeqIDFunc-10"
+    ],
+    [
+      "fn-id",
+      "K2-SeqIDFunc-11"
+    ],
+    [
+      "fn-id",
+      "K2-SeqIDFunc-12"
+    ],
+    [
+      "fn-id",
+      "K2-SeqIDFunc-13"
+    ],
+    [
+      "fn-id",
+      "K2-SeqIDFunc-14"
+    ],
+    [
+      "fn-id",
+      "K2-SeqIDFunc-15"
+    ],
+    [
+      "fn-id",
+      "K2-SeqIDFunc-2"
+    ],
+    [
+      "fn-id",
       "fn-id-1"
+    ],
+    [
+      "fn-id",
+      "fn-id-22"
+    ],
+    [
+      "fn-id",
+      "fn-id-3"
     ],
     [
       "fn-idref",
@@ -28324,11 +28620,63 @@
     ],
     [
       "fn-starts-with",
+      "fn-starts-with-17"
+    ],
+    [
+      "fn-starts-with",
+      "fn-starts-with-18"
+    ],
+    [
+      "fn-starts-with",
+      "fn-starts-with-19"
+    ],
+    [
+      "fn-starts-with",
       "fn-starts-with-2"
     ],
     [
       "fn-starts-with",
+      "fn-starts-with-20"
+    ],
+    [
+      "fn-starts-with",
+      "fn-starts-with-22"
+    ],
+    [
+      "fn-starts-with",
+      "fn-starts-with-24"
+    ],
+    [
+      "fn-starts-with",
+      "fn-starts-with-25"
+    ],
+    [
+      "fn-starts-with",
+      "fn-starts-with-26"
+    ],
+    [
+      "fn-starts-with",
+      "fn-starts-with-27"
+    ],
+    [
+      "fn-starts-with",
+      "fn-starts-with-28"
+    ],
+    [
+      "fn-starts-with",
+      "fn-starts-with-29"
+    ],
+    [
+      "fn-starts-with",
       "fn-starts-with-3"
+    ],
+    [
+      "fn-starts-with",
+      "fn-starts-with-30"
+    ],
+    [
+      "fn-starts-with",
+      "fn-starts-with-31"
     ],
     [
       "fn-starts-with",
@@ -29844,11 +30192,63 @@
     ],
     [
       "fn-substring-after",
+      "fn-substring-after-27"
+    ],
+    [
+      "fn-substring-after",
+      "fn-substring-after-28"
+    ],
+    [
+      "fn-substring-after",
+      "fn-substring-after-29"
+    ],
+    [
+      "fn-substring-after",
       "fn-substring-after-3"
     ],
     [
       "fn-substring-after",
+      "fn-substring-after-30"
+    ],
+    [
+      "fn-substring-after",
+      "fn-substring-after-32"
+    ],
+    [
+      "fn-substring-after",
+      "fn-substring-after-34"
+    ],
+    [
+      "fn-substring-after",
+      "fn-substring-after-35"
+    ],
+    [
+      "fn-substring-after",
+      "fn-substring-after-36"
+    ],
+    [
+      "fn-substring-after",
+      "fn-substring-after-37"
+    ],
+    [
+      "fn-substring-after",
+      "fn-substring-after-38"
+    ],
+    [
+      "fn-substring-after",
+      "fn-substring-after-39"
+    ],
+    [
+      "fn-substring-after",
       "fn-substring-after-4"
+    ],
+    [
+      "fn-substring-after",
+      "fn-substring-after-40"
+    ],
+    [
+      "fn-substring-after",
+      "fn-substring-after-41"
     ],
     [
       "fn-substring-after",
@@ -29980,11 +30380,67 @@
     ],
     [
       "fn-substring-before",
+      "fn-substring-before-27"
+    ],
+    [
+      "fn-substring-before",
+      "fn-substring-before-28"
+    ],
+    [
+      "fn-substring-before",
+      "fn-substring-before-29"
+    ],
+    [
+      "fn-substring-before",
       "fn-substring-before-3"
     ],
     [
       "fn-substring-before",
+      "fn-substring-before-30"
+    ],
+    [
+      "fn-substring-before",
+      "fn-substring-before-32"
+    ],
+    [
+      "fn-substring-before",
+      "fn-substring-before-34"
+    ],
+    [
+      "fn-substring-before",
+      "fn-substring-before-35"
+    ],
+    [
+      "fn-substring-before",
+      "fn-substring-before-36"
+    ],
+    [
+      "fn-substring-before",
+      "fn-substring-before-37"
+    ],
+    [
+      "fn-substring-before",
+      "fn-substring-before-38"
+    ],
+    [
+      "fn-substring-before",
+      "fn-substring-before-39"
+    ],
+    [
+      "fn-substring-before",
       "fn-substring-before-4"
+    ],
+    [
+      "fn-substring-before",
+      "fn-substring-before-40"
+    ],
+    [
+      "fn-substring-before",
+      "fn-substring-before-41"
+    ],
+    [
+      "fn-substring-before",
+      "fn-substring-before-43"
     ],
     [
       "fn-substring-before",
@@ -64108,18 +64564,6 @@
     ],
     [
       "prod-FunctionCall",
-      "K-FunctionCallExpr-11"
-    ],
-    [
-      "prod-FunctionCall",
-      "K-FunctionCallExpr-12"
-    ],
-    [
-      "prod-FunctionCall",
-      "K-FunctionCallExpr-13"
-    ],
-    [
-      "prod-FunctionCall",
       "K-FunctionCallExpr-15a"
     ],
     [
@@ -65845,6 +66289,10 @@
     [
       "prod-IfExpr",
       "CondExpr019"
+    ],
+    [
+      "prod-IfExpr",
+      "CondExpr022"
     ],
     [
       "prod-IfExpr",
@@ -69620,11 +70068,59 @@
     ],
     [
       "prod-NamedFunctionRef",
+      "function-literal-349"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-351"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-353"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-355"
+    ],
+    [
+      "prod-NamedFunctionRef",
       "function-literal-361"
     ],
     [
       "prod-NamedFunctionRef",
       "function-literal-363"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-365"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-367"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-377"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-379"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-381"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-383"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-385"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-387"
     ],
     [
       "prod-NamedFunctionRef",
@@ -70089,10 +70585,6 @@
     [
       "prod-NamedFunctionRef",
       "function-literal-518"
-    ],
-    [
-      "prod-NodeTest",
-      "K2-NodeTest-10"
     ],
     [
       "prod-NodeTest",
