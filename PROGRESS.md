@@ -1484,3 +1484,20 @@ conformance claims. Smaller tested increments are committed independently.
   1,160 cases: 222 engine failures, 195 harness errors, 149 profile exclusions.
 - Validation: full offline Rust tests, Clippy with warnings denied, formatting,
   whitespace checks and the expanded pinned XSLT gate pass.
+
+## Increment 130: cached key evaluation
+
+- Cache evaluated key data per expanded key name and document root for each
+  transformation. Cached entries own atomic values and retain node IDs rather
+  than borrowing source nodes; node handles are reconstructed in the queried tree.
+- Lookups preserve atomic/composite/collation rules, identity, document order and
+  subtree restrictions. Index construction retains dependency guards and charges
+  retained value bytes to the shared execution budget; failed indexes are discarded.
+- Added repeated-lookup work-budget, cross-document/subtree and repeated compiled
+  stylesheet execution regressions. Candidate value comparisons remain linear in
+  cached entries; this is evaluated-value caching, not a hash lookup index.
+- Validation: full offline Rust suite, focused final key tests, Clippy with warnings
+  denied, formatting, whitespace checks and all 594 pinned XSLT baseline cases pass.
+- A full QT3 run after current() identified two XPath-only unknown-function cases
+  that now see the XSLT extension through the bridge. These remain reported
+  regressions until the development bridge isolates its XPath function profile.

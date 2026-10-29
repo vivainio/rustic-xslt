@@ -283,3 +283,47 @@ fn key_declarations_require_consistent_composite_and_collation_settings() {
     let unknown = r#"<xsl:key name="k" match="item" use="@g" collation="urn:unknown"/>"#;
     assert_eq!(run(unknown, "key('k', ())").unwrap_err().code, "XTSE1210");
 }
+
+#[test]
+fn repeated_lookups_reuse_evaluated_key_values_within_the_work_budget() {
+    let source = format!(
+        "<r>{}</r>",
+        (0..100)
+            .map(|i| format!("<item id='{i}'/>"))
+            .collect::<String>()
+    );
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:key name="k" match="item" use="@id"/><xsl:template match="/"><xsl:value-of select="sum(for $i in 1 to 100 return count(key('k', '42')))"/></xsl:template></xsl:stylesheet>"#).unwrap();
+    let options = rust_xslt::TransformOptions {
+        limits: rust_xslt::Limits {
+            max_steps: 25_000,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(
+        sheet.transform_with_options(&source, &options).unwrap(),
+        "100"
+    );
+}
+
+#[test]
+fn cached_keys_keep_document_identity_and_subtree_selection() {
+    let declarations = r#"<xsl:variable name="other"><r><item id="a">other</item></r></xsl:variable><xsl:key name="k" match="item" use="@id"/>"#;
+    let query = "(string(key('k', 'a')), string(key('k', 'a', $other)), string(key('k', 'a')), count(key('k', 'a', r/grp)), count(key('k', 'a', r/item[1])))";
+    assert_eq!(run(declarations, query).unwrap(), "1 other 1 0 1");
+}
+
+#[test]
+fn cached_keys_are_isolated_between_transformations_of_the_same_stylesheet() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:key name="k" match="item" use="@id"/><xsl:template match="/"><xsl:value-of select="key('k', 'a')"/></xsl:template></xsl:stylesheet>"#).unwrap();
+    assert_eq!(
+        sheet.transform("<r><item id='a'>first</item></r>").unwrap(),
+        "first"
+    );
+    assert_eq!(
+        sheet
+            .transform("<r><item id='a'>second</item></r>")
+            .unwrap(),
+        "second"
+    );
+}

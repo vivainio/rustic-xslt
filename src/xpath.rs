@@ -304,13 +304,23 @@ pub(crate) fn take_document_uris() -> Vec<String> {
 pub(crate) fn document_key(uri: &str) -> String {
     format!("\u{0}doc:{uri}")
 }
+/// Cached key data owns its atomic values and stores node IDs, never borrowed nodes.
+#[derive(Debug)]
+struct KeyEntry {
+    node: roxmltree::NodeId,
+    attribute: Option<(String, Option<String>)>,
+    values: Value<'static>,
+}
+type KeyIdentity = (String, usize, u32);
+type KeyIndex = std::rc::Rc<Vec<KeyEntry>>;
 pub(crate) type KeyTable = std::sync::Arc<BTreeMap<String, Vec<KeyDefinition>>>;
 pub(crate) type FunctionTable = std::sync::Arc<BTreeMap<(String, usize), UserFunction>>;
 pub(crate) struct Budget {
     pub functions: FunctionTable,
     pub keys: KeyTable,
     /// Keys currently being evaluated, identified by expanded name and document root.
-    active_keys: Vec<(String, usize, u32)>,
+    active_keys: Vec<KeyIdentity>,
+    key_indexes: BTreeMap<KeyIdentity, KeyIndex>,
     pub decimal_formats: DecimalFormats,
     /// Secondary results (href, serialized content) created by `xsl:result-document`.
     pub secondary: Vec<(String, String)>,
@@ -327,6 +337,7 @@ impl Budget {
             functions: FunctionTable::default(),
             keys: KeyTable::default(),
             active_keys: vec![],
+            key_indexes: BTreeMap::new(),
             decimal_formats: DecimalFormats::default(),
             secondary: vec![],
             messages: vec![],
@@ -2527,7 +2538,7 @@ fn call_named<'a>(
             None => vec![Item::String(String::new())],
         }
     } else if name == "key" {
-        call_key(args, focus, vars, budget, backwards)?
+        call_key(args, focus, vars, budget)?
     } else if name.starts_with("Q{") {
         call_user_function(name, args, vars, budget, depth, backwards)?
     } else if matches!(
@@ -2966,12 +2977,31 @@ fn key_values<'a>(
         .collect()
 }
 
+fn owned_key_value(item: Item<'_>, budget: &mut Budget) -> Result<Item<'static>, Diagnostic> {
+    budget.charge(match &item {
+        Item::String(s) | Item::Untyped(s) | Item::AnyUri(s) | Item::DerivedString(_, s) => s.len(),
+        Item::Binary(_, bytes) => bytes.len(),
+        _ => item.string().len(),
+    })?;
+    Ok(match item {
+        Item::String(s) => Item::String(s),
+        Item::Untyped(s) => Item::Untyped(s),
+        Item::AnyUri(s) => Item::AnyUri(s),
+        Item::DerivedString(kind, s) => Item::DerivedString(kind, s),
+        Item::Number(n) => Item::Number(n),
+        Item::Boolean(b) => Item::Boolean(b),
+        Item::QName(q) => Item::QName(q),
+        Item::Binary(kind, bytes) => Item::Binary(kind, bytes),
+        Item::Temporal(t) => Item::Temporal(t),
+        _ => return Err(err("FOTY0013", "key values must be atomic")),
+    })
+}
+
 fn call_key<'a>(
     args: Vec<Value<'a>>,
     focus: &Focus<'a>,
     vars: &Variables<'a>,
     budget: &mut Budget,
-    backwards: bool,
 ) -> Result<Value<'a>, Diagnostic> {
     let name = match args[0].as_slice() {
         [item] => atomize(item).string(),
@@ -3010,95 +3040,145 @@ fn call_key<'a>(
     if wanted.is_empty() && !composite {
         return Ok(vec![]);
     }
-    let root = start.root().order();
-    let active = (name, root.0, root.1);
-    if budget.active_keys.contains(&active) {
-        return Err(err("XTDE0640", "circular dependency in key definitions"));
-    }
-    if budget.active_keys.len() >= budget.max_depth.min(128) {
-        return Err(err("XPDY0130", "key dependency depth limit exceeded"));
-    }
-    budget.active_keys.push(active);
-    let result = (|| {
-        let mut found = vec![];
-        let top = if args.len() == 3 { start } else { start.root() };
-        let mut candidates = top.descendants();
-        for node in candidates.clone() {
-            if node.is_element() {
-                candidates.extend(node.attributes());
-            }
+    let root = start.root();
+    let order = root.order();
+    let identity = (name, order.0, order.1);
+    let index = if let Some(index) = budget.key_indexes.get(&identity) {
+        index.clone()
+    } else {
+        if budget.active_keys.contains(&identity) {
+            return Err(err("XTDE0640", "circular dependency in key definitions"));
         }
-        for node in candidates {
-            budget.tick()?;
-            for definition in definitions {
-                let mut matched = false;
-                for branch in &definition.branches {
-                    if crate::pattern::matches(branch, node, &scope, budget, backwards)? {
-                        matched = true;
+        if budget.active_keys.len() >= budget.max_depth.min(128) {
+            return Err(err("XPDY0130", "key dependency depth limit exceeded"));
+        }
+        budget.active_keys.push(identity.clone());
+        let result = (|| {
+            let mut entries = vec![];
+            let mut candidates = root.descendants();
+            for node in candidates.clone() {
+                if node.is_element() {
+                    candidates.extend(node.attributes());
+                }
+            }
+            for node in candidates {
+                budget.tick()?;
+                for definition in definitions {
+                    let mut matched = false;
+                    for branch in &definition.branches {
+                        if crate::pattern::matches(
+                            branch,
+                            node,
+                            &scope,
+                            budget,
+                            definition.backwards,
+                        )? {
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if !matched {
+                        continue;
+                    }
+                    let at = Focus {
+                        item: Item::Node(node),
+                        position: 1,
+                        size: 1,
+                    };
+                    let mut key_scope = scope.clone();
+                    key_scope.insert(CURRENT_ITEM.into(), vec![Item::Node(node)]);
+                    let values = eval(
+                        &definition.value,
+                        &at,
+                        &key_scope,
+                        budget,
+                        1,
+                        definition.backwards,
+                    )?;
+                    let values = key_values(values, compatibility, budget)?
+                        .into_iter()
+                        .map(|item| owned_key_value(item, budget))
+                        .collect::<Result<_, _>>()?;
+                    entries.push(KeyEntry {
+                        node: node.raw.id(),
+                        attribute: node
+                            .attribute
+                            .map(|(local, uri)| (local.to_owned(), uri.map(str::to_owned))),
+                        values,
+                    });
+                }
+            }
+            Ok(std::rc::Rc::new(entries))
+        })();
+        budget.active_keys.pop();
+        let index = result?;
+        budget.key_indexes.insert(identity, index.clone());
+        index
+    };
+    let collation = definitions[0].collation;
+    let mut found = vec![];
+    for entry in index.iter() {
+        budget.tick()?;
+        let mut equal = composite && entry.values.len() == wanted.len();
+        if composite {
+            if equal {
+                for (value, requested) in entry.values.iter().zip(&wanted) {
+                    budget.tick()?;
+                    if !crate::deep_equal::atomic_equal_with(value, requested, false, collation) {
+                        equal = false;
                         break;
                     }
                 }
-                if !matched {
-                    continue;
-                }
-                let at = Focus {
-                    item: Item::Node(node),
-                    position: 1,
-                    size: 1,
-                };
-                let mut key_scope = scope.clone();
-                key_scope.insert(CURRENT_ITEM.into(), vec![Item::Node(node)]);
-                let values = eval(
-                    &definition.value,
-                    &at,
-                    &key_scope,
-                    budget,
-                    1,
-                    definition.backwards,
-                )?;
-                let values = key_values(values, compatibility, budget)?;
-                let mut equal = composite && values.len() == wanted.len();
-                if composite {
-                    if equal {
-                        for (value, requested) in values.iter().zip(&wanted) {
-                            budget.tick()?;
-                            if !crate::deep_equal::atomic_equal_with(
-                                value,
-                                requested,
-                                false,
-                                definition.collation,
-                            ) {
-                                equal = false;
-                                break;
-                            }
-                        }
+            }
+        } else {
+            'values: for value in &entry.values {
+                for requested in &wanted {
+                    budget.tick()?;
+                    if crate::deep_equal::atomic_equal_with(value, requested, false, collation) {
+                        equal = true;
+                        break 'values;
                     }
-                } else {
-                    'values: for value in &values {
-                        for requested in &wanted {
-                            budget.tick()?;
-                            if crate::deep_equal::atomic_equal_with(
-                                value,
-                                requested,
-                                false,
-                                definition.collation,
-                            ) {
-                                equal = true;
-                                break 'values;
-                            }
-                        }
-                    }
-                }
-                if equal {
-                    found.push(node);
-                    break;
                 }
             }
         }
-        Ok(ordered(found))
-    })();
-    budget.active_keys.pop();
-    result
+        if !equal {
+            continue;
+        }
+        let raw = root
+            .raw
+            .document()
+            .get_node(entry.node)
+            .ok_or_else(|| err("XPDY0002", "cached key node is unavailable"))?;
+        let mut node = root.relative(raw);
+        if let Some((local, uri)) = &entry.attribute {
+            node = node
+                .attributes()
+                .into_iter()
+                .find(|attribute| {
+                    attribute
+                        .attribute
+                        .is_some_and(|(l, u)| l == local && u == uri.as_deref())
+                })
+                .ok_or_else(|| err("XPDY0002", "cached key attribute is unavailable"))?;
+        }
+        if args.len() == 3 {
+            let mut ancestor = Some(node);
+            let mut in_subtree = false;
+            while let Some(candidate) = ancestor {
+                budget.tick()?;
+                if candidate == start {
+                    in_subtree = true;
+                    break;
+                }
+                ancestor = candidate.parent();
+            }
+            if !in_subtree {
+                continue;
+            }
+        }
+        found.push(node);
+    }
+    Ok(ordered(found))
 }
 fn call_user_function<'a>(
     name: &str,
