@@ -728,5 +728,19 @@ conformance claims. Smaller tested increments are committed independently.
 - Public repository configured as https://github.com/vivainio/rustic-xslt;
   crate name remains rust-xslt.
 
-Next: static-context QName conversion and further XPath coverage.
+## Increment 60: static-context QName conversion
+
+- xs:QName constructors and cast/castable operators capture declaring namespace
+  bindings, resolve lexical prefixes, trim XML whitespace and preserve QName inputs.
+- Unbound prefixes report FONS0004; invalid lexical values FORG0001; wrong atomic
+  types/cardinalities XPTY0004. Castability converts cast failures to false without
+  swallowing resource errors. Optional casts retain empty sequence behavior.
+- Static lexical/streaming walkers traverse cast operands. Source namespaces and
+  XML default result namespaces do not replace the declaring XPath prefix scope.
+- 363 Rust integration tests, 27 harness tests and Clippy/format pass. All 381 XSLT
+  passes remain; QT3 gate grows by four to 2,117. Same 3,920 cases: 2,117 pass /
+  1,081 engine failures / 71 harness errors / 651 profile exclusions.
+- All 25 selected fn:QName cases pass, with optional/XQuery profiles excluded.
+
+Next: URI atomic values and further XPath coverage.
 

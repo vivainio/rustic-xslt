@@ -64,6 +64,7 @@ pub(crate) enum Expr {
     Sequence(Vec<Expr>),
     If(Box<Expr>, Box<Expr>, Box<Expr>),
     TypeOp(String, Box<Expr>, crate::seqtype::SequenceType),
+    QNameCast(Box<Expr>, BTreeMap<String, String>, bool, bool),
 }
 #[derive(Debug, Clone)]
 pub(crate) enum Item<'a> {
@@ -584,11 +585,13 @@ impl Parser {
                 if matches!(op.as_str(), "cast" | "castable")
                     && matches!(ty.kind, crate::seqtype::Kind::QName)
                 {
-                    return Err(Diagnostic::new(
-                        "RUST_XSLT_UNSUPPORTED",
-                        "QName casts require static namespace context and are not implemented",
-                        "compile",
-                    ));
+                    left = Expr::QNameCast(
+                        Box::new(left),
+                        self.namespaces.clone(),
+                        ty.min == 0,
+                        op == "castable",
+                    );
+                    continue;
                 }
                 left = Expr::TypeOp(op, Box::new(left), ty);
                 continue;
@@ -808,7 +811,16 @@ impl Parser {
                             "compile",
                         ));
                     }
-                    Expr::Call(local, args)
+                    if local == "xs:QName" {
+                        Expr::QNameCast(
+                            Box::new(args.remove(0)),
+                            self.namespaces.clone(),
+                            true,
+                            false,
+                        )
+                    } else {
+                        Expr::Call(local, args)
+                    }
                 }
                 _ if self.step_start() => Expr::Path(Box::new(Expr::Context), vec![self.step()?]),
                 _ => return Err(syntax("expected XPath expression")),
@@ -1006,7 +1018,7 @@ impl Parser {
 fn function_arity(name: &str) -> Option<(usize, usize)> {
     Some(match name {
         "xs:string" | "xs:untypedAtomic" | "xs:integer" | "xs:decimal" | "xs:double"
-        | "xs:float" | "xs:boolean" => (1, 1),
+        | "xs:float" | "xs:boolean" | "xs:QName" => (1, 1),
         "true" | "false" | "position" | "last" => (0, 0),
         "error" => (0, 3),
         "QName" => (2, 2),
@@ -1183,6 +1195,44 @@ pub(crate) fn eval<'a>(
             Item::Absent => return Err(err("XPDY0002", "context item is absent")),
             _ => return Err(err("XPTY0020", "root requires a node context")),
         },
+        Expr::QNameCast(value, namespaces, optional, castable) => {
+            let value = eval(value, focus, vars, budget, depth + 1, backwards)?;
+            let cast = || -> Result<Value<'a>, Diagnostic> {
+                match value.as_slice() {
+                    [] if *optional => Ok(vec![]),
+                    [item] => match atomize(item) {
+                        Item::QName(name) => Ok(vec![Item::QName(name)]),
+                        Item::String(s) | Item::Untyped(s) => {
+                            for _ in s.bytes() {
+                                budget.tick()?;
+                            }
+                            Ok(vec![Item::QName(crate::qname::AtomicQName::cast(
+                                &s, namespaces,
+                            )?)])
+                        }
+                        _ => Err(err(
+                            "XPTY0004",
+                            "QName casting requires a string, untyped atomic value or QName",
+                        )),
+                    },
+                    _ => Err(err(
+                        "XPTY0004",
+                        "QName cast requires the declared singleton cardinality",
+                    )),
+                }
+            };
+            let mut cast = cast;
+            match cast() {
+                Ok(_) if *castable => vec![Item::Boolean(true)],
+                Err(error)
+                    if *castable
+                        && ["XPTY0004", "FORG0001", "FONS0004"].contains(&error.code.as_str()) =>
+                {
+                    vec![Item::Boolean(false)]
+                }
+                other => other?,
+            }
+        }
         Expr::TypeOp(op, e, ty) => {
             let value = eval(e, focus, vars, budget, depth + 1, backwards)?;
             match op.as_str() {

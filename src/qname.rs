@@ -128,6 +128,27 @@ impl AtomicQName {
             prefix: prefix.map(str::to_owned),
         })
     }
+    pub fn cast(text: &str, namespaces: &BTreeMap<String, String>) -> Result<Self, Diagnostic> {
+        let lexical = text.trim_matches([' ', '\t', '\n', '\r']);
+        let (prefix, local) = lexical
+            .split_once(':')
+            .map_or((None, lexical), |(p, l)| (Some(p), l));
+        if !xml_ncname(local) || prefix.is_some_and(|p| !xml_ncname(p)) {
+            return Err(Diagnostic::new("FORG0001", "invalid lexical QName", "run"));
+        }
+        let uri = if let Some(prefix) = prefix {
+            namespaces
+                .get(prefix)
+                .filter(|uri| !uri.is_empty())
+                .ok_or_else(|| {
+                    Diagnostic::new("FONS0004", format!("unbound QName prefix: {prefix}"), "run")
+                })?
+                .as_str()
+        } else {
+            namespaces.get("").map_or("", String::as_str)
+        };
+        Self::new(uri, lexical)
+    }
     pub fn lexical(&self) -> String {
         self.prefix
             .as_ref()

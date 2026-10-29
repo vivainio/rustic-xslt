@@ -1293,7 +1293,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     pending.push(y);
                     pending.push(n);
                 }
-                Expr::Unary(_, e) | Expr::TypeOp(_, e, _) => pending.push(e),
+                Expr::Unary(_, e) | Expr::TypeOp(_, e, _) | Expr::QNameCast(e, _, _, _) => {
+                    pending.push(e)
+                }
                 Expr::Call(_, args) | Expr::Sequence(args) => pending.extend(args),
                 _ => {}
             }
