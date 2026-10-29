@@ -46,6 +46,7 @@ pub(crate) struct SequenceType {
 fn node_name(
     source: &str,
     namespaces: &BTreeMap<String, String>,
+    element: bool,
 ) -> Result<Option<crate::xpath::Name>, Diagnostic> {
     let source = source.trim();
     if source.is_empty() || source == "*" {
@@ -63,7 +64,11 @@ fn node_name(
             "compile",
         ));
     }
-    let canonical = crate::qname::resolve(source, namespaces, "XPST0003")?;
+    let canonical = if element {
+        crate::qname::resolve_element(source, namespaces, "XPST0003")?
+    } else {
+        crate::qname::resolve(source, namespaces, "XPST0003")?
+    };
     let (uri, local) = crate::qname::parts(&canonical);
     Ok(Some(crate::xpath::Name {
         uri: uri.map(str::to_owned),
@@ -145,13 +150,13 @@ impl SequenceType {
                 })
             }
             name if name.starts_with("element(") && name.ends_with(')') => {
-                match node_name(&name[8..name.len() - 1], namespaces)? {
+                match node_name(&name[8..name.len() - 1], namespaces, true)? {
                     Some(name) => Kind::NamedElement(name),
                     None => Kind::Element,
                 }
             }
             name if name.starts_with("attribute(") && name.ends_with(')') => {
-                match node_name(&name[10..name.len() - 1], namespaces)? {
+                match node_name(&name[10..name.len() - 1], namespaces, false)? {
                     Some(name) => Kind::NamedAttribute(name),
                     None => Kind::Attribute,
                 }
@@ -165,10 +170,10 @@ impl SequenceType {
                         "compile",
                     ));
                 }
-                Kind::DocumentElement(node_name(&inner[8..inner.len() - 1], namespaces)?)
+                Kind::DocumentElement(node_name(&inner[8..inner.len() - 1], namespaces, true)?)
             }
             name => {
-                let canonical = crate::qname::resolve(name, namespaces, "XPST0003")?;
+                let canonical = crate::qname::resolve_element(name, namespaces, "XPST0003")?;
                 let (uri, local) = crate::qname::parts(&canonical);
                 if uri != Some("http://www.w3.org/2001/XMLSchema") {
                     return Err(Diagnostic::new(

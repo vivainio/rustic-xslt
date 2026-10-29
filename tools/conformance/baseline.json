@@ -16,7 +16,8 @@
     "param",
     "template",
     "tunnel",
-    "variable"
+    "variable",
+    "xpath-default-namespace"
   ],
   "passing_cases": [
     [
@@ -74,6 +75,26 @@
     [
       "apply-templates",
       "conflict-resolution-0601"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-0701"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-0702"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-0703"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-0801"
+    ],
+    [
+      "apply-templates",
+      "conflict-resolution-0802"
     ],
     [
       "apply-templates",
@@ -378,6 +399,14 @@
     [
       "choose",
       "choose-1401"
+    ],
+    [
+      "choose",
+      "choose-1501"
+    ],
+    [
+      "choose",
+      "choose-1502"
     ],
     [
       "choose",
@@ -1218,6 +1247,10 @@
     [
       "match",
       "match-034"
+    ],
+    [
+      "match",
+      "match-035"
     ],
     [
       "match",
@@ -2394,6 +2427,70 @@
     [
       "variable",
       "variable-4802"
+    ],
+    [
+      "xpath-default-namespace",
+      "xpath-default-namespace-0101"
+    ],
+    [
+      "xpath-default-namespace",
+      "xpath-default-namespace-0102"
+    ],
+    [
+      "xpath-default-namespace",
+      "xpath-default-namespace-0103"
+    ],
+    [
+      "xpath-default-namespace",
+      "xpath-default-namespace-0104"
+    ],
+    [
+      "xpath-default-namespace",
+      "xpath-default-namespace-0105"
+    ],
+    [
+      "xpath-default-namespace",
+      "xpath-default-namespace-0106"
+    ],
+    [
+      "xpath-default-namespace",
+      "xpath-default-namespace-0107"
+    ],
+    [
+      "xpath-default-namespace",
+      "xpath-default-namespace-0108"
+    ],
+    [
+      "xpath-default-namespace",
+      "xpath-default-namespace-0301"
+    ],
+    [
+      "xpath-default-namespace",
+      "xpath-default-namespace-0601"
+    ],
+    [
+      "xpath-default-namespace",
+      "xpath-default-namespace-0801"
+    ],
+    [
+      "xpath-default-namespace",
+      "xpath-default-namespace-0901"
+    ],
+    [
+      "xpath-default-namespace",
+      "xpath-default-namespace-1001"
+    ],
+    [
+      "xpath-default-namespace",
+      "xpath-default-namespace-1101"
+    ],
+    [
+      "xpath-default-namespace",
+      "xpath-default-namespace-1102"
+    ],
+    [
+      "xpath-default-namespace",
+      "xpath-default-namespace-1201"
     ]
   ]
 }

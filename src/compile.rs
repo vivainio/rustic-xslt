@@ -261,6 +261,18 @@ fn namespaces(n: Node<'_, '_>) -> BTreeMap<String, String> {
         .namespaces()
         .filter_map(|ns| ns.name().map(|prefix| (prefix.into(), ns.uri().into())))
         .collect();
+    if let Some(uri) = n.ancestors().find_map(|ancestor| {
+        if ancestor.tag_name().namespace() == Some(XSL) {
+            ancestor.attribute("xpath-default-namespace")
+        } else {
+            ancestor.attribute((XSL, "xpath-default-namespace"))
+        }
+    }) {
+        namespaces.insert(
+            crate::qname::XPATH_DEFAULT_NAMESPACE.into(),
+            crate::qname::normalize_uri(uri),
+        );
+    }
     namespaces.insert("xml".into(), "http://www.w3.org/XML/1998/namespace".into());
     namespaces
         .entry("xs".into())
@@ -290,6 +302,13 @@ fn expression(n: Node<'_, '_>, s: &str, optional: bool) -> Result<Expr, Diagnost
 fn attrs(n: Node<'_, '_>, allowed: &[&str]) -> Result<(), Diagnostic> {
     excluded_uris(n)?;
     for a in n.attributes() {
+        if a.namespace() == Some(XSL) && a.name() == "xpath-default-namespace" {
+            return Err(static_error(
+                n,
+                "XTSE0090",
+                "xpath-default-namespace must be unprefixed on XSLT elements",
+            ));
+        }
         if a.namespace() == Some("http://www.w3.org/XML/1998/namespace") && a.name() == "space" {
             continue;
         }
@@ -297,7 +316,12 @@ fn attrs(n: Node<'_, '_>, allowed: &[&str]) -> Result<(), Diagnostic> {
             default_mode(n)?;
             continue;
         }
-        if a.namespace().is_none() && a.name() == "exclude-result-prefixes" {
+        if a.namespace().is_none()
+            && matches!(
+                a.name(),
+                "exclude-result-prefixes" | "xpath-default-namespace"
+            )
+        {
             continue;
         }
         if a.namespace().is_none() && a.name() == "use-when" {
@@ -1682,6 +1706,7 @@ fn body(
                     if a.namespace() == Some(XSL) {
                         if [
                             "exclude-result-prefixes",
+                            "xpath-default-namespace",
                             "inherit-namespaces",
                             "default-mode",
                             "expand-text",

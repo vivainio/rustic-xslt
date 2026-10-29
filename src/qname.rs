@@ -2,6 +2,25 @@
 use crate::Diagnostic;
 use std::collections::BTreeMap;
 
+/// Internal static-context slot, distinct from XML's default namespace binding.
+pub(crate) const XPATH_DEFAULT_NAMESPACE: &str = "\u{0}xpath-default-namespace";
+
+/// Resolve an element or type name using XPath's default element/type namespace.
+pub(crate) fn resolve_element(
+    text: &str,
+    namespaces: &BTreeMap<String, String>,
+    code: &str,
+) -> Result<String, Diagnostic> {
+    let canonical = resolve(text, namespaces, code)?;
+    if !text.starts_with("Q{")
+        && !text.contains(':')
+        && let Some(uri) = namespaces.get(XPATH_DEFAULT_NAMESPACE)
+    {
+        return Ok(expanded(uri, &canonical));
+    }
+    Ok(canonical)
+}
+
 fn expanded(uri: &str, local: &str) -> String {
     if uri.is_empty() {
         local.into()
@@ -144,7 +163,10 @@ impl AtomicQName {
                 })?
                 .as_str()
         } else {
-            namespaces.get("").map_or("", String::as_str)
+            namespaces
+                .get(XPATH_DEFAULT_NAMESPACE)
+                .or_else(|| namespaces.get(""))
+                .map_or("", String::as_str)
         };
         Self::new(uri, lexical)
     }

@@ -912,6 +912,17 @@ impl Parser {
             Ok(Expr::Call(local, args))
         }
     }
+    fn node_qname(&self, text: String, element: bool) -> Result<Name, Diagnostic> {
+        if !element {
+            return self.qname(text);
+        }
+        let canonical = crate::qname::resolve_element(&text, &self.namespaces, "XPST0003")?;
+        let (uri, local) = crate::qname::parts(&canonical);
+        Ok(Name {
+            uri: uri.map(str::to_owned),
+            local: local.into(),
+        })
+    }
     fn sequence_type(
         &mut self,
         cast_like: bool,
@@ -1489,10 +1500,11 @@ impl Parser {
                                     Test::Pi(target)
                                 }
                                 "element" | "attribute" => {
+                                    let n_is_element = n == "element";
                                     let name = match self.peek().clone() {
                                         Token::Name(n) => {
                                             self.next();
-                                            Some(self.qname(n)?)
+                                            Some(self.node_qname(n, n_is_element)?)
                                         }
                                         _ => {
                                             self.eat("*");
@@ -1524,7 +1536,7 @@ impl Parser {
                         } else if let Some(local) = n.strip_prefix("*:") {
                             Test::Local(local.into())
                         } else {
-                            Test::Name(self.qname(n)?)
+                            Test::Name(self.node_qname(n, !matches!(axis, Axis::Attribute))?)
                         }
                     }
                     _ => return Err(syntax("expected node test")),

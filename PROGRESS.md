@@ -1519,3 +1519,20 @@ conformance claims. Smaller tested increments are committed independently.
 - Validation: full all-feature offline Rust suite, default-build checks,
   all-feature Clippy with warnings denied, formatting, all 30 Python harness
   tests, the full QT3 gate and the 594-case XSLT gate pass.
+
+## Increment 132: XPath default element/type namespace
+
+- Implemented inherited xpath-default-namespace, including local empty resets
+  and xsl:xpath-default-namespace on literal result elements. Unprefixed element
+  paths/patterns, element/document sequence types, atomic type names and QName
+  casts use the setting. Attributes, variables, component names, function calls
+  and explicitly empty URIQualifiedNames retain their separate namespace rules.
+- Whitespace name tests and key declarations use the same static namespace
+  context. Namespaced xpath-default-namespace on XSLT elements raises XTSE0090.
+- Added focused inheritance, literal-result/AVT, type/cast, key, whitespace and
+  invalid-attribute regressions. Surveyed the dedicated W3C namespace set and
+  expanded the gate to 618 passes (24 new, zero regressions) across 1,186 cases:
+  218 engine failures, 197 harness errors and 153 optional-profile exclusions.
+- Validation: full all-feature offline Rust suite, focused final regressions,
+  all-feature Clippy with warnings denied, formatting, all 30 Python harness
+  tests, expanded XSLT gate and all 18,735 QT3 baseline cases pass.
