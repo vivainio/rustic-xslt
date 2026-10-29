@@ -2213,7 +2213,9 @@ fn run_tasks<'a>(
                         }
                         if let Some(version) = &spec.output_version {
                             let version = parts(version, &focus, &env, budget, sheet.backwards)?;
-                            if method != "text" && !(method == "xml" && version.trim() == "1.0") {
+                            if method != "text"
+                                && !(matches!(method, "xml" | "xhtml") && version.trim() == "1.0")
+                            {
                                 return Err(Diagnostic::new(
                                     "RUST_XSLT_UNSUPPORTED",
                                     format!("unsupported {method} output version: {version}"),

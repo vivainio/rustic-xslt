@@ -2186,3 +2186,13 @@ conformance claims. Smaller tested increments are committed independently.
   `XPDY0130` while the same document fits when insertion is disabled.
 - Validation: eighteen serializer tests, all-target/all-feature Clippy,
   formatting and diff checks pass. No runtime behavior changed.
+
+## Increment 192: XHTML 1.0 result-document version selection
+
+- Result-document output-version 1.0 accepts the existing XHTML serializer,
+  alongside XML 1.0. Other unsupported version selections remain explicit gaps.
+- The pinned XSLT gate has 929 passes (one new, zero regressions), 226 failures,
+  264 harness errors and 153 exclusions. Focused result-document tests and
+  all-target/all-feature Clippy pass.
+- The metadata implementation audit passed the full all-feature Rust suite and
+  all 18,735 recorded QT3 cases before this version-guard correction.
