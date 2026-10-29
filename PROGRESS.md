@@ -1287,3 +1287,10 @@ conformance claims. Smaller tested increments are committed independently.
   call-based pattern as 0.5. Reverse axes other than the child/attribute pair are still
   rejected as unsupported patterns; record streaming keeps requiring single-step
   patterns.
+
+## Increment 112: expression fuzzing
+
+- Added a deterministic structured fuzzer (tests/expression_fuzz.rs) that builds random
+  well-formed XPath expressions from the supported function library, runs them under
+  step limits and asserts that nothing panics. About 600,000 expressions over several
+  seeds ran clean before the default round count was reduced for routine test runs.
