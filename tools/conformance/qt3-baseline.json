@@ -14,8 +14,11 @@
     "fn-sum",
     "fn-tail",
     "op-bang",
+    "op-except",
+    "op-intersect",
     "op-numeric-integer-divide",
     "op-to",
+    "op-union",
     "prod-Comment",
     "prod-EQName",
     "prod-ForClause",
@@ -2861,6 +2864,366 @@
       "bang-14"
     ],
     [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-divideintg2args-1"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-divideintg2args-2"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-divideintg2args-3"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-divideintg2args-4"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-divideintg2args-5"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-dividedec2args-1"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-dividedec2args-2"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-dividedec2args-3"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-dividedec2args-4"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-dividedec2args-5"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-dividemix2args-1"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-dividemix2args-2"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-dividemix2args-3"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-dividemix2args-10"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-divide-1"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-1"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-2"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-3"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-4"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-5"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-6"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-7"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-8"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-9"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-10"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-11"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-12"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-13"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-14"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-15"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-16"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-17"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-18"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-19"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-20"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-21"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-22"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-23"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-24"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-25"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-26"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-27"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-28"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-29"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-30"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-31"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-32"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-33"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-34"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-35"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-36"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-37"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-38"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-39"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-40"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-41"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-42"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-43"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-44"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-45"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-46"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-47"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-48"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-49"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-50"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-51"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-52"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K-NumericIntegerDivide-53"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K2-NumericIntegerDivide-1"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K2-NumericIntegerDivide-2"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K2-NumericIntegerDivide-3"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K2-NumericIntegerDivide-4"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K2-NumericIntegerDivide-5"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K2-NumericIntegerDivide-6"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K2-NumericIntegerDivide-7"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "K2-NumericIntegerDivide-8"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-dividefloat2args-1"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-dividefloat2args-2"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-dividefloat2args-3"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-dividefloat2args-4"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-dividefloat2args-5"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-dividedouble2args-1"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-dividedouble2args-2"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-dividedouble2args-3"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-dividedouble2args-4"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "op-numeric-integer-dividedouble2args-5"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "cbcl-numeric-idivide-005"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "cbcl-numeric-idivide-006"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "cbcl-numeric-idivide-007"
+    ],
+    [
+      "op-numeric-integer-divide",
+      "cbcl-numeric-idivide-008"
+    ],
+    [
       "op-to",
       "rangeExpr-1"
     ],
@@ -4581,364 +4944,136 @@
       "sequence-type-21"
     ],
     [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-divideintg2args-1"
+      "op-except",
+      "fn-except-node-args-001"
     ],
     [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-divideintg2args-2"
+      "op-except",
+      "fn-except-node-args-004"
     ],
     [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-divideintg2args-3"
+      "op-except",
+      "fn-except-node-args-005"
     ],
     [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-divideintg2args-4"
+      "op-except",
+      "fn-except-node-args-007"
     ],
     [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-divideintg2args-5"
+      "op-except",
+      "fn-except-node-args-011"
     ],
     [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-dividedec2args-1"
+      "op-except",
+      "fn-except-node-args-014"
     ],
     [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-dividedec2args-2"
+      "op-except",
+      "fn-except-node-args-023"
     ],
     [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-dividedec2args-3"
+      "op-except",
+      "K2-SeqExcept-1"
     ],
     [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-dividedec2args-4"
+      "op-except",
+      "K2-SeqExcept-39"
     ],
     [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-dividedec2args-5"
+      "op-intersect",
+      "fn-intersect-node-args-002"
     ],
     [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-dividemix2args-1"
+      "op-intersect",
+      "fn-intersect-node-args-004"
     ],
     [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-dividemix2args-2"
+      "op-intersect",
+      "fn-intersect-node-args-007"
     ],
     [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-dividemix2args-3"
+      "op-intersect",
+      "fn-intersect-node-args-008"
     ],
     [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-dividemix2args-10"
+      "op-intersect",
+      "fn-intersect-node-args-009"
     ],
     [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-divide-1"
+      "op-intersect",
+      "fn-intersect-node-args-012"
     ],
     [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-1"
+      "op-intersect",
+      "fn-intersect-node-args-013"
     ],
     [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-2"
+      "op-intersect",
+      "fn-intersect-node-args-014"
     ],
     [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-3"
+      "op-intersect",
+      "K2-SeqIntersect-1"
     ],
     [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-4"
+      "op-intersect",
+      "K2-SeqIntersect-39"
     ],
     [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-5"
+      "op-intersect",
+      "K2-SeqIntersect-43"
     ],
     [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-6"
+      "op-intersect",
+      "K2-SeqIntersect-44"
     ],
     [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-7"
+      "op-intersect",
+      "K2-SeqIntersect-45"
     ],
     [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-8"
+      "op-intersect",
+      "K2-SeqIntersect-46"
     ],
     [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-9"
+      "op-intersect",
+      "K2-SeqIntersect-47"
     ],
     [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-10"
+      "op-intersect",
+      "K2-SeqIntersect-48"
     ],
     [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-11"
+      "op-intersect",
+      "combiningnodeseqintersecthc2"
     ],
     [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-12"
+      "op-union",
+      "fn-union-node-args-014"
     ],
     [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-13"
+      "op-union",
+      "fn-union-node-args-023"
     ],
     [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-14"
+      "op-union",
+      "K2-SeqUnion-5"
     ],
     [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-15"
+      "op-union",
+      "K2-SeqUnion-43"
     ],
     [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-16"
+      "op-union",
+      "K2-SeqUnion-44"
     ],
     [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-17"
+      "op-union",
+      "K2-SeqUnion-46"
     ],
     [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-18"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-19"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-20"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-21"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-22"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-23"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-24"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-25"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-26"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-27"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-28"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-29"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-30"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-31"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-32"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-33"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-34"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-35"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-36"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-37"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-38"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-39"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-40"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-41"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-42"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-43"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-44"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-45"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-46"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-47"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-48"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-49"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-50"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-51"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-52"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K-NumericIntegerDivide-53"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K2-NumericIntegerDivide-1"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K2-NumericIntegerDivide-2"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K2-NumericIntegerDivide-3"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K2-NumericIntegerDivide-4"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K2-NumericIntegerDivide-5"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K2-NumericIntegerDivide-6"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K2-NumericIntegerDivide-7"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "K2-NumericIntegerDivide-8"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-dividefloat2args-1"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-dividefloat2args-2"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-dividefloat2args-3"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-dividefloat2args-4"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-dividefloat2args-5"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-dividedouble2args-1"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-dividedouble2args-2"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-dividedouble2args-3"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-dividedouble2args-4"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "op-numeric-integer-dividedouble2args-5"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "cbcl-numeric-idivide-005"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "cbcl-numeric-idivide-006"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "cbcl-numeric-idivide-007"
-    ],
-    [
-      "op-numeric-integer-divide",
-      "cbcl-numeric-idivide-008"
+      "op-union",
+      "K2-SeqUnion-47"
     ]
   ]
 }

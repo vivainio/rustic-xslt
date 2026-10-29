@@ -44,7 +44,7 @@ Supported so far:
   global/template parameters and local variables, with namespace-qualified names;
 - lexical scope, forward global references, circular-global detection;
 - child/attribute/self/parent/descendant/ancestor/sibling/following/preceding
-  axes, namespace wildcards, named node-kind/PI tests, predicates, union,
+  axes, namespace wildcards, named node-kind/PI tests, predicates, union/intersect/except node sets,
   sequences, budgeted exact integer ranges, focus-aware simple maps (`!`),
   lexical for/let bindings, some/every quantified expressions, lazy if/then/else, bounded nested XPath comments,
   instance-of/treat-as/cast/castable;
@@ -204,7 +204,7 @@ A pinned, partial catalog runner and a 378-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. An initial internal QT3 bridge
-also gates 1,229 passing XPath cases at the pinned XPath suite revision.
+also gates 1,262 passing XPath cases at the pinned XPath suite revision.
 The example JSON-lines driver
 and its JSON dependency are development-only.
 

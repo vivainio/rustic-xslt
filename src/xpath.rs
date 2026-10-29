@@ -588,6 +588,8 @@ impl Parser {
                 Token::Name(s) if s == "to" => (s.clone(), 5),
                 Token::Symbol(s) if s == "!" => (s.clone(), 15),
                 Token::Symbol(s) if s == "|" => (s.clone(), 8),
+                Token::Name(s) if s == "union" => (s.clone(), 8),
+                Token::Name(s) if s == "intersect" || s == "except" => (s.clone(), 9),
                 Token::Symbol(s) if s == "+" || s == "-" => (s.clone(), 6),
                 Token::Symbol(s) if s == "*" => (s.clone(), 7),
                 Token::Name(s) if ["div", "idiv", "mod"].contains(&s.as_str()) => (s.clone(), 7),
@@ -1387,18 +1389,33 @@ pub(crate) fn eval<'a>(
                     }
                     items
                 }
-                "|" => {
-                    let nodes = a
-                        .into_iter()
-                        .chain(b)
-                        .map(|v| {
-                            if let Item::Node(n) = v {
-                                Ok(n)
-                            } else {
-                                Err(err("XPTY0004", "union requires nodes"))
-                            }
-                        })
-                        .collect::<Result<Vec<_>, _>>()?;
+                "|" | "union" | "intersect" | "except" => {
+                    let mut nodes = vec![];
+                    let mut right = std::collections::HashSet::new();
+                    for item in b {
+                        budget.tick()?;
+                        let Item::Node(node) = item else {
+                            return Err(err("XPTY0004", "set operators require node operands"));
+                        };
+                        if matches!(op.as_str(), "|" | "union") {
+                            nodes.push(node);
+                        } else {
+                            right.insert(node);
+                        }
+                    }
+                    for item in a {
+                        budget.tick()?;
+                        let Item::Node(node) = item else {
+                            return Err(err("XPTY0004", "set operators require node operands"));
+                        };
+                        if match op.as_str() {
+                            "intersect" => right.contains(&node),
+                            "except" => !right.contains(&node),
+                            _ => true,
+                        } {
+                            nodes.push(node);
+                        }
+                    }
                     ordered(nodes)
                 }
                 "is" | "<<" | ">>" => {

@@ -570,5 +570,16 @@ conformance claims. Smaller tested increments are committed independently.
   errors / 413 profile exclusions. Gate grows by 97; XSLT gate expands to 378
   (378 pass / 155 failures / 144 harness errors / 46 exclusions).
 
-Next: node set operators and remaining XPath grammar.
+## Increment 47: XPath node set operators
+
+- union aliases |; intersect/except bind more tightly and associate left-to-right.
+- Node operands retain identity, remove duplicates and return document order;
+  atomic operands report XPTY0004, including alongside empty operands.
+- Membership scans consume the shared budget. Constructed elements/attributes
+  participate without value-based equality. 310 Rust integration tests, 27 harness
+  tests and Clippy/format pass; all 378 XSLT and previous QT3 passes remain.
+- Twenty-four QT3 sets: 2,605 cases, 1,262 pass / 728 engine failures / 40 harness
+  errors / 575 profile exclusions. Gate expands by 33 node-set cases.
+
+Next: cardinality functions and remaining XPath grammar.
 
