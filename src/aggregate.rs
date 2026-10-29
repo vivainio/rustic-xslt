@@ -179,7 +179,11 @@ pub(crate) fn evaluate<'a>(
 }
 
 /// `fn:sort` with an optional collation; keys are the atomized items.
-pub(crate) fn sort<'a>(args: &[Value<'a>], budget: &mut Budget) -> Result<Value<'a>, Diagnostic> {
+pub(crate) fn sort<'a>(
+    args: &[Value<'a>],
+    key_values: Option<Vec<Value<'a>>>,
+    budget: &mut Budget,
+) -> Result<Value<'a>, Diagnostic> {
     let collation = match args.get(1) {
         Some(uri) => {
             let uri = crate::string_functions::string(uri, true, false)?;
@@ -191,10 +195,14 @@ pub(crate) fn sort<'a>(args: &[Value<'a>], budget: &mut Budget) -> Result<Value<
         }
         None => Collation::Codepoint,
     };
-    let mut keyed = Vec::with_capacity(args[0].len());
-    for item in &args[0] {
+    let mut keyed: Vec<(Value<'a>, Item<'a>)> = Vec::with_capacity(args[0].len());
+    for (index, item) in args[0].iter().enumerate() {
         budget.tick()?;
-        keyed.push((atomize(item), item.clone()));
+        let key = match &key_values {
+            Some(keys) => keys[index].iter().map(atomize).collect(),
+            None => vec![atomize(item)],
+        };
+        keyed.push((key, item.clone()));
     }
     let order = |a: &Item<'a>, b: &Item<'a>| -> Result<Ordering, Diagnostic> {
         let strings = |item: &Item<'_>| match item {
@@ -221,6 +229,15 @@ pub(crate) fn sort<'a>(args: &[Value<'a>], budget: &mut Budget) -> Result<Value<
             Ordering::Equal
         })
     };
+    let order_keys = |a: &Value<'a>, b: &Value<'a>| -> Result<Ordering, Diagnostic> {
+        for (x, y) in a.iter().zip(b) {
+            let result = order(x, y)?;
+            if result != Ordering::Equal {
+                return Ok(result);
+            }
+        }
+        Ok(a.len().cmp(&b.len()))
+    };
     // Stable bottom-up merge sort; a fallible comparator cannot violate a total order.
     let mut width = 1;
     while width < keyed.len() {
@@ -232,7 +249,7 @@ pub(crate) fn sort<'a>(args: &[Value<'a>], budget: &mut Budget) -> Result<Value<
             let (mut left, mut right) = (start, mid);
             while left < mid && right < end {
                 budget.tick()?;
-                if order(&keyed[right].0, &keyed[left].0)? == Ordering::Less {
+                if order_keys(&keyed[right].0, &keyed[left].0)? == Ordering::Less {
                     merged.push(keyed[right].clone());
                     right += 1;
                 } else {

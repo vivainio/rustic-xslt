@@ -25508,6 +25508,14 @@
     ],
     [
       "fn-translate",
+      "fn-translate-21"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-22"
+    ],
+    [
+      "fn-translate",
       "fn-translate-3"
     ],
     [
@@ -40472,7 +40480,91 @@
     ],
     [
       "prod-ArrowPostfix",
+      "ArrowPostfix-001"
+    ],
+    [
+      "prod-ArrowPostfix",
+      "ArrowPostfix-002"
+    ],
+    [
+      "prod-ArrowPostfix",
+      "ArrowPostfix-003"
+    ],
+    [
+      "prod-ArrowPostfix",
+      "ArrowPostfix-007"
+    ],
+    [
+      "prod-ArrowPostfix",
+      "ArrowPostfix-008"
+    ],
+    [
+      "prod-ArrowPostfix",
+      "ArrowPostfix-009"
+    ],
+    [
+      "prod-ArrowPostfix",
+      "ArrowPostfix-010"
+    ],
+    [
+      "prod-ArrowPostfix",
+      "ArrowPostfix-015"
+    ],
+    [
+      "prod-ArrowPostfix",
+      "ArrowPostfix-016"
+    ],
+    [
+      "prod-ArrowPostfix",
+      "ArrowPostfix-017"
+    ],
+    [
+      "prod-ArrowPostfix",
+      "ArrowPostfix-018"
+    ],
+    [
+      "prod-ArrowPostfix",
+      "ArrowPostfix-019"
+    ],
+    [
+      "prod-ArrowPostfix",
+      "ArrowPostfix-024"
+    ],
+    [
+      "prod-ArrowPostfix",
+      "ArrowPostfix-026"
+    ],
+    [
+      "prod-ArrowPostfix",
+      "ArrowPostfix-027"
+    ],
+    [
+      "prod-ArrowPostfix",
+      "ArrowPostfix-028"
+    ],
+    [
+      "prod-ArrowPostfix",
+      "ArrowPostfix-029"
+    ],
+    [
+      "prod-ArrowPostfix",
       "ArrowPostfix-031"
+    ],
+    [
+      "prod-ArrowPostfix",
+      "ArrowPostfix-032"
+    ],
+    [
+      "prod-ArrowPostfix",
+      "ArrowPostfix-101"
+    ],
+    [
+      "prod-ArrowPostfix",
+      "ArrowPostfix-102"
+    ],
+    [
+      "prod-ArrowPostfix",
+      "ArrowPostfix-103"
     ],
     [
       "prod-AxisStep",
@@ -56651,6 +56743,10 @@
       "eqname-912"
     ],
     [
+      "prod-EQName",
+      "eqname-913"
+    ],
+    [
       "prod-ForClause",
       "ForExpr001"
     ],
@@ -56936,6 +57032,10 @@
     ],
     [
       "prod-FunctionCall",
+      "FunctionCall-027"
+    ],
+    [
+      "prod-FunctionCall",
       "K-FunctionCallExpr-1"
     ],
     [
@@ -56953,10 +57053,6 @@
     [
       "prod-FunctionCall",
       "K-FunctionCallExpr-13"
-    ],
-    [
-      "prod-FunctionCall",
-      "K-FunctionCallExpr-14"
     ],
     [
       "prod-FunctionCall",
@@ -57040,10 +57136,6 @@
     ],
     [
       "prod-FunctionCall",
-      "K2-FunctionCallExpr-2"
-    ],
-    [
-      "prod-FunctionCall",
       "K2-FunctionCallExpr-3"
     ],
     [
@@ -57100,15 +57192,15 @@
     ],
     [
       "prod-FunctionCall",
-      "function-call-reserved-function-names-033"
-    ],
-    [
-      "prod-FunctionCall",
       "function-call-reserved-function-names-034"
     ],
     [
       "prod-FunctionCall",
       "function-call-reserved-function-names-035"
+    ],
+    [
+      "prod-FunctionCall",
+      "function-call-reserved-function-names-036"
     ],
     [
       "prod-FunctionCall",

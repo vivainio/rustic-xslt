@@ -24,6 +24,7 @@ pub(crate) enum Kind {
     Boolean,
     QName,
     Binary(crate::binary::BinaryType),
+    Function(Option<usize>),
     Temporal(crate::temporal::TemporalType),
     Integer,
     DerivedInteger(crate::integer_type::IntegerType),
@@ -105,6 +106,26 @@ impl SequenceType {
                     min: 0,
                     max: 0,
                 });
+            }
+            name if name.starts_with("function(") && name.ends_with(')') => {
+                let inner = name[9..name.len() - 1].trim();
+                Kind::Function(if inner == "*" {
+                    None
+                } else if inner.is_empty() {
+                    Some(0)
+                } else {
+                    let mut depth = 0usize;
+                    let mut count = 1;
+                    for c in inner.chars() {
+                        match c {
+                            '(' => depth += 1,
+                            ')' => depth = depth.saturating_sub(1),
+                            ',' if depth == 0 => count += 1,
+                            _ => {}
+                        }
+                    }
+                    Some(count)
+                })
             }
             name if name.starts_with("element(") && name.ends_with(')') => {
                 match node_name(&name[8..name.len() - 1], namespaces)? {
@@ -234,6 +255,7 @@ impl SequenceType {
             | (Kind::Boolean, Item::Boolean(_))
             | (Kind::QName, Item::QName(_)) => true,
             (Kind::Binary(target), Item::Binary(actual, _)) => target == actual,
+            (Kind::Function(arity), Item::Function(f)) => arity.is_none_or(|a| a == f.arity()),
             (Kind::Temporal(target), Item::Temporal(actual)) => target.accepts(actual.kind),
             (Kind::Integer, Item::Number(Number::Integer(_) | Number::DerivedInteger(_, _))) => {
                 true

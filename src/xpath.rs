@@ -65,6 +65,28 @@ pub(crate) enum Expr {
     If(Box<Expr>, Box<Expr>, Box<Expr>),
     TypeOp(String, Box<Expr>, crate::seqtype::SequenceType),
     QNameCast(Box<Expr>, BTreeMap<String, String>, bool, bool),
+    InlineFunction(std::sync::Arc<InlineFunction>),
+    FunctionRef(String, usize),
+    DynamicCall(Box<Expr>, Vec<Expr>),
+}
+#[derive(Debug)]
+pub(crate) struct InlineFunction {
+    pub params: Vec<(String, Option<crate::seqtype::SequenceType>)>,
+    pub ret: Option<crate::seqtype::SequenceType>,
+    pub body: Expr,
+}
+#[derive(Debug, Clone)]
+pub(crate) enum FunctionValue<'a> {
+    Inline(std::sync::Arc<InlineFunction>, Variables<'a>),
+    Named(String, usize),
+}
+impl FunctionValue<'_> {
+    pub fn arity(&self) -> usize {
+        match self {
+            Self::Inline(def, _) => def.params.len(),
+            Self::Named(_, arity) => *arity,
+        }
+    }
 }
 #[derive(Debug, Clone)]
 pub(crate) enum Item<'a> {
@@ -79,6 +101,7 @@ pub(crate) enum Item<'a> {
     QName(crate::qname::AtomicQName),
     Binary(crate::binary::BinaryType, Vec<u8>),
     Temporal(crate::temporal::Temporal),
+    Function(std::rc::Rc<FunctionValue<'a>>),
 }
 pub(crate) type Value<'a> = Vec<Item<'a>>;
 pub(crate) type Variables<'a> = BTreeMap<String, Value<'a>>;
@@ -102,6 +125,7 @@ impl Item<'_> {
             Self::QName(name) => name.lexical(),
             Self::Binary(kind, bytes) => kind.encode(bytes),
             Self::Temporal(t) => t.string(),
+            Self::Function(_) => String::new(),
         }
     }
     pub fn string_compat(&self, backwards: bool) -> String {
@@ -121,7 +145,11 @@ impl Item<'_> {
                 }
             }
             Self::Number(n) => n.double(),
-            Self::AnyUri(_) | Self::QName(_) | Self::Binary(_, _) | Self::Temporal(_) => f64::NAN,
+            Self::AnyUri(_)
+            | Self::QName(_)
+            | Self::Binary(_, _)
+            | Self::Temporal(_)
+            | Self::Function(_) => f64::NAN,
             _ => self.string().trim().parse().unwrap_or(f64::NAN),
         }
     }
@@ -414,11 +442,11 @@ fn tokenize(s: &str) -> Result<Vec<Token>, Diagnostic> {
             let pair: String = chars[i..chars.len().min(i + 2)].iter().collect();
             if matches!(
                 pair.as_str(),
-                "//" | ".." | "!=" | "<=" | ">=" | "::" | "<<" | ">>" | ":=" | "||"
+                "//" | ".." | "!=" | "<=" | ">=" | "::" | "<<" | ">>" | ":=" | "||" | "=>"
             ) {
                 out.push(Token::Symbol(pair));
                 i += 2;
-            } else if "/.@[](),$+-*=<>|?!".contains(c) {
+            } else if "/.@[](),$+-*=<>|?!{}#".contains(c) {
                 out.push(Token::Symbol(c.to_string()));
                 i += 1;
             } else {
@@ -563,51 +591,7 @@ impl Parser {
                 if self.next() != Token::Name(expected.into()) {
                     return Err(syntax(format!("expected {expected}")));
                 }
-                let Token::Name(mut name) = self.next() else {
-                    return Err(syntax("expected a sequence type"));
-                };
-                if self.eat("(") {
-                    name.push('(');
-                    let mut nesting = 1usize;
-                    let mut previous_name = false;
-                    while nesting > 0 {
-                        let token = self.next();
-                        let is_name = matches!(token, Token::Name(_));
-                        if previous_name && is_name {
-                            name.push(' ');
-                        }
-                        previous_name = is_name;
-                        match token {
-                            Token::Name(s) => name.push_str(&s),
-                            Token::Symbol(s) if s == "(" => {
-                                nesting += 1;
-                                if nesting > 128 {
-                                    return Err(syntax("sequence type nesting limit exceeded"));
-                                }
-                                name.push('(');
-                            }
-                            Token::Symbol(s) if s == ")" => {
-                                nesting -= 1;
-                                name.push(')');
-                            }
-                            Token::Symbol(s) if ["*", ",", "?"].contains(&s.as_str()) => {
-                                name.push_str(&s)
-                            }
-                            _ => return Err(syntax("invalid sequence type")),
-                        }
-                    }
-                }
-                for suffix in if matches!(op.as_str(), "cast" | "castable") {
-                    &["?"][..]
-                } else {
-                    &["?", "*", "+"][..]
-                } {
-                    if self.eat(suffix) {
-                        name.push_str(suffix);
-                        break;
-                    }
-                }
-                let ty = crate::seqtype::SequenceType::parse(&name, &self.namespaces)?;
+                let ty = self.sequence_type(matches!(op.as_str(), "cast" | "castable"))?;
                 if matches!(op.as_str(), "cast" | "castable")
                     && (!ty.atomic()
                         || matches!(
@@ -634,6 +618,20 @@ impl Parser {
                     continue;
                 }
                 left = Expr::TypeOp(op, Box::new(left), ty);
+                continue;
+            }
+            if self.peek() == &Token::Symbol("=>".into()) {
+                if minimum > 14 {
+                    break;
+                }
+                self.next();
+                left = self.arrow_call(left)?;
+                if matches!(self.peek(), Token::Symbol(s) if ["!", "/", "//"].contains(&s.as_str()))
+                {
+                    return Err(syntax(
+                        "an arrow call cannot be followed by a path or map operator",
+                    ));
+                }
                 continue;
             }
             let (op, prec) = match self.peek() {
@@ -697,6 +695,152 @@ impl Parser {
     fn primary(&mut self) -> Result<Expr, Diagnostic> {
         self.operand(true)
     }
+    fn call(&mut self, n: String, mut args: Vec<Expr>) -> Result<Expr, Diagnostic> {
+        let name = self.qname(n.clone())?;
+        let local = match name.uri.as_deref() {
+            None if !n.starts_with("Q{") => name.local,
+            Some("http://www.w3.org/2005/xpath-functions") => name.local,
+            Some("http://www.w3.org/2001/XMLSchema") => format!("xs:{}", name.local),
+            Some(uri) if !uri.is_empty() => {
+                return Ok(Expr::Call(format!("Q{{{uri}}}{}", name.local), args));
+            }
+            _ => {
+                return Err(Diagnostic::new(
+                    "XPST0017",
+                    format!("unknown function namespace: {n}"),
+                    "compile",
+                ));
+            }
+        };
+        let arity = function_arity(&local).ok_or_else(|| {
+            Diagnostic::new(
+                "XPST0017",
+                format!("unknown or unsupported function: {n}"),
+                "compile",
+            )
+        })?;
+        if args.len() < arity.0 || args.len() > arity.1 {
+            return Err(Diagnostic::new(
+                "XPST0017",
+                format!("wrong number of arguments to {n}"),
+                "compile",
+            ));
+        }
+        if local == "xs:QName" {
+            Ok(Expr::QNameCast(
+                Box::new(args.remove(0)),
+                self.namespaces.clone(),
+                true,
+                false,
+            ))
+        } else {
+            if local == "key"
+                && let Some(Expr::String(key_name)) = args.first_mut()
+                && key_name.contains(':')
+            {
+                *key_name = crate::qname::resolve(key_name.trim(), &self.namespaces, "FOCA0002")?;
+            }
+            Ok(Expr::Call(local, args))
+        }
+    }
+    fn sequence_type(
+        &mut self,
+        cast_like: bool,
+    ) -> Result<crate::seqtype::SequenceType, Diagnostic> {
+        let Token::Name(mut name) = self.next() else {
+            return Err(syntax("expected a sequence type"));
+        };
+        if self.eat("(") {
+            name.push('(');
+            let mut nesting = 1usize;
+            let mut previous_name = false;
+            while nesting > 0 {
+                let token = self.next();
+                let is_name = matches!(token, Token::Name(_));
+                if previous_name && is_name {
+                    name.push(' ');
+                }
+                previous_name = is_name;
+                match token {
+                    Token::Name(s) => name.push_str(&s),
+                    Token::Symbol(s) if s == "(" => {
+                        nesting += 1;
+                        if nesting > 128 {
+                            return Err(syntax("sequence type nesting limit exceeded"));
+                        }
+                        name.push('(');
+                    }
+                    Token::Symbol(s) if s == ")" => {
+                        nesting -= 1;
+                        name.push(')');
+                    }
+                    Token::Symbol(s) if ["*", ",", "?"].contains(&s.as_str()) => name.push_str(&s),
+                    _ => return Err(syntax("invalid sequence type")),
+                }
+            }
+        }
+        if name.starts_with("function(") && self.peek() == &Token::Name("as".into()) {
+            // The declared return type is parsed for syntax but not enforced.
+            self.next();
+            self.sequence_type(false)?;
+        }
+        for suffix in if cast_like {
+            &["?"][..]
+        } else {
+            &["?", "*", "+"][..]
+        } {
+            if self.eat(suffix) {
+                name.push_str(suffix);
+                break;
+            }
+        }
+        let ty = crate::seqtype::SequenceType::parse(&name, &self.namespaces)?;
+        Ok(ty)
+    }
+    /// `left => f(args)` is `f(left, args)`; the target may also be `$var(...)` or `(expr)(...)`.
+    fn arrow_call(&mut self, left: Expr) -> Result<Expr, Diagnostic> {
+        let target = match self.peek().clone() {
+            Token::Name(n)
+                if self.tokens.get(self.index + 1) == Some(&Token::Symbol("(".into())) =>
+            {
+                self.next();
+                Err(n)
+            }
+            Token::Symbol(s) if s == "$" => {
+                self.next();
+                let Token::Name(n) = self.next() else {
+                    return Err(syntax("expected variable QName"));
+                };
+                Ok(Expr::Variable(crate::qname::resolve(
+                    &n,
+                    &self.namespaces,
+                    "XPST0003",
+                )?))
+            }
+            Token::Symbol(s) if s == "(" => {
+                self.next();
+                let inner = self.expression(0)?;
+                self.expect(")")?;
+                Ok(inner)
+            }
+            _ => return Err(syntax("invalid arrow function specifier")),
+        };
+        self.expect("(")?;
+        let mut args = vec![left];
+        if !self.eat(")") {
+            loop {
+                args.push(self.expression(2)?);
+                if self.eat(")") {
+                    break;
+                }
+                self.expect(",")?;
+            }
+        }
+        match target {
+            Err(name) => self.call(name, args),
+            Ok(callee) => Ok(Expr::DynamicCall(Box::new(callee), args)),
+        }
+    }
     fn path_rhs(&mut self, base: Expr) -> Result<Expr, Diagnostic> {
         let binding = matches!(self.peek(), Token::Name(n) if ["for", "let", "some", "every"].contains(&n.as_str()))
             && self.tokens.get(self.index + 1) == Some(&Token::Symbol("$".into()));
@@ -731,11 +875,13 @@ impl Parser {
         )
     }
     fn operand(&mut self, paths: bool) -> Result<Expr, Diagnostic> {
+        let mut callable = false;
         let mut e = if self.eat("-") {
             Expr::Unary(false, Box::new(self.expression(15)?))
         } else if self.eat("+") {
             Expr::Unary(true, Box::new(self.expression(15)?))
         } else if self.eat("(") {
+            callable = true;
             if self.eat(")") {
                 Expr::Sequence(vec![])
             } else {
@@ -744,6 +890,7 @@ impl Parser {
                 e
             }
         } else if self.eat("$") {
+            callable = true;
             match self.next() {
                 Token::Name(n) => {
                     Expr::Variable(crate::qname::resolve(&n, &self.namespaces, "XPST0003")?)
@@ -780,6 +927,75 @@ impl Parser {
                 {
                     self.next();
                     self.binding_expression(&n)?
+                }
+                Token::Name(n)
+                    if n == "function"
+                        && self.tokens.get(self.index + 1) == Some(&Token::Symbol("(".into())) =>
+                {
+                    self.next();
+                    self.expect("(")?;
+                    let mut params = vec![];
+                    if !self.eat(")") {
+                        loop {
+                            self.expect("$")?;
+                            let Token::Name(name) = self.next() else {
+                                return Err(syntax("expected parameter name"));
+                            };
+                            let name = crate::qname::resolve(&name, &self.namespaces, "XPST0003")?;
+                            if params.iter().any(|(p, _)| *p == name) {
+                                return Err(Diagnostic::new(
+                                    "XQST0039",
+                                    "duplicate inline function parameter",
+                                    "compile",
+                                ));
+                            }
+                            let ty = if self.peek() == &Token::Name("as".into()) {
+                                self.next();
+                                Some(self.sequence_type(false)?)
+                            } else {
+                                None
+                            };
+                            params.push((name, ty));
+                            if self.eat(")") {
+                                break;
+                            }
+                            self.expect(",")?;
+                        }
+                    }
+                    let ret = if self.peek() == &Token::Name("as".into()) {
+                        self.next();
+                        Some(self.sequence_type(false)?)
+                    } else {
+                        None
+                    };
+                    self.expect("{")?;
+                    let body = if self.eat("}") {
+                        Expr::Sequence(vec![])
+                    } else {
+                        let body = self.expression(0)?;
+                        self.expect("}")?;
+                        body
+                    };
+                    Expr::InlineFunction(std::sync::Arc::new(InlineFunction { params, ret, body }))
+                }
+                Token::Name(n)
+                    if self.tokens.get(self.index + 1) == Some(&Token::Symbol("#".into()))
+                        && matches!(self.tokens.get(self.index + 2), Some(Token::Number(_))) =>
+                {
+                    self.next();
+                    self.next();
+                    let Token::Number(arity) = self.next() else {
+                        unreachable!()
+                    };
+                    let arity = arity
+                        .double()
+                        .to_usize()
+                        .filter(|a| *a as f64 == arity.double())
+                        .ok_or_else(|| syntax("invalid function arity"))?;
+                    match self.call(n.clone(), vec![Expr::Context; arity])? {
+                        Expr::Call(name, _) => Expr::FunctionRef(name, arity),
+                        _ => return Err(syntax("unsupported function reference")),
+                    }
                 }
                 Token::Name(n)
                     if n == "if"
@@ -824,67 +1040,52 @@ impl Parser {
                             self.expect(",")?;
                         }
                     }
-                    let name = self.qname(n.clone())?;
-                    let local = match name.uri.as_deref() {
-                        None if !n.starts_with("Q{") => name.local,
-                        Some("http://www.w3.org/2005/xpath-functions") => name.local,
-                        Some("http://www.w3.org/2001/XMLSchema") => format!("xs:{}", name.local),
-                        Some(uri) if !uri.is_empty() => {
-                            return Ok(Expr::Call(format!("Q{{{uri}}}{}", name.local), args));
-                        }
-                        _ => {
-                            return Err(Diagnostic::new(
-                                "XPST0017",
-                                format!("unknown function namespace: {n}"),
-                                "compile",
-                            ));
-                        }
-                    };
-                    let arity = function_arity(&local).ok_or_else(|| {
-                        Diagnostic::new(
-                            "XPST0017",
-                            format!("unknown or unsupported function: {n}"),
-                            "compile",
-                        )
-                    })?;
-                    if args.len() < arity.0 || args.len() > arity.1 {
-                        return Err(Diagnostic::new(
-                            "XPST0017",
-                            format!("wrong number of arguments to {n}"),
-                            "compile",
-                        ));
-                    }
-                    if local == "xs:QName" {
-                        Expr::QNameCast(
-                            Box::new(args.remove(0)),
-                            self.namespaces.clone(),
-                            true,
-                            false,
-                        )
-                    } else {
-                        if local == "key"
-                            && let Some(Expr::String(key_name)) = args.first_mut()
-                            && key_name.contains(':')
-                        {
-                            *key_name = crate::qname::resolve(
-                                key_name.trim(),
-                                &self.namespaces,
-                                "FOCA0002",
-                            )?;
-                        }
-                        Expr::Call(local, args)
-                    }
+                    self.call(n, args)?
                 }
                 _ if self.step_start() => Expr::Path(Box::new(Expr::Context), vec![self.step()?]),
                 _ => return Err(syntax("expected XPath expression")),
             }
         };
+        if matches!(
+            e,
+            Expr::InlineFunction(_) | Expr::FunctionRef(..) | Expr::Call(..)
+        ) {
+            callable = true;
+        }
         let mut path_steps = 0;
         loop {
             if path_steps > 128 {
                 return Err(syntax("XPath path nesting limit exceeded"));
             }
-            if self.eat("[") {
+            if callable
+                && matches!(
+                    e,
+                    Expr::Variable(_)
+                        | Expr::Sequence(_)
+                        | Expr::InlineFunction(_)
+                        | Expr::FunctionRef(..)
+                        | Expr::DynamicCall(..)
+                        | Expr::Filter(..)
+                        | Expr::Call(..)
+                        | Expr::If(..)
+                        | Expr::Path(..)
+                        | Expr::Binary(..)
+                )
+                && self.peek() == &Token::Symbol("(".into())
+            {
+                self.next();
+                let mut args = vec![];
+                if !self.eat(")") {
+                    loop {
+                        args.push(self.expression(2)?);
+                        if self.eat(")") {
+                            break;
+                        }
+                        self.expect(",")?;
+                    }
+                }
+                e = Expr::DynamicCall(Box::new(e), args);
+            } else if self.eat("[") {
                 let p = self.expression(0)?;
                 self.expect("]")?;
                 e = match e {
@@ -1146,7 +1347,11 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "string-join" => (1, 2),
         "contains-token" => (2, 3),
         "resolve-uri" => (1, 2),
-        "sort" => (1, 2),
+        "sort" => (1, 3),
+        "for-each" | "filter" => (2, 2),
+        "fold-left" | "fold-right" | "for-each-pair" => (3, 3),
+        "function-arity" => (1, 1),
+        "function-lookup" => (2, 2),
         "key" => (2, 3),
         "current-group" | "current-grouping-key" => (0, 0),
         "path" => (0, 1),
@@ -1790,27 +1995,238 @@ pub(crate) fn eval<'a>(
                 .iter()
                 .map(|e| eval(e, focus, vars, budget, depth + 1, backwards))
                 .collect::<Result<Vec<_>, _>>()?;
-            if name == "current-group" {
-                vars.get(CURRENT_GROUP).cloned().ok_or_else(|| {
-                    err(
-                        "XTDE1061",
-                        "current-group() is used outside xsl:for-each-group",
-                    )
-                })?
-            } else if name == "current-grouping-key" {
-                vars.get(CURRENT_KEY)
-                    .cloned()
-                    .ok_or_else(|| err("XTDE1071", "there is no current grouping key"))?
-            } else if name == "key" {
-                call_key(args, focus, vars, budget, backwards)?
-            } else if name.starts_with("Q{") {
-                call_user_function(name, args, vars, budget, depth, backwards)?
-            } else {
-                function(name, &args, focus, budget, backwards)?
-            }
+            call_named(name, args, focus, vars, budget, depth, backwards)?
+        }
+        Expr::InlineFunction(def) => vec![Item::Function(std::rc::Rc::new(FunctionValue::Inline(
+            def.clone(),
+            vars.clone(),
+        )))],
+        Expr::FunctionRef(name, arity) => {
+            vec![Item::Function(std::rc::Rc::new(FunctionValue::Named(
+                name.clone(),
+                *arity,
+            )))]
+        }
+        Expr::DynamicCall(callee, args) => {
+            let callee = eval(callee, focus, vars, budget, depth + 1, backwards)?;
+            let args = args
+                .iter()
+                .map(|e| eval(e, focus, vars, budget, depth + 1, backwards))
+                .collect::<Result<Vec<_>, _>>()?;
+            let [Item::Function(f)] = callee.as_slice() else {
+                return Err(err(
+                    "XPTY0004",
+                    "dynamic call requires a single function item",
+                ));
+            };
+            call_function_item(f, args, focus, vars, budget, depth, backwards)?
         }
     };
     Ok(result)
+}
+fn call_named<'a>(
+    name: &str,
+    args: Vec<Value<'a>>,
+    focus: &Focus<'a>,
+    vars: &Variables<'a>,
+    budget: &mut Budget,
+    depth: usize,
+    backwards: bool,
+) -> Result<Value<'a>, Diagnostic> {
+    Ok(if name == "current-group" {
+        vars.get(CURRENT_GROUP).cloned().ok_or_else(|| {
+            err(
+                "XTDE1061",
+                "current-group() is used outside xsl:for-each-group",
+            )
+        })?
+    } else if name == "current-grouping-key" {
+        vars.get(CURRENT_KEY)
+            .cloned()
+            .ok_or_else(|| err("XTDE1071", "there is no current grouping key"))?
+    } else if name == "key" {
+        call_key(args, focus, vars, budget, backwards)?
+    } else if name.starts_with("Q{") {
+        call_user_function(name, args, vars, budget, depth, backwards)?
+    } else if matches!(
+        name,
+        "for-each"
+            | "filter"
+            | "fold-left"
+            | "fold-right"
+            | "for-each-pair"
+            | "function-arity"
+            | "function-lookup"
+    ) || name == "sort" && args.len() == 3
+    {
+        higher_order(name, args, focus, vars, budget, depth, backwards)?
+    } else {
+        function(name, &args, focus, budget, backwards)?
+    })
+}
+fn function_arg<'a>(value: &[Item<'a>]) -> Result<std::rc::Rc<FunctionValue<'a>>, Diagnostic> {
+    match value {
+        [Item::Function(f)] => Ok(f.clone()),
+        _ => Err(err("XPTY0004", "a single function item is required")),
+    }
+}
+fn call_function_item<'a>(
+    f: &FunctionValue<'a>,
+    args: Vec<Value<'a>>,
+    focus: &Focus<'a>,
+    vars: &Variables<'a>,
+    budget: &mut Budget,
+    depth: usize,
+    backwards: bool,
+) -> Result<Value<'a>, Diagnostic> {
+    if args.len() != f.arity() {
+        return Err(err(
+            "XPTY0004",
+            format!(
+                "function of arity {} called with {} arguments",
+                f.arity(),
+                args.len()
+            ),
+        ));
+    }
+    match f {
+        FunctionValue::Named(name, _) => {
+            call_named(name, args, focus, vars, budget, depth + 1, backwards)
+        }
+        FunctionValue::Inline(def, captured) => {
+            let mut scope = captured.clone();
+            for ((param, ty), value) in def.params.iter().zip(args) {
+                let value = match ty {
+                    Some(ty) => ty.convert(value, "XPTY0004")?,
+                    None => value,
+                };
+                scope.insert(param.clone(), value);
+            }
+            let absent = Focus {
+                item: Item::Absent,
+                position: 0,
+                size: 0,
+            };
+            let result = eval(&def.body, &absent, &scope, budget, depth + 1, backwards)?;
+            match &def.ret {
+                Some(ty) => ty.convert(result, "XPTY0004"),
+                None => Ok(result),
+            }
+        }
+    }
+}
+fn higher_order<'a>(
+    name: &str,
+    args: Vec<Value<'a>>,
+    focus: &Focus<'a>,
+    vars: &Variables<'a>,
+    budget: &mut Budget,
+    depth: usize,
+    backwards: bool,
+) -> Result<Value<'a>, Diagnostic> {
+    let call = |f: &FunctionValue<'a>, args: Vec<Value<'a>>, budget: &mut Budget| {
+        budget.tick()?;
+        call_function_item(f, args, focus, vars, budget, depth, backwards)
+    };
+    match name {
+        "function-arity" => {
+            let f = function_arg(&args[0])?;
+            Ok(vec![Item::Number(Number::from(f.arity()))])
+        }
+        "function-lookup" => {
+            let (qname, arity) = match (args[0].as_slice(), args[1].as_slice()) {
+                ([Item::QName(q)], [Item::Number(n)]) => (q.clone(), n.double()),
+                _ => {
+                    return Err(err(
+                        "XPTY0004",
+                        "function-lookup requires a QName and an integer",
+                    ));
+                }
+            };
+            let arity = arity as usize;
+            let uri = qname.uri.as_deref().unwrap_or("");
+            let local = qname.local.as_str();
+            let fits = |name: &str| {
+                function_arity(name).is_some_and(|(lo, hi)| (lo..=hi).contains(&arity))
+            };
+            let known = match uri {
+                "" => None,
+                "http://www.w3.org/2005/xpath-functions" => fits(local).then(|| local.to_owned()),
+                "http://www.w3.org/2001/XMLSchema" => {
+                    let xs = format!("xs:{local}");
+                    fits(&xs).then_some(xs)
+                }
+                _ => {
+                    let expanded = format!("Q{{{uri}}}{local}");
+                    budget
+                        .functions
+                        .contains_key(&(expanded.clone(), arity))
+                        .then_some(expanded)
+                }
+            };
+            Ok(known
+                .map(|n| {
+                    vec![Item::Function(std::rc::Rc::new(FunctionValue::Named(
+                        n, arity,
+                    )))]
+                })
+                .unwrap_or_default())
+        }
+        "for-each" => {
+            let f = function_arg(&args[1])?;
+            let mut out = vec![];
+            for item in &args[0] {
+                out.extend(call(&f, vec![vec![item.clone()]], budget)?);
+            }
+            Ok(out)
+        }
+        "filter" => {
+            let f = function_arg(&args[1])?;
+            let mut out = vec![];
+            for item in &args[0] {
+                let keep = call(&f, vec![vec![item.clone()]], budget)?;
+                match keep.as_slice() {
+                    [Item::Boolean(true)] => out.push(item.clone()),
+                    [Item::Boolean(false)] => {}
+                    _ => return Err(err("XPTY0004", "filter predicate must return one boolean")),
+                }
+            }
+            Ok(out)
+        }
+        "fold-left" => {
+            let f = function_arg(&args[2])?;
+            let mut acc = args[1].clone();
+            for item in &args[0] {
+                acc = call(&f, vec![acc, vec![item.clone()]], budget)?;
+            }
+            Ok(acc)
+        }
+        "fold-right" => {
+            let f = function_arg(&args[2])?;
+            let mut acc = args[1].clone();
+            for item in args[0].iter().rev() {
+                acc = call(&f, vec![vec![item.clone()], acc], budget)?;
+            }
+            Ok(acc)
+        }
+        "for-each-pair" => {
+            let f = function_arg(&args[2])?;
+            let mut out = vec![];
+            for (a, b) in args[0].iter().zip(&args[1]) {
+                out.extend(call(&f, vec![vec![a.clone()], vec![b.clone()]], budget)?);
+            }
+            Ok(out)
+        }
+        _ => {
+            // sort with a key function
+            let f = function_arg(&args[2])?;
+            let mut keys = Vec::with_capacity(args[0].len());
+            for item in &args[0] {
+                keys.push(call(&f, vec![vec![item.clone()]], budget)?);
+            }
+            crate::aggregate::sort(&args[..2], Some(keys), budget)
+        }
+    }
 }
 fn call_key<'a>(
     args: Vec<Value<'a>>,
@@ -2367,7 +2783,7 @@ fn function<'a>(
         return Ok(vec![Item::String(path)]);
     }
     if name == "sort" {
-        return crate::aggregate::sort(args, budget);
+        return crate::aggregate::sort(args, None, budget);
     }
     if name == "resolve-uri" {
         let text = |v: &[Item<'a>], optional: bool| -> Result<Option<String>, Diagnostic> {

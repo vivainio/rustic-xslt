@@ -1031,3 +1031,15 @@ conformance claims. Smaller tested increments are committed independently.
   Inclusion nesting is limited (XTSE0180) so include cycles fail; plain compile()
   rejects xsl:include. xsl:import is still unsupported because import precedence is
   not implemented.
+
+## Increment 86: function items and higher-order functions
+
+- Added inline functions (closures over visible variables, typed parameters and
+  results), named function references (name#arity for built-in, constructor and
+  stylesheet functions), dynamic calls, the arrow operator, function-arity(),
+  function-lookup(), for-each(), filter(), fold-left(), fold-right(),
+  for-each-pair() and sort() with key functions, plus function(*) sequence types.
+- QT3: key() and current-grouping-key() are stylesheet functions now, so three
+  XPath-only cases that expected them to be unknown (XPST0017) were dropped from the
+  gate on purpose, together with the XPath 2.0 `function()` case; the gate records
+  every other passing case.
