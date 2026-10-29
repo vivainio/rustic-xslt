@@ -68,7 +68,7 @@ pub(crate) enum Grouping {
     Starting(Vec<crate::pattern::Branch>),
     Ending(Vec<crate::pattern::Branch>),
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Sort {
     pub select: Expr,
     pub numeric: bool,
@@ -786,7 +786,7 @@ fn body(
                         if parent.tag_name().namespace() == Some(XSL)
                             && matches!(
                                 parent.tag_name().name(),
-                                "for-each" | "for-each-group"
+                                "for-each" | "for-each-group" | "perform-sort"
                             ) =>
                     {
                         continue;
@@ -821,6 +821,71 @@ fn body(
                     "comment" => {
                         attrs(n, &["select"])?;
                         out.push(Instruction::Comment(content(n, depth + 1)?));
+                    }
+                    "map" => {
+                        attrs(n, &["on-duplicates", "use-attribute-sets"])?;
+                        if n.attribute("on-duplicates").is_some() {
+                            return Err(error(n, "map on-duplicates is not implemented"));
+                        }
+                        let parts = map_parts(n, depth)?;
+                        out.push(Instruction::Sequence(Expr::Call(
+                            "map:merge".into(),
+                            vec![
+                                Expr::Sequence(parts),
+                                Expr::MapConstructor(vec![(
+                                    Expr::String("duplicates".into()),
+                                    Expr::String("reject".into()),
+                                )]),
+                            ],
+                        )));
+                    }
+                    "map-entry" => {
+                        return Err(static_error(
+                            n,
+                            "XTSE0010",
+                            "xsl:map-entry is only allowed inside xsl:map",
+                        ));
+                    }
+                    "perform-sort" => {
+                        attrs(n, &["select"])?;
+                        let keys = sorts(n)?;
+                        if keys.is_empty() {
+                            return Err(static_error(
+                                n,
+                                "XTSE0010",
+                                "xsl:perform-sort needs at least one xsl:sort",
+                            ));
+                        }
+                        let source = match n.attribute("select") {
+                            Some(s) => {
+                                if n.children().any(|c| {
+                                    c.is_element()
+                                        && !(c.tag_name().namespace() == Some(XSL)
+                                            && c.tag_name().name() == "sort")
+                                        || c.is_text() && !xml_space(c.text().unwrap_or_default())
+                                }) {
+                                    return Err(static_error(
+                                        n,
+                                        "XTSE1040",
+                                        "xsl:perform-sort with select cannot have a body",
+                                    ));
+                                }
+                                expr(n, s)?
+                            }
+                            None => {
+                                let content = body(n, depth + 1, false)?;
+                                match <[Instruction; 1]>::try_from(content) {
+                                    Ok([Instruction::Sequence(e)]) => e,
+                                    Ok(_) | Err(_) => {
+                                        return Err(error(
+                                            n,
+                                            "xsl:perform-sort bodies are limited to one xsl:sequence",
+                                        ));
+                                    }
+                                }
+                            }
+                        };
+                        out.push(Instruction::Sequence(Expr::Sorted(Box::new(source), keys)));
                     }
                     "iterate" => {
                         attrs(n, &["select"])?;
@@ -1169,6 +1234,125 @@ fn body(
         }
     }
     Ok(out)
+}
+/// Translate the children of `xsl:map` into XPath expressions that yield maps.
+fn map_parts(parent: Node<'_, '_>, depth: usize) -> Result<Vec<Expr>, Diagnostic> {
+    let children: Vec<Node<'_, '_>> = parent
+        .children()
+        .filter(|c| c.is_element() || c.is_text() && !xml_space(c.text().unwrap_or_default()))
+        .collect();
+    map_nodes(&children, depth)
+}
+fn map_nodes(children: &[Node<'_, '_>], depth: usize) -> Result<Vec<Expr>, Diagnostic> {
+    if depth > 128 {
+        return Err(Diagnostic::new(
+            "RUST_XSLT_UNSUPPORTED",
+            "stylesheet nesting limit exceeded",
+            "compile",
+        ));
+    }
+    let mut parts: Vec<Expr> = vec![];
+    for (index, c) in children.iter().enumerate() {
+        if c.is_text() || c.tag_name().namespace() != Some(XSL) {
+            return Err(static_error(
+                *c,
+                "XTSE0010",
+                "xsl:map may only contain instructions that produce maps",
+            ));
+        }
+        match c.tag_name().name() {
+            "map-entry" => {
+                attrs(*c, &["key", "select"])?;
+                let key = expr(*c, required(*c, "key")?)?;
+                let value = match c.attribute("select") {
+                    Some(s) => {
+                        empty(*c)?;
+                        expr(*c, s)?
+                    }
+                    None => {
+                        let content = body(*c, depth + 1, false)?;
+                        match <[Instruction; 1]>::try_from(content) {
+                            Ok([Instruction::Sequence(e)]) => e,
+                            Err(content) if content.is_empty() => Expr::Sequence(vec![]),
+                            _ => {
+                                return Err(error(
+                                    *c,
+                                    "xsl:map-entry bodies are limited to one xsl:sequence",
+                                ));
+                            }
+                        }
+                    }
+                };
+                parts.push(Expr::Call("map:entry".into(), vec![key, value]));
+            }
+            "sequence" => {
+                attrs(*c, &["select"])?;
+                empty(*c)?;
+                parts.push(expr(*c, required(*c, "select")?)?);
+            }
+            "if" => {
+                attrs(*c, &["test"])?;
+                parts.push(Expr::If(
+                    Box::new(expr(*c, required(*c, "test")?)?),
+                    Box::new(Expr::Sequence(map_parts(*c, depth + 1)?)),
+                    Box::new(Expr::Sequence(vec![])),
+                ));
+            }
+            "choose" => {
+                attrs(*c, &[])?;
+                let mut chain = Expr::Sequence(vec![]);
+                let branches: Vec<Node<'_, '_>> = c.children().filter(|b| b.is_element()).collect();
+                for branch in branches.iter().rev() {
+                    match branch.tag_name().name() {
+                        "when" => {
+                            attrs(*branch, &["test"])?;
+                            chain = Expr::If(
+                                Box::new(expr(*branch, required(*branch, "test")?)?),
+                                Box::new(Expr::Sequence(map_parts(*branch, depth + 1)?)),
+                                Box::new(chain),
+                            );
+                        }
+                        "otherwise" => {
+                            attrs(*branch, &[])?;
+                            chain = Expr::Sequence(map_parts(*branch, depth + 1)?);
+                        }
+                        _ => return Err(error(*branch, "invalid choose branch")),
+                    }
+                }
+                parts.push(chain);
+            }
+            "for-each" => {
+                attrs(*c, &["select"])?;
+                if !sorts(*c)?.is_empty() {
+                    return Err(error(*c, "sorting inside xsl:map is not implemented"));
+                }
+                parts.push(Expr::PathMap(
+                    Box::new(expr(*c, required(*c, "select")?)?),
+                    Box::new(Expr::Sequence(map_parts(*c, depth + 1)?)),
+                ));
+            }
+            "variable" => {
+                attrs(*c, &["name", "select", "as"])?;
+                let name = component_name(*c, required(*c, "name")?)?;
+                let value = expr(*c, required(*c, "select")?)?;
+                // The variable scopes over the remaining siblings.
+                let rest = map_nodes(&children[index + 1..], depth + 1)?;
+                parts.push(Expr::Let(
+                    name,
+                    Box::new(value),
+                    Box::new(Expr::Sequence(rest)),
+                ));
+                return Ok(parts);
+            }
+            other => {
+                return Err(error(
+                    *c,
+                    format!("xsl:{other} is not supported inside xsl:map"),
+                ));
+            }
+        }
+    }
+    Ok(parts)
 }
 fn set_names(n: Node<'_, '_>, value: &str) -> Result<Vec<String>, Diagnostic> {
     value

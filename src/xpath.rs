@@ -69,6 +69,8 @@ pub(crate) enum Expr {
     FunctionRef(String, usize),
     DynamicCall(Box<Expr>, Vec<Expr>),
     Partial(Box<Expr>, Vec<Option<Expr>>),
+    /// `xsl:perform-sort`: the value of the first expression ordered by the sort keys.
+    Sorted(Box<Expr>, Vec<crate::compile::Sort>),
     MapConstructor(Vec<(Expr, Expr)>),
     ArraySquare(Vec<Expr>),
     ArrayCurly(Box<Expr>),
@@ -2221,6 +2223,10 @@ pub(crate) fn eval<'a>(
                 name.clone(),
                 *arity,
             )))]
+        }
+        Expr::Sorted(inner, keys) => {
+            let value = eval(inner, focus, vars, budget, depth + 1, backwards)?;
+            crate::sort::sort(value, keys, vars, budget, backwards)?
         }
         Expr::Partial(callee, slots) => {
             let callee = eval(callee, focus, vars, budget, depth + 1, backwards)?;

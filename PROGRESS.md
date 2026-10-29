@@ -1100,3 +1100,12 @@ conformance claims. Smaller tested increments are committed independently.
   position()/last() follow the iterated sequence; falling off the end of the body
   continues with unchanged parameters. Tail position is not checked statically, and
   record streaming rejects iteration.
+
+## Increment 93: xsl:map and xsl:perform-sort
+
+- xsl:map (with xsl:map-entry, xsl:sequence, xsl:if, xsl:choose, xsl:for-each and
+  xsl:variable children) is translated at compile time into map:merge/map:entry
+  expressions; duplicate keys are errors (map:merge reject). on-duplicates, sorting
+  inside xsl:map and map-entry bodies beyond one xsl:sequence are rejected.
+- xsl:perform-sort orders a select expression or a single-xsl:sequence body by its
+  xsl:sort keys.
