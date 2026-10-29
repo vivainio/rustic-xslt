@@ -30,16 +30,27 @@ fn limit() -> Diagnostic {
 }
 #[derive(Clone, Copy, PartialEq)]
 struct Rule {
+    precedence: u32,
     template: usize,
     branch: usize,
     priority: f64,
 }
 impl Rule {
     fn compare(self, other: Self) -> std::cmp::Ordering {
-        self.priority
-            .partial_cmp(&other.priority)
-            .expect("finite template priorities")
-            .then((self.template, self.branch).cmp(&(other.template, other.branch)))
+        self.precedence.cmp(&other.precedence).then(
+            self.priority
+                .partial_cmp(&other.priority)
+                .expect("finite or infinite template priorities")
+                .then((self.template, self.branch).cmp(&(other.template, other.branch))),
+        )
+    }
+    /// Ordering on (import precedence, priority) alone.
+    fn rank(self, other: Self) -> std::cmp::Ordering {
+        self.precedence.cmp(&other.precedence).then(
+            self.priority
+                .partial_cmp(&other.priority)
+                .expect("comparable priorities"),
+        )
     }
 }
 #[derive(Clone)]
@@ -1135,6 +1146,7 @@ fn run_tasks<'a>(
                     if let Some(branches) = &t.pattern {
                         for (bi, b) in branches.iter().enumerate() {
                             let candidate = Rule {
+                                precedence: t.precedence,
                                 template: ti,
                                 branch: if t.priority.is_some() { 0 } else { bi },
                                 priority: t.priority.unwrap_or(b.priority),
@@ -1142,15 +1154,15 @@ fn run_tasks<'a>(
                             if before.is_some_and(|bound| !candidate.compare(bound).is_lt()) {
                                 continue;
                             }
-                            if best.is_some_and(|best| candidate.priority < best.priority) {
+                            if best.is_some_and(|best| candidate.rank(best).is_lt()) {
                                 continue;
                             }
                             if crate::pattern::matches(b, node, &globals, budget, sheet.backwards)?
                             {
                                 if let Some(previous) = best {
-                                    if candidate.priority > previous.priority {
+                                    if candidate.rank(previous).is_gt() {
                                         ambiguous = false;
-                                    } else if candidate.priority == previous.priority
+                                    } else if candidate.rank(previous).is_eq()
                                         && candidate.template != previous.template
                                     {
                                         ambiguous = true;
@@ -1286,6 +1298,7 @@ fn run_tasks<'a>(
                             | Instruction::Apply(..)
                             | Instruction::Call(..)
                             | Instruction::NextMatch(_)
+                            | Instruction::ApplyImports(_)
                             | Instruction::ForEach(..)
                             | Instruction::ForEachGroup(..)
                             | Instruction::AnalyzeString { .. }
@@ -2040,6 +2053,38 @@ fn run_tasks<'a>(
                                 "run",
                             )
                         })?;
+                        tasks.push(Task::ApplyArguments(
+                            vec![focus.clone()],
+                            mode.clone(),
+                            params,
+                            0,
+                            Supplied::inherited(tunnel.clone()),
+                            Frame {
+                                focus,
+                                env,
+                                depth,
+                                mode,
+                                tunnel,
+                                rule,
+                            },
+                            Some(before),
+                        ));
+                    }
+                    Instruction::ApplyImports(params) => {
+                        let current = rule.ok_or_else(|| {
+                            Diagnostic::new(
+                                "XTDE0560",
+                                "apply-imports requires a current template rule",
+                                "run",
+                            )
+                        })?;
+                        // Only rules of lower import precedence are candidates.
+                        let before = Rule {
+                            precedence: current.precedence,
+                            template: 0,
+                            branch: 0,
+                            priority: f64::NEG_INFINITY,
+                        };
                         tasks.push(Task::ApplyArguments(
                             vec![focus.clone()],
                             mode.clone(),

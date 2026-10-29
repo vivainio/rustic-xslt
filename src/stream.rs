@@ -323,6 +323,7 @@ fn safe_global_body(body: &[Instruction]) -> Result<(), Diagnostic> {
             Instruction::Apply(..)
             | Instruction::Call(..)
             | Instruction::NextMatch(..)
+            | Instruction::ApplyImports(..)
             | Instruction::Copy { .. } => {
                 return Err(unsupported(
                     "streamed global constructors cannot invoke templates or copy the source context",
@@ -418,7 +419,9 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                     }
                     Instruction::Document(body) => bodies.push(body),
                     Instruction::Bind(b) => safe_binding(&b.value, false, &mut bodies)?,
-                    Instruction::Apply(_, _, _, params) | Instruction::NextMatch(params) => {
+                    Instruction::Apply(_, _, _, params)
+                    | Instruction::NextMatch(params)
+                    | Instruction::ApplyImports(params) => {
                         for p in params {
                             safe_binding(&p.value, false, &mut bodies)?;
                         }

@@ -38,6 +38,7 @@ pub(crate) enum Instruction {
     Bind(Binding),
     Call(String, Vec<Binding>),
     NextMatch(Vec<Binding>),
+    ApplyImports(Vec<Binding>),
     UseSets(Vec<String>),
     Iterate {
         select: Expr,
@@ -132,6 +133,8 @@ pub(crate) struct Template {
     pub params: Vec<Binding>,
     pub result_type: Option<crate::seqtype::SequenceType>,
     pub body: Vec<Instruction>,
+    /// Import precedence: declarations of importing modules outrank imported ones.
+    pub precedence: u32,
 }
 fn error(n: Node<'_, '_>, message: impl Into<String>) -> Diagnostic {
     let pos = n.document().text_pos_at(n.range().start);
@@ -402,6 +405,7 @@ fn top_sequence(body: &[Instruction]) -> bool {
         Instruction::Sequence(_)
         | Instruction::Call(_, _)
         | Instruction::NextMatch(_)
+        | Instruction::ApplyImports(_)
         | Instruction::CopyOf(..)
         | Instruction::Copy { .. }
         | Instruction::Document(_) => true,
@@ -420,6 +424,7 @@ pub(crate) fn raw_result_body(body: &[Instruction]) -> bool {
         | Instruction::Apply(..)
         | Instruction::Call(..)
         | Instruction::NextMatch(_)
+        | Instruction::ApplyImports(_)
         | Instruction::Bind(_)
         | Instruction::Element { .. }
         | Instruction::ComputedElement(..)
@@ -1273,6 +1278,10 @@ fn body(
                         }
                         out.push(Instruction::Choose(branches));
                     }
+                    "apply-imports" => {
+                        attrs(n, &[])?;
+                        out.push(Instruction::ApplyImports(with_params(n, depth, false)?));
+                    }
                     "next-match" => {
                         attrs(n, &[])?;
                         out.push(Instruction::NextMatch(with_params(n, depth, false)?));
@@ -1524,11 +1533,14 @@ fn mode(n: Node<'_, '_>, value: &str, current: bool) -> Result<String, Diagnosti
 }
 struct Declarations<'a> {
     sheet: &'a mut Stylesheet,
-    output_seen: &'a mut bool,
+    output_seen: &'a mut Option<u32>,
     functions: &'a mut BTreeMap<(String, usize), xpath::UserFunction>,
     keys: &'a mut BTreeMap<String, Vec<xpath::KeyDefinition>>,
     attribute_sets: &'a mut BTreeMap<String, AttributeSet>,
     decimal_formats: &'a mut BTreeMap<String, crate::format_number::Format>,
+    counter: &'a mut u32,
+    global_precedence: &'a mut BTreeMap<String, u32>,
+    function_precedence: &'a mut BTreeMap<(String, usize), u32>,
 }
 type Resolver<'a> = &'a dyn Fn(&str) -> Result<String, Diagnostic>;
 fn declarations(
@@ -1536,6 +1548,7 @@ fn declarations(
     state: &mut Declarations<'_>,
     resolver: Option<Resolver<'_>>,
     depth: usize,
+    inherited: Option<u32>,
 ) -> Result<(), Diagnostic> {
     let Declarations {
         sheet,
@@ -1544,7 +1557,69 @@ fn declarations(
         keys,
         attribute_sets,
         decimal_formats,
+        counter,
+        global_precedence,
+        function_precedence,
     } = state;
+    // Imported modules rank below this module and earlier imports rank below later ones.
+    for n in root.children() {
+        if !(n.is_element()
+            && n.tag_name().namespace() == Some(XSL)
+            && n.tag_name().name() == "import")
+        {
+            continue;
+        }
+        if inherited.is_some() {
+            return Err(error(
+                n,
+                "xsl:import inside an included module is not supported",
+            ));
+        }
+        attrs(n, &["href"])?;
+        empty(n)?;
+        let href = required(n, "href")?;
+        let Some(resolver) = resolver else {
+            return Err(error(n, "xsl:import needs a resource resolver"));
+        };
+        if depth >= 32 {
+            return Err(static_error(n, "XTSE0210", "stylesheet import is too deep"));
+        }
+        let imported = resolver(href)?;
+        let doc = crate::parse(&imported, "compile")?;
+        let imported_root = doc.root_element();
+        if imported_root.tag_name().namespace() != Some(XSL)
+            || !matches!(imported_root.tag_name().name(), "stylesheet" | "transform")
+        {
+            return Err(error(
+                imported_root,
+                "imported module must be xsl:stylesheet or xsl:transform",
+            ));
+        }
+        attrs(imported_root, &["version"])?;
+        declarations(
+            imported_root,
+            &mut Declarations {
+                sheet,
+                output_seen,
+                functions,
+                keys,
+                attribute_sets,
+                decimal_formats,
+                counter,
+                global_precedence,
+                function_precedence,
+            },
+            Some(resolver),
+            depth + 1,
+            None,
+        )?;
+    }
+    let precedence = inherited.unwrap_or_else(|| {
+        let own = **counter;
+        **counter += 1;
+        own
+    });
+    let mut other_seen = false;
     for n in root.children() {
         if n.is_text() && !xml_space(n.text().unwrap_or_default()) {
             return Err(error(n, "unexpected top-level text"));
@@ -1555,6 +1630,17 @@ fn declarations(
         if n.tag_name().namespace() != Some(XSL) {
             return Err(error(n, "unsupported top-level element"));
         }
+        if n.tag_name().name() == "import" {
+            if other_seen {
+                return Err(static_error(
+                    n,
+                    "XTSE0200",
+                    "xsl:import must precede all other declarations",
+                ));
+            }
+            continue;
+        }
+        other_seen = true;
         match n.tag_name().name() {
             "mode" => {
                 use crate::mode::OnNoMatch;
@@ -1668,9 +1754,14 @@ fn declarations(
             }
             "param" | "variable" => {
                 let b = binding(n, n.tag_name().name() == "param", 0)?;
-                if sheet.globals.iter().any(|g| g.name == b.name) {
-                    return Err(static_error(n, "XTSE0630", "duplicate global binding"));
+                match global_precedence.get(&b.name) {
+                    Some(existing) if *existing == precedence => {
+                        return Err(static_error(n, "XTSE0630", "duplicate global binding"));
+                    }
+                    Some(_) => sheet.globals.retain(|g| g.name != b.name),
+                    None => {}
                 }
+                global_precedence.insert(b.name.clone(), precedence);
                 sheet.globals.push(b);
             }
             "template" => {
@@ -1689,10 +1780,20 @@ fn declarations(
                 if p.is_none() && id.is_none() {
                     return Err(error(n, "template requires match or name"));
                 }
-                if let Some(id) = &id
-                    && sheet.templates.iter().any(|t| t.name.as_ref() == Some(id))
-                {
-                    return Err(static_error(n, "XTSE0660", "duplicate named template"));
+                if let Some(id) = &id {
+                    for existing in sheet.templates.iter_mut() {
+                        if existing.name.as_ref() == Some(id) {
+                            if existing.precedence == precedence {
+                                return Err(static_error(
+                                    n,
+                                    "XTSE0660",
+                                    "duplicate named template",
+                                ));
+                            }
+                            // The importing module's template replaces the imported one.
+                            existing.name = None;
+                        }
+                    }
                 }
                 let mut params = vec![];
                 let mut content = false;
@@ -1783,6 +1884,7 @@ fn declarations(
                     params,
                     result_type,
                     body,
+                    precedence,
                 });
             }
             "output" => {
@@ -1820,10 +1922,10 @@ fn declarations(
                 }
                 sheet.indent = boolean_attribute(n, "indent", false)?;
                 empty(n)?;
-                if **output_seen {
+                if **output_seen == Some(precedence) {
                     return Err(error(n, "multiple xsl:output declarations are unsupported"));
                 }
-                **output_seen = true;
+                **output_seen = Some(precedence);
                 let method = n.attribute("method").unwrap_or("xml");
                 sheet.text_output = method == "text";
                 sheet.markup = match method {
@@ -1883,9 +1985,13 @@ fn declarations(
                         keys,
                         attribute_sets,
                         decimal_formats,
+                        counter,
+                        global_precedence,
+                        function_precedence,
                     },
                     Some(resolver),
                     depth + 1,
+                    Some(precedence),
                 )?;
             }
             "decimal-format" => {
@@ -2119,13 +2225,14 @@ fn declarations(
                     function_body = Expr::Let(name, Box::new(select), Box::new(function_body));
                 }
                 let key = (id, params.len());
-                if functions.contains_key(&key) {
+                if function_precedence.get(&key) == Some(&precedence) {
                     return Err(static_error(
                         n,
                         "XTSE0770",
                         "duplicate function declaration",
                     ));
                 }
+                function_precedence.insert(key.clone(), precedence);
                 functions.insert(
                     key,
                     xpath::UserFunction {
@@ -2177,11 +2284,14 @@ pub(crate) fn compile(
             _ => 3,
         },
     };
-    let mut output_seen = false;
+    let mut output_seen: Option<u32> = None;
     let mut functions: BTreeMap<(String, usize), xpath::UserFunction> = BTreeMap::new();
     let mut keys: BTreeMap<String, Vec<xpath::KeyDefinition>> = BTreeMap::new();
     let mut attribute_sets: BTreeMap<String, AttributeSet> = BTreeMap::new();
     let mut decimal_formats: BTreeMap<String, crate::format_number::Format> = BTreeMap::new();
+    let mut precedence_counter = 0u32;
+    let mut global_precedence: BTreeMap<String, u32> = BTreeMap::new();
+    let mut function_precedence: BTreeMap<(String, usize), u32> = BTreeMap::new();
     declarations(
         root,
         &mut Declarations {
@@ -2191,9 +2301,13 @@ pub(crate) fn compile(
             keys: &mut keys,
             attribute_sets: &mut attribute_sets,
             decimal_formats: &mut decimal_formats,
+            counter: &mut precedence_counter,
+            global_precedence: &mut global_precedence,
+            function_precedence: &mut function_precedence,
         },
         resolver,
         0,
+        None,
     )?;
     sheet.functions = std::sync::Arc::new(functions);
     sheet.keys = std::sync::Arc::new(keys);
@@ -2303,7 +2417,10 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 }
                 _ => {}
             }
-            if let Instruction::Apply(_, _, _, params) | Instruction::NextMatch(params) = i {
+            if let Instruction::Apply(_, _, _, params)
+            | Instruction::NextMatch(params)
+            | Instruction::ApplyImports(params) = i
+            {
                 for p in params {
                     match &p.value {
                         BindingValue::Select(e) => expression(e, &scope)?,
@@ -2393,7 +2510,8 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     parts(n, &scope)?;
                     value(c, &scope, templates)?;
                 }
-                Instruction::Text(_) | Instruction::NextMatch(_) => {}
+                Instruction::Text(_) | Instruction::NextMatch(_) | Instruction::ApplyImports(_) => {
+                }
                 Instruction::Value(e, _)
                 | Instruction::Apply(e, _, _, _)
                 | Instruction::CopyOf(e, _)

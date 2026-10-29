@@ -1153,3 +1153,17 @@ conformance claims. Smaller tested increments are committed independently.
   XML). Further xsl:output attributes are accepted and ignored (media-type,
   html-version, include-content-type and similar); other encodings, character maps
   and CDATA sections remain unsupported.
+
+## Increment 98: xsl:import and xsl:apply-imports
+
+- Added xsl:import through the resolver closure with import precedence: importing
+  modules outrank imported ones and later imports outrank earlier ones. Template
+  rules compare precedence before priority; imported global variables, functions and
+  named templates are replaced by higher-precedence declarations (same-precedence
+  clashes remain XTSE0630/XTSE0660/XTSE0770); multiple xsl:output declarations are
+  allowed across precedence levels. xsl:import must precede other declarations
+  (XTSE0200); xsl:include shares the including module's precedence.
+- xsl:apply-imports applies only rules of lower precedence than the current rule
+  (built-in rules otherwise) and accepts with-param.
+- Not covered: imports inside included modules, precedence for keys, attribute sets
+  and decimal formats (they merge), and use-package.
