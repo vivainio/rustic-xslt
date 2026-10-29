@@ -275,6 +275,9 @@ pub(crate) struct KeyDefinition {
     pub branches: Vec<crate::pattern::Branch>,
     pub value: Expr,
     pub backwards: bool,
+    pub composite: bool,
+    pub collation: crate::collation::Collation,
+    pub collation_uri: String,
 }
 /// Variable names under which `xsl:for-each-group` publishes the current group.
 pub(crate) const CURRENT_GROUP: &str = "\u{0}current-group";
@@ -2963,7 +2966,8 @@ fn call_key<'a>(
         .collect();
     let compatibility = definitions.iter().any(|definition| definition.backwards);
     let wanted = key_values(args[1].clone(), compatibility, budget)?;
-    if wanted.is_empty() {
+    let composite = definitions[0].composite;
+    if wanted.is_empty() && !composite {
         return Ok(vec![]);
     }
     let root = start.root().order();
@@ -3010,19 +3014,42 @@ fn call_key<'a>(
                     1,
                     definition.backwards,
                 )?;
-                for value in key_values(values, compatibility, budget)? {
-                    let mut equal = false;
-                    for requested in &wanted {
-                        budget.tick()?;
-                        if crate::deep_equal::atomic_equal(&value, requested, false) {
-                            equal = true;
-                            break;
+                let values = key_values(values, compatibility, budget)?;
+                let mut equal = composite && values.len() == wanted.len();
+                if composite {
+                    if equal {
+                        for (value, requested) in values.iter().zip(&wanted) {
+                            budget.tick()?;
+                            if !crate::deep_equal::atomic_equal_with(
+                                value,
+                                requested,
+                                false,
+                                definition.collation,
+                            ) {
+                                equal = false;
+                                break;
+                            }
                         }
                     }
-                    if equal {
-                        found.push(node);
-                        break;
+                } else {
+                    'values: for value in &values {
+                        for requested in &wanted {
+                            budget.tick()?;
+                            if crate::deep_equal::atomic_equal_with(
+                                value,
+                                requested,
+                                false,
+                                definition.collation,
+                            ) {
+                                equal = true;
+                                break 'values;
+                            }
+                        }
                     }
+                }
+                if equal {
+                    found.push(node);
+                    break;
                 }
             }
         }

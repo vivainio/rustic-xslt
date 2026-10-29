@@ -221,3 +221,65 @@ fn acyclic_key_dependencies_obey_the_depth_limit() {
     assert_eq!(error.code, "XPDY0130");
     assert!(error.message.contains("key dependency depth"));
 }
+
+#[test]
+fn composite_keys_match_the_entire_ordered_atomic_sequence() {
+    let declarations = r#"<xsl:key name="k" match="item" use="(@g, number(.))" composite="yes"/>"#;
+    for (query, expected) in [
+        ("count(key('k', ('x', 3)))", "1"),
+        ("count(key('k', ('x', 2)))", "0"),
+        ("count(key('k', (3, 'x')))", "0"),
+        ("count(key('k', ('x', '3')))", "0"),
+        ("count(key('k', ('x', 3, 3)))", "0"),
+        ("count(key('k', ['x', 3]))", "1"),
+        ("count(key('k', 'x'))", "0"),
+    ] {
+        assert_eq!(run(declarations, query).unwrap(), expected, "{query}");
+    }
+    let empty = r#"<xsl:key name="k" match="item" use="()" composite="true"/>"#;
+    assert_eq!(run(empty, "count(key('k', ()))").unwrap(), "4");
+    assert_eq!(run(empty, "count(key('k', ''))").unwrap(), "0");
+}
+
+#[test]
+fn key_collations_apply_to_string_components() {
+    let collation = "http://www.w3.org/2005/xpath-functions/collation/html-ascii-case-insensitive";
+    let declarations = format!(
+        r#"<xsl:key name="k" match="item" use="@g" collation="{collation}"/>
+      <xsl:key name="c" match="item" use="(@g, number(.))" composite="yes" collation="{collation}"/>"#
+    );
+    assert_eq!(run(&declarations, "count(key('k', 'X'))").unwrap(), "3");
+    assert_eq!(
+        run(&declarations, "count(key('c', ('X', 3)))").unwrap(),
+        "1"
+    );
+    assert_eq!(
+        run(&declarations, "count(key('c', ('X', '3')))").unwrap(),
+        "0"
+    );
+}
+
+#[test]
+fn key_declarations_require_consistent_composite_and_collation_settings() {
+    let first = r#"<xsl:key name="k" match="item" use="@g" composite="yes"/>"#;
+    for second in [
+        r#"<xsl:key name="k" match="item" use="@id"/>"#,
+        r#"<xsl:key name="k" match="item" use="@id" composite="no"/>"#,
+    ] {
+        assert_eq!(
+            run(&format!("{first}{second}"), "key('k', ())")
+                .unwrap_err()
+                .code,
+            "XTSE1222"
+        );
+    }
+    let different = format!(
+        r#"{first}<xsl:key name="k" match="item" use="@g" composite="yes" collation="http://www.w3.org/2005/xpath-functions/collation/html-ascii-case-insensitive"/>"#
+    );
+    assert_eq!(
+        run(&different, "key('k', ())").unwrap_err().code,
+        "XTSE1220"
+    );
+    let unknown = r#"<xsl:key name="k" match="item" use="@g" collation="urn:unknown"/>"#;
+    assert_eq!(run(unknown, "key('k', ())").unwrap_err().code, "XTSE1210");
+}

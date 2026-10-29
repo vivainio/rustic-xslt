@@ -1453,3 +1453,19 @@ conformance claims. Smaller tested increments are committed independently.
   all 29 Python harness tests and the 580-case pinned XSLT gate pass.
 - Reran the full pinned 26,966-case QT3 selection after increment 124: all 18,729
   baseline cases still pass (396 failures, 764 harness errors, 7,077 exclusions).
+
+## Increment 128: composite keys and explicit key collations
+
+- xsl:key composite="yes" compares the entire ordered sequence of atomic
+  components, including empty composite keys. Ordinary keys retain any-value
+  matching. Composite declarations sharing a name must agree (XTSE1222).
+- Explicit key collations use the existing collation implementation for string
+  components. Unknown collations raise XTSE1210; inconsistent collation URIs
+  across declarations raise XTSE1220. Collation defaults inherited from stylesheet
+  attributes and relative collation URIs remain unsupported.
+- Added regressions for component order/type/length, empty keys, array atomization,
+  case-insensitive comparisons and declaration consistency.
+- Pinned XSLT gate now contains 584 passes (four new, zero regressions), 231 engine
+  failures, 195 harness errors and 149 profile exclusions across 1,159 cases.
+- Validation: full offline Rust tests, Clippy with warnings denied, formatting,
+  whitespace checks and the expanded XSLT gate pass.

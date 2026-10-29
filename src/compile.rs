@@ -2647,11 +2647,29 @@ fn declarations(
                     n.attribute("name")
                         .ok_or_else(|| static_error(n, "XTSE0010", "key requires a name"))?,
                 )?;
-                if n.attribute("collation").is_some() || boolean_attribute(n, "composite", false)? {
-                    return Err(error(
-                        n,
-                        "key collations and composite keys are not implemented",
-                    ));
+                let composite = boolean_attribute(n, "composite", false)?;
+                let collation_uri = n
+                    .attribute("collation")
+                    .unwrap_or("http://www.w3.org/2005/xpath-functions/collation/codepoint")
+                    .trim()
+                    .to_owned();
+                let collation = crate::collation::Collation::parse(&collation_uri)
+                    .map_err(|_| static_error(n, "XTSE1210", "unsupported key collation"))?;
+                if let Some(previous) = keys.get(&id).and_then(|definitions| definitions.first()) {
+                    if previous.composite != composite {
+                        return Err(static_error(
+                            n,
+                            "XTSE1222",
+                            "key declarations disagree on composite",
+                        ));
+                    }
+                    if previous.collation_uri != collation_uri {
+                        return Err(static_error(
+                            n,
+                            "XTSE1220",
+                            "key declarations disagree on collation",
+                        ));
+                    }
                 }
                 let pattern = n
                     .attribute("match")
@@ -2664,6 +2682,9 @@ fn declarations(
                 keys.entry(id).or_default().push(xpath::KeyDefinition {
                     branches,
                     value: expr(n, select)?,
+                    composite,
+                    collation,
+                    collation_uri,
                     backwards: n
                         .ancestors()
                         .find_map(|ancestor| ancestor.attribute("version"))
