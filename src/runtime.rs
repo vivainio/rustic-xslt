@@ -71,6 +71,7 @@ enum Task<'a> {
         String,
         Option<Rule>,
     ),
+    RawCopy(Item<'a>, usize, bool),
     DeepCopy(XNode<'a>, usize, bool),
     FinishDocument(Output, usize),
     FinishTemplate(&'a crate::seqtype::SequenceType, Output, usize, bool, bool),
@@ -1066,6 +1067,8 @@ fn run_tasks<'a>(
                     && !matches!(
                         instruction,
                         Instruction::Sequence(_)
+                            | Instruction::CopyOf(..)
+                            | Instruction::Copy { .. }
                             | Instruction::Call(..)
                             | Instruction::NextMatch(_)
                             | Instruction::ForEach(..)
@@ -1260,7 +1263,13 @@ fn run_tasks<'a>(
                             _ => true,
                         };
                         let value = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
-                        emit_value(value, &mut tasks, depth, namespaces);
+                        if raw_active(&captures) && matches!(instruction, Instruction::CopyOf(..)) {
+                            for item in value.into_iter().rev() {
+                                tasks.push(Task::RawCopy(item, depth, namespaces));
+                            }
+                        } else {
+                            emit_value(value, &mut tasks, depth, namespaces);
+                        }
                     }
                     Instruction::Copy {
                         select,
@@ -1288,6 +1297,24 @@ fn run_tasks<'a>(
                             };
                         }
                         let rule = if select.is_some() { None } else { rule };
+                        if raw_active(&captures) {
+                            match &focus.item {
+                                Item::Node(n) if n.is_element() || n.is_document() => {
+                                    begin_raw_node(
+                                        &mut output,
+                                        &mut captures,
+                                        &mut tasks,
+                                        depth,
+                                        n.is_document(),
+                                    );
+                                }
+                                Item::Absent => {}
+                                item => {
+                                    tasks.push(Task::RawCopy(item.clone(), depth, *namespaces));
+                                    continue;
+                                }
+                            }
+                        }
                         match focus.item.clone() {
                             Item::Node(n) if n.is_element() => {
                                 let mut element = result::source_element(n.raw, false);
@@ -1526,6 +1553,26 @@ fn run_tasks<'a>(
                     }
                 }
             }
+            Task::RawCopy(item, depth, namespaces) => match item {
+                Item::Node(node) => {
+                    if node.attribute.is_some() {
+                        return Err(Diagnostic::new(
+                            "RUST_XSLT_UNSUPPORTED",
+                            "parentless copied attributes are not implemented",
+                            "run",
+                        ));
+                    }
+                    begin_raw_node(
+                        &mut output,
+                        &mut captures,
+                        &mut tasks,
+                        depth,
+                        node.is_document(),
+                    );
+                    tasks.push(Task::DeepCopy(node, depth, namespaces));
+                }
+                atomic => emit_value(vec![atomic], &mut tasks, depth, namespaces),
+            },
             Task::DeepCopy(node, depth, namespaces) => {
                 if output.simple_node(node)? {
                     continue;

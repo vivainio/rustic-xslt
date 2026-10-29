@@ -86,9 +86,11 @@ Sequence instructions, supported control flow and template delegation also
 retain raw values across typed bindings and returns. Mixed sequences support
 constructed elements, documents, text, comments and processing instructions;
 constructed element contents are normalized independently. Standalone attribute
-constructors, raw copy/built-in dispatch paths and zero-length constructed
+constructors, raw built-in dispatch paths and zero-length constructed
 text-node identity remain incomplete.
 Selected node/attribute identity is preserved through raw sequence capture.
+Raw xsl:copy-of allocates fresh node identities; xsl:copy constructs shallow
+element/document results. Parentless copied attributes remain unsupported.
 Match patterns support child/attribute paths, namespaces, wildcards, node tests,
 predicates, `/` and union. Descendant patterns remain ahead.
 
@@ -196,7 +198,7 @@ streamable modes/accumulators and automatic plan selection remain ahead.
 
 ## W3C development checks
 
-A pinned, partial catalog runner and a 373-case passing regression gate are in
+A pinned, partial catalog runner and a 375-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. An initial internal QT3 bridge

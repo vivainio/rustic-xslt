@@ -362,6 +362,8 @@ fn top_sequence(body: &[Instruction]) -> bool {
 pub(crate) fn raw_result_body(body: &[Instruction]) -> bool {
     body.iter().all(|i| match i {
         Instruction::Sequence(_)
+        | Instruction::CopyOf(..)
+        | Instruction::Copy { .. }
         | Instruction::Call(..)
         | Instruction::NextMatch(_)
         | Instruction::Bind(_)

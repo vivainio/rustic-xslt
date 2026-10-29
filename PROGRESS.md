@@ -509,5 +509,15 @@ conformance claims. Smaller tested increments are committed independently.
 - 282 Rust integration tests, 27 harness tests and Clippy/format pass. Both pinned
   gates retain all 373 XSLT and 989 QT3 passes without regressions.
 
-Next: raw copy and built-in dispatch, then standalone attributes and XPath grammar.
+## Increment 41: raw copy results
+
+- xsl:copy-of retains atomic types and creates fresh parentless copies of node
+  results, including distinct document nodes and repeated selected nodes.
+- xsl:copy grounds element/document bodies independently within raw sequences;
+  atomic copies retain type identity. Parentless attribute copies fail explicitly.
+- 284 Rust integration tests and Clippy/format pass. XSLT gate expands to 375
+  (375 pass / 158 failures / 144 harness errors / 46 exclusions); all 989 QT3
+  passes remain green.
+
+Next: raw built-in dispatch, then standalone attributes and XPath grammar.
 

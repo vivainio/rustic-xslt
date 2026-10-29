@@ -135,3 +135,25 @@ fn adjacent_constructed_text_nodes_atomize_separately() {
     );
     assert_eq!(s.transform("<r/>").unwrap(), "2:a|b");
 }
+
+#[test]
+fn raw_copy_of_preserves_types_but_allocates_fresh_node_identity() {
+    let s = sheet(
+        r#"<xsl:template match="/"><xsl:variable name="v" as="item()*"><xsl:copy-of select="(7, r/a, r/a, /)"/></xsl:variable><xsl:value-of select="concat(count($v), ':', $v[1] instance of xs:integer, ':', $v[2] is r/a, ':', $v[2] is $v[3], ':', deep-equal($v[2], r/a), ':', empty($v[2]/parent::node()), ':', $v[4] instance of document-node())"/></xsl:template>"#,
+    );
+    assert_eq!(
+        s.transform("<r><a>text</a></r>").unwrap(),
+        "4:true:false:false:true:true:true"
+    );
+}
+
+#[test]
+fn raw_shallow_copy_grounds_only_its_constructor_body() {
+    let s = sheet(
+        r#"<xsl:template match="/"><xsl:variable name="v" as="item()*"><xsl:sequence select="1"/><xsl:copy select="r"><xsl:attribute name="a">v</xsl:attribute><child/></xsl:copy><xsl:copy select="/"/><xsl:copy select="true()"/></xsl:variable><xsl:value-of select="concat(count($v), ':', name($v[2]), ':', string($v[2]/@a), ':', count($v[2]/child), ':', $v[3] instance of document-node(), ':', $v[4] instance of xs:boolean)"/></xsl:template>"#,
+    );
+    assert_eq!(
+        s.transform("<r original='x'><discard/></r>").unwrap(),
+        "4:r:v:1:true:true"
+    );
+}
