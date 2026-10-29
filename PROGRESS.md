@@ -1979,3 +1979,12 @@ conformance claims. Smaller tested increments are committed independently.
   configured output limit and must report `XPDY0130`.
 - Validation: encoding and declaration tests, all-target/all-feature Clippy and
   the full 882-case pinned XSLT gate pass without regressions.
+
+## Increment 170: encoding errors in DOCTYPE identifiers
+
+- The encoding pass tracks DOCTYPE declarations separately from attribute values
+  and rejects unrepresentable identifiers with `SERE0008`, preserving identifier
+  semantics instead of inserting character references into literals.
+- Added US-ASCII rejection and Latin-1 preservation regressions.
+- Validation: seven encoding tests, all-target/all-feature Clippy and the full
+  882-case pinned XSLT gate pass without regressions.

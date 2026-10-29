@@ -115,3 +115,21 @@ fn output_limits_include_encoding_expansion() {
         "XPDY0130"
     );
 }
+
+#[test]
+fn restricted_encodings_reject_unrepresentable_doctype_identifiers() {
+    assert_eq!(
+        run(r#"encoding="US-ASCII" doctype-system="café.dtd""#, "<out/>")
+            .unwrap_err()
+            .code,
+        "SERE0008"
+    );
+    assert!(
+        run(
+            r#"encoding="ISO-8859-1" doctype-system="café.dtd""#,
+            "<out/>"
+        )
+        .unwrap()
+        .contains("café.dtd")
+    );
+}

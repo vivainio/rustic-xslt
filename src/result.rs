@@ -109,6 +109,7 @@ impl Encoding {
         let mut cdata = false;
         let mut opaque_end: Option<&str> = None;
         let mut in_markup = false;
+        let mut in_doctype = false;
         let mut quote = None;
         while !rest.is_empty() {
             if references {
@@ -125,6 +126,13 @@ impl Encoding {
                     cdata = false;
                     continue;
                 } else if !cdata {
+                    if !in_markup && rest.starts_with("<!DOCTYPE") {
+                        out.push_str("<!DOCTYPE");
+                        rest = &rest[9..];
+                        in_markup = true;
+                        in_doctype = true;
+                        continue;
+                    }
                     let opening = if rest.starts_with("<!--") {
                         Some(("<!--", "-->"))
                     } else if rest.starts_with("<?") {
@@ -159,11 +167,16 @@ impl Encoding {
                     in_markup = true;
                 } else if c == '>' {
                     in_markup = false;
+                    in_doctype = false;
                 }
             }
             if (c as u32) <= self.limit() {
                 out.push(c);
-            } else if references && opaque_end.is_none() && (!in_markup || quote.is_some()) {
+            } else if references
+                && opaque_end.is_none()
+                && !in_doctype
+                && (!in_markup || quote.is_some())
+            {
                 if cdata {
                     out.push_str("]]>");
                 }
