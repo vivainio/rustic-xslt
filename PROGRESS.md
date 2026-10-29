@@ -1705,3 +1705,14 @@ conformance claims. Smaller tested increments are committed independently.
   selected cases.
 - Validation: all-feature Rust tests, all-target/all-feature Clippy, 41 Python
   harness tests and both pinned gates pass.
+
+## Increment 143: anchored constraints in path patterns
+
+- When a path pattern contains an `intersect` or `except` on its right-hand side,
+  its constraints are now prefixed with the left-hand pattern. This preserves
+  the axis context for exclusions such as `x/(descendant::a except child::a)`.
+- Added a regression using parentless temporary elements to verify that direct
+  children and deeper descendants take different template rules. Absolute
+  descendant patterns also require a document-rooted input tree.
+- Validation: the focused pattern suite and the pinned XSLT gate pass without
+  losing any of the 775 recorded cases.

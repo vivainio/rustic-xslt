@@ -69,6 +69,25 @@ fn root_function_patterns_can_filter_a_parentless_element() {
         "R"
     );
 }
+
+#[test]
+fn path_patterns_keep_except_constraints_anchored_to_their_prefix() {
+    let sheet = Stylesheet::compile(
+        r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:mode on-no-match="shallow-skip"/><xsl:variable name="nodes" as="element()*"><x id="1"><a>23</a><x><a>25</a></x></x></xsl:variable><xsl:template name="main"><xsl:apply-templates select="$nodes"/></xsl:template><xsl:template match="x[@id='1']/(descendant::a except child::a)">I</xsl:template><xsl:template match="a">A</xsl:template></xsl:stylesheet>"#,
+    ).unwrap();
+    assert_eq!(
+        sheet
+            .transform_with_options(
+                "",
+                &rust_xslt::TransformOptions {
+                    initial_template: Some("main".into()),
+                    ..Default::default()
+                },
+            )
+            .unwrap(),
+        "AI"
+    );
+}
 #[test]
 fn parenthesized_unions_expand_into_alternatives() {
     let templates = r#"<xsl:template match="/"><xsl:apply-templates select="//*"/></xsl:template><xsl:template match="chap/(p|q)">X</xsl:template><xsl:template match="(sec|doc)/p">Y</xsl:template>"#;

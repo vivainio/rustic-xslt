@@ -230,31 +230,40 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
                         || right.selected.is_some()
                         || right.predicate.is_some()
                         || left.predicate.is_some()
-                        || !right.required.is_empty()
-                        || !right.excluded.is_empty()
                         || !left.required.is_empty()
                         || !left.excluded.is_empty()
                     {
                         return Err(unsupported());
                     }
-                    let mut parts = Parts {
-                        absolute: left.absolute,
-                        steps: left.steps.clone(),
-                        gaps: left.gaps.clone(),
-                        selected: left.selected.clone(),
-                        predicate: None,
-                        required: vec![],
-                        excluded: vec![],
-                    };
-                    parts.steps.extend(right.steps.iter().cloned());
-                    parts.gaps.extend(right.gaps.iter().copied());
-                    out.push(parts);
+                    out.push(prepend(left, right.clone()));
                 }
             }
             Ok(())
         }
         _ => Err(unsupported()),
     }
+}
+
+fn prepend(prefix: &Parts, mut suffix: Parts) -> Parts {
+    for group in &mut suffix.required {
+        for candidate in group {
+            *candidate = prepend(prefix, candidate.clone());
+        }
+    }
+    for group in &mut suffix.excluded {
+        for candidate in group {
+            *candidate = prepend(prefix, candidate.clone());
+        }
+    }
+    let mut steps = prefix.steps.clone();
+    steps.append(&mut suffix.steps);
+    let mut gaps = prefix.gaps.clone();
+    gaps.append(&mut suffix.gaps);
+    suffix.absolute = prefix.absolute;
+    suffix.selected = prefix.selected.clone();
+    suffix.steps = steps;
+    suffix.gaps = gaps;
+    suffix
 }
 
 pub(crate) fn parse(
@@ -470,6 +479,9 @@ fn step_matches<'a>(
     let step = &branch.steps[index];
     if matches!(step.axis, Axis::Descendant | Axis::DescendantOrSelf) {
         if index == 0 {
+            if branch.absolute && !node.root().is_document() {
+                return Ok(false);
+            }
             if let Some(selected) = &branch.selected {
                 let expression = Expr::Path(Box::new(selected.clone()), vec![step.clone()]);
                 let focus = Focus {
