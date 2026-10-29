@@ -3964,26 +3964,9 @@ fn function<'a>(
     if name == "node-name" {
         return match first.as_slice() {
             [] => Ok(vec![]),
-            [Item::Node(n)] => {
-                let (uri, local) = n.name();
-                if local.is_empty() {
-                    return Ok(vec![]);
-                }
-                let prefix = uri
-                    .and_then(|u| {
-                        if u == "http://www.w3.org/XML/1998/namespace" {
-                            Some("xml")
-                        } else {
-                            n.raw.lookup_prefix(u)
-                        }
-                    })
-                    .filter(|p| !p.is_empty());
-                let lexical = prefix.map_or_else(|| local.to_owned(), |p| format!("{p}:{local}"));
-                Ok(vec![Item::QName(crate::qname::AtomicQName::new(
-                    uri.unwrap_or(""),
-                    &lexical,
-                )?)])
-            }
+            [Item::Node(node)] => Ok(node
+                .atomic_name()
+                .map_or_else(Vec::new, |name| vec![Item::QName(name)])),
             _ => Err(err("XPTY0004", "node-name requires zero or one node")),
         };
     }
@@ -4078,7 +4061,8 @@ fn function<'a>(
             budget.tick()?;
         }
         return Ok(vec![Item::QName(crate::qname::AtomicQName::new(
-            &uri, &lexical,
+            uri.trim_matches([' ', '\t', '\n', '\r']),
+            lexical.trim_matches([' ', '\t', '\n', '\r']),
         )?)]);
     }
     if matches!(name, "round" | "round-half-to-even") {
@@ -4427,14 +4411,8 @@ fn function<'a>(
                     } else if name == "local-name" {
                         local.into()
                     } else {
-                        let node = n.raw;
-                        if let Some(uri) = uri {
-                            node.lookup_prefix(uri)
-                                .filter(|p| !p.is_empty())
-                                .map_or_else(|| local.into(), |p| format!("{p}:{local}"))
-                        } else {
-                            local.into()
-                        }
+                        n.atomic_name()
+                            .map_or_else(|| local.into(), |name| name.lexical())
                     }
                 }
                 _ => return Err(err("XPTY0004", "name function requires one node")),

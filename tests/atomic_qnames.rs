@@ -40,7 +40,7 @@ fn qname_constructor_checks_xml_names_namespace_requirements_and_types() {
         ("QName('','p:n')", "FOCA0002"),
         ("QName('urn:p','p:a:b')", "FOCA0002"),
         ("QName('urn:p','1n')", "FOCA0002"),
-        ("QName('urn:p',' n ')", "FOCA0002"),
+        ("QName('urn:p','p: n')", "FOCA0002"),
         ("QName('urn:p','p:')", "FOCA0002"),
         ("QName('urn:p','')", "FOCA0002"),
         ("QName(1,'n')", "XPTY0004"),
