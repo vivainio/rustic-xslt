@@ -1587,3 +1587,20 @@ conformance claims. Smaller tested increments are committed independently.
   failures, 224 harness errors and 153 exclusions across 1,418 cases.
 - Validation: full all-feature offline Rust suite, all-feature Clippy with warnings
   denied, formatting, whitespace checks and the expanded XSLT gate pass.
+
+## Increment 136: merge unnamed output declarations
+
+- Multiple unnamed xsl:output declarations now merge properties independently
+  using import precedence. Equal normalized boolean/encoding values are compatible;
+  conflicting values at the winning precedence raise XTSE1560. Higher-precedence
+  values can resolve conflicts in lower-precedence imported declarations.
+- Includes merge at the including module's precedence. Missing properties no
+  longer reset previously declared methods, encodings or declaration settings.
+- CDATA element names accumulate across declarations and resolve unprefixed names
+  using the stylesheet XML default namespace, independently of the XPath default.
+- Added property merging, boolean alias, conflict, import/include and CDATA
+  namespace regressions. Named output definitions remain unsupported.
+- Pinned XSLT gate: 724 passes (eight new, zero regressions), 317 engine failures,
+  224 harness errors and 153 exclusions across 1,418 cases.
+- Validation: full all-feature offline Rust suite, all-feature Clippy with warnings
+  denied, formatting, all 39 Python harness tests and expanded XSLT gate pass.

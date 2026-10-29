@@ -2010,9 +2010,66 @@ fn mode(n: Node<'_, '_>, value: &str, current: bool) -> Result<String, Diagnosti
     check_component_namespace(n, &name, false)?;
     Ok(name)
 }
+struct OutputProperty {
+    precedence: u32,
+    value: String,
+    conflict: Option<Diagnostic>,
+}
+
+fn apply_output_properties(
+    sheet: &mut Stylesheet,
+    properties: &BTreeMap<String, OutputProperty>,
+) -> Result<(), Diagnostic> {
+    for property in properties.values() {
+        if let Some(error) = &property.conflict {
+            return Err(error.clone());
+        }
+    }
+    let get = |name: &str| properties.get(name).map(|property| property.value.as_str());
+    let method = get("method").unwrap_or("xml");
+    sheet.text_output = method == "text";
+    sheet.markup = match method {
+        "xml" | "text" => crate::result::Markup::Xml,
+        "html" => crate::result::Markup::Html,
+        "xhtml" => crate::result::Markup::Xhtml,
+        _ => {
+            return Err(Diagnostic::new(
+                "RUST_XSLT_UNSUPPORTED",
+                "unsupported output method",
+                "compile",
+            ));
+        }
+    };
+    if method == "xml" && get("version").is_some_and(|version| version != "1.0") {
+        return Err(Diagnostic::new(
+            "RUST_XSLT_UNSUPPORTED",
+            "only XML 1.0 output is currently supported",
+            "compile",
+        ));
+    }
+    sheet.encoding = get("encoding")
+        .and_then(crate::result::Encoding::parse)
+        .unwrap_or_default();
+    sheet.indent = get("indent") == Some("yes");
+    sheet.byte_order_mark = get("byte-order-mark") == Some("yes");
+    sheet.omit_declaration =
+        get("omit-xml-declaration").map_or(method == "html", |value| value == "yes");
+    sheet.standalone = match get("standalone") {
+        None | Some("omit") => None,
+        value => Some(value == Some("yes")),
+    };
+    if get("doctype-public").is_some() || get("doctype-system").is_some() {
+        sheet.doctype = Some(crate::result::Doctype {
+            public: get("doctype-public").map(str::to_owned),
+            system: get("doctype-system").map(str::to_owned),
+        });
+    }
+    Ok(())
+}
+
 struct Declarations<'a> {
     sheet: &'a mut Stylesheet,
-    output_seen: &'a mut Option<u32>,
+    output_properties: &'a mut BTreeMap<String, OutputProperty>,
     functions: &'a mut BTreeMap<(String, usize), xpath::UserFunction>,
     keys: &'a mut BTreeMap<String, Vec<xpath::KeyDefinition>>,
     attribute_sets: &'a mut BTreeMap<String, AttributeSet>,
@@ -2034,7 +2091,7 @@ fn declarations(
 ) -> Result<(), Diagnostic> {
     let Declarations {
         sheet,
-        output_seen,
+        output_properties,
         functions,
         keys,
         attribute_sets,
@@ -2084,7 +2141,7 @@ fn declarations(
             imported_root,
             &mut Declarations {
                 sheet,
-                output_seen,
+                output_properties,
                 functions,
                 keys,
                 attribute_sets,
@@ -2419,59 +2476,90 @@ fn declarations(
                 if let Some(names) = n.attribute("cdata-section-elements") {
                     let mut all = (*sheet.cdata_elements).clone();
                     for name in names.split_whitespace() {
-                        let expanded = component_name(n, name)?;
+                        let mut expanded = component_name(n, name)?;
+                        if !name.contains(':')
+                            && !name.starts_with("Q{")
+                            && let Some(uri) = n.lookup_namespace_uri(None)
+                        {
+                            expanded = format!("Q{{{uri}}}{name}");
+                        }
                         if !all.contains(&expanded) {
                             all.push(expanded);
                         }
                     }
                     sheet.cdata_elements = std::sync::Arc::new(all);
                 }
-                if let Some(name) = n.attribute("encoding") {
-                    sheet.encoding = crate::result::Encoding::parse(name).ok_or_else(|| {
-                        error(
-                            n,
-                            "only UTF-8, ISO-8859-1 and US-ASCII output are supported",
-                        )
-                    })?;
-                }
-                if n.attribute("version").is_some_and(|s| s != "1.0")
-                    && n.attribute("method").is_none_or(|m| m == "xml")
-                {
-                    return Err(error(n, "only XML 1.0 output is currently supported"));
-                }
-                sheet.indent = boolean_attribute(n, "indent", false)?;
                 empty(n)?;
-                if **output_seen == Some(precedence) {
-                    return Err(error(n, "multiple xsl:output declarations are unsupported"));
-                }
-                **output_seen = Some(precedence);
-                let method = n.attribute("method").unwrap_or("xml");
-                sheet.text_output = method == "text";
-                sheet.markup = match method {
-                    "xml" | "text" => crate::result::Markup::Xml,
-                    "html" => crate::result::Markup::Html,
-                    "xhtml" => crate::result::Markup::Xhtml,
-                    _ => return Err(error(n, "unsupported output method")),
-                };
-                if n.attribute("doctype-public").is_some()
-                    || n.attribute("doctype-system").is_some()
+                for attribute in n
+                    .attributes()
+                    .filter(|attribute| attribute.namespace().is_none())
                 {
-                    sheet.doctype = Some(crate::result::Doctype {
-                        public: n.attribute("doctype-public").map(str::to_owned),
-                        system: n.attribute("doctype-system").map(str::to_owned),
-                    });
-                }
-                let default_omit = method == "html";
-                sheet.omit_declaration =
-                    boolean_attribute(n, "omit-xml-declaration", default_omit)?;
-                sheet.standalone = standalone(n)?;
-                sheet.byte_order_mark = boolean_attribute(n, "byte-order-mark", false)?;
-                for name in [
-                    "include-content-type",
-                    "escape-uri-attributes",
-                    "undeclare-prefixes",
-                ] {
-                    boolean_attribute(n, name, false)?;
+                    let name = attribute.name();
+                    if [
+                        "use-character-maps",
+                        "cdata-section-elements",
+                        "use-when",
+                        "expand-text",
+                        "default-mode",
+                        "exclude-result-prefixes",
+                        "xpath-default-namespace",
+                    ]
+                    .contains(&name)
+                    {
+                        continue;
+                    }
+                    let value = match name {
+                        "indent"
+                        | "omit-xml-declaration"
+                        | "byte-order-mark"
+                        | "include-content-type"
+                        | "escape-uri-attributes"
+                        | "undeclare-prefixes" => {
+                            if boolean_attribute(n, name, false)? {
+                                "yes".into()
+                            } else {
+                                "no".into()
+                            }
+                        }
+                        "standalone" => match standalone(n)? {
+                            Some(true) => "yes",
+                            Some(false) => "no",
+                            None => "omit",
+                        }
+                        .into(),
+                        "encoding" => crate::result::Encoding::parse(attribute.value().trim())
+                            .ok_or_else(|| {
+                                error(
+                                    n,
+                                    "only UTF-8, ISO-8859-1 and US-ASCII output are supported",
+                                )
+                            })?
+                            .name()
+                            .into(),
+                        _ => attribute.value().trim().to_owned(),
+                    };
+                    match output_properties.get_mut(name) {
+                        Some(previous) if previous.precedence > precedence => {}
+                        Some(previous) if previous.precedence == precedence => {
+                            if previous.value != value {
+                                previous.conflict = Some(static_error(
+                                    n,
+                                    "XTSE1560",
+                                    format!("conflicting output property: {name}"),
+                                ));
+                            }
+                        }
+                        _ => {
+                            output_properties.insert(
+                                name.to_owned(),
+                                OutputProperty {
+                                    precedence,
+                                    value,
+                                    conflict: None,
+                                },
+                            );
+                        }
+                    }
                 }
             }
             "include" => {
@@ -2504,7 +2592,7 @@ fn declarations(
                     included_root,
                     &mut Declarations {
                         sheet,
-                        output_seen,
+                        output_properties,
                         functions,
                         keys,
                         attribute_sets,
@@ -2894,7 +2982,7 @@ pub(crate) fn compile(
             _ => 3,
         },
     };
-    let mut output_seen: Option<u32> = None;
+    let mut output_properties = BTreeMap::new();
     let mut functions: BTreeMap<(String, usize), xpath::UserFunction> = BTreeMap::new();
     let mut keys: BTreeMap<String, Vec<xpath::KeyDefinition>> = BTreeMap::new();
     let mut attribute_sets: BTreeMap<String, AttributeSet> = BTreeMap::new();
@@ -2908,7 +2996,7 @@ pub(crate) fn compile(
         root,
         &mut Declarations {
             sheet: &mut sheet,
-            output_seen: &mut output_seen,
+            output_properties: &mut output_properties,
             functions: &mut functions,
             keys: &mut keys,
             attribute_sets: &mut attribute_sets,
@@ -2923,6 +3011,7 @@ pub(crate) fn compile(
         0,
         None,
     )?;
+    apply_output_properties(&mut sheet, &output_properties)?;
     sheet.functions = std::sync::Arc::new(functions);
     sheet.keys = std::sync::Arc::new(keys);
     sheet.attribute_sets = attribute_sets;
