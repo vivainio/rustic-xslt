@@ -465,6 +465,8 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                                         .as_ref()
                                         .is_some_and(|predicates| !predicates.is_empty())
                                         || b.selected.is_some()
+                                        || !b.required.is_empty()
+                                        || !b.excluded.is_empty()
                                         || !b.steps.is_empty()
                                             && (b.absolute
                                                 || b.steps.len() != 1

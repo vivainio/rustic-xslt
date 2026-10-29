@@ -17,14 +17,20 @@ pub(crate) struct Branch {
     pub selected: Option<Expr>,
     /// A singleton-focus predicate pattern, including bare `.`.
     pub predicate: Option<Vec<Expr>>,
+    /// Additional pattern alternatives that must (or must not) match this item.
+    pub required: Vec<Vec<Branch>>,
+    pub excluded: Vec<Vec<Branch>>,
 }
 
+#[derive(Clone)]
 struct Parts {
     absolute: bool,
     steps: Vec<Step>,
     gaps: Vec<bool>,
     selected: Option<Expr>,
     predicate: Option<Vec<Expr>>,
+    required: Vec<Vec<Parts>>,
+    excluded: Vec<Vec<Parts>>,
 }
 
 fn unsupported() -> Diagnostic {
@@ -92,6 +98,24 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
             }
             Ok(())
         }
+        Expr::Binary(op, a, b) if op == "intersect" || op == "except" => {
+            let mut left = vec![];
+            collect(*a, &mut left)?;
+            let mut right = vec![];
+            collect(*b, &mut right)?;
+            if left.is_empty() || right.is_empty() {
+                return Err(unsupported());
+            }
+            for mut part in left {
+                if op == "intersect" {
+                    part.required.push(right.clone());
+                } else {
+                    part.excluded.push(right.clone());
+                }
+                out.push(part);
+            }
+            Ok(())
+        }
         Expr::Sequence(mut items) if items.len() == 1 => collect(items.remove(0), out),
         Expr::Root => {
             out.push(Parts {
@@ -100,6 +124,8 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
                 gaps: vec![],
                 selected: None,
                 predicate: None,
+                required: vec![],
+                excluded: vec![],
             });
             Ok(())
         }
@@ -110,6 +136,8 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
                 gaps: vec![],
                 selected: None,
                 predicate: Some(vec![]),
+                required: vec![],
+                excluded: vec![],
             });
             Ok(())
         }
@@ -134,6 +162,8 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
                 gaps: vec![],
                 selected: Some(Expr::Variable(name)),
                 predicate: None,
+                required: vec![],
+                excluded: vec![],
             });
             Ok(())
         }
@@ -149,6 +179,8 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
                 gaps: vec![],
                 selected: Some(Expr::Call(name, args)),
                 predicate: None,
+                required: vec![],
+                excluded: vec![],
             });
             Ok(())
         }
@@ -160,6 +192,8 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
                     gaps: vec![],
                     selected: Some(Expr::Path(base, steps)),
                     predicate: None,
+                    required: vec![],
+                    excluded: vec![],
                 });
                 return Ok(());
             }
@@ -171,6 +205,8 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
                     gaps: vec![],
                     selected: None,
                     predicate: None,
+                    required: vec![],
+                    excluded: vec![],
                 });
             } else {
                 collect(*base, &mut bases)?;
@@ -195,6 +231,10 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
                         || right.selected.is_some()
                         || right.predicate.is_some()
                         || left.predicate.is_some()
+                        || !right.required.is_empty()
+                        || !right.excluded.is_empty()
+                        || !left.required.is_empty()
+                        || !left.excluded.is_empty()
                     {
                         return Err(unsupported());
                     }
@@ -204,6 +244,8 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
                         gaps: left.gaps.clone(),
                         selected: left.selected.clone(),
                         predicate: None,
+                        required: vec![],
+                        excluded: vec![],
                     };
                     parts.steps.extend(right.steps.iter().cloned());
                     parts.gaps.extend(right.gaps.iter().copied());
@@ -223,43 +265,49 @@ pub(crate) fn parse(
     let e = xpath::parse(source, namespaces)?;
     let mut parts = vec![];
     collect(e, &mut parts)?;
-    Ok(parts
-        .into_iter()
-        .map(|p| {
-            let priority = if let Some(predicates) = &p.predicate {
-                if predicates.is_empty() { -1.0 } else { 1.0 }
-            } else if p.absolute && p.steps.is_empty() && p.selected.is_none() {
-                -0.5
-            } else if p.absolute
-                || p.selected.is_some()
-                || p.steps.len() != 1
-                || p.gaps.iter().any(|g| *g)
-                || !p.steps[0].predicates.is_empty()
-            {
-                0.5
-            } else if matches!(
-                p.steps[0].test,
-                Test::Name(_)
-                    | Test::Pi(Some(_))
-                    | Test::Element(Some(_))
-                    | Test::AttributeKind(Some(_))
-            ) {
-                0.0
-            } else if matches!(p.steps[0].test, Test::Namespace(_) | Test::Local(_)) {
-                -0.25
-            } else {
-                -0.5
-            };
-            Branch {
-                steps: p.steps,
-                gaps: p.gaps,
-                absolute: p.absolute,
-                priority,
-                selected: p.selected,
-                predicate: p.predicate,
-            }
-        })
-        .collect())
+    Ok(parts.into_iter().map(into_branch).collect())
+}
+
+fn into_branch(p: Parts) -> Branch {
+    let priority = if let Some(predicates) = &p.predicate {
+        if predicates.is_empty() { -1.0 } else { 1.0 }
+    } else if p.absolute && p.steps.is_empty() && p.selected.is_none() {
+        -0.5
+    } else if p.absolute
+        || p.selected.is_some()
+        || p.steps.len() != 1
+        || p.gaps.iter().any(|g| *g)
+        || !p.steps[0].predicates.is_empty()
+    {
+        0.5
+    } else if matches!(
+        p.steps[0].test,
+        Test::Name(_) | Test::Pi(Some(_)) | Test::Element(Some(_)) | Test::AttributeKind(Some(_))
+    ) {
+        0.0
+    } else if matches!(p.steps[0].test, Test::Namespace(_) | Test::Local(_)) {
+        -0.25
+    } else {
+        -0.5
+    };
+    Branch {
+        steps: p.steps,
+        gaps: p.gaps,
+        absolute: p.absolute,
+        priority,
+        selected: p.selected,
+        predicate: p.predicate,
+        required: p
+            .required
+            .into_iter()
+            .map(|group| group.into_iter().map(into_branch).collect())
+            .collect(),
+        excluded: p
+            .excluded
+            .into_iter()
+            .map(|group| group.into_iter().map(into_branch).collect())
+            .collect(),
+    }
 }
 
 pub(crate) fn matches(
@@ -280,43 +328,75 @@ pub(crate) fn matches_item<'a>(
     budget: &mut Budget,
     backwards: bool,
 ) -> Result<bool, Diagnostic> {
-    if let Some(predicates) = &branch.predicate {
-        budget.tick()?;
-        let base_matches = match item {
-            Item::Node(node) if branch.selected.is_some() => selection_contains(
+    budget.tick()?;
+    let base_matches = match item {
+        Item::Node(node) if branch.selected.is_some() && branch.steps.is_empty() => {
+            let mut scope = vars.clone();
+            scope.insert(xpath::CURRENT_ITEM.into(), vec![Item::Node(*node)]);
+            selection_contains(
                 branch.selected.as_ref().unwrap(),
                 *node,
-                vars,
+                &scope,
                 budget,
                 backwards,
-            )?,
-            Item::Node(node) if branch.absolute || !branch.steps.is_empty() => {
-                matches_inner(branch, *node, vars, budget, backwards)?
-            }
-            _ => true,
-        };
-        if !base_matches {
-            return Ok(false);
+            )?
         }
+        Item::Node(node)
+            if branch.absolute || !branch.steps.is_empty() || branch.selected.is_some() =>
+        {
+            matches_inner(branch, *node, vars, budget, backwards)?
+        }
+        Item::Node(node) if branch.predicate.is_none() => node.is_document(),
+        _ if branch.selected.is_some() => false,
+        _ => branch.predicate.is_some(),
+    };
+    if !base_matches {
+        return Ok(false);
+    }
+    if let Some(predicates) = &branch.predicate {
         let mut scope = vars.clone();
         scope.insert(xpath::CURRENT_ITEM.into(), vec![item.clone()]);
-        return Ok(
-            !xpath::filter(vec![item.clone()], predicates, &scope, budget, 0, backwards)?
-                .is_empty(),
-        );
+        if xpath::filter(vec![item.clone()], predicates, &scope, budget, 0, backwards)?.is_empty() {
+            return Ok(false);
+        }
     }
-    match item {
-        Item::Node(node) => matches_inner(branch, *node, vars, budget, backwards),
-        _ => Ok(false),
+    for group in &branch.required {
+        let mut found = false;
+        for candidate in group {
+            if matches_item(candidate, item, vars, budget, backwards)? {
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            return Ok(false);
+        }
     }
+    for group in &branch.excluded {
+        for candidate in group {
+            if matches_item(candidate, item, vars, budget, backwards)? {
+                return Ok(false);
+            }
+        }
+    }
+    Ok(true)
 }
 
-pub(crate) fn expressions(branch: &Branch) -> impl Iterator<Item = &Expr> {
-    branch
-        .selected
-        .iter()
-        .chain(branch.predicate.iter().flatten())
-        .chain(branch.steps.iter().flat_map(|step| &step.predicates))
+pub(crate) fn expressions(branch: &Branch) -> std::vec::IntoIter<&Expr> {
+    fn collect<'a>(branch: &'a Branch, expressions: &mut Vec<&'a Expr>) {
+        expressions.extend(branch.selected.iter());
+        expressions.extend(branch.predicate.iter().flatten());
+        expressions.extend(branch.steps.iter().flat_map(|step| &step.predicates));
+        for candidate in branch.required.iter().flatten() {
+            collect(candidate, expressions);
+        }
+        for candidate in branch.excluded.iter().flatten() {
+            collect(candidate, expressions);
+        }
+    }
+    let mut result = vec![];
+    collect(branch, &mut result);
+    result.into_iter()
 }
 
 fn matches_inner<'a>(

@@ -1676,3 +1676,19 @@ conformance claims. Smaller tested increments are committed independently.
   selected cases. All QT3 baseline cases remain green.
 - Validation: all-feature Rust tests, all-target/all-feature Clippy, 41 Python
   harness tests, and both pinned gates pass.
+
+## Increment 141: intersect and except match patterns
+
+- Match pattern `intersect` and `except` operators now constrain candidates by
+  requiring or excluding a match from the right-hand pattern. Unions on the
+  right side remain alternative constraints, and precedence uses the left
+  pattern's default priority.
+- Variable and predicate expressions inside constraints participate in static
+  scope validation. Record streaming rejects constrained patterns until its
+  local matcher can evaluate them safely.
+- Added coverage for direct-child intersection and nested-child exclusion.
+  Expanded the pinned XSLT gate to 766 passing cases (three new, zero regressions),
+  389 engine failures, 264 harness errors and 153 profile exclusions across 1,572
+  selected cases.
+- Validation: focused pattern suites, all-target/all-feature Clippy and the full
+  pinned XSLT gate pass.

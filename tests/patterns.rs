@@ -39,6 +39,17 @@ fn global_variable_anchors_select_pattern_candidates() {
         "HB"
     );
 }
+
+#[test]
+fn intersect_and_except_patterns_constrain_candidate_nodes() {
+    let sheet = Stylesheet::compile(
+        r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="doc"><xsl:apply-templates/></xsl:template><xsl:template match="foo except /*/*">E</xsl:template><xsl:template match="foo intersect /*/*">I</xsl:template></xsl:stylesheet>"#,
+    ).unwrap();
+    assert_eq!(
+        sheet.transform("<doc><foo/><x><foo/></x></doc>").unwrap(),
+        "IE"
+    );
+}
 #[test]
 fn parenthesized_unions_expand_into_alternatives() {
     let templates = r#"<xsl:template match="/"><xsl:apply-templates select="//*"/></xsl:template><xsl:template match="chap/(p|q)">X</xsl:template><xsl:template match="(sec|doc)/p">Y</xsl:template>"#;
