@@ -4,7 +4,7 @@ This is a **partial** runner for W3C's XSLT catalog, not a published conformance
 measurement. The external suite is not distributed with this repository.
 
 The reference source pins `xslt30-test` to
-`fddf1cf920087e791f13315d68dfbe897d97dc56`. Clone the official repository,
+`fddf1cf920087e791f13315d68dfbe928d97dc56`. Clone the official repository,
 check out that revision, then run:
 
 ```sh
@@ -28,9 +28,9 @@ python3 -m unittest discover -s tools/conformance -p 'test_*.py'
 
 The gate fails for missing or regressed baseline cases. Other failures and
 harness errors are still named and counted, never reclassified as passes.
-The current gate contains 897 passing cases out of 1,572 selected cases: 258 engine
+The current gate contains 928 passing cases out of 1,572 selected cases: 227 engine
 failures, 264 harness errors, 153 optional-profile exclusions. Do not present the
-897 cases as an applicable-suite pass rate.
+928 cases as an applicable-suite pass rate.
 
 Supported setup: local stylesheet/source files or inline content, local/global
 named environments, string/boolean/numeric/empty parameter literals, ordinary/tunnel

@@ -216,6 +216,8 @@ pub(crate) struct Serialization {
     pub standalone: Option<bool>,
     pub byte_order_mark: bool,
     pub indent: bool,
+    pub include_content_type: bool,
+    pub media_type: Option<String>,
     pub escape_uri_attributes: bool,
     pub doctype: Option<Doctype>,
     pub cdata_elements: std::sync::Arc<Vec<String>>,
@@ -224,13 +226,21 @@ pub(crate) struct Serialization {
 struct Open {
     element: Element,
     pending: bool,
+    suppressed: bool,
     inherited: BTreeMap<String, String>,
 }
 struct Simple {
     separator: String,
     parts: Vec<(String, bool)>,
 }
+#[derive(Clone)]
+pub(crate) struct Metadata {
+    pub enabled: bool,
+    pub media: String,
+    pub encoding: Encoding,
+}
 pub(crate) struct Output {
+    metadata: Metadata,
     pub value: String,
     pub max: usize,
     pub text: bool,
@@ -247,6 +257,13 @@ pub(crate) struct Output {
     char_map: std::sync::Arc<BTreeMap<char, String>>,
 }
 impl Output {
+    pub fn with_metadata(mut self, metadata: Metadata) -> Self {
+        self.metadata = metadata;
+        self
+    }
+    pub fn metadata(&self) -> Metadata {
+        self.metadata.clone()
+    }
     pub fn with_uri_escaping(mut self, enabled: bool) -> Self {
         self.escape_uri_attributes = enabled;
         self
@@ -298,6 +315,11 @@ impl Output {
     }
     pub fn new(max: usize, text: bool) -> Self {
         Self {
+            metadata: Metadata {
+                enabled: true,
+                media: "text/html".into(),
+                encoding: Encoding::Utf8,
+            },
             value: String::new(),
             max,
             text,
@@ -430,6 +452,9 @@ impl Output {
         Ok(())
     }
     pub fn push(&mut self, s: &str) -> Result<(), Diagnostic> {
+        if self.stack.last().is_some_and(|open| open.suppressed) {
+            return Ok(());
+        }
         if s.len() > self.max.saturating_sub(self.value.len()) {
             return Err(Diagnostic::new("XPDY0130", "output limit exceeded", "run"));
         }
@@ -441,6 +466,12 @@ impl Output {
     }
     fn flush_start_with(&mut self, close: &str) -> Result<(), Diagnostic> {
         let markup = self.markup;
+        let parent_head = self.stack.len() > 1
+            && self.metadata.enabled
+            && self.stack.get(self.stack.len() - 2).is_some_and(|parent| {
+                html_name(&parent.element.name, markup).as_deref() == Some("head")
+            });
+        let parent_suppressed = self.stack.len() > 1 && self.stack[self.stack.len() - 2].suppressed;
         let Some(open) = self.stack.last_mut() else {
             return Ok(());
         };
@@ -448,6 +479,17 @@ impl Output {
             return Ok(());
         }
         open.pending = false;
+        open.suppressed |= parent_suppressed
+            || (parent_head
+                && html_name(&open.element.name, markup).as_deref() == Some("meta")
+                && open.element.attributes.iter().any(|(name, value)| {
+                    name.uri.is_none()
+                        && name.local.eq_ignore_ascii_case("http-equiv")
+                        && value.trim_matches(' ').eq_ignore_ascii_case("Content-Type")
+                }));
+        if open.suppressed {
+            return Ok(());
+        }
         if self.text {
             return Ok(());
         }
@@ -546,7 +588,22 @@ impl Output {
             }
             self.push("\"")?;
         }
-        self.push(close)
+        self.push(close)?;
+        if self.metadata.enabled && html_element.as_deref() == Some("head") {
+            let content = escape(
+                &format!(
+                    "{}; charset={}",
+                    self.metadata.media,
+                    self.metadata.encoding.name()
+                ),
+                true,
+            );
+            let ending = if markup == Markup::Xhtml { " />" } else { ">" };
+            self.push(&format!(
+                "<meta http-equiv=\"Content-Type\" content=\"{content}\"{ending}"
+            ))?;
+        }
+        Ok(())
     }
     pub fn start(&mut self, mut element: Element) -> Result<(), Diagnostic> {
         self.flush_start()?;
@@ -649,6 +706,7 @@ impl Output {
         self.stack.push(Open {
             element,
             pending: true,
+            suppressed: false,
             inherited,
         });
         for (name, value) in attributes {
@@ -732,7 +790,7 @@ impl Output {
                 "run",
             ));
         };
-        if !self.text {
+        if !self.text && !open.suppressed {
             self.push("</")?;
             self.push(&open.element.name.qname)?;
             self.push(">")?;

@@ -182,6 +182,8 @@ pub struct Stylesheet {
     indent: bool,
     markup: result::Markup,
     escape_uri_attributes: bool,
+    include_content_type: bool,
+    media_type: Option<String>,
     encoding: result::Encoding,
     cdata_elements: std::sync::Arc<Vec<String>>,
     character_maps: std::collections::BTreeMap<String, std::collections::BTreeMap<char, String>>,

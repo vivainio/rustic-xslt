@@ -1066,6 +1066,14 @@ fn execute<'a>(
     let output = Output::new(limits.max_output_bytes, sheet.text_output)
         .with_serialization(sheet.markup, sheet.doctype.clone())
         .with_uri_escaping(sheet.escape_uri_attributes)
+        .with_metadata(crate::result::Metadata {
+            enabled: sheet.include_content_type,
+            media: sheet
+                .media_type
+                .clone()
+                .unwrap_or_else(|| "text/html".into()),
+            encoding: sheet.encoding,
+        })
         .with_cdata(sheet.cdata_elements.clone())
         .with_char_map(sheet.char_map.clone());
     let initial_mode = options
@@ -2243,6 +2251,8 @@ fn run_tasks<'a>(
                                     .transpose()
                             };
                         let indent_override = flag("indent", &spec.indent)?;
+                        let metadata_override =
+                            flag("include-content-type", &spec.include_content_type)?;
                         let uri_override =
                             flag("escape-uri-attributes", &spec.escape_uri_attributes)?;
                         let omit_override = flag("omit-xml-declaration", &spec.omit_declaration)?;
@@ -2297,8 +2307,20 @@ fn run_tasks<'a>(
                                 .or(inherited.public);
                             doctype = Some(crate::result::Doctype { public, system });
                         }
+                        let media = spec
+                            .media_type
+                            .as_ref()
+                            .map(|value| parts(value, &focus, &env, budget, sheet.backwards))
+                            .transpose()?
+                            .or(settings.media_type.clone())
+                            .unwrap_or_else(|| "text/html".into());
                         let nested = Output::new(limits.max_output_bytes, text_method)
                             .with_serialization(markup, doctype)
+                            .with_metadata(crate::result::Metadata {
+                                enabled: metadata_override.unwrap_or(settings.include_content_type),
+                                media,
+                                encoding,
+                            })
                             .with_uri_escaping(
                                 uri_override.unwrap_or(settings.escape_uri_attributes),
                             )
@@ -2388,6 +2410,7 @@ fn run_tasks<'a>(
                         )
                         .with_serialization(output.serialization().0, None)
                         .with_uri_escaping(output.uri_escaping())
+                        .with_metadata(output.metadata())
                         .with_cdata(output.cdata())
                         .with_char_map(output.char_map());
                         let inner = Frame {
@@ -2434,6 +2457,7 @@ fn run_tasks<'a>(
                         )
                         .with_serialization(output.serialization().0, None)
                         .with_uri_escaping(output.uri_escaping())
+                        .with_metadata(output.metadata())
                         .with_cdata(output.cdata())
                         .with_char_map(output.char_map());
                         let inner = Frame {
@@ -2484,6 +2508,7 @@ fn run_tasks<'a>(
                         )
                         .with_serialization(output.serialization().0, None)
                         .with_uri_escaping(output.uri_escaping())
+                        .with_metadata(output.metadata())
                         .with_cdata(output.cdata())
                         .with_char_map(output.char_map());
                         let try_frame = Frame {

@@ -150,3 +150,17 @@ fn xml_output_ignores_uri_escaping_and_xhtml_type_names_are_exact() {
     assert!(output.contains("type=\"url\" value=\"%C3%A9\""));
     assert!(output.contains("TYPE=\"url\" value=\"é\""));
 }
+
+#[test]
+fn content_type_metadata_replaces_only_matching_direct_children() {
+    let body = "<html><head><meta http-equiv=' Content-Type ' content='old'/><meta name='keep' content='x'/><title>T</title></head></html>";
+    let output = run(r#"method="html" media-type="application/example""#, body);
+    assert!(output.contains(
+        "<head><meta http-equiv=\"Content-Type\" content=\"application/example; charset=UTF-8\">"
+    ));
+    assert!(!output.contains("content=\"old\""));
+    assert!(output.contains("name=\"keep\""));
+    let disabled = run(r#"method="html" include-content-type="no""#, body);
+    assert!(disabled.contains("content=\"old\""));
+    assert!(!disabled.contains("charset="));
+}

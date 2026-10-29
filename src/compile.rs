@@ -95,6 +95,8 @@ pub(crate) struct ResultDocumentSpec {
     pub byte_order_mark: Option<Vec<Expr>>,
     pub indent: Option<Vec<Expr>>,
     pub escape_uri_attributes: Option<Vec<Expr>>,
+    pub include_content_type: Option<Vec<Expr>>,
+    pub media_type: Option<Vec<Expr>>,
     pub encoding: Option<Vec<Expr>>,
     pub output_version: Option<Vec<Expr>>,
     pub cdata: Option<(Vec<Expr>, BTreeMap<String, String>)>,
@@ -1271,6 +1273,8 @@ fn body(
                                 "byte-order-mark",
                                 "indent",
                                 "escape-uri-attributes",
+                                "include-content-type",
+                                "media-type",
                                 "encoding",
                                 "output-version",
                                 "doctype-public",
@@ -1338,6 +1342,11 @@ fn body(
                             byte_order_mark: flag("byte-order-mark")?,
                             indent: flag("indent")?,
                             escape_uri_attributes: flag("escape-uri-attributes")?,
+                            include_content_type: flag("include-content-type")?,
+                            media_type: n
+                                .attribute("media-type")
+                                .map(|value| avt(n, value))
+                                .transpose()?,
                             encoding,
                             output_version: n
                                 .attribute("output-version")
@@ -2137,6 +2146,8 @@ fn apply_output_properties(
         .unwrap_or_default();
     sheet.indent = get("indent") == Some("yes");
     sheet.escape_uri_attributes = get("escape-uri-attributes") != Some("no");
+    sheet.include_content_type = get("include-content-type") != Some("no");
+    sheet.media_type = get("media-type").map(str::to_owned);
     sheet.byte_order_mark = get("byte-order-mark") == Some("yes");
     sheet.omit_specified = properties.contains_key("omit-xml-declaration");
     sheet.omit_declaration =
@@ -3065,6 +3076,8 @@ pub(crate) fn compile(
         indent: false,
         markup: crate::result::Markup::Xml,
         escape_uri_attributes: true,
+        include_content_type: true,
+        media_type: None,
         encoding: Default::default(),
         cdata_elements: Default::default(),
         character_maps: Default::default(),
@@ -3126,6 +3139,8 @@ pub(crate) fn compile(
     sheet.text_output = primary.text_output;
     sheet.markup = primary.markup;
     sheet.escape_uri_attributes = primary.escape_uri_attributes;
+    sheet.include_content_type = primary.include_content_type;
+    sheet.media_type = primary.media_type.clone();
     sheet.encoding = primary.encoding;
     sheet.omit_declaration = primary.omit_declaration;
     sheet.standalone = primary.standalone;
@@ -3381,6 +3396,8 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                         &spec.doctype_system,
                         &spec.indent,
                         &spec.escape_uri_attributes,
+                        &spec.include_content_type,
+                        &spec.media_type,
                         &spec.omit_declaration,
                         &spec.byte_order_mark,
                         &spec.standalone,
