@@ -2436,6 +2436,12 @@ fn higher_order<'a>(
                     Some("xs"),
                     local.to_owned(),
                 )
+            } else if let Some(local) = name.strip_prefix("math:") {
+                (
+                    "http://www.w3.org/2005/xpath-functions/math".into(),
+                    Some("math"),
+                    local.to_owned(),
+                )
             } else if let Some(local) = name.strip_prefix("map:") {
                 (
                     "http://www.w3.org/2005/xpath-functions/map".into(),

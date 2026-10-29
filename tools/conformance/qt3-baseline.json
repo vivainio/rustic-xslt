@@ -9487,6 +9487,10 @@
     ],
     [
       "fn-for-each",
+      "for-each-009"
+    ],
+    [
+      "fn-for-each",
       "for-each-010"
     ],
     [
@@ -10692,6 +10696,134 @@
     [
       "fn-function-lookup",
       "fn-function-lookup-052"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-057"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-058"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-059"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-060"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-061"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-062"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-063"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-064"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-065"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-066"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-067"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-068"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-069"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-070"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-071"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-072"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-073"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-074"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-075"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-076"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-077"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-078"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-079"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-080"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-081"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-082"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-083"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-084"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-085"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-086"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-087"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-088"
     ],
     [
       "fn-function-lookup",
@@ -12095,6 +12227,10 @@
     ],
     [
       "fn-function-lookup",
+      "fn-function-lookup-603"
+    ],
+    [
+      "fn-function-lookup",
       "fn-function-lookup-604"
     ],
     [
@@ -12228,6 +12364,246 @@
     [
       "fn-function-lookup",
       "fn-function-lookup-753"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-767"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-768"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-769"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-770"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-771"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-772"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-773"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-774"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-775"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-776"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-777"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-778"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-779"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-780"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-781"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-782"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-783"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-784"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-785"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-786"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-787"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-788"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-789"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-790"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-791"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-792"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-793"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-794"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-795"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-796"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-797"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-798"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-799"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-801"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-802"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-803"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-804"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-805"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-806"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-807"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-808"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-809"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-810"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-811"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-812"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-813"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-814"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-815"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-816"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-817"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-818"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-819"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-820"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-821"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-823"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-825"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-827"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-828"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-829"
+    ],
+    [
+      "fn-function-lookup",
+      "fn-function-lookup-830"
     ],
     [
       "fn-function-name",
@@ -60987,6 +61363,18 @@
     ],
     [
       "prod-EQName",
+      "eqname-020"
+    ],
+    [
+      "prod-EQName",
+      "eqname-021"
+    ],
+    [
+      "prod-EQName",
+      "eqname-022"
+    ],
+    [
+      "prod-EQName",
       "eqname-024"
     ],
     [
@@ -61004,6 +61392,10 @@
     [
       "prod-EQName",
       "eqname-028"
+    ],
+    [
+      "prod-EQName",
+      "eqname-029p"
     ],
     [
       "prod-EQName",
@@ -61399,7 +61791,7 @@
     ],
     [
       "prod-FunctionCall",
-      "K-FunctionCallExpr-15"
+      "K-FunctionCallExpr-15a"
     ],
     [
       "prod-FunctionCall",
@@ -65783,7 +66175,27 @@
     ],
     [
       "prod-NamedFunctionRef",
+      "function-literal-057"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-058"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-059"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-060"
+    ],
+    [
+      "prod-NamedFunctionRef",
       "function-literal-061"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-062"
     ],
     [
       "prod-NamedFunctionRef",
@@ -65791,7 +66203,15 @@
     ],
     [
       "prod-NamedFunctionRef",
+      "function-literal-064"
+    ],
+    [
+      "prod-NamedFunctionRef",
       "function-literal-065"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-066"
     ],
     [
       "prod-NamedFunctionRef",
@@ -65799,7 +66219,15 @@
     ],
     [
       "prod-NamedFunctionRef",
+      "function-literal-068"
+    ],
+    [
+      "prod-NamedFunctionRef",
       "function-literal-069"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-070"
     ],
     [
       "prod-NamedFunctionRef",
@@ -65807,7 +66235,15 @@
     ],
     [
       "prod-NamedFunctionRef",
+      "function-literal-072"
+    ],
+    [
+      "prod-NamedFunctionRef",
       "function-literal-073"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-074"
     ],
     [
       "prod-NamedFunctionRef",
@@ -65815,7 +66251,15 @@
     ],
     [
       "prod-NamedFunctionRef",
+      "function-literal-076"
+    ],
+    [
+      "prod-NamedFunctionRef",
       "function-literal-077"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-078"
     ],
     [
       "prod-NamedFunctionRef",
@@ -65823,7 +66267,15 @@
     ],
     [
       "prod-NamedFunctionRef",
+      "function-literal-080"
+    ],
+    [
+      "prod-NamedFunctionRef",
       "function-literal-081"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-082"
     ],
     [
       "prod-NamedFunctionRef",
@@ -65831,11 +66283,23 @@
     ],
     [
       "prod-NamedFunctionRef",
+      "function-literal-084"
+    ],
+    [
+      "prod-NamedFunctionRef",
       "function-literal-085"
     ],
     [
       "prod-NamedFunctionRef",
+      "function-literal-086"
+    ],
+    [
+      "prod-NamedFunctionRef",
       "function-literal-087"
+    ],
+    [
+      "prod-NamedFunctionRef",
+      "function-literal-088"
     ],
     [
       "prod-NamedFunctionRef",
