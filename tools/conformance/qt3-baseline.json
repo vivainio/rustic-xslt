@@ -3,16 +3,19 @@
   "selected_sets": [
     "fn-avg",
     "fn-deep-equal",
+    "fn-exactly-one",
     "fn-head",
     "fn-insert-before",
     "fn-max",
     "fn-min",
+    "fn-one-or-more",
     "fn-remove",
     "fn-reverse",
     "fn-root",
     "fn-subsequence",
     "fn-sum",
     "fn-tail",
+    "fn-zero-or-one",
     "op-bang",
     "op-except",
     "op-intersect",
@@ -1953,6 +1956,10 @@
     ],
     [
       "fn-remove",
+      "cbcl-fn-remove-001"
+    ],
+    [
+      "fn-remove",
       "cbcl-fn-remove-002"
     ],
     [
@@ -2792,6 +2799,10 @@
       "cbcl-sum-func-005"
     ],
     [
+      "fn-sum",
+      "cbcl-sum-func-006"
+    ],
+    [
       "fn-tail",
       "tail-001"
     ],
@@ -2862,6 +2873,114 @@
     [
       "op-bang",
       "bang-14"
+    ],
+    [
+      "op-except",
+      "fn-except-node-args-001"
+    ],
+    [
+      "op-except",
+      "fn-except-node-args-004"
+    ],
+    [
+      "op-except",
+      "fn-except-node-args-005"
+    ],
+    [
+      "op-except",
+      "fn-except-node-args-007"
+    ],
+    [
+      "op-except",
+      "fn-except-node-args-011"
+    ],
+    [
+      "op-except",
+      "fn-except-node-args-014"
+    ],
+    [
+      "op-except",
+      "fn-except-node-args-023"
+    ],
+    [
+      "op-except",
+      "K2-SeqExcept-1"
+    ],
+    [
+      "op-except",
+      "K2-SeqExcept-39"
+    ],
+    [
+      "op-intersect",
+      "fn-intersect-node-args-002"
+    ],
+    [
+      "op-intersect",
+      "fn-intersect-node-args-003"
+    ],
+    [
+      "op-intersect",
+      "fn-intersect-node-args-004"
+    ],
+    [
+      "op-intersect",
+      "fn-intersect-node-args-007"
+    ],
+    [
+      "op-intersect",
+      "fn-intersect-node-args-008"
+    ],
+    [
+      "op-intersect",
+      "fn-intersect-node-args-009"
+    ],
+    [
+      "op-intersect",
+      "fn-intersect-node-args-012"
+    ],
+    [
+      "op-intersect",
+      "fn-intersect-node-args-013"
+    ],
+    [
+      "op-intersect",
+      "fn-intersect-node-args-014"
+    ],
+    [
+      "op-intersect",
+      "K2-SeqIntersect-1"
+    ],
+    [
+      "op-intersect",
+      "K2-SeqIntersect-39"
+    ],
+    [
+      "op-intersect",
+      "K2-SeqIntersect-43"
+    ],
+    [
+      "op-intersect",
+      "K2-SeqIntersect-44"
+    ],
+    [
+      "op-intersect",
+      "K2-SeqIntersect-45"
+    ],
+    [
+      "op-intersect",
+      "K2-SeqIntersect-46"
+    ],
+    [
+      "op-intersect",
+      "K2-SeqIntersect-47"
+    ],
+    [
+      "op-intersect",
+      "K2-SeqIntersect-48"
+    ],
+    [
+      "op-intersect",
+      "combiningnodeseqintersecthc2"
     ],
     [
       "op-numeric-integer-divide",
@@ -3762,6 +3881,38 @@
     [
       "op-to",
       "RangeExpr-412e"
+    ],
+    [
+      "op-union",
+      "fn-union-node-args-003"
+    ],
+    [
+      "op-union",
+      "fn-union-node-args-014"
+    ],
+    [
+      "op-union",
+      "fn-union-node-args-023"
+    ],
+    [
+      "op-union",
+      "K2-SeqUnion-5"
+    ],
+    [
+      "op-union",
+      "K2-SeqUnion-43"
+    ],
+    [
+      "op-union",
+      "K2-SeqUnion-44"
+    ],
+    [
+      "op-union",
+      "K2-SeqUnion-46"
+    ],
+    [
+      "op-union",
+      "K2-SeqUnion-47"
     ],
     [
       "prod-Comment",
@@ -4944,136 +5095,212 @@
       "sequence-type-21"
     ],
     [
-      "op-except",
-      "fn-except-node-args-001"
+      "fn-exactly-one",
+      "fn-exactly-oneintg1args-1"
     ],
     [
-      "op-except",
-      "fn-except-node-args-004"
+      "fn-exactly-one",
+      "fn-exactly-oneintg1args-2"
     ],
     [
-      "op-except",
-      "fn-except-node-args-005"
+      "fn-exactly-one",
+      "fn-exactly-oneintg1args-3"
     ],
     [
-      "op-except",
-      "fn-except-node-args-007"
+      "fn-exactly-one",
+      "fn-exactly-onedec1args-1"
     ],
     [
-      "op-except",
-      "fn-except-node-args-011"
+      "fn-exactly-one",
+      "fn-exactly-onedec1args-2"
     ],
     [
-      "op-except",
-      "fn-except-node-args-014"
+      "fn-exactly-one",
+      "fn-exactly-onedec1args-3"
     ],
     [
-      "op-except",
-      "fn-except-node-args-023"
+      "fn-exactly-one",
+      "fn-exactly-onedbl1args-2"
     ],
     [
-      "op-except",
-      "K2-SeqExcept-1"
+      "fn-exactly-one",
+      "fn-exactly-oneflt1args-2"
     ],
     [
-      "op-except",
-      "K2-SeqExcept-39"
+      "fn-exactly-one",
+      "fn-exactly-one-1"
     ],
     [
-      "op-intersect",
-      "fn-intersect-node-args-002"
+      "fn-exactly-one",
+      "K-SeqExactlyOneFunc-1"
     ],
     [
-      "op-intersect",
-      "fn-intersect-node-args-004"
+      "fn-exactly-one",
+      "K-SeqExactlyOneFunc-2"
     ],
     [
-      "op-intersect",
-      "fn-intersect-node-args-007"
+      "fn-exactly-one",
+      "K-SeqExactlyOneFunc-3"
     ],
     [
-      "op-intersect",
-      "fn-intersect-node-args-008"
+      "fn-exactly-one",
+      "K-SeqExactlyOneFunc-4"
     ],
     [
-      "op-intersect",
-      "fn-intersect-node-args-009"
+      "fn-exactly-one",
+      "K-SeqExactlyOneFunc-5"
     ],
     [
-      "op-intersect",
-      "fn-intersect-node-args-012"
+      "fn-exactly-one",
+      "K-SeqExactlyOneFunc-9"
     ],
     [
-      "op-intersect",
-      "fn-intersect-node-args-013"
+      "fn-exactly-one",
+      "K-SeqExactlyOneFunc-10"
     ],
     [
-      "op-intersect",
-      "fn-intersect-node-args-014"
+      "fn-one-or-more",
+      "fn-one-or-moreintg1args-1"
     ],
     [
-      "op-intersect",
-      "K2-SeqIntersect-1"
+      "fn-one-or-more",
+      "fn-one-or-moreintg1args-2"
     ],
     [
-      "op-intersect",
-      "K2-SeqIntersect-39"
+      "fn-one-or-more",
+      "fn-one-or-moreintg1args-3"
     ],
     [
-      "op-intersect",
-      "K2-SeqIntersect-43"
+      "fn-one-or-more",
+      "fn-one-or-moredec1args-1"
     ],
     [
-      "op-intersect",
-      "K2-SeqIntersect-44"
+      "fn-one-or-more",
+      "fn-one-or-moredec1args-2"
     ],
     [
-      "op-intersect",
-      "K2-SeqIntersect-45"
+      "fn-one-or-more",
+      "fn-one-or-moredec1args-3"
     ],
     [
-      "op-intersect",
-      "K2-SeqIntersect-46"
+      "fn-one-or-more",
+      "fn-one-or-moredbl1args-2"
     ],
     [
-      "op-intersect",
-      "K2-SeqIntersect-47"
+      "fn-one-or-more",
+      "fn-one-or-moreflt1args-2"
     ],
     [
-      "op-intersect",
-      "K2-SeqIntersect-48"
+      "fn-one-or-more",
+      "fn-one-or-more-1"
     ],
     [
-      "op-intersect",
-      "combiningnodeseqintersecthc2"
+      "fn-one-or-more",
+      "K-SeqOneOrMoreFunc-1"
     ],
     [
-      "op-union",
-      "fn-union-node-args-014"
+      "fn-one-or-more",
+      "K-SeqOneOrMoreFunc-2"
     ],
     [
-      "op-union",
-      "fn-union-node-args-023"
+      "fn-one-or-more",
+      "K-SeqOneOrMoreFunc-3"
     ],
     [
-      "op-union",
-      "K2-SeqUnion-5"
+      "fn-one-or-more",
+      "K-SeqOneOrMoreFunc-4"
     ],
     [
-      "op-union",
-      "K2-SeqUnion-43"
+      "fn-one-or-more",
+      "K-SeqOneOrMoreFunc-5"
     ],
     [
-      "op-union",
-      "K2-SeqUnion-44"
+      "fn-one-or-more",
+      "K-SeqOneOrMoreFunc-6"
     ],
     [
-      "op-union",
-      "K2-SeqUnion-46"
+      "fn-one-or-more",
+      "K-SeqOneOrMoreFunc-8"
     ],
     [
-      "op-union",
-      "K2-SeqUnion-47"
+      "fn-one-or-more",
+      "cbcl-one-or-more-005"
+    ],
+    [
+      "fn-one-or-more",
+      "cbcl-one-or-more-006"
+    ],
+    [
+      "fn-one-or-more",
+      "cbcl-one-or-more-007"
+    ],
+    [
+      "fn-zero-or-one",
+      "fn-zero-or-oneintg1args-1"
+    ],
+    [
+      "fn-zero-or-one",
+      "fn-zero-or-oneintg1args-2"
+    ],
+    [
+      "fn-zero-or-one",
+      "fn-zero-or-oneintg1args-3"
+    ],
+    [
+      "fn-zero-or-one",
+      "fn-zero-or-onedec1args-1"
+    ],
+    [
+      "fn-zero-or-one",
+      "fn-zero-or-onedec1args-2"
+    ],
+    [
+      "fn-zero-or-one",
+      "fn-zero-or-onedec1args-3"
+    ],
+    [
+      "fn-zero-or-one",
+      "fn-zero-or-onedbl1args-2"
+    ],
+    [
+      "fn-zero-or-one",
+      "fn-zero-or-oneflt1args-2"
+    ],
+    [
+      "fn-zero-or-one",
+      "fn-zero-or-one-1"
+    ],
+    [
+      "fn-zero-or-one",
+      "K-SeqZeroOrOneFunc-1"
+    ],
+    [
+      "fn-zero-or-one",
+      "K-SeqZeroOrOneFunc-2"
+    ],
+    [
+      "fn-zero-or-one",
+      "K-SeqZeroOrOneFunc-3"
+    ],
+    [
+      "fn-zero-or-one",
+      "K-SeqZeroOrOneFunc-4"
+    ],
+    [
+      "fn-zero-or-one",
+      "K-SeqZeroOrOneFunc-5"
+    ],
+    [
+      "fn-zero-or-one",
+      "K-SeqZeroOrOneFunc-6"
+    ],
+    [
+      "fn-zero-or-one",
+      "K-SeqZeroOrOneFunc-8"
+    ],
+    [
+      "fn-zero-or-one",
+      "cbcl-if-not-empty-001"
     ]
   ]
 }

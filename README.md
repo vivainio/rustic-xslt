@@ -50,7 +50,7 @@ Supported so far:
   instance-of/treat-as/cast/castable;
 - exact integer/decimal arithmetic and integer division (`idiv`), numeric promotion, general/value comparisons,
   basic xs constructors, atomization and string/node/sequence functions, including
-  reverse/head/tail, remove/insert-before, subsequence, numeric sum/avg/min/max,
+  reverse/head/tail, exactly-one/zero-or-one/one-or-more, remove/insert-before, subsequence, numeric sum/avg/min/max,
   and iterative deep equality of supported atomic/untyped node sequences;
 - URIQualifiedNames in component names, variables, node tests/wildcards, supported
   function calls and atomic sequence types;
@@ -204,7 +204,7 @@ A pinned, partial catalog runner and a 378-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. An initial internal QT3 bridge
-also gates 1,262 passing XPath cases at the pinned XPath suite revision.
+also gates 1,318 passing XPath cases at the pinned XPath suite revision.
 The example JSON-lines driver
 and its JSON dependency are development-only.
 

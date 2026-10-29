@@ -581,5 +581,15 @@ conformance claims. Smaller tested increments are committed independently.
 - Twenty-four QT3 sets: 2,605 cases, 1,262 pass / 728 engine failures / 40 harness
   errors / 575 profile exclusions. Gate expands by 33 node-set cases.
 
-Next: cardinality functions and remaining XPath grammar.
+## Increment 48: cardinality assertion functions
+
+- exactly-one, zero-or-one and one-or-more preserve atomic types, node identity
+  and order, and report FORG0005/FORG0003/FORG0004 for invalid cardinalities.
+- Arity is checked statically; item copying consumes the shared budget.
+- 312 Rust integration tests, 27 harness tests and Clippy/format pass. All 378
+  XSLT passes remain; previous QT3 cases gain four passes.
+- Twenty-seven QT3 sets: 2,766 cases, 1,318 pass / 824 engine failures / 40 harness
+  errors / 584 profile exclusions. Gate adds 52 cardinality-function cases.
+
+Next: general path operands and remaining XPath grammar.
 

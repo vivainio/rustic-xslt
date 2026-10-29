@@ -975,7 +975,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
             (1, 1)
         }
         "sum" | "min" | "max" => (1, 2),
-        "avg" => (1, 1),
+        "avg" | "exactly-one" | "zero-or-one" | "one-or-more" => (1, 1),
         "remove" => (2, 2),
         "insert-before" => (3, 3),
         "subsequence" | "deep-equal" => (2, 3),
@@ -1597,6 +1597,26 @@ fn function<'a>(
             [Item::Node(n)] => Ok(vec![Item::Node(n.root())]),
             _ => Err(err("XPTY0004", "root requires an optional singleton node")),
         };
+    }
+    if matches!(name, "exactly-one" | "zero-or-one" | "one-or-more") {
+        let invalid = match name {
+            "exactly-one" if first.len() != 1 => Some("FORG0005"),
+            "zero-or-one" if first.len() > 1 => Some("FORG0003"),
+            "one-or-more" if first.is_empty() => Some("FORG0004"),
+            _ => None,
+        };
+        if let Some(code) = invalid {
+            return Err(err(
+                code,
+                format!("{name} argument has invalid cardinality"),
+            ));
+        }
+        let mut result = Vec::with_capacity(first.len());
+        for item in first {
+            budget.tick()?;
+            result.push(item.clone());
+        }
+        return Ok(result);
     }
     if name == "data" {
         return Ok(first.iter().map(atomize).collect());
