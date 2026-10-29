@@ -122,8 +122,8 @@ impl From<i64> for ParameterValue {
 }
 
 /// Loads a resource (a text file, for `unparsed-text()` and `json-doc()`) by URI.
-#[derive(Clone)]
 type LoadResource = dyn Fn(&str) -> Result<String, Diagnostic> + Send + Sync;
+#[derive(Clone)]
 pub struct ResourceResolver(pub std::sync::Arc<LoadResource>);
 impl std::fmt::Debug for ResourceResolver {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
