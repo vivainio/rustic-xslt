@@ -2333,7 +2333,7 @@ pub(crate) fn eval<'a>(
         }
         Expr::Sorted(inner, keys) => {
             let value = eval(inner, focus, vars, budget, depth + 1, backwards)?;
-            crate::sort::sort(value, keys, vars, budget, backwards)?
+            crate::sort::sort(value, keys, vars, focus, budget, backwards)?
         }
         Expr::Partial(callee, slots) => {
             let callee = eval(callee, focus, vars, budget, depth + 1, backwards)?;

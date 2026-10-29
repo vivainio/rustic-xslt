@@ -1,5 +1,6 @@
 use crate::{
     Diagnostic,
+    collation::Collation,
     compile::Sort,
     xpath::{self, Budget, Focus, Value, Variables},
 };
@@ -8,7 +9,67 @@ enum Key {
     Number(f64),
     Text(String),
 }
-fn compare(a: &Key, b: &Key, case: &str) -> Ordering {
+/// A sort key's settings after attribute value templates have been evaluated.
+struct Settings {
+    numeric: bool,
+    descending: bool,
+    case_order: String,
+    collation: Option<Collation>,
+}
+fn resolve<'a>(
+    sort: &Sort,
+    focus: &Focus<'a>,
+    env: &Variables<'a>,
+    budget: &mut Budget,
+    backwards: bool,
+) -> Result<Settings, Diagnostic> {
+    let mut settings = Settings {
+        numeric: sort.numeric,
+        descending: sort.descending,
+        case_order: sort.case_order.clone(),
+        collation: sort.collation,
+    };
+    let text = |parts: &Option<Vec<crate::xpath::Expr>>,
+                budget: &mut Budget|
+     -> Result<Option<String>, Diagnostic> {
+        let Some(parts) = parts else { return Ok(None) };
+        let mut out = String::new();
+        for part in parts {
+            let value = xpath::eval(part, focus, env, budget, 0, backwards)?;
+            out.push_str(&xpath::simple_string(&value, " ", usize::MAX, backwards)?);
+        }
+        Ok(Some(out.trim().to_owned()))
+    };
+    let invalid = |what: &str| Diagnostic::new("XTDE0030", format!("invalid sort {what}"), "run");
+    if let Some(v) = text(&sort.dynamic.data_type, budget)? {
+        settings.numeric = match v.as_str() {
+            "text" | "" => false,
+            "number" => true,
+            _ => return Err(invalid("data-type")),
+        };
+    }
+    if let Some(v) = text(&sort.dynamic.order, budget)? {
+        settings.descending = match v.as_str() {
+            "ascending" | "" => false,
+            "descending" => true,
+            _ => return Err(invalid("order")),
+        };
+    }
+    if let Some(v) = text(&sort.dynamic.case_order, budget)? {
+        if !["", "upper-first", "lower-first"].contains(&v.as_str()) {
+            return Err(invalid("case-order"));
+        }
+        settings.case_order = v;
+    }
+    if let Some(v) = text(&sort.dynamic.collation, budget)? {
+        settings.collation = Some(Collation::parse(&v).map_err(|mut e| {
+            e.code = "XTDE1035".into();
+            e
+        })?);
+    }
+    Ok(settings)
+}
+fn compare(a: &Key, b: &Key, case: &str, collation: Option<Collation>) -> Ordering {
     match (a, b) {
         (Key::Number(a), Key::Number(b)) => match (a.is_nan(), b.is_nan()) {
             (true, true) => Ordering::Equal,
@@ -17,6 +78,9 @@ fn compare(a: &Key, b: &Key, case: &str) -> Ordering {
             _ => a.partial_cmp(b).unwrap_or(Ordering::Equal),
         },
         (Key::Text(a), Key::Text(b)) => {
+            if let Some(collation) = collation {
+                return collation.compare(a, b);
+            }
             if case.is_empty() {
                 return a.cmp(b);
             }
@@ -38,13 +102,14 @@ pub(crate) fn sort<'a>(
     value: Value<'a>,
     sorts: &[Sort],
     env: &Variables<'a>,
+    focus: &Focus<'a>,
     budget: &mut Budget,
     backwards: bool,
 ) -> Result<Value<'a>, Diagnostic> {
     if sorts.is_empty() {
         return Ok(value);
     }
-    let order = order(&value, sorts, env, None, budget, backwards)?;
+    let order = order(&value, sorts, env, focus, None, budget, backwards)?;
     let mut value: Vec<_> = value.into_iter().map(Some).collect();
     Ok(order
         .into_iter()
@@ -57,11 +122,16 @@ pub(crate) fn order<'a>(
     value: &[crate::xpath::Item<'a>],
     sorts: &[Sort],
     env: &Variables<'a>,
+    outer: &Focus<'a>,
     per_item: Option<&[Variables<'a>]>,
     budget: &mut Budget,
     backwards: bool,
 ) -> Result<Vec<usize>, Diagnostic> {
     let size = value.len();
+    let mut settings = Vec::with_capacity(sorts.len());
+    for sort in sorts {
+        settings.push(resolve(sort, outer, env, budget, backwards)?);
+    }
     let mut keys = Vec::with_capacity(size);
     for (i, item) in value.iter().enumerate() {
         let focus = Focus {
@@ -70,7 +140,7 @@ pub(crate) fn order<'a>(
             size,
         };
         let mut row = vec![];
-        for key in sorts {
+        for (key, setting) in sorts.iter().zip(&settings) {
             let scope = per_item.map_or(env, |scopes| &scopes[i]);
             let mut v = xpath::eval(&key.select, &focus, scope, budget, 0, backwards)?;
             if backwards {
@@ -86,7 +156,7 @@ pub(crate) fn order<'a>(
             let s = v
                 .first()
                 .map_or_else(String::new, |item| item.string_compat(backwards));
-            row.push(if key.numeric {
+            row.push(if setting.numeric {
                 Key::Number(s.trim().parse().unwrap_or(f64::NAN))
             } else {
                 Key::Text(s)
@@ -110,9 +180,14 @@ pub(crate) fn order<'a>(
                     false
                 } else {
                     let mut result = Ordering::Equal;
-                    for (k, spec) in sorts.iter().enumerate() {
+                    for (k, spec) in settings.iter().enumerate() {
                         budget.tick()?;
-                        result = compare(&keys[order[a]][k], &keys[order[b]][k], &spec.case_order);
+                        result = compare(
+                            &keys[order[a]][k],
+                            &keys[order[b]][k],
+                            &spec.case_order,
+                            spec.collation,
+                        );
                         if spec.descending {
                             result = result.reverse();
                         }

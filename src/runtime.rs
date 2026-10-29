@@ -1798,7 +1798,8 @@ fn run_tasks<'a>(
                     }
                     Instruction::Apply(e, target_mode, sorts, params) => {
                         let value = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
-                        let value = crate::sort::sort(value, sorts, &env, budget, sheet.backwards)?;
+                        let value =
+                            crate::sort::sort(value, sorts, &env, &focus, budget, sheet.backwards)?;
                         let target_mode = if target_mode == "#current" {
                             mode.clone()
                         } else {
@@ -1961,7 +1962,8 @@ fn run_tasks<'a>(
                     }
                     Instruction::ForEach(e, sorts, body) => {
                         let value = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
-                        let value = crate::sort::sort(value, sorts, &env, budget, sheet.backwards)?;
+                        let value =
+                            crate::sort::sort(value, sorts, &env, &focus, budget, sheet.backwards)?;
                         for f in focus_sequence(value).into_iter().rev() {
                             tasks.push(Task::Body(
                                 body,
@@ -2472,6 +2474,7 @@ fn run_tasks<'a>(
                                 &firsts,
                                 sorts,
                                 &env,
+                                &focus,
                                 Some(&scopes),
                                 budget,
                                 sheet.backwards,

@@ -89,7 +89,7 @@ XPath 3.1 and XSLT 3.0 additions beyond the core above:
   variables and `expand-text`.
 
 Not yet implemented: schema awareness, packages, accumulators, `xsl:merge`,
-`xsl:fork`, `xsl:source-document`, character maps, non-UTF-8 output, dynamic
+`xsl:fork`, `xsl:source-document`, other encodings than UTF-8/ISO-8859-1/US-ASCII, dynamic
 `doc()` URIs, and the XSLT `streamable` feature.
 
 Versions 1.0, 2.0 and 3.0 are accepted; complete version semantics are not yet
@@ -177,7 +177,7 @@ Namespace-axis/raw namespace-node support remains ahead; serialized XML 1.0
 cannot represent all XDM namespace inheritance boundaries.
 Computed QName validation currently accepts letters, digits, underscore, hyphen
 and dot, rather than the full XML name-character tables. Sort settings are
-static; locale collations and sort-setting AVTs remain ahead. Compilation limits nested
+may be attribute value templates and may name any supported collation; locale-specific tailoring remains ahead. Compilation limits nested
 instruction bodies and XPath parsing, and caps expression token counts.
 
 Run `cargo test --offline` and `cargo clippy --offline --all-targets -- -D warnings`.

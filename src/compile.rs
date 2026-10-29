@@ -132,8 +132,18 @@ pub(crate) enum Grouping {
     Starting(Vec<crate::pattern::Branch>),
     Ending(Vec<crate::pattern::Branch>),
 }
+/// Sort settings that are attribute value templates, resolved when the sort runs.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct DynamicSort {
+    pub data_type: Option<Vec<Expr>>,
+    pub order: Option<Vec<Expr>>,
+    pub case_order: Option<Vec<Expr>>,
+    pub collation: Option<Vec<Expr>>,
+}
 #[derive(Debug, Clone)]
 pub(crate) struct Sort {
+    pub dynamic: DynamicSort,
+    pub collation: Option<crate::collation::Collation>,
     pub select: Expr,
     pub numeric: bool,
     pub descending: bool,
@@ -732,27 +742,69 @@ fn sorts(n: Node<'_, '_>) -> Result<Vec<Sort>, Diagnostic> {
             if content {
                 return Err(error(c, "sort keys must precede the instruction body"));
             }
-            attrs(c, &["select", "data-type", "order", "case-order"])?;
+            attrs(
+                c,
+                &[
+                    "select",
+                    "data-type",
+                    "order",
+                    "case-order",
+                    "lang",
+                    "collation",
+                    "stable",
+                ],
+            )?;
             empty(c)?;
+            let dynamic_attr = |name: &str| -> Result<Option<Vec<Expr>>, Diagnostic> {
+                match c.attribute(name) {
+                    Some(v) if v.contains(['{', '}']) => avt(c, v).map(Some),
+                    _ => Ok(None),
+                }
+            };
+            let mut dynamic = DynamicSort {
+                data_type: dynamic_attr("data-type")?,
+                order: dynamic_attr("order")?,
+                case_order: dynamic_attr("case-order")?,
+                collation: dynamic_attr("collation")?,
+            };
             let numeric = match c.attribute("data-type").unwrap_or("text") {
+                _ if dynamic.data_type.is_some() => false,
                 "text" => false,
                 "number" => true,
                 _ => return Err(error(c, "unsupported sort data-type")),
             };
             let descending = match c.attribute("order").unwrap_or("ascending") {
+                _ if dynamic.order.is_some() => false,
                 "ascending" => false,
                 "descending" => true,
                 _ => return Err(error(c, "unsupported sort order")),
             };
-            let case_order = c.attribute("case-order").unwrap_or("");
+            let case_order = if dynamic.case_order.is_some() {
+                ""
+            } else {
+                c.attribute("case-order").unwrap_or("")
+            };
             if !["", "upper-first", "lower-first"].contains(&case_order) {
                 return Err(error(c, "unsupported case-order"));
             }
+            let collation = match c.attribute("collation") {
+                Some(uri) if dynamic.collation.is_none() => Some(
+                    crate::collation::Collation::parse(uri.trim()).map_err(|mut e| {
+                        e.code = "XTDE1035".into();
+                        e.phase = "compile";
+                        e
+                    })?,
+                ),
+                _ => None,
+            };
+            let _ = &mut dynamic;
             keys.push(Sort {
                 select: expr(c, c.attribute("select").unwrap_or("."))?,
                 numeric,
                 descending,
                 case_order: case_order.into(),
+                collation,
+                dynamic,
             });
         } else if c.is_element() || c.is_text() && !xml_space(c.text().unwrap_or_default()) {
             if n.tag_name().name() == "apply-templates"

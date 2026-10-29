@@ -1322,3 +1322,10 @@ conformance claims. Smaller tested increments are committed independently.
   xsl:output use-character-maps attribute: mapped characters in text and attribute
   values are written verbatim (unescaped); unknown maps are XTSE1590, cycles XTSE1600
   and duplicate names XTSE1580. Maps apply to the principal result only.
+
+## Increment 117: dynamic sort settings and sort collations
+
+- xsl:sort data-type, order, case-order and collation may be attribute value
+  templates (evaluated once per sort in the instruction's focus, XTDE0030 for invalid
+  values); collation, lang and stable are accepted, with collations applying to text
+  keys (XTDE1035 when unsupported).
