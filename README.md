@@ -83,14 +83,14 @@ XPath 3.1 and XSLT 3.0 additions beyond the core above:
   backreferences;
 - instructions: `xsl:function`, `xsl:key`, `xsl:for-each-group`, `xsl:iterate`,
   `xsl:try`/`xsl:catch`, `xsl:analyze-string`, `xsl:number`, `xsl:map`,
-  `xsl:perform-sort`, `xsl:evaluate`, `xsl:where-populated`, `xsl:namespace`,
+  `xsl:perform-sort`, `xsl:evaluate`, `xsl:where-populated`, `xsl:on-empty`/`xsl:on-non-empty`, `xsl:namespace`,
   `xsl:message` (collected by `transform_with_documents`), `xsl:result-document`,
   `xsl:attribute-set`, `xsl:import`/`xsl:apply-imports`, `use-when`, static
   variables and `expand-text`.
 
 Not yet implemented: schema awareness, packages, accumulators, `xsl:merge`,
 `xsl:fork`, `xsl:source-document`, character maps, non-UTF-8 output, dynamic
-`doc()` URIs, `xsl:on-empty`/`xsl:on-non-empty`, and the XSLT `streamable` feature.
+`doc()` URIs, and the XSLT `streamable` feature.
 
 Versions 1.0, 2.0 and 3.0 are accepted; complete version semantics are not yet
 implemented. Version 1.0 currently enables first-item value-of/AVT conversion

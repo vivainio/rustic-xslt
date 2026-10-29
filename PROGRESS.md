@@ -1294,3 +1294,10 @@ conformance claims. Smaller tested increments are committed independently.
   well-formed XPath expressions from the supported function library, runs them under
   step limits and asserts that nothing panics. About 600,000 expressions over several
   seeds ran clean before the default round count was reduced for routine test runs.
+
+## Increment 113: xsl:on-empty and xsl:on-non-empty
+
+- A sequence constructor containing xsl:on-empty / xsl:on-non-empty runs its other
+  instructions in a nested output; the on-empty content replaces an empty result and
+  the on-non-empty content follows a non-empty one. Like where-populated, the nested
+  evaluation cannot produce attributes or namespaces for the enclosing element.
