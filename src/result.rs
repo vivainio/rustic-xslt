@@ -514,7 +514,19 @@ impl Output {
                     value
                 };
             if markup == Markup::Html {
-                self.push(&value.replace('&', "&amp;").replace('"', "&quot;"))?;
+                let mut escaped = String::new();
+                for character in value.chars() {
+                    if !uri && let Some(replacement) = self.char_map.get(&character) {
+                        escaped.push_str(replacement);
+                    } else {
+                        match character {
+                            '&' => escaped.push_str("&amp;"),
+                            '"' => escaped.push_str("&quot;"),
+                            _ => escaped.push(character),
+                        }
+                    }
+                }
+                self.push(&escaped)?;
             } else {
                 let escaped = if uri {
                     escape(value, true)

@@ -2065,3 +2065,12 @@ conformance claims. Smaller tested increments are committed independently.
   264 harness errors and 153 exclusions.
 - Validation: HTML and result-document tests, all-target/all-feature Clippy and
   the full pinned XSLT regression gate pass.
+
+## Increment 179: URI escaping and HTML attribute character maps
+
+- HTML attributes apply character maps unless URI escaping takes precedence.
+  Disabled URI escaping now restores character maps for URI attributes.
+- Added regressions for the toggle, NFC normalization, relative URI punctuation,
+  ordinary attributes and namespaced attributes.
+- The pinned XSLT gate has 897 passes (one new, zero regressions), 258 failures,
+  264 harness errors and 153 exclusions. Focused tests and Clippy pass.

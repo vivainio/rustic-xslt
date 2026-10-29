@@ -48,3 +48,17 @@ fn cdata_text_suppresses_maps_while_attributes_and_other_text_use_them() {
         "<out><c attr=\"MAPPED\"><![CDATA[a & b]]></c><normal>MAPPED</normal></out>"
     );
 }
+
+#[test]
+fn html_uri_escaping_suppresses_maps_only_when_enabled() {
+    let maps = r#"<xsl:character-map name="m"><xsl:output-character character="é" string="MAPPED"/></xsl:character-map>"#;
+    for (setting, expected) in [("yes", "%C3%A9"), ("no", "MAPPED")] {
+        let declarations = format!(
+            r#"<xsl:output method="html" escape-uri-attributes="{setting}" use-character-maps="m"/>{maps}"#
+        );
+        assert_eq!(
+            run(&declarations, "<a href='é' title='é'>x</a>").unwrap(),
+            format!("<a href=\"{expected}\" title=\"MAPPED\">x</a>")
+        );
+    }
+}

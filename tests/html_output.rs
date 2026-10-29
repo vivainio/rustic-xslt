@@ -102,3 +102,24 @@ fn doctype_system_identifiers_choose_a_safe_quote_delimiter() {
         "<!DOCTYPE root SYSTEM 'a\"b.dtd'>\n<root></root>"
     );
 }
+
+#[test]
+fn uri_attributes_normalize_before_escaping_and_preserve_relative_paths() {
+    assert_eq!(
+        run(
+            r#"method="html""#,
+            "<a href='a&#x30a;?x=1&amp;y=2' title='å'>x</a>"
+        ),
+        "<a href=\"%C3%A5?x=1&amp;y=2\" title=\"å\">x</a>"
+    );
+}
+
+#[test]
+fn namespaced_attributes_do_not_use_html_uri_escaping() {
+    let output = run(
+        r#"method="html""#,
+        "<a xmlns:p='urn:p' href='é' p:href='é'>x</a>",
+    );
+    assert!(output.contains(" href=\"%C3%A9\""));
+    assert!(output.contains(" p:href=\"é\""));
+}
