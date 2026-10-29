@@ -174,3 +174,15 @@ fn xhtml_metadata_uses_the_head_namespace_and_exact_names() {
     assert!(output.contains("<h:head><h:meta http-equiv=\"Content-Type\""));
     assert_eq!(output.matches("charset=").count(), 1);
 }
+
+#[test]
+fn xhtml_metadata_replacement_respects_attribute_case_and_namespace() {
+    let output = run(
+        r#"method="xhtml" omit-xml-declaration="yes""#,
+        "<html xmlns='http://www.w3.org/1999/xhtml' xmlns:p='urn:p'><head><meta HTTP-EQUIV='Content-Type' content='upper'/><meta p:http-equiv='Content-Type' content='namespaced'/><meta http-equiv=' content-type ' content='replace'/></head></html>",
+    );
+    assert!(output.contains("content=\"upper\""));
+    assert!(output.contains("content=\"namespaced\""));
+    assert!(!output.contains("content=\"replace\""));
+    assert_eq!(output.matches("charset=").count(), 1);
+}

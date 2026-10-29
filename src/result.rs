@@ -484,7 +484,11 @@ impl Output {
                 && metadata_name(&open.element.name, markup).as_deref() == Some("meta")
                 && open.element.attributes.iter().any(|(name, value)| {
                     name.uri.is_none()
-                        && name.local.eq_ignore_ascii_case("http-equiv")
+                        && if markup == Markup::Xhtml {
+                            name.local == "http-equiv"
+                        } else {
+                            name.local.eq_ignore_ascii_case("http-equiv")
+                        }
                         && value.trim_matches(' ').eq_ignore_ascii_case("Content-Type")
                 }));
         if open.suppressed {

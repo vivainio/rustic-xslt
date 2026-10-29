@@ -2151,3 +2151,12 @@ conformance claims. Smaller tested increments are committed independently.
   regression confirming exactly one generated metadata element.
 - Validation: fourteen serializer tests, all-target/all-feature Clippy and the
   full 928-case pinned XSLT gate pass without regressions.
+
+## Increment 188: exact XHTML metadata attribute recognition
+
+- XHTML metadata replacement requires the exact unnamespaced `http-equiv`
+  attribute name. HTML keeps case-insensitive attribute-name recognition.
+- Added a regression retaining uppercase and namespaced attributes while
+  replacing a matching lowercase declaration with case/space-varied value.
+- Validation: fifteen serializer tests, all-target/all-feature Clippy and the
+  full 928-case pinned XSLT gate pass without regressions.
