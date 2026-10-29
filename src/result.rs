@@ -105,11 +105,57 @@ impl Encoding {
             return Ok(text.to_owned());
         }
         let mut out = String::with_capacity(text.len());
-        for c in text.chars() {
+        let mut rest = text;
+        let mut cdata = false;
+        let mut opaque_end: Option<&str> = None;
+        while !rest.is_empty() {
+            if references {
+                if let Some(end) = opaque_end {
+                    if rest.starts_with(end) {
+                        out.push_str(end);
+                        rest = &rest[end.len()..];
+                        opaque_end = None;
+                        continue;
+                    }
+                } else if cdata && rest.starts_with("]]>") {
+                    out.push_str("]]>");
+                    rest = &rest[3..];
+                    cdata = false;
+                    continue;
+                } else if !cdata {
+                    let opening = if rest.starts_with("<!--") {
+                        Some(("<!--", "-->"))
+                    } else if rest.starts_with("<?") {
+                        Some(("<?", "?>"))
+                    } else {
+                        None
+                    };
+                    if let Some((start, end)) = opening {
+                        out.push_str(start);
+                        rest = &rest[start.len()..];
+                        opaque_end = Some(end);
+                        continue;
+                    }
+                    if rest.starts_with("<![CDATA[") {
+                        out.push_str("<![CDATA[");
+                        rest = &rest[9..];
+                        cdata = true;
+                        continue;
+                    }
+                }
+            }
+            let c = rest.chars().next().unwrap();
+            rest = &rest[c.len_utf8()..];
             if (c as u32) <= self.limit() {
                 out.push(c);
             } else if references {
+                if cdata {
+                    out.push_str("]]>");
+                }
                 out.push_str(&format!("&#x{:X};", c as u32));
+                if cdata {
+                    out.push_str("<![CDATA[");
+                }
             } else {
                 return Err(Diagnostic::new(
                     "SERE0008",

@@ -1941,3 +1941,13 @@ conformance claims. Smaller tested increments are committed independently.
 - Reference: https://www.w3.org/TR/xslt-xquery-serialization-30/#character-maps
 - Validation: all four character-map tests, all-target/all-feature Clippy,
   formatting and diff checks pass. No runtime behavior changed.
+
+## Increment 166: encoding references outside CDATA
+
+- Restricted output encodings close CDATA before emitting an unrepresentable
+  character as a reference, then reopen CDATA for following text. Comment and
+  processing-instruction markers do not start CDATA state in the encoding pass.
+- Added a US-ASCII CDATA regression. The pinned XSLT gate now has 882 passes
+  (two new, zero regressions), 273 failures, 264 harness errors and 153 exclusions.
+- Validation: ten result-document tests, all-target/all-feature Clippy and the
+  full pinned XSLT regression gate pass.
