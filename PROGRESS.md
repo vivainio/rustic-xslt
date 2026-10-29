@@ -1827,3 +1827,13 @@ conformance claims. Smaller tested increments are committed independently.
   283 engine failures, 264 harness errors and 153 profile exclusions.
 - Validation: result-document tests, all-target/all-feature Clippy and the full
   pinned XSLT regression gate pass.
+
+## Increment 154: standalone result-document AVTs
+
+- Result-document `standalone` accepts AVTs, including `omit`, and validates
+  dynamic values before rendering the document. Expressions participate in
+  static variable-scope checks.
+- The pinned XSLT gate has 874 passing cases (two new, zero regressions),
+  281 engine failures, 264 harness errors and 153 profile exclusions.
+- Validation: result-document tests, all-target/all-feature Clippy and the full
+  pinned XSLT regression gate pass.

@@ -2194,6 +2194,23 @@ fn run_tasks<'a>(
                         let indent_override = flag(&spec.indent)?;
                         let omit_override = flag(&spec.omit_declaration)?;
                         let bom_override = flag(&spec.byte_order_mark)?;
+                        let standalone_override = spec
+                            .standalone
+                            .as_ref()
+                            .map(|value| {
+                                let value = parts(value, &focus, &env, budget, sheet.backwards)?;
+                                match value.trim() {
+                                    "omit" => Ok(None),
+                                    "yes" | "true" | "1" => Ok(Some(true)),
+                                    "no" | "false" | "0" => Ok(Some(false)),
+                                    _ => Err(Diagnostic::new(
+                                        "XTDE0030",
+                                        "invalid standalone serialization attribute",
+                                        "run",
+                                    )),
+                                }
+                            })
+                            .transpose()?;
                         let encoding = spec.encoding.unwrap_or(settings.encoding);
                         let indent = indent_override.unwrap_or(settings.indent);
                         let mut doctype = settings.doctype.clone();
@@ -2260,7 +2277,7 @@ fn run_tasks<'a>(
                             && let Some(header) = crate::result::xml_declaration(
                                 encoding,
                                 omit,
-                                spec.standalone.unwrap_or(settings.standalone),
+                                standalone_override.unwrap_or(settings.standalone),
                             )?
                         {
                             content = format!("{header}{content}");

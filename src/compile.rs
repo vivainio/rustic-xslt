@@ -91,7 +91,7 @@ pub(crate) struct ResultDocumentSpec {
     pub method: Option<String>,
     pub format: Option<(Vec<Expr>, BTreeMap<String, String>)>,
     pub omit_declaration: Option<Vec<Expr>>,
-    pub standalone: Option<Option<bool>>,
+    pub standalone: Option<Vec<Expr>>,
     pub byte_order_mark: Option<Vec<Expr>>,
     pub indent: Option<Vec<Expr>>,
     pub encoding: Option<crate::result::Encoding>,
@@ -1318,7 +1318,12 @@ fn body(
                             omit_declaration: flag("omit-xml-declaration")?,
                             standalone: n
                                 .attribute("standalone")
-                                .map(|_| standalone(n))
+                                .map(|value| {
+                                    if !value.contains('{') && !value.contains('}') {
+                                        standalone(n)?;
+                                    }
+                                    avt(n, value)
+                                })
                                 .transpose()?,
                             byte_order_mark: flag("byte-order-mark")?,
                             indent: flag("indent")?,
@@ -3359,6 +3364,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                         &spec.indent,
                         &spec.omit_declaration,
                         &spec.byte_order_mark,
+                        &spec.standalone,
                     ]
                     .into_iter()
                     .flatten()
