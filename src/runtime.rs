@@ -2220,7 +2220,9 @@ fn run_tasks<'a>(
                             _ => Markup::Xml,
                         };
                         let mut flag =
-                            |value: &Option<Vec<xpath::Expr>>| -> Result<Option<bool>, Diagnostic> {
+                            |name: &str,
+                             value: &Option<Vec<xpath::Expr>>|
+                             -> Result<Option<bool>, Diagnostic> {
                                 value
                                     .as_ref()
                                     .map(|value| {
@@ -2231,17 +2233,20 @@ fn run_tasks<'a>(
                                             "no" | "false" | "0" => Ok(false),
                                             _ => Err(Diagnostic::new(
                                                 "XTDE0030",
-                                                "invalid boolean serialization attribute",
+                                                format!(
+                                                    "invalid {name} serialization value: {value}"
+                                                ),
                                                 "run",
                                             )),
                                         }
                                     })
                                     .transpose()
                             };
-                        let indent_override = flag(&spec.indent)?;
-                        let uri_override = flag(&spec.escape_uri_attributes)?;
-                        let omit_override = flag(&spec.omit_declaration)?;
-                        let bom_override = flag(&spec.byte_order_mark)?;
+                        let indent_override = flag("indent", &spec.indent)?;
+                        let uri_override =
+                            flag("escape-uri-attributes", &spec.escape_uri_attributes)?;
+                        let omit_override = flag("omit-xml-declaration", &spec.omit_declaration)?;
+                        let bom_override = flag("byte-order-mark", &spec.byte_order_mark)?;
                         let standalone_override = spec
                             .standalone
                             .as_ref()

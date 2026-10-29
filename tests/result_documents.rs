@@ -155,3 +155,15 @@ fn uri_escaping_overrides_named_output_and_survives_try_capture() {
     assert_eq!(result.documents[0].content, "<a href=\"%C3%A9\">x</a>");
     assert_eq!(result.documents[1].content, "<a href=\"é\">x</a>");
 }
+
+#[test]
+fn uri_escaping_avts_have_static_scope_and_dynamic_value_errors() {
+    let error = run(r#"<xsl:variable name="flag" select="'maybe'"/><xsl:result-document method="html" escape-uri-attributes="{$flag}"><a/></xsl:result-document>"#).unwrap_err();
+    assert_eq!(error.code, "XTDE0030");
+    assert_eq!(error.phase, "run");
+    assert!(error.message.contains("escape-uri-attributes"));
+    assert!(error.message.contains("maybe"));
+    let error = run(r#"<xsl:if test="false()"><xsl:result-document escape-uri-attributes="{$missing}"/></xsl:if>"#).unwrap_err();
+    assert_eq!(error.code, "XPST0008");
+    assert_eq!(error.phase, "compile");
+}

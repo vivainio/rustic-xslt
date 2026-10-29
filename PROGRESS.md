@@ -2111,3 +2111,12 @@ conformance claims. Smaller tested increments are committed independently.
   decomposed URI text, alongside exact XHTML input-type matching.
 - Validation: twelve HTML/XHTML serializer tests, all-target/all-feature Clippy
   and the full 897-case pinned XSLT gate pass without regressions.
+
+## Increment 184: serialization boolean diagnostics
+
+- Dynamic boolean serialization errors identify the parameter and invalid value,
+  including URI escaping, indentation, XML declaration omission and BOM settings.
+- Added URI-escaping regressions for runtime invalid values and compile-time
+  undeclared variables inside an unexecuted branch.
+- Validation: thirteen result-document tests, all-target/all-feature Clippy,
+  formatting and diff checks pass. Serialization behavior is unchanged.
