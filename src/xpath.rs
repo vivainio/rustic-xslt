@@ -363,7 +363,7 @@ fn tokenize(s: &str) -> Result<Vec<Token>, Diagnostic> {
             let pair: String = chars[i..chars.len().min(i + 2)].iter().collect();
             if matches!(
                 pair.as_str(),
-                "//" | ".." | "!=" | "<=" | ">=" | "::" | "<<" | ">>" | ":="
+                "//" | ".." | "!=" | "<=" | ">=" | "::" | "<<" | ">>" | ":=" | "||"
             ) {
                 out.push(Token::Symbol(pair));
                 i += 2;
@@ -494,10 +494,10 @@ impl Parser {
                 && ["instance", "treat", "cast", "castable"].contains(&op.as_str())
             {
                 let precedence = match op.as_str() {
-                    "instance" => 10,
-                    "treat" => 11,
-                    "castable" => 12,
-                    _ => 13,
+                    "instance" => 11,
+                    "treat" => 12,
+                    "castable" => 13,
+                    _ => 14,
                 };
                 if minimum > precedence {
                     break;
@@ -586,14 +586,15 @@ impl Parser {
                 {
                     (s.clone(), 4)
                 }
-                Token::Name(s) if s == "to" => (s.clone(), 5),
-                Token::Symbol(s) if s == "!" => (s.clone(), 15),
-                Token::Symbol(s) if s == "|" => (s.clone(), 8),
-                Token::Name(s) if s == "union" => (s.clone(), 8),
-                Token::Name(s) if s == "intersect" || s == "except" => (s.clone(), 9),
-                Token::Symbol(s) if s == "+" || s == "-" => (s.clone(), 6),
-                Token::Symbol(s) if s == "*" => (s.clone(), 7),
-                Token::Name(s) if ["div", "idiv", "mod"].contains(&s.as_str()) => (s.clone(), 7),
+                Token::Symbol(s) if s == "||" => (s.clone(), 5),
+                Token::Name(s) if s == "to" => (s.clone(), 6),
+                Token::Symbol(s) if s == "!" => (s.clone(), 16),
+                Token::Symbol(s) if s == "|" => (s.clone(), 9),
+                Token::Name(s) if s == "union" => (s.clone(), 9),
+                Token::Name(s) if s == "intersect" || s == "except" => (s.clone(), 10),
+                Token::Symbol(s) if s == "+" || s == "-" => (s.clone(), 7),
+                Token::Symbol(s) if s == "*" => (s.clone(), 8),
+                Token::Name(s) if ["div", "idiv", "mod"].contains(&s.as_str()) => (s.clone(), 8),
                 _ => break,
             };
             if prec < minimum {
@@ -668,9 +669,9 @@ impl Parser {
     }
     fn operand(&mut self, paths: bool) -> Result<Expr, Diagnostic> {
         let mut e = if self.eat("-") {
-            Expr::Unary(false, Box::new(self.expression(14)?))
+            Expr::Unary(false, Box::new(self.expression(15)?))
         } else if self.eat("+") {
-            Expr::Unary(true, Box::new(self.expression(14)?))
+            Expr::Unary(true, Box::new(self.expression(15)?))
         } else if self.eat("(") {
             if self.eat(")") {
                 Expr::Sequence(vec![])
@@ -1411,6 +1412,21 @@ pub(crate) fn eval<'a>(
             let b = eval(b, focus, vars, budget, depth + 1, backwards)?;
             match op.as_str() {
                 "and" | "or" => vec![Item::Boolean(boolean(&b)?)],
+                "||" => {
+                    if a.len() > 1 || b.len() > 1 {
+                        return Err(err(
+                            "XPTY0004",
+                            "string concatenation requires optional singletons",
+                        ));
+                    }
+                    let mut left = a.first().map_or_else(String::new, Item::string);
+                    let right = b.first().map_or_else(String::new, Item::string);
+                    for _ in left.bytes().chain(right.bytes()) {
+                        budget.tick()?;
+                    }
+                    left.push_str(&right);
+                    vec![Item::String(left)]
+                }
                 "to" => {
                     fn bound(value: &[Item<'_>]) -> Result<Option<num_bigint::BigInt>, Diagnostic> {
                         match value {

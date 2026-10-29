@@ -604,5 +604,16 @@ conformance claims. Smaller tested increments are committed independently.
   exclusions). Twenty-eight QT3 sets: 2,794 cases, 1,348 pass / 812 engine failures /
   41 harness errors / 593 profile exclusions. QT3 gate gains 30 cases.
 
+## Increment 50: XPath string concatenation
+
+- || atomizes optional singleton operands into one xs:string, with empty inputs
+  contributing empty strings and multi-item inputs reporting XPTY0004.
+- Precedence lies between comparisons and ranges, retaining the existing type,
+  arithmetic, set and map relationships. String copying consumes the shared budget.
+- 324 Rust integration tests, 27 harness tests and Clippy/format pass. XSLT gate
+  expands to 380 (380 pass / 153 failures / 144 harness errors / 46 exclusions).
+- Twenty-nine QT3 sets: 2,886 cases, 1,384 pass / 867 engine failures / 42 harness
+  errors / 593 profile exclusions. Previous passes remain; QT3 gate grows by 36.
+
 Next: remaining XPath grammar and function coverage.
 

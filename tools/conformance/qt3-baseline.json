@@ -17,6 +17,7 @@
     "fn-tail",
     "fn-zero-or-one",
     "op-bang",
+    "op-concat",
     "op-except",
     "op-intersect",
     "op-numeric-integer-divide",
@@ -3729,6 +3730,10 @@
     ],
     [
       "op-to",
+      "rangeExpr-34"
+    ],
+    [
+      "op-to",
       "rangeExpr-35"
     ],
     [
@@ -4684,6 +4689,74 @@
       "xquery30keywords2"
     ],
     [
+      "prod-PathExpr",
+      "PathExpr-1"
+    ],
+    [
+      "prod-PathExpr",
+      "PathExpr-2"
+    ],
+    [
+      "prod-PathExpr",
+      "PathExpr-3"
+    ],
+    [
+      "prod-PathExpr",
+      "PathExpr-4"
+    ],
+    [
+      "prod-PathExpr",
+      "PathExpr-5p"
+    ],
+    [
+      "prod-PathExpr",
+      "PathExpr-6"
+    ],
+    [
+      "prod-PathExpr",
+      "PathExpr-7p"
+    ],
+    [
+      "prod-PathExpr",
+      "PathExpr-8p"
+    ],
+    [
+      "prod-PathExpr",
+      "PathExpr-9p"
+    ],
+    [
+      "prod-PathExpr",
+      "PathExpr-10"
+    ],
+    [
+      "prod-PathExpr",
+      "PathExpr-11"
+    ],
+    [
+      "prod-PathExpr",
+      "PathExpr-12"
+    ],
+    [
+      "prod-PathExpr",
+      "PathExpr-13"
+    ],
+    [
+      "prod-PathExpr",
+      "PathExpr-15"
+    ],
+    [
+      "prod-PathExpr",
+      "PathExpr-16"
+    ],
+    [
+      "prod-PathExpr",
+      "PathExpr-20"
+    ],
+    [
+      "prod-PathExpr",
+      "PathExpr-24"
+    ],
+    [
       "prod-QuantifiedExpr",
       "quantExpr-1"
     ],
@@ -5356,72 +5429,144 @@
       "sequence-type-21"
     ],
     [
-      "prod-PathExpr",
-      "PathExpr-1"
+      "op-concat",
+      "op-concatintg2args-1"
     ],
     [
-      "prod-PathExpr",
-      "PathExpr-2"
+      "op-concat",
+      "op-concatintg2args-2"
     ],
     [
-      "prod-PathExpr",
-      "PathExpr-3"
+      "op-concat",
+      "op-concatintg2args-3"
     ],
     [
-      "prod-PathExpr",
-      "PathExpr-4"
+      "op-concat",
+      "op-concatintg2args-4"
     ],
     [
-      "prod-PathExpr",
-      "PathExpr-5p"
+      "op-concat",
+      "op-concatintg2args-5"
     ],
     [
-      "prod-PathExpr",
-      "PathExpr-6"
+      "op-concat",
+      "op-concatdec2args-1"
     ],
     [
-      "prod-PathExpr",
-      "PathExpr-7p"
+      "op-concat",
+      "op-concatdec2args-2"
     ],
     [
-      "prod-PathExpr",
-      "PathExpr-8p"
+      "op-concat",
+      "op-concatdec2args-3"
     ],
     [
-      "prod-PathExpr",
-      "PathExpr-9p"
+      "op-concat",
+      "op-concatdec2args-4"
     ],
     [
-      "prod-PathExpr",
-      "PathExpr-10"
+      "op-concat",
+      "op-concatdec2args-5"
     ],
     [
-      "prod-PathExpr",
-      "PathExpr-11"
+      "op-concat",
+      "op-concat-1"
     ],
     [
-      "prod-PathExpr",
-      "PathExpr-12"
+      "op-concat",
+      "op-concat-2"
     ],
     [
-      "prod-PathExpr",
-      "PathExpr-13"
+      "op-concat",
+      "op-concat-3"
     ],
     [
-      "prod-PathExpr",
-      "PathExpr-15"
+      "op-concat",
+      "op-concat-4"
     ],
     [
-      "prod-PathExpr",
-      "PathExpr-16"
+      "op-concat",
+      "op-concat-5"
     ],
     [
-      "prod-PathExpr",
-      "PathExpr-20"
+      "op-concat",
+      "op-concat-6"
     ],
     [
-      "prod-PathExpr",
-      "PathExpr-24"
+      "op-concat",
+      "op-concat-7"
+    ],
+    [
+      "op-concat",
+      "op-concat-8"
+    ],
+    [
+      "op-concat",
+      "op-concat-10"
+    ],
+    [
+      "op-concat",
+      "op-concat-11"
+    ],
+    [
+      "op-concat",
+      "op-concat-12"
+    ],
+    [
+      "op-concat",
+      "op-concat-13"
+    ],
+    [
+      "op-concat",
+      "op-concat-14"
+    ],
+    [
+      "op-concat",
+      "op-concat-15"
+    ],
+    [
+      "op-concat",
+      "op-concat-16"
+    ],
+    [
+      "op-concat",
+      "op-concat-17"
+    ],
+    [
+      "op-concat",
+      "op-concat-19"
+    ],
+    [
+      "op-concat",
+      "op-concat-20"
+    ],
+    [
+      "op-concat",
+      "K-ConcatOp-3"
+    ],
+    [
+      "op-concat",
+      "K-ConcatOp-4"
+    ],
+    [
+      "op-concat",
+      "K-ConcatOp-5"
+    ],
+    [
+      "op-concat",
+      "K-ConcatOp-6"
+    ],
+    [
+      "op-concat",
+      "K-ConcatOp-7"
+    ],
+    [
+      "op-concat",
+      "K-ConcatOp-8"
+    ],
+    [
+      "op-concat",
+      "K-ConcatOp-9"
     ]
   ]
 }
