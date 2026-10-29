@@ -1951,3 +1951,12 @@ conformance claims. Smaller tested increments are committed independently.
   (two new, zero regressions), 273 failures, 264 harness errors and 153 exclusions.
 - Validation: ten result-document tests, all-target/all-feature Clippy and the
   full pinned XSLT regression gate pass.
+
+## Increment 167: encoding errors in comments and processing instructions
+
+- Restricted encodings report `SERE0008` for unrepresentable characters inside
+  comments and processing instructions, where character references cannot
+  preserve the node value. Representable characters remain unchanged.
+- Added US-ASCII failure cases and a representable Latin-1 comment regression.
+- Validation: encoding and result-document tests, all-target/all-feature Clippy
+  and the full 882-case pinned XSLT gate pass without regressions.

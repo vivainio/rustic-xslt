@@ -148,7 +148,7 @@ impl Encoding {
             rest = &rest[c.len_utf8()..];
             if (c as u32) <= self.limit() {
                 out.push(c);
-            } else if references {
+            } else if references && opaque_end.is_none() {
                 if cdata {
                     out.push_str("]]>");
                 }

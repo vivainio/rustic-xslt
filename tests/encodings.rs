@@ -59,3 +59,22 @@ fn cdata_section_elements_wrap_text_content() {
         "<r><a><![CDATA[1]]></a><b><![CDATA[2]]></b><c>3</c></r>"
     );
 }
+
+#[test]
+fn restricted_encodings_reject_unrepresentable_comment_and_pi_content() {
+    for body in [
+        "<xsl:comment>é</xsl:comment>",
+        "<xsl:processing-instruction name='p'>é</xsl:processing-instruction>",
+    ] {
+        let error = run(r#"encoding="US-ASCII""#, body).unwrap_err();
+        assert_eq!(error.code, "SERE0008");
+    }
+    assert_eq!(
+        run(
+            r#"encoding="ISO-8859-1" omit-xml-declaration="yes""#,
+            "<xsl:comment>é</xsl:comment>"
+        )
+        .unwrap(),
+        "<!--é-->"
+    );
+}
