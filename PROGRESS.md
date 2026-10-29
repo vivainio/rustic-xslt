@@ -957,3 +957,14 @@ conformance claims. Smaller tested increments are committed independently.
   recorded passing cases, and the new regex block cases add to the recorded set.
   Remaining large buckets: higher-order-function dependency (1,604 harness errors),
   maps and arrays, regex backreferences, resolve-uri/id/path/sort.
+
+## Increment 78: casts, contains-token and resolve-uri
+
+- Casting dates, times, durations and Gregorian fragments to numeric, boolean,
+  binary or URI types is now XPTY0004; integer-subtype range failures raise
+  FORG0001 as the casting rules require.
+- Added contains-token() with optional collations and resolve-uri() implementing
+  RFC 3986 reference resolution (dot-segment removal, query/fragment handling,
+  FORG0002 for malformed references or non-absolute bases, FONS0005 without a base).
+- Pinned QT3 run over 26,002 cases: 15,882+ pass with no regressions; the gate
+  records every passing case, now including cast, token and URI sets.

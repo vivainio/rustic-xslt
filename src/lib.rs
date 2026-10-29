@@ -22,6 +22,7 @@ mod string_type;
 mod temporal;
 mod trees;
 mod unicode_blocks;
+mod uri_resolution;
 mod whitespace;
 mod xpath;
 pub use stream::{StreamOptions, StreamStats};

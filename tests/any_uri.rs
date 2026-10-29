@@ -143,3 +143,49 @@ fn namespace_lookup_rejects_invalid_names_and_argument_types() {
         "http://www.w3.org/XML/1998/namespace"
     );
 }
+#[test]
+fn resolve_uri_follows_rfc_3986_reference_resolution() {
+    let run = |expression: &str| {
+        Stylesheet::compile(&format!(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:sequence select="{expression}"/></xsl:template></xsl:stylesheet>"#))
+            .unwrap()
+            .transform("<r/>")
+    };
+    let base = "http://a/b/c/d;p?q";
+    for (relative, expected) in [
+        ("g:h", "g:h"),
+        ("g", "http://a/b/c/g"),
+        ("./g", "http://a/b/c/g"),
+        ("g/", "http://a/b/c/g/"),
+        ("/g", "http://a/g"),
+        ("//g", "http://g"),
+        ("?y", "http://a/b/c/d;p?y"),
+        ("g?y#s", "http://a/b/c/g?y#s"),
+        ("#s", "http://a/b/c/d;p?q#s"),
+        ("", "http://a/b/c/d;p?q"),
+        (".", "http://a/b/c/"),
+        ("..", "http://a/b/"),
+        ("../g", "http://a/b/g"),
+        ("../../../g", "http://a/g"),
+        ("g/../h", "http://a/b/c/h"),
+    ] {
+        assert_eq!(
+            run(&format!("resolve-uri('{relative}', '{base}')")).unwrap(),
+            expected,
+            "{relative}"
+        );
+    }
+    assert_eq!(run("resolve-uri('http://x/y')").unwrap(), "http://x/y");
+    assert_eq!(run("empty(resolve-uri((), 'http://x/'))").unwrap(), "true");
+    assert_eq!(
+        run("resolve-uri('a', 'http://x') instance of xs:anyURI").unwrap(),
+        "true"
+    );
+    for (expression, code) in [
+        ("resolve-uri('a')", "FONS0005"),
+        ("resolve-uri('a', 'b/c')", "FORG0002"),
+        ("resolve-uri('a b', 'http://x/')", "FORG0002"),
+        ("resolve-uri('%zz', 'http://x/')", "FORG0002"),
+    ] {
+        assert_eq!(run(expression).unwrap_err().code, code, "{expression}");
+    }
+}

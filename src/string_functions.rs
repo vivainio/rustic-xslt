@@ -77,6 +77,32 @@ pub(crate) fn evaluate<'a>(
     budget: &mut Budget,
     backwards: bool,
 ) -> Result<Value<'a>, Diagnostic> {
+    if name == "contains-token" {
+        let collation = match args.get(2) {
+            Some(uri) => Collation::parse(&string(uri, false, backwards)?)?,
+            None => Collation::Codepoint,
+        };
+        let token = string(&args[1], false, backwards)?;
+        let token = collation.key(token.trim_matches([' ', '\t', '\r', '\n']));
+        let mut found = false;
+        for item in &args[0] {
+            let text = match xpath::atomize(item) {
+                Item::String(s)
+                | Item::Untyped(s)
+                | Item::AnyUri(s)
+                | Item::DerivedString(_, s) => s,
+                _ => return Err(type_error()),
+            };
+            for _ in text.bytes() {
+                budget.tick()?;
+            }
+            found |= !token.is_empty()
+                && text
+                    .split([' ', '\t', '\r', '\n'])
+                    .any(|part| collation.key(part) == token);
+        }
+        return Ok(vec![Item::Boolean(found)]);
+    }
     if name == "string-join" {
         let separator = args
             .get(1)

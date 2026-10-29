@@ -4659,6 +4659,126 @@
       "liam-contains-004"
     ],
     [
+      "fn-contains-token",
+      "fn-contains-token-09"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-10"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-11"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-12"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-13"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-14"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-15"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-16"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-17"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-18"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-19"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-21"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-39"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-40"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-41"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-42"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-43"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-44"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-45"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-46"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-47"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-48"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-49"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-51"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-60"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-61"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-62"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-63"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-64"
+    ],
+    [
+      "fn-contains-token",
+      "fn-contains-token-65"
+    ],
+    [
       "fn-count",
       "Count001"
     ],
@@ -6240,6 +6360,10 @@
     ],
     [
       "fn-deep-equal",
+      "cbcl-deep-equal-007"
+    ],
+    [
+      "fn-deep-equal",
       "cbcl-deep-equal-008"
     ],
     [
@@ -6853,6 +6977,10 @@
     [
       "fn-distinct-values",
       "fn-distinct-values-mixed-args-032"
+    ],
+    [
+      "fn-distinct-values",
+      "fn-distinct-values-mixed-args-033"
     ],
     [
       "fn-distinct-values",
@@ -18036,6 +18164,10 @@
     ],
     [
       "fn-number",
+      "K-NodeNumberFunc-15"
+    ],
+    [
+      "fn-number",
       "K-NodeNumberFunc-16"
     ],
     [
@@ -19449,6 +19581,150 @@
     [
       "fn-resolve-uri",
       "K-ResolveURIFunc-2"
+    ],
+    [
+      "fn-resolve-uri",
+      "K-ResolveURIFunc-3"
+    ],
+    [
+      "fn-resolve-uri",
+      "K-ResolveURIFunc-4"
+    ],
+    [
+      "fn-resolve-uri",
+      "K-ResolveURIFunc-5"
+    ],
+    [
+      "fn-resolve-uri",
+      "K-ResolveURIFunc-6"
+    ],
+    [
+      "fn-resolve-uri",
+      "cbcl-fn-resolve-uri-001"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-1"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-10"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-11"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-12"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-13"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-14"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-15"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-16"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-17"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-18"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-19"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-20"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-21"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-22"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-23"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-24"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-25"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-26"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-27"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-29"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-3"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-30"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-31"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-32"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-33"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-4"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-5"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-6"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-7"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-8"
+    ],
+    [
+      "fn-resolve-uri",
+      "fn-resolve-uri-9"
     ],
     [
       "fn-reverse",
@@ -42576,6 +42852,22 @@
     ],
     [
       "prod-CastExpr",
+      "CastAs279"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs280"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs281"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs282"
+    ],
+    [
+      "prod-CastExpr",
       "CastAs283"
     ],
     [
@@ -42640,6 +42932,10 @@
     ],
     [
       "prod-CastExpr",
+      "CastAs299"
+    ],
+    [
+      "prod-CastExpr",
       "CastAs300"
     ],
     [
@@ -42657,6 +42953,22 @@
     [
       "prod-CastExpr",
       "CastAs304"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs305"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs306"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs307"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs308"
     ],
     [
       "prod-CastExpr",
@@ -42708,6 +43020,10 @@
     ],
     [
       "prod-CastExpr",
+      "CastAs321"
+    ],
+    [
+      "prod-CastExpr",
       "CastAs322"
     ],
     [
@@ -42733,6 +43049,22 @@
     [
       "prod-CastExpr",
       "CastAs328"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs329"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs330"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs331"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs332"
     ],
     [
       "prod-CastExpr",
@@ -42796,6 +43128,10 @@
     ],
     [
       "prod-CastExpr",
+      "CastAs348"
+    ],
+    [
+      "prod-CastExpr",
       "CastAs349"
     ],
     [
@@ -42821,6 +43157,22 @@
     [
       "prod-CastExpr",
       "CastAs355"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs356"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs357"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs358"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs359"
     ],
     [
       "prod-CastExpr",
@@ -42896,6 +43248,10 @@
     ],
     [
       "prod-CastExpr",
+      "CastAs378"
+    ],
+    [
+      "prod-CastExpr",
       "CastAs379"
     ],
     [
@@ -42913,6 +43269,22 @@
     [
       "prod-CastExpr",
       "CastAs383"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs384"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs385"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs386"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs387"
     ],
     [
       "prod-CastExpr",
@@ -42968,6 +43340,10 @@
     ],
     [
       "prod-CastExpr",
+      "CastAs401"
+    ],
+    [
+      "prod-CastExpr",
       "CastAs402"
     ],
     [
@@ -42993,6 +43369,22 @@
     [
       "prod-CastExpr",
       "CastAs408"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs409"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs410"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs411"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs412"
     ],
     [
       "prod-CastExpr",
@@ -43068,6 +43460,10 @@
     ],
     [
       "prod-CastExpr",
+      "CastAs431"
+    ],
+    [
+      "prod-CastExpr",
       "CastAs432"
     ],
     [
@@ -43085,6 +43481,26 @@
     [
       "prod-CastExpr",
       "CastAs436"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs437"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs438"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs439"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs440"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs441"
     ],
     [
       "prod-CastExpr",
@@ -43140,6 +43556,10 @@
     ],
     [
       "prod-CastExpr",
+      "CastAs455"
+    ],
+    [
+      "prod-CastExpr",
       "CastAs456"
     ],
     [
@@ -43157,6 +43577,22 @@
     [
       "prod-CastExpr",
       "CastAs460"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs461"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs462"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs463"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs464"
     ],
     [
       "prod-CastExpr",
@@ -43208,6 +43644,10 @@
     ],
     [
       "prod-CastExpr",
+      "CastAs477"
+    ],
+    [
+      "prod-CastExpr",
       "CastAs478"
     ],
     [
@@ -43225,6 +43665,22 @@
     [
       "prod-CastExpr",
       "CastAs482"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs483"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs484"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs485"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs486"
     ],
     [
       "prod-CastExpr",
@@ -43280,6 +43736,10 @@
     ],
     [
       "prod-CastExpr",
+      "CastAs500"
+    ],
+    [
+      "prod-CastExpr",
       "CastAs501"
     ],
     [
@@ -43297,6 +43757,22 @@
     [
       "prod-CastExpr",
       "CastAs505"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs506"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs507"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs508"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs509"
     ],
     [
       "prod-CastExpr",
@@ -43352,6 +43828,10 @@
     ],
     [
       "prod-CastExpr",
+      "CastAs523"
+    ],
+    [
+      "prod-CastExpr",
       "CastAs524"
     ],
     [
@@ -43369,6 +43849,22 @@
     [
       "prod-CastExpr",
       "CastAs528"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs529"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs530"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs531"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs532"
     ],
     [
       "prod-CastExpr",
@@ -43421,6 +43917,10 @@
     [
       "prod-CastExpr",
       "CastAs545"
+    ],
+    [
+      "prod-CastExpr",
+      "CastAs546"
     ],
     [
       "prod-CastExpr",
@@ -44064,6 +44564,38 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-1012"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-1013"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-1014"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-1015"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-1016"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-1017"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-1018"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-1019"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-102"
     ],
     [
@@ -44164,6 +44696,10 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-1042"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-1043"
     ],
     [
@@ -44252,11 +44788,23 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-1064"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-1065"
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-1066"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-1067"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-1068"
     ],
     [
       "prod-CastExpr",
@@ -44265,6 +44813,10 @@
     [
       "prod-CastExpr",
       "K-SeqExprCast-107"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-1070"
     ],
     [
       "prod-CastExpr",
@@ -44368,6 +44920,10 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-1094"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-1095"
     ],
     [
@@ -44456,7 +45012,15 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-1116"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-1117"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-1118"
     ],
     [
       "prod-CastExpr",
@@ -44468,7 +45032,15 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-1120"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-1121"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-1122"
     ],
     [
       "prod-CastExpr",
@@ -44572,6 +45144,10 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-1146"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-1147"
     ],
     [
@@ -44660,6 +45236,10 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-1168"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-1169"
     ],
     [
@@ -44668,11 +45248,23 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-1170"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-1171"
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-1172"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-1173"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-1174"
     ],
     [
       "prod-CastExpr",
@@ -44773,6 +45365,10 @@
     [
       "prod-CastExpr",
       "K-SeqExprCast-1197"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-1198"
     ],
     [
       "prod-CastExpr",
@@ -48196,6 +48792,10 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-648"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-649"
     ],
     [
@@ -48204,11 +48804,23 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-650"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-651"
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-652"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-653"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-654"
     ],
     [
       "prod-CastExpr",
@@ -48312,6 +48924,10 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-678"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-679"
     ],
     [
@@ -48404,7 +49020,15 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-700"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-701"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-702"
     ],
     [
       "prod-CastExpr",
@@ -48412,7 +49036,15 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-704"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-705"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-706"
     ],
     [
       "prod-CastExpr",
@@ -48520,6 +49152,10 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-730"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-731"
     ],
     [
@@ -48608,7 +49244,15 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-752"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-753"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-754"
     ],
     [
       "prod-CastExpr",
@@ -48616,7 +49260,15 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-756"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-757"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-758"
     ],
     [
       "prod-CastExpr",
@@ -48724,6 +49376,10 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-782"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-783"
     ],
     [
@@ -48816,11 +49472,23 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-804"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-805"
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-806"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-807"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-808"
     ],
     [
       "prod-CastExpr",
@@ -48829,6 +49497,10 @@
     [
       "prod-CastExpr",
       "K-SeqExprCast-81"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-810"
     ],
     [
       "prod-CastExpr",
@@ -48932,6 +49604,10 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-834"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-835"
     ],
     [
@@ -49020,7 +49696,15 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-856"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-857"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-858"
     ],
     [
       "prod-CastExpr",
@@ -49032,7 +49716,15 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-860"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-861"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-862"
     ],
     [
       "prod-CastExpr",
@@ -49136,6 +49828,10 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-886"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-887"
     ],
     [
@@ -49224,6 +49920,10 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-908"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-909"
     ],
     [
@@ -49232,11 +49932,23 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-910"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-911"
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-912"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-913"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-914"
     ],
     [
       "prod-CastExpr",
@@ -49340,6 +50052,10 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-938"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-939"
     ],
     [
@@ -49432,7 +50148,15 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-960"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-961"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-962"
     ],
     [
       "prod-CastExpr",
@@ -49440,7 +50164,15 @@
     ],
     [
       "prod-CastExpr",
+      "K-SeqExprCast-964"
+    ],
+    [
+      "prod-CastExpr",
       "K-SeqExprCast-965"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-966"
     ],
     [
       "prod-CastExpr",
@@ -49545,6 +50277,10 @@
     [
       "prod-CastExpr",
       "K-SeqExprCast-99"
+    ],
+    [
+      "prod-CastExpr",
+      "K-SeqExprCast-990"
     ],
     [
       "prod-CastExpr",
@@ -50368,6 +51104,10 @@
     ],
     [
       "prod-CastExpr",
+      "K2-SeqExprCast-28"
+    ],
+    [
+      "prod-CastExpr",
       "K2-SeqExprCast-280"
     ],
     [
@@ -50405,6 +51145,10 @@
     [
       "prod-CastExpr",
       "K2-SeqExprCast-289"
+    ],
+    [
+      "prod-CastExpr",
+      "K2-SeqExprCast-29"
     ],
     [
       "prod-CastExpr",
@@ -50449,6 +51193,10 @@
     [
       "prod-CastExpr",
       "K2-SeqExprCast-3"
+    ],
+    [
+      "prod-CastExpr",
+      "K2-SeqExprCast-30"
     ],
     [
       "prod-CastExpr",
@@ -51272,6 +52020,10 @@
     ],
     [
       "prod-CastExpr",
+      "K2-SeqExprCast-49"
+    ],
+    [
+      "prod-CastExpr",
       "K2-SeqExprCast-490"
     ],
     [
@@ -52052,6 +52804,14 @@
     ],
     [
       "prod-CastExpr.derived",
+      "cbcl-cast-byte-001"
+    ],
+    [
+      "prod-CastExpr.derived",
+      "cbcl-cast-byte-002"
+    ],
+    [
+      "prod-CastExpr.derived",
       "cbcl-cast-byte-003"
     ],
     [
@@ -52136,6 +52896,14 @@
     ],
     [
       "prod-CastExpr.derived",
+      "cbcl-cast-int-001"
+    ],
+    [
+      "prod-CastExpr.derived",
+      "cbcl-cast-int-002"
+    ],
+    [
+      "prod-CastExpr.derived",
       "cbcl-cast-int-003"
     ],
     [
@@ -52164,6 +52932,14 @@
     ],
     [
       "prod-CastExpr.derived",
+      "cbcl-cast-long-001"
+    ],
+    [
+      "prod-CastExpr.derived",
+      "cbcl-cast-long-002"
+    ],
+    [
+      "prod-CastExpr.derived",
       "cbcl-cast-long-003"
     ],
     [
@@ -52188,6 +52964,10 @@
     ],
     [
       "prod-CastExpr.derived",
+      "cbcl-cast-negativeInteger-001"
+    ],
+    [
+      "prod-CastExpr.derived",
       "cbcl-cast-negativeInteger-002"
     ],
     [
@@ -52200,11 +52980,19 @@
     ],
     [
       "prod-CastExpr.derived",
+      "cbcl-cast-nonNegativeInteger-001"
+    ],
+    [
+      "prod-CastExpr.derived",
       "cbcl-cast-nonNegativeInteger-002"
     ],
     [
       "prod-CastExpr.derived",
       "cbcl-cast-nonNegativeInteger-003"
+    ],
+    [
+      "prod-CastExpr.derived",
+      "cbcl-cast-nonPositiveInteger-001"
     ],
     [
       "prod-CastExpr.derived",
@@ -52220,7 +53008,19 @@
     ],
     [
       "prod-CastExpr.derived",
+      "cbcl-cast-positiveInteger-001"
+    ],
+    [
+      "prod-CastExpr.derived",
       "cbcl-cast-positiveInteger-002"
+    ],
+    [
+      "prod-CastExpr.derived",
+      "cbcl-cast-short-001"
+    ],
+    [
+      "prod-CastExpr.derived",
+      "cbcl-cast-short-002"
     ],
     [
       "prod-CastExpr.derived",
@@ -52236,6 +53036,14 @@
     ],
     [
       "prod-CastExpr.derived",
+      "cbcl-cast-unsignedByte-001"
+    ],
+    [
+      "prod-CastExpr.derived",
+      "cbcl-cast-unsignedByte-002"
+    ],
+    [
+      "prod-CastExpr.derived",
       "cbcl-cast-unsignedByte-003"
     ],
     [
@@ -52245,6 +53053,14 @@
     [
       "prod-CastExpr.derived",
       "cbcl-cast-unsignedByte-005"
+    ],
+    [
+      "prod-CastExpr.derived",
+      "cbcl-cast-unsignedInt-001"
+    ],
+    [
+      "prod-CastExpr.derived",
+      "cbcl-cast-unsignedInt-002"
     ],
     [
       "prod-CastExpr.derived",
@@ -52260,6 +53076,14 @@
     ],
     [
       "prod-CastExpr.derived",
+      "cbcl-cast-unsignedLong-001"
+    ],
+    [
+      "prod-CastExpr.derived",
+      "cbcl-cast-unsignedLong-002"
+    ],
+    [
+      "prod-CastExpr.derived",
       "cbcl-cast-unsignedLong-003"
     ],
     [
@@ -52269,6 +53093,14 @@
     [
       "prod-CastExpr.derived",
       "cbcl-cast-unsignedLong-005"
+    ],
+    [
+      "prod-CastExpr.derived",
+      "cbcl-cast-unsignedShort-001"
+    ],
+    [
+      "prod-CastExpr.derived",
+      "cbcl-cast-unsignedShort-002"
     ],
     [
       "prod-CastExpr.derived",
@@ -54121,6 +54953,22 @@
     [
       "prod-CastableExpr",
       "CastableAs460"
+    ],
+    [
+      "prod-CastableExpr",
+      "CastableAs461"
+    ],
+    [
+      "prod-CastableExpr",
+      "CastableAs462"
+    ],
+    [
+      "prod-CastableExpr",
+      "CastableAs463"
+    ],
+    [
+      "prod-CastableExpr",
+      "CastableAs464"
     ],
     [
       "prod-CastableExpr",

@@ -1106,6 +1106,8 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "subsequence" | "deep-equal" | "index-of" => (2, 3),
         "contains" | "starts-with" | "ends-with" | "substring-before" | "substring-after" => (2, 3),
         "string-join" => (1, 2),
+        "contains-token" => (2, 3),
+        "resolve-uri" => (1, 2),
         "matches" => (2, 3),
         "replace" => (3, 4),
         "tokenize" => (1, 3),
@@ -2120,6 +2122,36 @@ fn function<'a>(
             }
         });
     }
+    if name == "resolve-uri" {
+        let text = |v: &[Item<'a>], optional: bool| -> Result<Option<String>, Diagnostic> {
+            match v {
+                [] if optional => Ok(None),
+                [item] => match atomize(item) {
+                    Item::String(s)
+                    | Item::Untyped(s)
+                    | Item::AnyUri(s)
+                    | Item::DerivedString(_, s) => Ok(Some(s)),
+                    _ => Err(err("XPTY0004", "resolve-uri requires string arguments")),
+                },
+                _ => Err(err("XPTY0004", "resolve-uri requires singleton arguments")),
+            }
+        };
+        let Some(relative) = text(&args[0], true)? else {
+            return Ok(vec![]);
+        };
+        let base = match args.get(1) {
+            Some(base) => text(base, false)?,
+            None => None,
+        };
+        for _ in relative.bytes().chain(base.iter().flat_map(|b| b.bytes())) {
+            budget.tick()?;
+        }
+        return Ok(vec![Item::AnyUri(crate::uri_resolution::resolve(
+            relative.trim_matches([' ', '\t', '\r', '\n']),
+            base.as_deref()
+                .map(|b| b.trim_matches([' ', '\t', '\r', '\n'])),
+        )?)]);
+    }
     if name == "default-collation" {
         return Ok(vec![Item::AnyUri(
             "http://www.w3.org/2005/xpath-functions/collation/codepoint".into(),
@@ -2410,6 +2442,7 @@ fn function<'a>(
             | "substring-before"
             | "substring-after"
             | "string-join"
+            | "contains-token"
     ) {
         return crate::string_functions::evaluate(name, args, budget, backwards);
     }
@@ -2458,6 +2491,15 @@ fn function<'a>(
                 }
             };
             return Ok(vec![Item::Binary(kind, bytes)]);
+        }
+        if matches!(item, Item::Temporal(_))
+            && !matches!(kind, "string" | "untypedAtomic")
+            && crate::string_type::StringType::parse(kind).is_none()
+        {
+            return Err(err(
+                "XPTY0004",
+                "date, time or duration cannot be cast to this type",
+            ));
         }
         if matches!(item, Item::Binary(_, _))
             && !matches!(kind, "string" | "untypedAtomic")

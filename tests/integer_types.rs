@@ -58,16 +58,16 @@ fn restriction_facets_and_subtype_hierarchy_preserve_type_identity() {
     }
 }
 #[test]
-fn bounds_errors_distinguish_numeric_casts_from_invalid_lexical_values() {
+fn bounds_errors_use_the_derived_type_lexical_error() {
     for (expr, code) in [
         ("xs:byte('128')", "FORG0001"),
-        ("xs:byte(128)", "FOCA0002"),
+        ("xs:byte(128)", "FORG0001"),
         ("xs:unsignedLong('18446744073709551616')", "FORG0001"),
-        ("xs:unsignedByte(-1)", "FOCA0002"),
-        ("xs:negativeInteger(0)", "FOCA0002"),
+        ("xs:unsignedByte(-1)", "FORG0001"),
+        ("xs:negativeInteger(0)", "FORG0001"),
         ("xs:positiveInteger('0')", "FORG0001"),
-        ("xs:nonPositiveInteger(1)", "FOCA0002"),
-        ("xs:nonNegativeInteger(-1)", "FOCA0002"),
+        ("xs:nonPositiveInteger(1)", "FORG0001"),
+        ("xs:nonNegativeInteger(-1)", "FORG0001"),
         ("xs:int('1.0')", "FORG0001"),
     ] {
         assert_eq!(

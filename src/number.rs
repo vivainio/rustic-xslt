@@ -194,7 +194,7 @@ impl Number {
                 Ok(Self::DerivedInteger(kind, value))
             } else {
                 Err(error(
-                    "FOCA0002",
+                    "FORG0001",
                     "numeric value is outside the integer subtype bounds",
                 ))
             };

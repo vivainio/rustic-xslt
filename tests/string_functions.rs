@@ -438,3 +438,28 @@ fn ascii_case_insensitive_and_caseblind_collations_fold_search_and_compare() {
     }
     assert!(run("contains('a', 'a', 'urn:unknown')".into()).is_err());
 }
+#[test]
+fn contains_token_matches_whitespace_separated_tokens() {
+    let run = |expression: &str| {
+        Stylesheet::compile(&format!(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:sequence select="{expression}"/></xsl:template></xsl:stylesheet>"#))
+            .unwrap()
+            .transform("<r/>")
+    };
+    for (expression, expected) in [
+        ("contains-token('a b c', 'b')", "true"),
+        ("contains-token('a b c', ' b ')", "true"),
+        ("contains-token('a b c', 'B')", "false"),
+        ("contains-token(('x', 'a  b'), 'b')", "true"),
+        ("contains-token('a b', 'a b')", "false"),
+        ("contains-token('a b', '')", "false"),
+        ("contains-token((), 'a')", "false"),
+        (
+            "contains-token('A b', 'a', 'http://www.w3.org/2005/xpath-functions/collation/html-ascii-case-insensitive')",
+            "true",
+        ),
+    ] {
+        assert_eq!(run(expression).unwrap(), expected, "{expression}");
+    }
+    assert!(run("contains-token('a', ())").is_err());
+    assert!(run("contains-token('a', 'a', 'urn:unknown')").is_err());
+}
