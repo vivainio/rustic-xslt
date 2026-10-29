@@ -1644,3 +1644,21 @@ conformance claims. Smaller tested increments are committed independently.
   reaching the engine accounts for four additional explicit failures.
 - Validation: all 41 Python harness tests, whitespace checks and the expanded
   pinned XSLT gate pass. No Rust implementation changes in this increment.
+
+## Increment 139: predicate match patterns and item dispatch
+
+- Added bare-dot and dot-predicate match patterns with singleton predicate focus,
+  priority handling and static variable-scope validation. Template and grouping
+  dispatch now test atomic, map, array and function items as well as nodes.
+- Implemented text-only, shallow-skip and copy behavior for non-node items,
+  including array-member dispatch, forwarded parameters and serialization errors
+  for maps and functions. Record streaming rejects predicate patterns it cannot
+  evaluate locally.
+- Added coverage for predicate position/last, default priorities and
+  next-match, function items, built-in mode policies, array parameters, and atomic
+  grouping. Updated the prior grouping expectation for atomic population items.
+- Expanded the pinned XSLT gate to 754 passing cases (13 new, zero regressions),
+  401 engine failures, 264 harness errors and 153 profile exclusions across 1,572
+  selected cases. All 18,735 QT3 baseline cases remain green.
+- Validation: all-feature Rust tests, all-target/all-feature Clippy, 41 Python
+  harness tests, and both pinned gates pass.

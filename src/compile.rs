@@ -3371,6 +3371,13 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     if let Grouping::By(g) | Grouping::Adjacent(g) = grouping {
                         expression(g, &scope)?;
                     }
+                    if let Grouping::Starting(branches) | Grouping::Ending(branches) = grouping {
+                        for branch in branches {
+                            for predicate in crate::pattern::expressions(branch) {
+                                expression(predicate, &scope)?;
+                            }
+                        }
+                    }
                     for k in keys {
                         expression(&k.select, &scope)?;
                     }
@@ -3475,6 +3482,11 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
     }
     for definitions in sheet.keys.values() {
         for definition in definitions {
+            for branch in &definition.branches {
+                for predicate in crate::pattern::expressions(branch) {
+                    expression(predicate, &globals)?;
+                }
+            }
             expression(&definition.value, &globals)?;
         }
     }
@@ -3486,10 +3498,8 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
     for t in &sheet.templates {
         if let Some(branches) = &t.pattern {
             for b in branches {
-                for s in &b.steps {
-                    for p in &s.predicates {
-                        expression(p, &globals)?;
-                    }
+                for expression_in_pattern in crate::pattern::expressions(b) {
+                    expression(expression_in_pattern, &globals)?;
                 }
             }
         }

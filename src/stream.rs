@@ -461,12 +461,16 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                         for template in &sheet.templates {
                             if let Some(branches) = &template.pattern {
                                 if branches.iter().any(|b| {
-                                    !b.steps.is_empty()
-                                        && (b.absolute
-                                            || b.steps.len() != 1
-                                            || b.selected.is_some()
-                                            || b.gaps.iter().any(|g| *g)
-                                            || !b.steps[0].predicates.is_empty())
+                                    b.predicate
+                                        .as_ref()
+                                        .is_some_and(|predicates| !predicates.is_empty())
+                                        || b.selected.is_some()
+                                        || !b.steps.is_empty()
+                                            && (b.absolute
+                                                || b.steps.len() != 1
+                                                || b.selected.is_some()
+                                                || b.gaps.iter().any(|g| *g)
+                                                || !b.steps[0].predicates.is_empty())
                                 }) {
                                     return Err(unsupported(
                                         "streamed dispatch currently requires single-step, predicate-free patterns",

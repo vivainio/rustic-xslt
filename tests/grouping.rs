@@ -46,10 +46,8 @@ fn starting_and_ending_patterns_split_node_sequences() {
         "XTDE1071"
     );
     assert_eq!(
-        run("<xsl:for-each-group select='1 to 3' group-starting-with='h'/>")
-            .unwrap_err()
-            .code,
-        "XTTE1120"
+        run("<xsl:for-each-group select='1 to 3' group-starting-with='h'><xsl:value-of select='count(current-group())'/></xsl:for-each-group>").unwrap(),
+        "3"
     );
 }
 #[test]

@@ -83,6 +83,15 @@ fn static_stream_rejection_happens_before_any_input_or_output() {
         assert_eq!(e.code, "RUST_XSLT_STREAM_UNSUPPORTED");
         assert!(output.is_empty());
     }
+    let s = sheet(r#"<xsl:template match=".[true()]"/>"#);
+    let mut output = vec![];
+    assert_eq!(
+        s.stream_records(Unreadable, &mut output, &StreamOptions::default())
+            .unwrap_err()
+            .code,
+        "RUST_XSLT_STREAM_UNSUPPORTED"
+    );
+    assert!(output.is_empty());
 }
 #[test]
 fn unsafe_globals_and_indirect_calls_are_rejected() {

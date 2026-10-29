@@ -136,6 +136,10 @@
     ],
     [
       "apply-templates",
+      "conflict-resolution-1601"
+    ],
+    [
+      "apply-templates",
       "conflict-resolution-1701"
     ],
     [
@@ -1316,6 +1320,10 @@
     ],
     [
       "match",
+      "match-060"
+    ],
+    [
+      "match",
       "match-061"
     ],
     [
@@ -1460,6 +1468,34 @@
     ],
     [
       "match",
+      "match-127"
+    ],
+    [
+      "match",
+      "match-128"
+    ],
+    [
+      "match",
+      "match-129"
+    ],
+    [
+      "match",
+      "match-130"
+    ],
+    [
+      "match",
+      "match-131"
+    ],
+    [
+      "match",
+      "match-134"
+    ],
+    [
+      "match",
+      "match-135"
+    ],
+    [
+      "match",
       "match-215"
     ],
     [
@@ -1472,7 +1508,23 @@
     ],
     [
       "match",
+      "match-240a"
+    ],
+    [
+      "match",
+      "match-240b"
+    ],
+    [
+      "match",
+      "match-240c"
+    ],
+    [
+      "match",
       "match-245"
+    ],
+    [
+      "match",
+      "match-246a"
     ],
     [
       "match",

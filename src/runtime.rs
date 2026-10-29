@@ -512,16 +512,9 @@ fn form_groups<'a>(
             let mut after_end = true;
             for item in &items {
                 budget.tick()?;
-                let Item::Node(node) = item else {
-                    return Err(Diagnostic::new(
-                        "XTTE1120",
-                        "group-starting-with and group-ending-with require nodes",
-                        "run",
-                    ));
-                };
                 let mut hit = false;
                 for branch in branches {
-                    if crate::pattern::matches(branch, *node, env, budget, backwards)? {
+                    if crate::pattern::matches_item(branch, item, env, budget, backwards)? {
                         hit = true;
                         break;
                     }
@@ -1423,13 +1416,6 @@ fn run_tasks<'a>(
                 if depth > limits.max_depth {
                     return Err(limit());
                 }
-                let Item::Node(node) = focus.item else {
-                    return Err(Diagnostic::new(
-                        "XTTE0520",
-                        "apply-templates requires nodes",
-                        "run",
-                    ));
-                };
                 let definition = sheet.modes.get(&mode).copied().unwrap_or_default();
                 let mut best: Option<Rule> = None;
                 let mut ambiguous = false;
@@ -1452,8 +1438,13 @@ fn run_tasks<'a>(
                             if best.is_some_and(|best| candidate.rank(best).is_lt()) {
                                 continue;
                             }
-                            if crate::pattern::matches(b, node, &globals, budget, sheet.backwards)?
-                            {
+                            if crate::pattern::matches_item(
+                                b,
+                                &focus.item,
+                                &globals,
+                                budget,
+                                sheet.backwards,
+                            )? {
                                 if let Some(previous) = best {
                                     if candidate.rank(previous).is_gt() {
                                         ambiguous = false;
@@ -1496,6 +1487,43 @@ fn run_tasks<'a>(
                             "run",
                         ));
                     }
+                    let Item::Node(node) = focus.item else {
+                        match policy {
+                            P::DeepCopy | P::ShallowCopy => {
+                                emit_value(vec![focus.item], &mut tasks, depth, true)
+                            }
+                            P::TextOnlyCopy | P::ShallowSkip => match focus.item {
+                                Item::Array(members) => {
+                                    let members = members.iter().flatten().cloned().collect();
+                                    for member_focus in focus_sequence(members).into_iter().rev() {
+                                        tasks.push(Task::Apply(
+                                            member_focus,
+                                            depth + 1,
+                                            mode.clone(),
+                                            params.clone(),
+                                            None,
+                                        ));
+                                    }
+                                }
+                                Item::Map(_) | Item::Function(_) | Item::Absent => {}
+                                atomic if policy == P::TextOnlyCopy => {
+                                    let text = atomic.string();
+                                    if raw_active(&captures) {
+                                        captures.last_mut().unwrap().items.extend(raw_text(
+                                            &text,
+                                            trees,
+                                            limits.max_output_bytes,
+                                        )?);
+                                    } else {
+                                        output.text(&text)?;
+                                    }
+                                }
+                                _ => {}
+                            },
+                            _ => {}
+                        }
+                        continue;
+                    };
                     if policy == P::DeepCopy {
                         if raw_active(&captures) {
                             tasks.push(Task::RawCopy(Item::Node(node), depth, true));
@@ -1944,6 +1972,24 @@ fn run_tasks<'a>(
                                 return Err(Diagnostic::new(
                                     "XPDY0002",
                                     "copy requires a context item",
+                                    "run",
+                                ));
+                            }
+                            Item::Array(members) => {
+                                if depth > limits.max_depth {
+                                    return Err(limit());
+                                }
+                                emit_value(
+                                    members.iter().flatten().cloned().collect(),
+                                    &mut tasks,
+                                    depth + 1,
+                                    *namespaces,
+                                );
+                            }
+                            Item::Map(_) | Item::Function(_) => {
+                                return Err(Diagnostic::new(
+                                    "SENR0001",
+                                    "a function item cannot be serialized as XML or text",
                                     "run",
                                 ));
                             }
@@ -2821,6 +2867,24 @@ fn run_tasks<'a>(
                 } else {
                     match item {
                         Item::Node(n) => tasks.push(Task::DeepCopy(n, depth + 1, namespaces)),
+                        Item::Array(members) => {
+                            if depth > limits.max_depth {
+                                return Err(limit());
+                            }
+                            emit_value(
+                                members.iter().flatten().cloned().collect(),
+                                &mut tasks,
+                                depth + 1,
+                                namespaces,
+                            );
+                        }
+                        Item::Map(_) | Item::Function(_) => {
+                            return Err(Diagnostic::new(
+                                "SENR0001",
+                                "a function item cannot be serialized as XML or text",
+                                "run",
+                            ));
+                        }
                         atomic => output.atomic(&atomic.string_compat(sheet.backwards))?,
                     }
                 }
