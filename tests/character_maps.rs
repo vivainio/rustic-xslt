@@ -28,3 +28,10 @@ fn character_maps_can_use_other_maps_and_errors_are_static() {
     let long = r#"<xsl:character-map name="a"><xsl:output-character character="ab" string="x"/></xsl:character-map>"#;
     assert_eq!(run(long, "<p/>").unwrap_err().code, "XTSE0020");
 }
+
+#[test]
+fn result_document_maps_are_checked_in_unexecuted_branches() {
+    let error = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><xsl:if test="false()"><xsl:result-document use-character-maps="missing"/></xsl:if></xsl:template></xsl:stylesheet>"#).err().unwrap();
+    assert_eq!(error.code, "XTSE1590");
+    assert_eq!(error.phase, "compile");
+}

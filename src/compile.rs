@@ -3122,6 +3122,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
     struct TemplateNames<'a> {
         named: BTreeMap<String, &'a Template>,
         attribute_sets: BTreeSet<String>,
+        character_maps: BTreeSet<String>,
         backwards: bool,
     }
     fn expression(e: &Expr, scope: &Scope) -> Result<(), Diagnostic> {
@@ -3337,6 +3338,15 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     instructions(on_non_empty, scope.clone(), templates)?;
                 }
                 Instruction::ResultDocument(spec) => {
+                    for name in &spec.character_maps {
+                        if !templates.character_maps.contains(name) {
+                            return Err(Diagnostic::new(
+                                "XTSE1590",
+                                format!("unknown character map: {name}"),
+                                "compile",
+                            ));
+                        }
+                    }
                     parts(&spec.href, &scope)?;
                     for value in [&spec.doctype_public, &spec.doctype_system]
                         .into_iter()
@@ -3533,6 +3543,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
     }
     let templates = TemplateNames {
         attribute_sets: sheet.attribute_sets.keys().cloned().collect(),
+        character_maps: sheet.character_maps.keys().cloned().collect(),
         named: sheet
             .templates
             .iter()

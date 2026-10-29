@@ -1808,3 +1808,12 @@ conformance claims. Smaller tested increments are committed independently.
   287 engine failures, 264 harness errors and 153 profile exclusions.
 - Validation: character-map and result-document tests, all-target/all-feature
   Clippy and the full pinned XSLT gate pass.
+
+## Increment 152: static result-document character-map checks
+
+- Result-document character-map references are validated during compilation,
+  including instructions in branches that never execute. Unknown maps report
+  `XTSE1590` before transformation begins.
+- Added a regression for an unknown map under `xsl:if test="false()"`.
+- Validation: character-map tests, all-target/all-feature Clippy and the full
+  868-case pinned XSLT regression gate pass without regressions.
