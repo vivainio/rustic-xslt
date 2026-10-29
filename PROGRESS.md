@@ -2222,3 +2222,13 @@ conformance claims. Smaller tested increments are committed independently.
 - Added a BOM-enabled regression verifying that rejection leaves output empty.
 - Validation: fourteen streaming tests, all-target/all-feature Clippy, formatting
   and diff checks pass.
+
+## Increment 196: explicit principal media-type overrides
+
+- Implicit principal media-type validation is deferred until that result is
+  selected, allowing explicit principal result documents to replace unused
+  invalid implicit settings. Explicit result settings remain validated directly;
+  streaming retains validation before preamble output.
+- Added a regression overriding an implicit charset-bearing media type.
+- Validation: result-document and streaming tests, all-target/all-feature Clippy
+  and the full 929-case pinned XSLT gate pass without regressions.

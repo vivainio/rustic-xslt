@@ -175,3 +175,11 @@ fn explicit_charset_parameters_in_media_types_are_rejected() {
     let valid = run(r#"<xsl:result-document method="html" media-type='text/html; note="x;charset=y"'><head/></xsl:result-document>"#).unwrap();
     assert!(valid.principal.contains("charset=UTF-8"));
 }
+
+#[test]
+fn explicit_principal_media_type_overrides_unused_implicit_settings() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="html" media-type="text/html; charset=wrong"/><xsl:template match="/"><xsl:result-document media-type="text/html"><html><head/></html></xsl:result-document></xsl:template></xsl:stylesheet>"#).unwrap();
+    let output = sheet.transform("<r/>").unwrap();
+    assert!(output.contains("content=\"text/html; charset=UTF-8\""));
+    assert!(!output.contains("wrong"));
+}

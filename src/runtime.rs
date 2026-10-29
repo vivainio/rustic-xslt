@@ -1063,9 +1063,6 @@ fn execute<'a>(
         pending = remaining;
     }
     let globals = Rc::new(globals);
-    if let Some(media) = &sheet.media_type {
-        crate::result::validate_media_type(media)?;
-    }
     let output = Output::new(limits.max_output_bytes, sheet.text_output)
         .with_serialization(sheet.markup, sheet.doctype.clone())
         .with_uri_escaping(sheet.escape_uri_attributes)
@@ -1164,6 +1161,9 @@ fn execute<'a>(
     }
     if budget.principal_output_claimed {
         return Ok(std::mem::take(&mut budget.principal_output));
+    }
+    if let Some(media) = &sheet.media_type {
+        crate::result::validate_media_type(media)?;
     }
     if declaration {
         let mut prefix = String::new();
