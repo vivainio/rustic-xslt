@@ -1031,7 +1031,9 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "xs:string" | "xs:untypedAtomic" | "xs:integer" | "xs:decimal" | "xs:double"
         | "xs:float" | "xs:boolean" | "xs:QName" | "xs:anyURI" | "xs:hexBinary"
         | "xs:base64Binary" => (1, 1),
-        "true" | "false" | "position" | "last" => (0, 0),
+        "true" | "false" | "position" | "last" | "default-collation" => (0, 0),
+        "trace" => (1, 2),
+        "nilled" => (1, 1),
         "error" => (0, 3),
         "QName" => (2, 2),
         "namespace-uri-from-QName" | "prefix-from-QName" | "local-name-from-QName" => (1, 1),
@@ -1835,7 +1837,7 @@ fn function<'a>(
     }
     if args.is_empty()
         && matches!(focus.item, Item::Absent)
-        && !["true", "false", "position", "last"].contains(&name)
+        && !["true", "false", "position", "last", "default-collation"].contains(&name)
     {
         return Err(err("XPDY0002", "context item is absent"));
     }
@@ -1928,6 +1930,41 @@ fn function<'a>(
             current = node.parent();
         }
         return Ok(vec![Item::Boolean(false)]);
+    }
+    if name == "default-collation" {
+        return Ok(vec![Item::AnyUri(
+            "http://www.w3.org/2005/xpath-functions/collation/codepoint".into(),
+        )]);
+    }
+    if name == "nilled" {
+        return match first.as_slice() {
+            [] => Ok(vec![]),
+            [Item::Node(node)] if node.is_element() => Ok(vec![Item::Boolean(false)]),
+            [Item::Node(_)] => Ok(vec![]),
+            _ => Err(err(
+                "XPTY0004",
+                "nilled requires an optional singleton node",
+            )),
+        };
+    }
+    if name == "trace" {
+        if let Some(label) = args.get(1) {
+            let [item] = label.as_slice() else {
+                return Err(err("XPTY0004", "trace label must be a singleton string"));
+            };
+            if !matches!(
+                atomize(item),
+                Item::String(_) | Item::Untyped(_) | Item::AnyUri(_)
+            ) {
+                return Err(err("XPTY0004", "trace label must be a string"));
+            }
+        }
+        let mut result = Vec::with_capacity(first.len());
+        for item in first {
+            budget.tick()?;
+            result.push(item.clone());
+        }
+        return Ok(result);
     }
     if name == "unordered" {
         for _ in first {

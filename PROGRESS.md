@@ -890,3 +890,10 @@ conformance claims. Smaller tested increments are committed independently.
 - Combined selection: 5,517 cases, 4,024 pass / 383 engine failures / 235 harness
   errors / 875 profile exclusions. All prior passing cases remain green.
 - All 399 Rust tests, 27 harness tests, formatting and Clippy pass.
+
+## Increment 73: trace, nilled and default collation
+
+- Added trace() (value passthrough with validated label), nilled() (false for
+  elements, empty otherwise) and default-collation() (codepoint collation URI).
+- Regression tests cover cardinality, type errors and empty inputs. The QT3 suite
+  is not checked out in this environment, so conformance counts are not refreshed.

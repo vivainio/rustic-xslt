@@ -234,3 +234,20 @@ fn atomic_sequence_functions_check_collations_cardinality_and_budgets() {
         "XPDY0130"
     );
 }
+#[test]
+fn trace_returns_its_value_and_nilled_default_collation_are_defined() {
+    assert_eq!(
+        sheet("trace((1,2,3), 'x')").transform("<r/>").unwrap(),
+        "1 2 3"
+    );
+    assert_eq!(sheet("trace(())").transform("<r/>").unwrap(), "");
+    assert!(sheet("trace(1, (1,2))").transform("<r/>").is_err());
+    assert_eq!(sheet("nilled(r)").transform("<r/>").unwrap(), "false");
+    assert_eq!(sheet("nilled(r/@a)").transform("<r a='1'/>").unwrap(), "");
+    assert_eq!(sheet("nilled(())").transform("<r/>").unwrap(), "");
+    assert!(sheet("nilled(1)").transform("<r/>").is_err());
+    assert_eq!(
+        sheet("default-collation()").transform("<r/>").unwrap(),
+        "http://www.w3.org/2005/xpath-functions/collation/codepoint"
+    );
+}
