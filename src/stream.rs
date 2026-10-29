@@ -732,10 +732,25 @@ pub(crate) fn transform<R: BufRead, W: Write>(
     let mut record_preserve = false;
     let mut roots = 0;
     let mut declaration = false;
-    if !sheet.text_output && !sheet.omit_declaration {
+    if sheet.byte_order_mark {
         write_output(
             output,
-            b"<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+            "\u{feff}".as_bytes(),
+            &mut stats,
+            options.limits.max_output_bytes,
+        )?;
+    }
+    if !sheet.text_output
+        && sheet.markup != crate::result::Markup::Html
+        && let Some(header) = crate::result::xml_declaration(
+            sheet.encoding,
+            sheet.omit_declaration,
+            sheet.standalone,
+        )?
+    {
+        write_output(
+            output,
+            header.as_bytes(),
             &mut stats,
             options.limits.max_output_bytes,
         )?;

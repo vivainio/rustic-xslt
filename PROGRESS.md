@@ -1569,3 +1569,21 @@ conformance claims. Smaller tested increments are committed independently.
 - Added regex parameter/flag, false-match, evaluator-error, invalid-preflight and
   serialization-error regressions. All 39 Python tests, whitespace checks and the
   expanded pinned XSLT regression gate pass.
+
+## Increment 135: XML declarations, standalone and UTF-8 BOMs
+
+- omit-xml-declaration accepts all XSLT boolean lexical forms. XML/XHTML
+  declarations serialize standalone=yes/no/omit; incompatible declaration omission
+  raises SEPM0009. HTML and text methods ignore XML-declaration settings.
+- Added UTF-8 byte-order marks to principal/secondary results and a single stream
+  preamble. Non-BOM encodings ignore the BOM request. Secondary results can
+  override standalone/BOM settings, and preamble bytes count toward output limits.
+- Validate boolean serialization attributes that were previously silently ignored,
+  returning XTSE0020 for invalid lexical values. Valid include-content-type,
+  escape-uri-attributes and undeclare-prefixes behavior remains incomplete.
+- Added regressions for boolean forms, standalone conflicts, HTML/text behavior,
+  principal/secondary output, one streamed preamble and output-byte budgets.
+- Pinned XSLT gate now has 716 passes (22 new, zero regressions), 325 engine
+  failures, 224 harness errors and 153 exclusions across 1,418 cases.
+- Validation: full all-feature offline Rust suite, all-feature Clippy with warnings
+  denied, formatting, whitespace checks and the expanded XSLT gate pass.

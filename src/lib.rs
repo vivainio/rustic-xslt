@@ -177,6 +177,8 @@ pub struct TransformResult {
 pub struct Stylesheet {
     templates: Vec<compile::Template>,
     omit_declaration: bool,
+    standalone: Option<bool>,
+    byte_order_mark: bool,
     indent: bool,
     markup: result::Markup,
     encoding: result::Encoding,

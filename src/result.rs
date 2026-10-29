@@ -52,6 +52,30 @@ pub(crate) enum Encoding {
     Latin1,
     Ascii,
 }
+/// XML declaration settings shared by principal, secondary and record outputs.
+pub(crate) fn xml_declaration(
+    encoding: Encoding,
+    omit: bool,
+    standalone: Option<bool>,
+) -> Result<Option<String>, Diagnostic> {
+    if omit {
+        if standalone.is_some() {
+            return Err(Diagnostic::new(
+                "SEPM0009",
+                "standalone requires an XML declaration",
+                "run",
+            ));
+        }
+        return Ok(None);
+    }
+    let standalone = standalone.map_or(String::new(), |value| {
+        format!(" standalone=\"{}\"", if value { "yes" } else { "no" })
+    });
+    Ok(Some(format!(
+        "<?xml version=\"1.0\" encoding=\"{}\"{standalone}?>",
+        encoding.name()
+    )))
+}
 impl Encoding {
     pub fn parse(name: &str) -> Option<Self> {
         match name.to_ascii_lowercase().as_str() {

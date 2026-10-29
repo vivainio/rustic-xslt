@@ -1074,11 +1074,20 @@ fn execute<'a>(
         .with_serialization(sheet.markup, sheet.doctype.clone())
         .with_cdata(sheet.cdata_elements.clone())
         .with_char_map(sheet.char_map.clone());
-    if declaration && !sheet.text_output && !sheet.omit_declaration {
-        output.push(&format!(
-            "<?xml version=\"1.0\" encoding=\"{}\"?>",
-            sheet.encoding.name()
-        ))?;
+    if declaration {
+        if sheet.byte_order_mark && sheet.encoding == crate::result::Encoding::Utf8 {
+            output.push("\u{feff}")?;
+        }
+        if !sheet.text_output
+            && sheet.markup != crate::result::Markup::Html
+            && let Some(header) = crate::result::xml_declaration(
+                sheet.encoding,
+                sheet.omit_declaration,
+                sheet.standalone,
+            )?
+        {
+            output.push(&header)?;
+        }
     }
     let initial_mode = options
         .initial_mode
@@ -2078,16 +2087,32 @@ fn run_tasks<'a>(
                         let omit = spec
                             .omit_declaration
                             .unwrap_or(spec.method == "html" || text_method);
-                        if !omit {
-                            content = format!(
-                                "<?xml version=\"1.0\" encoding=\"{}\"?>{content}",
-                                spec.encoding.name()
-                            );
+                        if !text_method
+                            && markup != Markup::Html
+                            && let Some(header) = crate::result::xml_declaration(
+                                spec.encoding,
+                                omit,
+                                spec.standalone.unwrap_or(sheet.standalone),
+                            )?
+                        {
+                            content = format!("{header}{content}");
                             if spec.indent.unwrap_or(false) {
                                 content = content.replacen("?><", "?>\n<", 1);
                             }
                         }
                         content = spec.encoding.apply(&content, !text_method)?;
+                        if spec.byte_order_mark.unwrap_or(sheet.byte_order_mark)
+                            && spec.encoding == crate::result::Encoding::Utf8
+                        {
+                            content.insert(0, '\u{feff}');
+                        }
+                        if content.len() > limits.max_output_bytes {
+                            return Err(Diagnostic::new(
+                                "XPDY0130",
+                                "output byte limit exceeded",
+                                "run",
+                            ));
+                        }
                         budget.secondary.push((href, content));
                     }
                     Instruction::OnEmpty(_) | Instruction::OnNonEmpty(_) => {

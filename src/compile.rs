@@ -90,6 +90,8 @@ pub(crate) struct ResultDocumentSpec {
     pub href: Vec<Expr>,
     pub method: String,
     pub omit_declaration: Option<bool>,
+    pub standalone: Option<Option<bool>>,
+    pub byte_order_mark: Option<bool>,
     pub indent: Option<bool>,
     pub encoding: crate::result::Encoding,
     pub body: Vec<Instruction>,
@@ -359,6 +361,12 @@ fn boolean_value(n: Node<'_, '_>, value: Option<&str>, default: bool) -> Result<
 }
 fn boolean_attribute(n: Node<'_, '_>, name: &str, default: bool) -> Result<bool, Diagnostic> {
     boolean_value(n, n.attribute(name), default)
+}
+fn standalone(n: Node<'_, '_>) -> Result<Option<bool>, Diagnostic> {
+    match n.attribute("standalone").map(str::trim) {
+        None | Some("omit") => Ok(None),
+        value => boolean_value(n, value, false).map(Some),
+    }
 }
 fn binding(n: Node<'_, '_>, parameter: bool, depth: usize) -> Result<Binding, Diagnostic> {
     let declaration = n.tag_name().name() == "param";
@@ -1245,6 +1253,8 @@ fn body(
                                 "format",
                                 "method",
                                 "omit-xml-declaration",
+                                "standalone",
+                                "byte-order-mark",
                                 "indent",
                                 "encoding",
                                 "validation",
@@ -1282,6 +1292,11 @@ fn body(
                                 .unwrap_or_default(),
                             method: method.to_owned(),
                             omit_declaration: flag("omit-xml-declaration")?,
+                            standalone: n
+                                .attribute("standalone")
+                                .map(|_| standalone(n))
+                                .transpose()?,
+                            byte_order_mark: flag("byte-order-mark")?,
                             indent: flag("indent")?,
                             encoding,
                             body: body(n, depth + 1, false)?,
@@ -2447,12 +2462,17 @@ fn declarations(
                     });
                 }
                 let default_omit = method == "html";
-                sheet.omit_declaration = match n.attribute("omit-xml-declaration") {
-                    None => default_omit,
-                    Some("yes") => true,
-                    Some("no") => false,
-                    _ => return Err(error(n, "invalid omit-xml-declaration")),
-                };
+                sheet.omit_declaration =
+                    boolean_attribute(n, "omit-xml-declaration", default_omit)?;
+                sheet.standalone = standalone(n)?;
+                sheet.byte_order_mark = boolean_attribute(n, "byte-order-mark", false)?;
+                for name in [
+                    "include-content-type",
+                    "escape-uri-attributes",
+                    "undeclare-prefixes",
+                ] {
+                    boolean_attribute(n, name, false)?;
+                }
             }
             "include" => {
                 attrs(n, &["href"])?;
@@ -2858,6 +2878,8 @@ pub(crate) fn compile(
         default_mode: default_mode(root)?,
         modes: BTreeMap::new(),
         omit_declaration: false,
+        standalone: None,
+        byte_order_mark: false,
         indent: false,
         markup: crate::result::Markup::Xml,
         encoding: Default::default(),
