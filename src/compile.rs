@@ -1284,7 +1284,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     pending.push(base);
                     pending.extend(ps);
                 }
-                Expr::Binary(_, a, b) => {
+                Expr::Binary(_, a, b) | Expr::PathMap(a, b) => {
                     pending.push(a);
                     pending.push(b);
                 }

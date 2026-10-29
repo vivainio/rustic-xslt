@@ -591,5 +591,18 @@ conformance claims. Smaller tested increments are committed independently.
 - Twenty-seven QT3 sets: 2,766 cases, 1,318 pass / 824 engine failures / 40 harness
   errors / 584 profile exclusions. Gate adds 52 cardinality-function cases.
 
-Next: general path operands and remaining XPath grammar.
+## Increment 49: general XPath path operands
+
+- Paths accept parenthesized expressions, variable/function/literal steps and
+  descendant abbreviations, while axis-only paths retain pattern support.
+- Each step receives the input item/position/size. Node results sort/deduplicate;
+  atomic final results preserve order. Mixed results report XPTY0018 and atomic
+  intermediate operands XPTY0019. Static path depth and run budgets remain bounded.
+- Lexical and streaming checks traverse both operands. 320 Rust integration tests,
+  27 harness tests and Clippy/format pass; all previous gate cases remain green.
+- XSLT gate expands to 379 (379 pass / 154 failures / 144 harness errors / 46
+  exclusions). Twenty-eight QT3 sets: 2,794 cases, 1,348 pass / 812 engine failures /
+  41 harness errors / 593 profile exclusions. QT3 gate gains 30 cases.
+
+Next: remaining XPath grammar and function coverage.
 

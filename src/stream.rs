@@ -118,7 +118,7 @@ fn safe_expression(e: &Expr, global: bool) -> Result<(), Diagnostic> {
                 pending.push(select);
                 pending.push(body);
             }
-            Expr::Binary(_, a, b) => {
+            Expr::Binary(_, a, b) | Expr::PathMap(a, b) => {
                 pending.push(a);
                 pending.push(b);
             }

@@ -56,6 +56,7 @@ pub(crate) enum Expr {
     Context,
     Root,
     Path(Box<Expr>, Vec<Step>),
+    PathMap(Box<Expr>, Box<Expr>),
     Filter(Box<Expr>, Vec<Expr>),
     Binary(String, Box<Expr>, Box<Expr>),
     Unary(bool, Box<Expr>),
@@ -630,6 +631,42 @@ impl Parser {
         Ok(left)
     }
     fn primary(&mut self) -> Result<Expr, Diagnostic> {
+        self.operand(true)
+    }
+    fn path_rhs(&mut self, base: Expr) -> Result<Expr, Diagnostic> {
+        let binding = matches!(self.peek(), Token::Name(n) if ["for", "let", "some", "every"].contains(&n.as_str()))
+            && self.tokens.get(self.index + 1) == Some(&Token::Symbol("$".into()));
+        let conditional = matches!(self.peek(), Token::Name(n) if n == "if")
+            && self.tokens.get(self.index + 1) == Some(&Token::Symbol("(".into()));
+        if binding
+            || conditional
+            || matches!(self.peek(), Token::Symbol(s) if ["+", "-", "/", "//"].contains(&s.as_str()))
+        {
+            return Err(syntax("path step requires a postfix or axis expression"));
+        }
+        let rhs = self.operand(false)?;
+        Ok(match rhs {
+            Expr::Path(context, steps) if matches!(*context, Expr::Context) => match base {
+                Expr::Path(root, mut previous) => {
+                    previous.extend(steps);
+                    Expr::Path(root, previous)
+                }
+                other => Expr::Path(Box::new(other), steps),
+            },
+            other => Expr::PathMap(Box::new(base), Box::new(other)),
+        })
+    }
+    fn descendant_path(base: Expr) -> Expr {
+        Expr::Path(
+            Box::new(base),
+            vec![Step {
+                axis: Axis::DescendantOrSelf,
+                test: Test::Node,
+                predicates: vec![],
+            }],
+        )
+    }
+    fn operand(&mut self, paths: bool) -> Result<Expr, Diagnostic> {
         let mut e = if self.eat("-") {
             Expr::Unary(false, Box::new(self.expression(14)?))
         } else if self.eat("+") {
@@ -654,25 +691,15 @@ impl Parser {
         } else if self.eat("/") {
             let type_operator = matches!(self.peek(),Token::Name(n) if ["instance","treat","cast","castable"].contains(&n.as_str()))
                 && matches!(self.tokens.get(self.index+1),Some(Token::Name(n)) if n == "of" || n == "as");
-            if self.step_start() && !type_operator {
-                let step = self.step()?;
-                Expr::Path(Box::new(Expr::Root), vec![step])
+            let postfix = matches!(self.peek(), Token::String(_) | Token::Number(_))
+                || matches!(self.peek(), Token::Symbol(s) if s == "$" || s == "(");
+            if (self.step_start() || postfix) && !type_operator {
+                self.path_rhs(Expr::Root)?
             } else {
                 Expr::Root
             }
         } else if self.eat("//") {
-            let step = self.step()?;
-            Expr::Path(
-                Box::new(Expr::Root),
-                vec![
-                    Step {
-                        axis: Axis::DescendantOrSelf,
-                        test: Test::Node,
-                        predicates: vec![],
-                    },
-                    step,
-                ],
-            )
+            self.path_rhs(Self::descendant_path(Expr::Root))?
         } else {
             match self.peek().clone() {
                 Token::String(s) => {
@@ -766,7 +793,11 @@ impl Parser {
                 _ => return Err(syntax("expected XPath expression")),
             }
         };
+        let mut path_steps = 0;
         loop {
+            if path_steps > 128 {
+                return Err(syntax("XPath path nesting limit exceeded"));
+            }
             if self.eat("[") {
                 let p = self.expression(0)?;
                 self.expect("]")?;
@@ -777,25 +808,12 @@ impl Parser {
                     }
                     _ => Expr::Filter(Box::new(e), vec![p]),
                 };
-            } else if self.eat("/") {
-                let step = self.step()?;
-                e = match e {
-                    Expr::Path(base, mut steps) => {
-                        steps.push(step);
-                        Expr::Path(base, steps)
-                    }
-                    _ => Expr::Path(Box::new(e), vec![step]),
-                };
-            } else if self.eat("//") {
-                let steps = vec![
-                    Step {
-                        axis: Axis::DescendantOrSelf,
-                        test: Test::Node,
-                        predicates: vec![],
-                    },
-                    self.step()?,
-                ];
-                e = Expr::Path(Box::new(e), steps);
+            } else if paths && self.eat("/") {
+                e = self.path_rhs(e)?;
+                path_steps += 1;
+            } else if paths && self.eat("//") {
+                e = self.path_rhs(Self::descendant_path(e))?;
+                path_steps += 1;
             } else {
                 break;
             }
@@ -1217,6 +1235,48 @@ pub(crate) fn eval<'a>(
             depth,
             backwards,
         )?,
+        Expr::PathMap(base, step) => {
+            let input = eval(base, focus, vars, budget, depth + 1, backwards)?;
+            let size = input.len();
+            let mut result = vec![];
+            let mut has_nodes = false;
+            let mut has_atomics = false;
+            for (index, item) in input.into_iter().enumerate() {
+                budget.tick()?;
+                if !matches!(item, Item::Node(_)) {
+                    return Err(err("XPTY0019", "path operand must contain nodes"));
+                }
+                let focus = Focus {
+                    item,
+                    position: index + 1,
+                    size,
+                };
+                for item in eval(step, &focus, vars, budget, depth + 1, backwards)? {
+                    budget.tick()?;
+                    has_nodes |= matches!(item, Item::Node(_));
+                    has_atomics |= !matches!(item, Item::Node(_));
+                    if has_nodes && has_atomics {
+                        return Err(err("XPTY0018", "path result mixes nodes and atomic values"));
+                    }
+                    result.push(item);
+                }
+            }
+            if has_nodes {
+                ordered(
+                    result
+                        .into_iter()
+                        .map(|item| {
+                            let Item::Node(node) = item else {
+                                unreachable!()
+                            };
+                            node
+                        })
+                        .collect(),
+                )
+            } else {
+                result
+            }
+        }
         Expr::Path(base, steps) => {
             let mut value = eval(base, focus, vars, budget, depth + 1, backwards)?;
             for step in steps {

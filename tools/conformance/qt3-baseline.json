@@ -26,6 +26,7 @@
     "prod-EQName",
     "prod-ForClause",
     "prod-LetClause",
+    "prod-PathExpr",
     "prod-QuantifiedExpr",
     "prod-SequenceType"
   ],
@@ -943,8 +944,76 @@
       "K2-SeqDeepEqualFunc-9"
     ],
     [
+      "fn-exactly-one",
+      "fn-exactly-oneintg1args-1"
+    ],
+    [
+      "fn-exactly-one",
+      "fn-exactly-oneintg1args-2"
+    ],
+    [
+      "fn-exactly-one",
+      "fn-exactly-oneintg1args-3"
+    ],
+    [
+      "fn-exactly-one",
+      "fn-exactly-onedec1args-1"
+    ],
+    [
+      "fn-exactly-one",
+      "fn-exactly-onedec1args-2"
+    ],
+    [
+      "fn-exactly-one",
+      "fn-exactly-onedec1args-3"
+    ],
+    [
+      "fn-exactly-one",
+      "fn-exactly-onedbl1args-2"
+    ],
+    [
+      "fn-exactly-one",
+      "fn-exactly-oneflt1args-2"
+    ],
+    [
+      "fn-exactly-one",
+      "fn-exactly-one-1"
+    ],
+    [
+      "fn-exactly-one",
+      "K-SeqExactlyOneFunc-1"
+    ],
+    [
+      "fn-exactly-one",
+      "K-SeqExactlyOneFunc-2"
+    ],
+    [
+      "fn-exactly-one",
+      "K-SeqExactlyOneFunc-3"
+    ],
+    [
+      "fn-exactly-one",
+      "K-SeqExactlyOneFunc-4"
+    ],
+    [
+      "fn-exactly-one",
+      "K-SeqExactlyOneFunc-5"
+    ],
+    [
+      "fn-exactly-one",
+      "K-SeqExactlyOneFunc-9"
+    ],
+    [
+      "fn-exactly-one",
+      "K-SeqExactlyOneFunc-10"
+    ],
+    [
       "fn-head",
       "head-001"
+    ],
+    [
+      "fn-head",
+      "head-003"
     ],
     [
       "fn-head",
@@ -1823,6 +1892,82 @@
       "fn-min-11"
     ],
     [
+      "fn-one-or-more",
+      "fn-one-or-moreintg1args-1"
+    ],
+    [
+      "fn-one-or-more",
+      "fn-one-or-moreintg1args-2"
+    ],
+    [
+      "fn-one-or-more",
+      "fn-one-or-moreintg1args-3"
+    ],
+    [
+      "fn-one-or-more",
+      "fn-one-or-moredec1args-1"
+    ],
+    [
+      "fn-one-or-more",
+      "fn-one-or-moredec1args-2"
+    ],
+    [
+      "fn-one-or-more",
+      "fn-one-or-moredec1args-3"
+    ],
+    [
+      "fn-one-or-more",
+      "fn-one-or-moredbl1args-2"
+    ],
+    [
+      "fn-one-or-more",
+      "fn-one-or-moreflt1args-2"
+    ],
+    [
+      "fn-one-or-more",
+      "fn-one-or-more-1"
+    ],
+    [
+      "fn-one-or-more",
+      "K-SeqOneOrMoreFunc-1"
+    ],
+    [
+      "fn-one-or-more",
+      "K-SeqOneOrMoreFunc-2"
+    ],
+    [
+      "fn-one-or-more",
+      "K-SeqOneOrMoreFunc-3"
+    ],
+    [
+      "fn-one-or-more",
+      "K-SeqOneOrMoreFunc-4"
+    ],
+    [
+      "fn-one-or-more",
+      "K-SeqOneOrMoreFunc-5"
+    ],
+    [
+      "fn-one-or-more",
+      "K-SeqOneOrMoreFunc-6"
+    ],
+    [
+      "fn-one-or-more",
+      "K-SeqOneOrMoreFunc-8"
+    ],
+    [
+      "fn-one-or-more",
+      "cbcl-one-or-more-005"
+    ],
+    [
+      "fn-one-or-more",
+      "cbcl-one-or-more-006"
+    ],
+    [
+      "fn-one-or-more",
+      "cbcl-one-or-more-007"
+    ],
+    [
       "fn-remove",
       "fn-remove-mix-args-001"
     ],
@@ -2025,6 +2170,10 @@
     [
       "fn-reverse",
       "reverse-002"
+    ],
+    [
+      "fn-reverse",
+      "reverse-003"
     ],
     [
       "fn-reverse",
@@ -2819,6 +2968,78 @@
       "tail-004"
     ],
     [
+      "fn-tail",
+      "tail-005"
+    ],
+    [
+      "fn-zero-or-one",
+      "fn-zero-or-oneintg1args-1"
+    ],
+    [
+      "fn-zero-or-one",
+      "fn-zero-or-oneintg1args-2"
+    ],
+    [
+      "fn-zero-or-one",
+      "fn-zero-or-oneintg1args-3"
+    ],
+    [
+      "fn-zero-or-one",
+      "fn-zero-or-onedec1args-1"
+    ],
+    [
+      "fn-zero-or-one",
+      "fn-zero-or-onedec1args-2"
+    ],
+    [
+      "fn-zero-or-one",
+      "fn-zero-or-onedec1args-3"
+    ],
+    [
+      "fn-zero-or-one",
+      "fn-zero-or-onedbl1args-2"
+    ],
+    [
+      "fn-zero-or-one",
+      "fn-zero-or-oneflt1args-2"
+    ],
+    [
+      "fn-zero-or-one",
+      "fn-zero-or-one-1"
+    ],
+    [
+      "fn-zero-or-one",
+      "K-SeqZeroOrOneFunc-1"
+    ],
+    [
+      "fn-zero-or-one",
+      "K-SeqZeroOrOneFunc-2"
+    ],
+    [
+      "fn-zero-or-one",
+      "K-SeqZeroOrOneFunc-3"
+    ],
+    [
+      "fn-zero-or-one",
+      "K-SeqZeroOrOneFunc-4"
+    ],
+    [
+      "fn-zero-or-one",
+      "K-SeqZeroOrOneFunc-5"
+    ],
+    [
+      "fn-zero-or-one",
+      "K-SeqZeroOrOneFunc-6"
+    ],
+    [
+      "fn-zero-or-one",
+      "K-SeqZeroOrOneFunc-8"
+    ],
+    [
+      "fn-zero-or-one",
+      "cbcl-if-not-empty-001"
+    ],
+    [
       "op-bang",
       "bang-1"
     ],
@@ -2880,6 +3101,10 @@
     ],
     [
       "op-except",
+      "fn-except-node-args-003"
+    ],
+    [
+      "op-except",
       "fn-except-node-args-004"
     ],
     [
@@ -2892,11 +3117,23 @@
     ],
     [
       "op-except",
+      "fn-except-node-args-008"
+    ],
+    [
+      "op-except",
+      "fn-except-node-args-009"
+    ],
+    [
+      "op-except",
       "fn-except-node-args-011"
     ],
     [
       "op-except",
       "fn-except-node-args-014"
+    ],
+    [
+      "op-except",
+      "fn-except-node-args-022"
     ],
     [
       "op-except",
@@ -2912,6 +3149,10 @@
     ],
     [
       "op-intersect",
+      "fn-intersect-node-args-001"
+    ],
+    [
+      "op-intersect",
       "fn-intersect-node-args-002"
     ],
     [
@@ -2924,6 +3165,10 @@
     ],
     [
       "op-intersect",
+      "fn-intersect-node-args-005"
+    ],
+    [
+      "op-intersect",
       "fn-intersect-node-args-007"
     ],
     [
@@ -2933,6 +3178,10 @@
     [
       "op-intersect",
       "fn-intersect-node-args-009"
+    ],
+    [
+      "op-intersect",
+      "fn-intersect-node-args-011"
     ],
     [
       "op-intersect",
@@ -2953,6 +3202,10 @@
     [
       "op-intersect",
       "K2-SeqIntersect-39"
+    ],
+    [
+      "op-intersect",
+      "K2-SeqIntersect-40"
     ],
     [
       "op-intersect",
@@ -3884,6 +4137,10 @@
     ],
     [
       "op-union",
+      "fn-union-node-args-002"
+    ],
+    [
+      "op-union",
       "fn-union-node-args-003"
     ],
     [
@@ -4093,6 +4350,10 @@
     [
       "prod-ForClause",
       "ForExpr001"
+    ],
+    [
+      "prod-ForClause",
+      "ForExpr005"
     ],
     [
       "prod-ForClause",
@@ -5095,212 +5356,72 @@
       "sequence-type-21"
     ],
     [
-      "fn-exactly-one",
-      "fn-exactly-oneintg1args-1"
+      "prod-PathExpr",
+      "PathExpr-1"
     ],
     [
-      "fn-exactly-one",
-      "fn-exactly-oneintg1args-2"
+      "prod-PathExpr",
+      "PathExpr-2"
     ],
     [
-      "fn-exactly-one",
-      "fn-exactly-oneintg1args-3"
+      "prod-PathExpr",
+      "PathExpr-3"
     ],
     [
-      "fn-exactly-one",
-      "fn-exactly-onedec1args-1"
+      "prod-PathExpr",
+      "PathExpr-4"
     ],
     [
-      "fn-exactly-one",
-      "fn-exactly-onedec1args-2"
+      "prod-PathExpr",
+      "PathExpr-5p"
     ],
     [
-      "fn-exactly-one",
-      "fn-exactly-onedec1args-3"
+      "prod-PathExpr",
+      "PathExpr-6"
     ],
     [
-      "fn-exactly-one",
-      "fn-exactly-onedbl1args-2"
+      "prod-PathExpr",
+      "PathExpr-7p"
     ],
     [
-      "fn-exactly-one",
-      "fn-exactly-oneflt1args-2"
+      "prod-PathExpr",
+      "PathExpr-8p"
     ],
     [
-      "fn-exactly-one",
-      "fn-exactly-one-1"
+      "prod-PathExpr",
+      "PathExpr-9p"
     ],
     [
-      "fn-exactly-one",
-      "K-SeqExactlyOneFunc-1"
+      "prod-PathExpr",
+      "PathExpr-10"
     ],
     [
-      "fn-exactly-one",
-      "K-SeqExactlyOneFunc-2"
+      "prod-PathExpr",
+      "PathExpr-11"
     ],
     [
-      "fn-exactly-one",
-      "K-SeqExactlyOneFunc-3"
+      "prod-PathExpr",
+      "PathExpr-12"
     ],
     [
-      "fn-exactly-one",
-      "K-SeqExactlyOneFunc-4"
+      "prod-PathExpr",
+      "PathExpr-13"
     ],
     [
-      "fn-exactly-one",
-      "K-SeqExactlyOneFunc-5"
+      "prod-PathExpr",
+      "PathExpr-15"
     ],
     [
-      "fn-exactly-one",
-      "K-SeqExactlyOneFunc-9"
+      "prod-PathExpr",
+      "PathExpr-16"
     ],
     [
-      "fn-exactly-one",
-      "K-SeqExactlyOneFunc-10"
+      "prod-PathExpr",
+      "PathExpr-20"
     ],
     [
-      "fn-one-or-more",
-      "fn-one-or-moreintg1args-1"
-    ],
-    [
-      "fn-one-or-more",
-      "fn-one-or-moreintg1args-2"
-    ],
-    [
-      "fn-one-or-more",
-      "fn-one-or-moreintg1args-3"
-    ],
-    [
-      "fn-one-or-more",
-      "fn-one-or-moredec1args-1"
-    ],
-    [
-      "fn-one-or-more",
-      "fn-one-or-moredec1args-2"
-    ],
-    [
-      "fn-one-or-more",
-      "fn-one-or-moredec1args-3"
-    ],
-    [
-      "fn-one-or-more",
-      "fn-one-or-moredbl1args-2"
-    ],
-    [
-      "fn-one-or-more",
-      "fn-one-or-moreflt1args-2"
-    ],
-    [
-      "fn-one-or-more",
-      "fn-one-or-more-1"
-    ],
-    [
-      "fn-one-or-more",
-      "K-SeqOneOrMoreFunc-1"
-    ],
-    [
-      "fn-one-or-more",
-      "K-SeqOneOrMoreFunc-2"
-    ],
-    [
-      "fn-one-or-more",
-      "K-SeqOneOrMoreFunc-3"
-    ],
-    [
-      "fn-one-or-more",
-      "K-SeqOneOrMoreFunc-4"
-    ],
-    [
-      "fn-one-or-more",
-      "K-SeqOneOrMoreFunc-5"
-    ],
-    [
-      "fn-one-or-more",
-      "K-SeqOneOrMoreFunc-6"
-    ],
-    [
-      "fn-one-or-more",
-      "K-SeqOneOrMoreFunc-8"
-    ],
-    [
-      "fn-one-or-more",
-      "cbcl-one-or-more-005"
-    ],
-    [
-      "fn-one-or-more",
-      "cbcl-one-or-more-006"
-    ],
-    [
-      "fn-one-or-more",
-      "cbcl-one-or-more-007"
-    ],
-    [
-      "fn-zero-or-one",
-      "fn-zero-or-oneintg1args-1"
-    ],
-    [
-      "fn-zero-or-one",
-      "fn-zero-or-oneintg1args-2"
-    ],
-    [
-      "fn-zero-or-one",
-      "fn-zero-or-oneintg1args-3"
-    ],
-    [
-      "fn-zero-or-one",
-      "fn-zero-or-onedec1args-1"
-    ],
-    [
-      "fn-zero-or-one",
-      "fn-zero-or-onedec1args-2"
-    ],
-    [
-      "fn-zero-or-one",
-      "fn-zero-or-onedec1args-3"
-    ],
-    [
-      "fn-zero-or-one",
-      "fn-zero-or-onedbl1args-2"
-    ],
-    [
-      "fn-zero-or-one",
-      "fn-zero-or-oneflt1args-2"
-    ],
-    [
-      "fn-zero-or-one",
-      "fn-zero-or-one-1"
-    ],
-    [
-      "fn-zero-or-one",
-      "K-SeqZeroOrOneFunc-1"
-    ],
-    [
-      "fn-zero-or-one",
-      "K-SeqZeroOrOneFunc-2"
-    ],
-    [
-      "fn-zero-or-one",
-      "K-SeqZeroOrOneFunc-3"
-    ],
-    [
-      "fn-zero-or-one",
-      "K-SeqZeroOrOneFunc-4"
-    ],
-    [
-      "fn-zero-or-one",
-      "K-SeqZeroOrOneFunc-5"
-    ],
-    [
-      "fn-zero-or-one",
-      "K-SeqZeroOrOneFunc-6"
-    ],
-    [
-      "fn-zero-or-one",
-      "K-SeqZeroOrOneFunc-8"
-    ],
-    [
-      "fn-zero-or-one",
-      "cbcl-if-not-empty-001"
+      "prod-PathExpr",
+      "PathExpr-24"
     ]
   ]
 }
