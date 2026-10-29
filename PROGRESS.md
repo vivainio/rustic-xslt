@@ -1091,3 +1091,12 @@ conformance claims. Smaller tested increments are committed independently.
   indented like elements, and a newline follows the XML declaration. Whitespace-only
   text between elements of element-only content is dropped. Record streaming does
   not indent.
+
+## Increment 92: xsl:iterate
+
+- Added xsl:iterate with select, typed parameters (select only), xsl:on-completion
+  (select or body, absent focus), xsl:next-iteration with with-param overrides
+  (unmentioned parameters carry over) and xsl:break with select or body content.
+  position()/last() follow the iterated sequence; falling off the end of the body
+  continues with unchanged parameters. Tail position is not checked statically, and
+  record streaming rejects iteration.

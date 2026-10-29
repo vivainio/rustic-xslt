@@ -86,6 +86,26 @@ enum Task<'a> {
     EvaluateBinding(&'a Binding, Frame<'a>, BindNext<'a>),
     FinishBinding(&'a Binding, Frame<'a>, BindNext<'a>, Output, bool),
     FinishRawBinding(&'a Binding, Frame<'a>, BindNext<'a>, Output),
+    Iterate(
+        &'a Instruction,
+        Rc<Value<'a>>,
+        usize,
+        Variables<'a>,
+        Frame<'a>,
+    ),
+    IterateNext(
+        &'a Instruction,
+        Rc<Value<'a>>,
+        usize,
+        Variables<'a>,
+        Frame<'a>,
+    ),
+}
+/// The tail position of an `xsl:iterate` body reports back through this record.
+struct IterationState<'a> {
+    parameters: &'a [Binding],
+    next: Option<Variables<'a>>,
+    broken: bool,
 }
 enum BindNext<'a> {
     Local(&'a [Instruction], usize),
@@ -841,6 +861,7 @@ fn run_tasks<'a>(
     } else {
         vec![]
     };
+    let mut iterations: Vec<IterationState<'a>> = vec![];
     while let Some(task) = tasks.pop() {
         budget.tick()?;
         match task {
@@ -1245,6 +1266,9 @@ fn run_tasks<'a>(
                             | Instruction::ForEach(..)
                             | Instruction::ForEachGroup(..)
                             | Instruction::AnalyzeString { .. }
+                            | Instruction::Iterate { .. }
+                            | Instruction::NextIteration(_)
+                            | Instruction::Break(_)
                             | Instruction::If(..)
                             | Instruction::Choose(_)
                             | Instruction::Element { .. }
@@ -1608,6 +1632,90 @@ fn run_tasks<'a>(
                                 },
                             ));
                         }
+                    }
+                    Instruction::Iterate { select, params, .. } => {
+                        let items = xpath::eval(select, &focus, &env, budget, 0, sheet.backwards)?;
+                        let mut initial = Variables::new();
+                        for p in params {
+                            let BindingValue::Select(e) = &p.value else {
+                                unreachable!()
+                            };
+                            let mut value =
+                                xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
+                            if let Some(ty) = &p.ty {
+                                value = ty.convert(value, "XTTE0570")?;
+                            }
+                            initial.insert(p.name.clone(), value);
+                        }
+                        tasks.push(Task::Iterate(
+                            instruction,
+                            Rc::new(items),
+                            0,
+                            initial,
+                            Frame {
+                                focus,
+                                env,
+                                depth,
+                                mode,
+                                tunnel,
+                                rule,
+                            },
+                        ));
+                    }
+                    Instruction::NextIteration(supplied) => {
+                        let Some(state) = iterations.last_mut() else {
+                            return Err(Diagnostic::new(
+                                "XTSE3120",
+                                "xsl:next-iteration outside xsl:iterate",
+                                "run",
+                            ));
+                        };
+                        let mut next = Variables::new();
+                        for declared in state.parameters {
+                            next.insert(
+                                declared.name.clone(),
+                                env.get(&declared.name).cloned().unwrap_or_default(),
+                            );
+                        }
+                        for p in supplied {
+                            let BindingValue::Select(e) = &p.value else {
+                                unreachable!()
+                            };
+                            let mut value =
+                                xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
+                            if let Some(declared) =
+                                state.parameters.iter().find(|d| d.name == p.name)
+                            {
+                                if let Some(ty) = &declared.ty {
+                                    value = ty.convert(value, "XTTE0570")?;
+                                }
+                            } else {
+                                return Err(Diagnostic::new(
+                                    "XTSE3130",
+                                    format!("unknown iteration parameter: {}", p.name),
+                                    "run",
+                                ));
+                            }
+                            next.insert(p.name.clone(), value);
+                        }
+                        state.next = Some(next);
+                    }
+                    Instruction::Break(content) => {
+                        if let Some(state) = iterations.last_mut() {
+                            state.broken = true;
+                        }
+                        tasks.push(Task::Body(
+                            content,
+                            0,
+                            Frame {
+                                focus,
+                                env,
+                                depth: depth + 1,
+                                mode,
+                                tunnel,
+                                rule,
+                            },
+                        ));
                     }
                     Instruction::AnalyzeString {
                         select,
@@ -1984,6 +2092,79 @@ fn run_tasks<'a>(
                 finish_capture(kind, value, &mut output)?;
             }
             Task::Close => output.end()?,
+            Task::Iterate(instruction, items, index, params, frame) => {
+                let Instruction::Iterate {
+                    params: declared,
+                    on_completion,
+                    body,
+                    ..
+                } = instruction
+                else {
+                    unreachable!()
+                };
+                let mut env = (*frame.env).clone();
+                env.extend(params.iter().map(|(k, v)| (k.clone(), v.clone())));
+                if index == items.len() {
+                    tasks.push(Task::Body(
+                        on_completion,
+                        0,
+                        Frame {
+                            focus: Focus {
+                                item: Item::Absent,
+                                position: 0,
+                                size: 0,
+                            },
+                            env: Rc::new(env),
+                            depth: frame.depth + 1,
+                            mode: frame.mode.clone(),
+                            tunnel: frame.tunnel.clone(),
+                            rule: None,
+                        },
+                    ));
+                    continue;
+                }
+                budget.tick()?;
+                iterations.push(IterationState {
+                    parameters: declared,
+                    next: None,
+                    broken: false,
+                });
+                tasks.push(Task::IterateNext(
+                    instruction,
+                    items.clone(),
+                    index,
+                    params,
+                    frame.clone(),
+                ));
+                tasks.push(Task::Body(
+                    body,
+                    0,
+                    Frame {
+                        focus: Focus {
+                            item: items[index].clone(),
+                            position: index + 1,
+                            size: items.len(),
+                        },
+                        env: Rc::new(env),
+                        depth: frame.depth + 1,
+                        mode: frame.mode.clone(),
+                        tunnel: frame.tunnel.clone(),
+                        rule: None,
+                    },
+                ));
+            }
+            Task::IterateNext(instruction, items, index, params, frame) => {
+                let state = iterations.pop().expect("iteration state");
+                if !state.broken {
+                    tasks.push(Task::Iterate(
+                        instruction,
+                        items,
+                        index + 1,
+                        state.next.unwrap_or(params),
+                        frame,
+                    ));
+                }
+            }
         }
     }
     if let Some(result) = raw_result {

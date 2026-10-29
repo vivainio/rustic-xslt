@@ -39,6 +39,14 @@ pub(crate) enum Instruction {
     Call(String, Vec<Binding>),
     NextMatch(Vec<Binding>),
     UseSets(Vec<String>),
+    Iterate {
+        select: Expr,
+        params: Vec<Binding>,
+        on_completion: Vec<Instruction>,
+        body: Vec<Instruction>,
+    },
+    NextIteration(Vec<Binding>),
+    Break(Vec<Instruction>),
     AnalyzeString {
         select: Expr,
         regex: Vec<Expr>,
@@ -401,6 +409,9 @@ pub(crate) fn raw_result_body(body: &[Instruction]) -> bool {
         | Instruction::Comment(_)
         | Instruction::Message(..)
         | Instruction::UseSets(_)
+        | Instruction::Iterate { .. }
+        | Instruction::NextIteration(_)
+        | Instruction::Break(_)
         | Instruction::AnalyzeString { .. }
         | Instruction::LiteralAttributes(_)
         | Instruction::Pi(..)
@@ -765,6 +776,12 @@ fn body(
                             )
                         });
                     }
+                    "param" | "on-completion"
+                        if parent.tag_name().namespace() == Some(XSL)
+                            && parent.tag_name().name() == "iterate" =>
+                    {
+                        continue;
+                    }
                     "sort"
                         if parent.tag_name().namespace() == Some(XSL)
                             && matches!(
@@ -804,6 +821,83 @@ fn body(
                     "comment" => {
                         attrs(n, &["select"])?;
                         out.push(Instruction::Comment(content(n, depth + 1)?));
+                    }
+                    "iterate" => {
+                        attrs(n, &["select"])?;
+                        let mut params = vec![];
+                        let mut on_completion = vec![];
+                        for c in n.children() {
+                            if !c.is_element() || c.tag_name().namespace() != Some(XSL) {
+                                continue;
+                            }
+                            match c.tag_name().name() {
+                                "param" => {
+                                    let b = binding(c, true, depth)?;
+                                    if b.required || b.tunnel {
+                                        return Err(static_error(
+                                            c,
+                                            "XTSE0010",
+                                            "iterate parameters cannot be required or tunnel",
+                                        ));
+                                    }
+                                    if !matches!(b.value, BindingValue::Select(_)) {
+                                        return Err(error(
+                                            c,
+                                            "iterate parameters need a select attribute",
+                                        ));
+                                    }
+                                    if params.iter().any(|p: &Binding| p.name == b.name) {
+                                        return Err(static_error(
+                                            c,
+                                            "XTSE0580",
+                                            "duplicate iterate parameter",
+                                        ));
+                                    }
+                                    params.push(b);
+                                }
+                                "on-completion" => {
+                                    attrs(c, &["select"])?;
+                                    on_completion = match c.attribute("select") {
+                                        Some(s) => {
+                                            empty(c)?;
+                                            vec![Instruction::Sequence(expr(c, s)?)]
+                                        }
+                                        None => body(c, depth + 1, false)?,
+                                    };
+                                }
+                                _ => {}
+                            }
+                        }
+                        out.push(Instruction::Iterate {
+                            select: expr(n, required(n, "select")?)?,
+                            params,
+                            on_completion,
+                            body: body(n, depth + 1, false)?,
+                        });
+                    }
+                    "next-iteration" => {
+                        attrs(n, &[])?;
+                        let params = with_params(n, depth, false)?;
+                        if params
+                            .iter()
+                            .any(|p| !matches!(p.value, BindingValue::Select(_)))
+                        {
+                            return Err(error(
+                                n,
+                                "next-iteration parameters need a select attribute",
+                            ));
+                        }
+                        out.push(Instruction::NextIteration(params));
+                    }
+                    "break" => {
+                        attrs(n, &["select"])?;
+                        out.push(Instruction::Break(match n.attribute("select") {
+                            Some(s) => {
+                                empty(n)?;
+                                vec![Instruction::Sequence(expr(n, s)?)]
+                            }
+                            None => body(n, depth + 1, false)?,
+                        }));
                     }
                     "analyze-string" => {
                         attrs(n, &["select", "regex", "flags"])?;
@@ -1811,6 +1905,31 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     instructions(matching, scope.clone(), templates)?;
                     instructions(non_matching, scope.clone(), templates)?;
                 }
+                Instruction::Iterate {
+                    select,
+                    params,
+                    on_completion,
+                    body,
+                } => {
+                    expression(select, &scope)?;
+                    let mut inner = scope.clone();
+                    for p in params {
+                        if let BindingValue::Select(e) = &p.value {
+                            expression(e, &scope)?;
+                        }
+                        inner.insert(p.name.clone());
+                    }
+                    instructions(on_completion, inner.clone(), templates)?;
+                    instructions(body, inner, templates)?;
+                }
+                Instruction::NextIteration(params) => {
+                    for p in params {
+                        if let BindingValue::Select(e) = &p.value {
+                            expression(e, &scope)?;
+                        }
+                    }
+                }
+                Instruction::Break(body) => instructions(body, scope.clone(), templates)?,
                 Instruction::UseSets(names) => {
                     for name in names {
                         if !templates.attribute_sets.contains(name) {
