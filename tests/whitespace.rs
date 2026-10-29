@@ -93,7 +93,7 @@ fn output_utf8_and_explicit_no_indent_are_supported() {
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?><out>é</out>"
     );
     assert!(Stylesheet::compile(&s.replace("utf-8", "ISO-8859-1")).is_err());
-    assert!(Stylesheet::compile(&s.replace("indent=\"no\"", "indent=\"yes\"")).is_err());
+    assert!(Stylesheet::compile(&s.replace("indent=\"no\"", "indent=\"maybe\"")).is_err());
 }
 #[test]
 fn streamed_whitespace_rules_honor_ancestor_xml_space_without_injecting_attributes() {
