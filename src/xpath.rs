@@ -998,6 +998,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
             (1, 1)
         }
         "substring" => (2, 3),
+        "codepoints-to-string" | "string-to-codepoints" => (1, 1),
         "translate" => (3, 3),
         "remove" => (2, 2),
         "insert-before" => (3, 3),
@@ -1700,7 +1701,12 @@ fn function<'a>(
     }
     if matches!(
         name,
-        "upper-case" | "lower-case" | "translate" | "substring"
+        "upper-case"
+            | "lower-case"
+            | "translate"
+            | "substring"
+            | "codepoints-to-string"
+            | "string-to-codepoints"
     ) {
         return crate::string_functions::evaluate(name, args, budget, backwards);
     }

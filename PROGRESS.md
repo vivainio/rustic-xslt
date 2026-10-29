@@ -628,5 +628,18 @@ conformance claims. Smaller tested increments are committed independently.
 - Thirty-three QT3 sets: 3,035 cases, 1,522 pass / 876 engine failures / 44 harness
   errors / 593 profile exclusions. All 48 selected substring cases pass.
 
-Next: Unicode codepoint conversion and remaining XPath grammar.
+## Increment 52: Unicode codepoint conversion
+
+- string-to-codepoints returns exact integer Unicode scalar values; the reverse
+  conversion accepts integer sequences and untyped node atomization.
+- Invalid XML 1.0 characters (including zero, surrogates and out-of-range values)
+  report FOCH0001; invalid argument types report XPTY0004. Traversals are budgeted.
+- 334 Rust integration tests, 27 harness tests and Clippy/format pass. All 381
+  XSLT gate cases remain green; prior QT3 cases gain nine passes.
+- Thirty-five QT3 sets: 3,158 cases, 1,639 pass / 868 engine failures / 52 harness
+  errors / 599 profile exclusions. Gate adds 108 codepoint-function cases;
+  all 44 selected string-to-codepoints cases pass. A million-item codepoint range
+  remains a named execution-budget failure under the conformance driver limits.
+
+Next: expression grammar validation and further XPath coverage.
 

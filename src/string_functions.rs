@@ -4,6 +4,7 @@ use crate::{
     number::Number,
     xpath::{self, Budget, Item, Value},
 };
+use num_traits::ToPrimitive;
 use std::collections::BTreeMap;
 fn type_error() -> Diagnostic {
     Diagnostic::new(
@@ -63,7 +64,41 @@ pub(crate) fn evaluate<'a>(
     budget: &mut Budget,
     backwards: bool,
 ) -> Result<Value<'a>, Diagnostic> {
+    if name == "codepoints-to-string" {
+        let mut result = String::new();
+        for item in &args[0] {
+            budget.tick()?;
+            let integer = match xpath::atomize(item) {
+                Item::Number(Number::Integer(n)) => n,
+                Item::Untyped(s) => {
+                    let Number::Integer(n) = Number::cast("integer", &s)? else {
+                        unreachable!()
+                    };
+                    n
+                }
+                _ => return Err(type_error()),
+            };
+            let point = integer.to_u32().filter(|c| matches!(c, 0x9 | 0xA | 0xD | 0x20..=0xD7FF | 0xE000..=0xFFFD | 0x10000..=0x10FFFF));
+            let c = point.and_then(char::from_u32).ok_or_else(|| {
+                Diagnostic::new(
+                    "FOCH0001",
+                    "codepoint is not a valid XML 1.0 character",
+                    "run",
+                )
+            })?;
+            result.push(c);
+        }
+        return Ok(vec![Item::String(result)]);
+    }
     let input = string(&args[0], true, backwards)?;
+    if name == "string-to-codepoints" {
+        let mut result = vec![];
+        for c in input.chars() {
+            budget.tick()?;
+            result.push(Item::Number(Number::from(c as usize)));
+        }
+        return Ok(result);
+    }
     let mut result = String::new();
     match name {
         "upper-case" | "lower-case" => {

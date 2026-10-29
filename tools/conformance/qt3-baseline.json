@@ -2,6 +2,7 @@
   "suite_revision": "201a6e466940cdfc727f4babfedcde5332b9f578",
   "selected_sets": [
     "fn-avg",
+    "fn-codepoints-to-string",
     "fn-deep-equal",
     "fn-exactly-one",
     "fn-head",
@@ -13,6 +14,7 @@
     "fn-remove",
     "fn-reverse",
     "fn-root",
+    "fn-string-to-codepoints",
     "fn-subsequence",
     "fn-substring",
     "fn-sum",
@@ -1165,6 +1167,114 @@
       "cbcl-fn-insert-before-002"
     ],
     [
+      "fn-lower-case",
+      "fn-lower-case1args-1"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case1args-2"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case1args-3"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case-1"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case-2"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case-3"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case-4"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case-5"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case-6"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case-7"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case-8"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case-9"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case-10"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case-11"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case-12"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case-13"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case-14"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case-15"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case-16"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case-17"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case-18"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case-20"
+    ],
+    [
+      "fn-lower-case",
+      "fn-lower-case-21"
+    ],
+    [
+      "fn-lower-case",
+      "K-LowerCaseFunc-1"
+    ],
+    [
+      "fn-lower-case",
+      "K-LowerCaseFunc-2"
+    ],
+    [
+      "fn-lower-case",
+      "K-LowerCaseFunc-3"
+    ],
+    [
+      "fn-lower-case",
+      "K-LowerCaseFunc-4"
+    ],
+    [
       "fn-max",
       "fn-maxintg1args-1"
     ],
@@ -1962,6 +2072,10 @@
     ],
     [
       "fn-one-or-more",
+      "K2-SeqOneOrMoreFunc-1"
+    ],
+    [
+      "fn-one-or-more",
       "cbcl-one-or-more-005"
     ],
     [
@@ -2621,6 +2735,198 @@
       "cbcl-subsequence-026"
     ],
     [
+      "fn-substring",
+      "fn-substring-1"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-2"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-3"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-4"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-5"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-6"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-7"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-8"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-9"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-10"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-11"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-12"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-13"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-14"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-15"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-16"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-17"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-18"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-19"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-20"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-21"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-22"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-23"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-24"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-25"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-26"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-27"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-28"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-29"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-30"
+    ],
+    [
+      "fn-substring",
+      "fn-substring-31"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-1"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-2"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-3"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-4"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-5"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-6"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-7"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-8"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-9"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-10"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-11"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-12"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-13"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-14"
+    ],
+    [
+      "fn-substring",
+      "K-SubstringFunc-15"
+    ],
+    [
+      "fn-substring",
+      "cbcl-substring-001"
+    ],
+    [
+      "fn-substring",
+      "cbcl-substring-002"
+    ],
+    [
       "fn-sum",
       "fn-sumintg1args-1"
     ],
@@ -2975,6 +3281,286 @@
     [
       "fn-tail",
       "tail-005"
+    ],
+    [
+      "fn-translate",
+      "fn-translate3args-1"
+    ],
+    [
+      "fn-translate",
+      "fn-translate3args-2"
+    ],
+    [
+      "fn-translate",
+      "fn-translate3args-3"
+    ],
+    [
+      "fn-translate",
+      "fn-translate3args-4"
+    ],
+    [
+      "fn-translate",
+      "fn-translate3args-5"
+    ],
+    [
+      "fn-translate",
+      "fn-translate3args-6"
+    ],
+    [
+      "fn-translate",
+      "fn-translate3args-7"
+    ],
+    [
+      "fn-translate",
+      "fn-translate3args-8"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-1"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-2"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-3"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-4"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-5"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-6"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-7"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-8"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-9"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-10"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-11"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-12"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-13"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-14"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-15"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-16"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-17"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-18"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-19"
+    ],
+    [
+      "fn-translate",
+      "fn-translate-20"
+    ],
+    [
+      "fn-translate",
+      "K-TranslateFunc-1"
+    ],
+    [
+      "fn-translate",
+      "K-TranslateFunc-2"
+    ],
+    [
+      "fn-translate",
+      "K-TranslateFunc-3"
+    ],
+    [
+      "fn-translate",
+      "K-TranslateFunc-4"
+    ],
+    [
+      "fn-translate",
+      "K-TranslateFunc-5"
+    ],
+    [
+      "fn-translate",
+      "K-TranslateFunc-6"
+    ],
+    [
+      "fn-translate",
+      "K-TranslateFunc-7"
+    ],
+    [
+      "fn-translate",
+      "K-TranslateFunc-8"
+    ],
+    [
+      "fn-translate",
+      "K-TranslateFunc-9"
+    ],
+    [
+      "fn-translate",
+      "K-TranslateFunc-10"
+    ],
+    [
+      "fn-translate",
+      "K2-TranslateFunc-1"
+    ],
+    [
+      "fn-translate",
+      "K2-TranslateFunc-2"
+    ],
+    [
+      "fn-translate",
+      "cbcl-fn-translate-001"
+    ],
+    [
+      "fn-translate",
+      "cbcl-fn-translate-002"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case1args-1"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case1args-2"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case1args-3"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-1"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-2"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-3"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-4"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-5"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-6"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-7"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-8"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-9"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-10"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-11"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-12"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-13"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-14"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-15"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-16"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-17"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-18"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-20"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-21"
+    ],
+    [
+      "fn-upper-case",
+      "fn-upper-case-22"
+    ],
+    [
+      "fn-upper-case",
+      "K-UpperCaseFunc-1"
+    ],
+    [
+      "fn-upper-case",
+      "K-UpperCaseFunc-2"
+    ],
+    [
+      "fn-upper-case",
+      "K-UpperCaseFunc-3"
+    ],
+    [
+      "fn-upper-case",
+      "K-UpperCaseFunc-4"
     ],
     [
       "fn-zero-or-one",
@@ -5577,552 +6163,436 @@
       "sequence-type-21"
     ],
     [
-      "fn-lower-case",
-      "fn-lower-case1args-1"
+      "fn-codepoints-to-string",
+      "fn-codepoints-to-string1args-1"
     ],
     [
-      "fn-lower-case",
-      "fn-lower-case1args-2"
+      "fn-codepoints-to-string",
+      "fn-codepoints-to-string1args-2"
     ],
     [
-      "fn-lower-case",
-      "fn-lower-case1args-3"
+      "fn-codepoints-to-string",
+      "fn-codepoints-to-string1args-3"
     ],
     [
-      "fn-lower-case",
-      "fn-lower-case-1"
+      "fn-codepoints-to-string",
+      "fn-codepoints-to-string1args-4"
     ],
     [
-      "fn-lower-case",
-      "fn-lower-case-2"
+      "fn-codepoints-to-string",
+      "fn-codepoints-to-string-1"
     ],
     [
-      "fn-lower-case",
-      "fn-lower-case-3"
+      "fn-codepoints-to-string",
+      "fn-codepoints-to-string-2"
     ],
     [
-      "fn-lower-case",
-      "fn-lower-case-4"
+      "fn-codepoints-to-string",
+      "fn-codepoints-to-string-3"
     ],
     [
-      "fn-lower-case",
-      "fn-lower-case-5"
+      "fn-codepoints-to-string",
+      "fn-codepoints-to-string-4"
     ],
     [
-      "fn-lower-case",
-      "fn-lower-case-6"
+      "fn-codepoints-to-string",
+      "fn-codepoints-to-string-5"
     ],
     [
-      "fn-lower-case",
-      "fn-lower-case-7"
+      "fn-codepoints-to-string",
+      "fn-codepoints-to-string-6"
     ],
     [
-      "fn-lower-case",
-      "fn-lower-case-8"
+      "fn-codepoints-to-string",
+      "fn-codepoints-to-string-7"
     ],
     [
-      "fn-lower-case",
-      "fn-lower-case-9"
+      "fn-codepoints-to-string",
+      "fn-codepoints-to-string-8"
     ],
     [
-      "fn-lower-case",
-      "fn-lower-case-10"
+      "fn-codepoints-to-string",
+      "fn-codepoints-to-string-9"
     ],
     [
-      "fn-lower-case",
-      "fn-lower-case-11"
+      "fn-codepoints-to-string",
+      "fn-codepoints-to-string-10"
     ],
     [
-      "fn-lower-case",
-      "fn-lower-case-12"
+      "fn-codepoints-to-string",
+      "fn-codepoints-to-string-11"
     ],
     [
-      "fn-lower-case",
-      "fn-lower-case-13"
+      "fn-codepoints-to-string",
+      "fn-codepoints-to-string-12"
     ],
     [
-      "fn-lower-case",
-      "fn-lower-case-14"
+      "fn-codepoints-to-string",
+      "fn-codepoints-to-string-13"
     ],
     [
-      "fn-lower-case",
-      "fn-lower-case-15"
+      "fn-codepoints-to-string",
+      "fn-codepoints-to-string-14"
     ],
     [
-      "fn-lower-case",
-      "fn-lower-case-16"
+      "fn-codepoints-to-string",
+      "fn-codepoints-to-string-15"
     ],
     [
-      "fn-lower-case",
-      "fn-lower-case-17"
+      "fn-codepoints-to-string",
+      "fn-codepoints-to-string-16"
     ],
     [
-      "fn-lower-case",
-      "K-LowerCaseFunc-1"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-1"
     ],
     [
-      "fn-lower-case",
-      "K-LowerCaseFunc-2"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-2"
     ],
     [
-      "fn-lower-case",
-      "K-LowerCaseFunc-3"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-3"
     ],
     [
-      "fn-lower-case",
-      "K-LowerCaseFunc-4"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-4"
     ],
     [
-      "fn-substring",
-      "fn-substring-1"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-5"
     ],
     [
-      "fn-substring",
-      "fn-substring-2"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-6"
     ],
     [
-      "fn-substring",
-      "fn-substring-3"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-7"
     ],
     [
-      "fn-substring",
-      "fn-substring-4"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-9"
     ],
     [
-      "fn-substring",
-      "fn-substring-5"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-10"
     ],
     [
-      "fn-substring",
-      "fn-substring-6"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-14"
     ],
     [
-      "fn-substring",
-      "fn-substring-7"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-15"
     ],
     [
-      "fn-substring",
-      "fn-substring-8"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-16"
     ],
     [
-      "fn-substring",
-      "fn-substring-9"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-17"
     ],
     [
-      "fn-substring",
-      "fn-substring-10"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-18"
     ],
     [
-      "fn-substring",
-      "fn-substring-11"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-19"
     ],
     [
-      "fn-substring",
-      "fn-substring-12"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-20"
     ],
     [
-      "fn-substring",
-      "fn-substring-13"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-21"
     ],
     [
-      "fn-substring",
-      "fn-substring-14"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-22"
     ],
     [
-      "fn-substring",
-      "fn-substring-15"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-23"
     ],
     [
-      "fn-substring",
-      "fn-substring-16"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-24"
     ],
     [
-      "fn-substring",
-      "fn-substring-17"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-25"
     ],
     [
-      "fn-substring",
-      "fn-substring-18"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-26"
     ],
     [
-      "fn-substring",
-      "fn-substring-19"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-27"
     ],
     [
-      "fn-substring",
-      "fn-substring-20"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-28"
     ],
     [
-      "fn-substring",
-      "fn-substring-21"
+      "fn-codepoints-to-string",
+      "K-CodepointToStringFunc-29"
     ],
     [
-      "fn-substring",
-      "fn-substring-22"
+      "fn-codepoints-to-string",
+      "cbcl-codepoints-to-string-006"
     ],
     [
-      "fn-substring",
-      "fn-substring-23"
+      "fn-codepoints-to-string",
+      "cbcl-codepoints-to-string-007"
     ],
     [
-      "fn-substring",
-      "fn-substring-24"
+      "fn-codepoints-to-string",
+      "cbcl-codepoints-to-string-008"
     ],
     [
-      "fn-substring",
-      "fn-substring-25"
+      "fn-codepoints-to-string",
+      "cbcl-codepoints-to-string-009"
     ],
     [
-      "fn-substring",
-      "fn-substring-26"
+      "fn-codepoints-to-string",
+      "cbcl-codepoints-to-string-010"
     ],
     [
-      "fn-substring",
-      "fn-substring-27"
+      "fn-codepoints-to-string",
+      "cbcl-codepoints-to-string-011"
     ],
     [
-      "fn-substring",
-      "fn-substring-28"
+      "fn-codepoints-to-string",
+      "cbcl-codepoints-to-string-012"
     ],
     [
-      "fn-substring",
-      "fn-substring-29"
+      "fn-codepoints-to-string",
+      "cbcl-codepoints-to-string-013"
     ],
     [
-      "fn-substring",
-      "fn-substring-30"
+      "fn-codepoints-to-string",
+      "cbcl-codepoints-to-string-014"
     ],
     [
-      "fn-substring",
-      "fn-substring-31"
+      "fn-codepoints-to-string",
+      "cbcl-codepoints-to-string-015"
     ],
     [
-      "fn-substring",
-      "K-SubstringFunc-1"
+      "fn-codepoints-to-string",
+      "cbcl-codepoints-to-string-016"
     ],
     [
-      "fn-substring",
-      "K-SubstringFunc-2"
+      "fn-codepoints-to-string",
+      "cbcl-codepoints-to-string-017"
     ],
     [
-      "fn-substring",
-      "K-SubstringFunc-3"
+      "fn-codepoints-to-string",
+      "cbcl-codepoints-to-string-019"
     ],
     [
-      "fn-substring",
-      "K-SubstringFunc-4"
+      "fn-codepoints-to-string",
+      "cbcl-codepoints-to-string-020"
     ],
     [
-      "fn-substring",
-      "K-SubstringFunc-5"
+      "fn-codepoints-to-string",
+      "cbcl-codepoints-to-string-021"
     ],
     [
-      "fn-substring",
-      "K-SubstringFunc-6"
+      "fn-codepoints-to-string",
+      "cbcl-codepoints-to-string-022"
     ],
     [
-      "fn-substring",
-      "K-SubstringFunc-7"
+      "fn-codepoints-to-string",
+      "cbcl-codepoints-to-string-025"
     ],
     [
-      "fn-substring",
-      "K-SubstringFunc-8"
+      "fn-codepoints-to-string",
+      "cbcl-codepoints-to-string-026"
     ],
     [
-      "fn-substring",
-      "K-SubstringFunc-9"
+      "fn-codepoints-to-string",
+      "cbcl-codepoints-to-string-027"
     ],
     [
-      "fn-substring",
-      "K-SubstringFunc-10"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints1args-1"
     ],
     [
-      "fn-substring",
-      "K-SubstringFunc-11"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints1args-2"
     ],
     [
-      "fn-substring",
-      "K-SubstringFunc-12"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints1args-3"
     ],
     [
-      "fn-substring",
-      "K-SubstringFunc-13"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints1args-4"
     ],
     [
-      "fn-substring",
-      "K-SubstringFunc-14"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints1args-5"
     ],
     [
-      "fn-substring",
-      "K-SubstringFunc-15"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints1args-6"
     ],
     [
-      "fn-substring",
-      "cbcl-substring-001"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints1args-7"
     ],
     [
-      "fn-substring",
-      "cbcl-substring-002"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints1args-8"
     ],
     [
-      "fn-translate",
-      "fn-translate3args-1"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints-1"
     ],
     [
-      "fn-translate",
-      "fn-translate3args-2"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints-2"
     ],
     [
-      "fn-translate",
-      "fn-translate3args-3"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints-3"
     ],
     [
-      "fn-translate",
-      "fn-translate3args-4"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints-4"
     ],
     [
-      "fn-translate",
-      "fn-translate3args-5"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints-5"
     ],
     [
-      "fn-translate",
-      "fn-translate3args-6"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints-6"
     ],
     [
-      "fn-translate",
-      "fn-translate3args-7"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints-7"
     ],
     [
-      "fn-translate",
-      "fn-translate3args-8"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints-8"
     ],
     [
-      "fn-translate",
-      "fn-translate-1"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints-9"
     ],
     [
-      "fn-translate",
-      "fn-translate-2"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints-10"
     ],
     [
-      "fn-translate",
-      "fn-translate-3"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints-11"
     ],
     [
-      "fn-translate",
-      "fn-translate-4"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints-12"
     ],
     [
-      "fn-translate",
-      "fn-translate-5"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints-13"
     ],
     [
-      "fn-translate",
-      "fn-translate-6"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints-14"
     ],
     [
-      "fn-translate",
-      "fn-translate-7"
+      "fn-string-to-codepoints",
+      "fn-string-to-codepoints-15"
     ],
     [
-      "fn-translate",
-      "fn-translate-8"
+      "fn-string-to-codepoints",
+      "K-StringToCodepointFunc-1"
     ],
     [
-      "fn-translate",
-      "fn-translate-9"
+      "fn-string-to-codepoints",
+      "K-StringToCodepointFunc-2"
     ],
     [
-      "fn-translate",
-      "fn-translate-10"
+      "fn-string-to-codepoints",
+      "K-StringToCodepointFunc-3"
     ],
     [
-      "fn-translate",
-      "fn-translate-11"
+      "fn-string-to-codepoints",
+      "K-StringToCodepointFunc-4"
     ],
     [
-      "fn-translate",
-      "fn-translate-12"
+      "fn-string-to-codepoints",
+      "K-StringToCodepointFunc-5"
     ],
     [
-      "fn-translate",
-      "fn-translate-13"
+      "fn-string-to-codepoints",
+      "K-StringToCodepointFunc-6"
     ],
     [
-      "fn-translate",
-      "fn-translate-14"
+      "fn-string-to-codepoints",
+      "K-StringToCodepointFunc-7"
     ],
     [
-      "fn-translate",
-      "fn-translate-15"
+      "fn-string-to-codepoints",
+      "K-StringToCodepointFunc-8"
     ],
     [
-      "fn-translate",
-      "fn-translate-16"
+      "fn-string-to-codepoints",
+      "K-StringToCodepointFunc-9"
     ],
     [
-      "fn-translate",
-      "fn-translate-17"
+      "fn-string-to-codepoints",
+      "K-StringToCodepointFunc-10"
     ],
     [
-      "fn-translate",
-      "fn-translate-18"
+      "fn-string-to-codepoints",
+      "K-StringToCodepointFunc-11"
     ],
     [
-      "fn-translate",
-      "fn-translate-19"
+      "fn-string-to-codepoints",
+      "K-StringToCodepointFunc-12"
     ],
     [
-      "fn-translate",
-      "fn-translate-20"
+      "fn-string-to-codepoints",
+      "K-StringToCodepointFunc-13"
     ],
     [
-      "fn-translate",
-      "K-TranslateFunc-1"
+      "fn-string-to-codepoints",
+      "K-StringToCodepointFunc-14"
     ],
     [
-      "fn-translate",
-      "K-TranslateFunc-2"
+      "fn-string-to-codepoints",
+      "K-StringToCodepointFunc-15"
     ],
     [
-      "fn-translate",
-      "K-TranslateFunc-3"
+      "fn-string-to-codepoints",
+      "K-StringToCodepointFunc-16"
     ],
     [
-      "fn-translate",
-      "K-TranslateFunc-4"
+      "fn-string-to-codepoints",
+      "K-StringToCodepointFunc-17"
     ],
     [
-      "fn-translate",
-      "K-TranslateFunc-5"
+      "fn-string-to-codepoints",
+      "K-StringToCodepointFunc-18"
     ],
     [
-      "fn-translate",
-      "K-TranslateFunc-6"
+      "fn-string-to-codepoints",
+      "K-StringToCodepointFunc-19"
     ],
     [
-      "fn-translate",
-      "K-TranslateFunc-7"
+      "fn-string-to-codepoints",
+      "K-StringToCodepointFunc-20"
     ],
     [
-      "fn-translate",
-      "K-TranslateFunc-8"
-    ],
-    [
-      "fn-translate",
-      "K-TranslateFunc-9"
-    ],
-    [
-      "fn-translate",
-      "K-TranslateFunc-10"
-    ],
-    [
-      "fn-translate",
-      "K2-TranslateFunc-1"
-    ],
-    [
-      "fn-translate",
-      "K2-TranslateFunc-2"
-    ],
-    [
-      "fn-translate",
-      "cbcl-fn-translate-001"
-    ],
-    [
-      "fn-upper-case",
-      "fn-upper-case1args-1"
-    ],
-    [
-      "fn-upper-case",
-      "fn-upper-case1args-2"
-    ],
-    [
-      "fn-upper-case",
-      "fn-upper-case1args-3"
-    ],
-    [
-      "fn-upper-case",
-      "fn-upper-case-1"
-    ],
-    [
-      "fn-upper-case",
-      "fn-upper-case-2"
-    ],
-    [
-      "fn-upper-case",
-      "fn-upper-case-3"
-    ],
-    [
-      "fn-upper-case",
-      "fn-upper-case-4"
-    ],
-    [
-      "fn-upper-case",
-      "fn-upper-case-5"
-    ],
-    [
-      "fn-upper-case",
-      "fn-upper-case-6"
-    ],
-    [
-      "fn-upper-case",
-      "fn-upper-case-7"
-    ],
-    [
-      "fn-upper-case",
-      "fn-upper-case-8"
-    ],
-    [
-      "fn-upper-case",
-      "fn-upper-case-9"
-    ],
-    [
-      "fn-upper-case",
-      "fn-upper-case-10"
-    ],
-    [
-      "fn-upper-case",
-      "fn-upper-case-11"
-    ],
-    [
-      "fn-upper-case",
-      "fn-upper-case-12"
-    ],
-    [
-      "fn-upper-case",
-      "fn-upper-case-13"
-    ],
-    [
-      "fn-upper-case",
-      "fn-upper-case-14"
-    ],
-    [
-      "fn-upper-case",
-      "fn-upper-case-15"
-    ],
-    [
-      "fn-upper-case",
-      "fn-upper-case-16"
-    ],
-    [
-      "fn-upper-case",
-      "fn-upper-case-17"
-    ],
-    [
-      "fn-upper-case",
-      "K-UpperCaseFunc-1"
-    ],
-    [
-      "fn-upper-case",
-      "K-UpperCaseFunc-2"
-    ],
-    [
-      "fn-upper-case",
-      "K-UpperCaseFunc-3"
-    ],
-    [
-      "fn-upper-case",
-      "K-UpperCaseFunc-4"
+      "fn-string-to-codepoints",
+      "K-StringToCodepointFunc-21"
     ]
   ]
 }

@@ -137,3 +137,86 @@ fn string_traversals_consume_shared_budget() {
         );
     }
 }
+
+#[test]
+fn codepoint_conversion_preserves_unicode_and_empty_sequence_semantics() {
+    for (expr, expected) in [
+        ("codepoints-to-string((65,233,128578))", "Aé🙂"),
+        ("string-to-codepoints('Aé🙂')", "65 233 128578"),
+        ("codepoints-to-string(()) instance of xs:string", "true"),
+        ("empty(string-to-codepoints(()))", "true"),
+        ("empty(string-to-codepoints(''))", "true"),
+        (
+            "codepoints-to-string(string-to-codepoints('a🙂é界'))",
+            "a🙂é界",
+        ),
+        ("string-to-codepoints(r/@a)", "97 98 67 100"),
+    ] {
+        assert_eq!(evaluate(expr), expected, "{expr}");
+    }
+    assert_eq!(
+        Stylesheet::compile(&source("codepoints-to-string(r/n)", "3.0"))
+            .unwrap()
+            .transform("<r><n>65</n></r>")
+            .unwrap(),
+        "A"
+    );
+}
+#[test]
+fn invalid_xml_codepoints_and_wrong_argument_types_report_distinct_errors() {
+    for expr in [
+        "codepoints-to-string(0)",
+        "codepoints-to-string(-1)",
+        "codepoints-to-string(55296)",
+        "codepoints-to-string(65535)",
+        "codepoints-to-string(1114112)",
+        "codepoints-to-string(999999999999999999999999)",
+    ] {
+        assert_eq!(
+            Stylesheet::compile(&source(expr, "3.0"))
+                .unwrap()
+                .transform("<r/>")
+                .unwrap_err()
+                .code,
+            "FOCH0001",
+            "{expr}"
+        );
+    }
+    for expr in [
+        "codepoints-to-string(65.0)",
+        "codepoints-to-string('65')",
+        "codepoints-to-string(true())",
+        "string-to-codepoints(1)",
+        "string-to-codepoints(('a','b'))",
+    ] {
+        assert_eq!(
+            Stylesheet::compile(&source(expr, "3.0"))
+                .unwrap()
+                .transform("<r/>")
+                .unwrap_err()
+                .code,
+            "XPTY0004",
+            "{expr}"
+        );
+    }
+}
+#[test]
+fn codepoint_conversions_consume_shared_budget() {
+    for expr in [
+        format!("string-to-codepoints('{}')", "a".repeat(200)),
+        "codepoints-to-string(for $x in 1 to 200 return 65)".into(),
+    ] {
+        let s = Stylesheet::compile(&source(&expr, "3.0")).unwrap();
+        let opts = TransformOptions {
+            limits: Limits {
+                max_steps: 100,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        assert_eq!(
+            s.transform_with_options("<r/>", &opts).unwrap_err().code,
+            "XPDY0130"
+        );
+    }
+}
