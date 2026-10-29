@@ -72,6 +72,26 @@ Supported so far:
 - UTF-8 XML/text output, explicit indent="no", XML declaration omission, and
   shared execution budgets.
 
+XPath 3.1 and XSLT 3.0 additions beyond the core above:
+
+- values and types: dates, times, durations and Gregorian fragments with arithmetic,
+  time zones and formatting (`format-date`, `format-time`, `format-dateTime`,
+  `format-integer`, `format-number` with `xsl:decimal-format`), hex/base64 binary,
+  maps, arrays, function items (inline functions, `name#arity`, partial application,
+  arrow operator), higher-order functions, `parse-json`, `math:` functions, UCA-style
+  collations (approximate), regular expressions with Unicode blocks and
+  backreferences;
+- instructions: `xsl:function`, `xsl:key`, `xsl:for-each-group`, `xsl:iterate`,
+  `xsl:try`/`xsl:catch`, `xsl:analyze-string`, `xsl:number`, `xsl:map`,
+  `xsl:perform-sort`, `xsl:evaluate`, `xsl:where-populated`, `xsl:namespace`,
+  `xsl:message` (collected by `transform_with_documents`), `xsl:result-document`,
+  `xsl:attribute-set`, `xsl:import`/`xsl:apply-imports`, `use-when`, static
+  variables and `expand-text`.
+
+Not yet implemented: schema awareness, packages, accumulators, `xsl:merge`,
+`xsl:fork`, `xsl:source-document`, character maps, non-UTF-8 output, dynamic
+`doc()` URIs, `xsl:on-empty`/`xsl:on-non-empty`, and the XSLT `streamable` feature.
+
 Versions 1.0, 2.0 and 3.0 are accepted; complete version semantics are not yet
 implemented. Version 1.0 currently enables first-item value-of/AVT conversion
 and selected backwards-compatible XPath conversions. Integer and decimal literals/arithmetic now use arbitrary-precision values,
@@ -111,7 +131,7 @@ Selected node/attribute identity is preserved through raw sequence capture.
 Raw xsl:copy-of allocates fresh node identities; xsl:copy constructs shallow
 element/document results. Copied attributes have fresh identities and can be attached to constructed elements.
 Match patterns support child/attribute paths, namespaces, wildcards, node tests,
-predicates, `/` and union. Descendant patterns remain ahead.
+predicates, `/`, `//`, parenthesized unions and `key()`/`id()` calls.
 
 Mode declarations support node-based text-only-copy, shallow/deep-copy,
 shallow/deep-skip and fail policies. Compatible declarations merge; conflicting
@@ -132,11 +152,12 @@ XSLT 2.0 reports XTDE0610 and 3.0 reports XTDE0700 when they are missing.
 Tunnel parameters pass through undeclared intermediate templates and built-in
 rules; ordinary and tunnel values remain separate. Initial tunnel values use
 `initial_tunnel_parameters`.
-No imports, schema awareness,
-resource loading, or cancellation yet. Record streaming is described below. Empty result elements use
+No schema awareness or cancellation yet; `xsl:import` and `xsl:include` load modules through
+`Stylesheet::compile_with_resolver`, and `TransformOptions::resolver` backs
+`unparsed-text()`, `json-doc()` and literal-URI `doc()`. Record streaming is described below. Empty result elements use
 explicit start/end tags. Literal results preserve in-scope non-XSLT namespaces except declared exclusions;
-required element/attribute namespace bindings are always retained. XML indentation
-and non-UTF-8 output remain unsupported.
+required element/attribute namespace bindings are always retained. `indent="yes"`,
+`method="html"`/`"xhtml"` and DOCTYPE declarations are supported; non-UTF-8 output is not.
 
 Parsing uses `roxmltree` with DTD processing disabled and a one-million-node
 limit. No external resources are opened. Source trees and selected sequences
@@ -221,7 +242,7 @@ A pinned, partial catalog runner and a 382-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. An initial internal QT3 bridge
-also gates 4,024 passing XPath cases at the pinned XPath suite revision.
+also gates more than 18,000 passing XPath cases at the pinned XPath suite revision.
 The example JSON-lines driver
 and its JSON dependency are development-only.
 
