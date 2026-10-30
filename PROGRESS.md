@@ -2376,3 +2376,12 @@ conformance claims. Smaller tested increments are committed independently.
 - Added computed-empty and supplied-empty marker regressions. The gate has
   1,072 passes (24 new, zero regressions), 240 failures, 378 harness errors and
   153 exclusions. Nine numbering tests and all-target/all-feature Clippy pass.
+
+## Increment 213: count parentless roots once in any-level numbering
+
+- Any-level numbering no longer prepends the root to a traversal that already
+  includes it, avoiding duplicate counts for matching parentless element roots.
+- Added a temporary-tree regression. The gate has 1,074 passes (two new, zero
+  regressions), 238 failures, 378 harness errors and 153 exclusions.
+- Validation: ten numbering tests, all-target/all-feature Clippy and the full
+  pinned XSLT regression gate pass.

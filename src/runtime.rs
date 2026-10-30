@@ -717,8 +717,7 @@ fn number_text<'a>(
                 let mut total = 0u64;
                 let mut seen_self = false;
                 let root = node.root();
-                let mut everything = vec![root];
-                everything.extend(root.descendants());
+                let everything = root.descendants();
                 for candidate in everything {
                     budget.tick()?;
                     if is_from(candidate, budget)? {
