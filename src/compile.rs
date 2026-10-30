@@ -1011,6 +1011,13 @@ fn body(
             if n.tag_name().namespace() == Some(XSL) {
                 match n.tag_name().name() {
                     "param" if skip_params => continue,
+                    "function" => {
+                        return Err(static_error(
+                            n,
+                            "XTSE0010",
+                            "xsl:function must be a top-level declaration",
+                        ));
+                    }
                     "text" => {
                         attrs(n, &[])?;
                         if n.children().any(|c| c.is_element()) {
@@ -3087,7 +3094,11 @@ fn declarations(
                         && c.tag_name().name() == "param"
                     {
                         if content {
-                            return Err(error(c, "function parameters must precede the body"));
+                            return Err(static_error(
+                                c,
+                                "XTSE0010",
+                                "function parameters must precede the body",
+                            ));
                         }
                         attrs(c, &["name", "as", "required", "tunnel", "static", "select"])?;
                         if c.attribute("select").is_some()

@@ -173,3 +173,11 @@ fn function_parameters_are_required_and_have_no_defaults() {
         "XTSE0740"
     );
 }
+
+#[test]
+fn functions_and_parameters_must_appear_in_their_declaration_positions() {
+    let nested = r#"<xsl:template match="/"><xsl:function name="f:inner"><xsl:sequence select="1"/></xsl:function></xsl:template>"#;
+    assert_eq!(run(nested, "1").unwrap_err().code, "XTSE0010");
+    let late = r#"<xsl:function name="f:late"><xsl:sequence select="1"/><xsl:param name="p"/></xsl:function>"#;
+    assert_eq!(run(late, "1").unwrap_err().code, "XTSE0010");
+}

@@ -2738,3 +2738,12 @@ conformance claims. Smaller tested increments are committed independently.
   failures, 371 harness errors and 223 exclusions across 2,038 selected cases.
 - Validation: eight stylesheet-function tests, all-target/all-feature Clippy and
   the expanded pinned XSLT gate pass without regressions.
+
+## Increment 243: function declaration placement
+
+- Nested xsl:function declarations and function parameters after body content
+  report XTSE0010. Added direct regressions for both placement rules.
+- Validation: nine stylesheet-function tests, all-target/all-feature Clippy and
+  the pinned XSLT gate pass. Two catalog cases join the baseline: 1,210 passes,
+  234 engine failures, 371 harness errors and 223 profile exclusions across
+  2,038 selected cases.
