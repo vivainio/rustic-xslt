@@ -20,6 +20,7 @@
     "output",
     "param",
     "result-document",
+    "system-property",
     "template",
     "tunnel",
     "type-available",
@@ -4318,6 +4319,66 @@
     [
       "result-document",
       "result-document-1301"
+    ],
+    [
+      "system-property",
+      "system-property-001"
+    ],
+    [
+      "system-property",
+      "system-property-002"
+    ],
+    [
+      "system-property",
+      "system-property-003"
+    ],
+    [
+      "system-property",
+      "system-property-004"
+    ],
+    [
+      "system-property",
+      "system-property-005"
+    ],
+    [
+      "system-property",
+      "system-property-006"
+    ],
+    [
+      "system-property",
+      "system-property-007"
+    ],
+    [
+      "system-property",
+      "system-property-008"
+    ],
+    [
+      "system-property",
+      "system-property-009"
+    ],
+    [
+      "system-property",
+      "system-property-010"
+    ],
+    [
+      "system-property",
+      "system-property-011"
+    ],
+    [
+      "system-property",
+      "system-property-019"
+    ],
+    [
+      "system-property",
+      "system-property-021"
+    ],
+    [
+      "system-property",
+      "system-property-022"
+    ],
+    [
+      "system-property",
+      "system-property-025"
     ],
     [
       "template",

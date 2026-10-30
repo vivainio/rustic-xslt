@@ -1653,7 +1653,6 @@ thread_local! {
 pub(crate) fn xpath_only_profile() -> bool {
     XPATH_ONLY.with(std::cell::Cell::get)
 }
-#[cfg(feature = "conformance")]
 pub(crate) fn with_xpath_profile<T>(operation: impl FnOnce() -> T) -> T {
     struct Restore(bool);
     impl Drop for Restore {
@@ -2526,11 +2525,12 @@ pub(crate) fn eval<'a>(
             for _ in source.bytes() {
                 budget.tick()?;
             }
-            let parsed = parse(&source, namespaces.clone()).map_err(|mut e| {
-                e.code = "XTDE3160".into();
-                e.phase = "run";
-                e
-            })?;
+            let parsed =
+                with_xpath_profile(|| parse(&source, namespaces.clone())).map_err(|mut e| {
+                    e.code = "XTDE3160".into();
+                    e.phase = "run";
+                    e
+                })?;
             let mut scope: Variables<'a> = vars
                 .iter()
                 .filter(|(k, _)| k.starts_with(GLOBAL_PREFIX))

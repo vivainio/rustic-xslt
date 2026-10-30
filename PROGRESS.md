@@ -2903,3 +2903,17 @@ conformance claims. Smaller tested increments are committed independently.
 - Added the six passing cases to the pinned gate. It now records 1,220 passes,
   235 engine failures, 374 harness errors and 226 profile exclusions across
   2,055 selected cases. The expanded gate passes without regressions.
+
+## Increment 258: xsl:evaluate static function library
+
+- Parse xsl:evaluate target expressions with the XPath function library, so
+  direct XSLT-only function calls and references produce XTDE3160, while XPath
+  built-ins and stylesheet functions remain available. The normal stylesheet
+  function library is restored after parsing.
+- Surveyed all 27 system-property cases: 15 pass, ten have a harness error for
+  the higher-order-functions dependency, and two are profile exclusions. Added
+  the 15 passes to the gate: 1,235 passes, 235 engine failures, 384 harness
+  errors and 228 exclusions across 2,082 selected cases.
+- Dynamic-instruction tests, all-target/all-feature Clippy and the expanded
+  XSLT gate pass. Dynamic function lookup and target variable visibility still
+  need separate review against the xsl:evaluate static context rules.

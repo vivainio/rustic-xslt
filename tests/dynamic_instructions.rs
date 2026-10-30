@@ -65,3 +65,32 @@ fn namespace_instruction_declares_namespaces_on_the_current_element() {
         "XTDE0920"
     );
 }
+
+#[test]
+fn evaluate_target_uses_xpath_function_library() {
+    for expr in [
+        "system-property('xsl:version')",
+        "element-available('xsl:text')",
+        "current()",
+        "system-property#1",
+    ] {
+        let body = format!(r#"<xsl:evaluate xpath="&quot;{expr}&quot;"/>"#);
+        assert_eq!(run(&body).unwrap_err().code, "XTDE3160", "{expr}");
+    }
+    assert_eq!(
+        run(r#"<xsl:evaluate xpath="&quot;concat('a','b')&quot;"/>"#).unwrap(),
+        "ab"
+    );
+    assert_eq!(
+        run(r#"<xsl:value-of select="system-property('xsl:version')"/>"#).unwrap(),
+        "3.0"
+    );
+    let stylesheet = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:f="urn:f"><xsl:output method="text"/><xsl:function name="f:test"><xsl:sequence select="42"/></xsl:function><xsl:template match="/"><xsl:evaluate xpath="'f:test()'"/></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(
+        Stylesheet::compile(stylesheet)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap(),
+        "42"
+    );
+}
