@@ -2893,3 +2893,13 @@ conformance claims. Smaller tested increments are committed independently.
   232 failures, 373 harness errors and 226 exclusions across 2,045 selected cases.
 - Focused type-availability tests, all-target/all-feature Clippy and the expanded
   XSLT gate pass. User-imported schema types remain outside the basic processor.
+
+## Increment 257: function-available catalog coverage
+
+- Surveyed all ten function-available catalog cases: six pass, three fail due to
+  unsupported general instructions in stylesheet functions, and one is a harness
+  error for an unrecognized higher-order-functions dependency. The latter also
+  checks a capability property whose conformance claim needs separate review.
+- Added the six passing cases to the pinned gate. It now records 1,220 passes,
+  235 engine failures, 374 harness errors and 226 profile exclusions across
+  2,055 selected cases. The expanded gate passes without regressions.

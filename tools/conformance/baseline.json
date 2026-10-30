@@ -8,6 +8,7 @@
     "current",
     "for-each-group",
     "function",
+    "function-available",
     "id",
     "initial-mode",
     "initial-template",
@@ -1341,6 +1342,30 @@
     [
       "function",
       "function-2108"
+    ],
+    [
+      "function-available",
+      "function-available-0204"
+    ],
+    [
+      "function-available",
+      "function-available-0801"
+    ],
+    [
+      "function-available",
+      "function-available-1006"
+    ],
+    [
+      "function-available",
+      "function-available-1015"
+    ],
+    [
+      "function-available",
+      "function-available-1016"
+    ],
+    [
+      "function-available",
+      "function-available-1017"
     ],
     [
       "initial-mode",
