@@ -2618,3 +2618,13 @@ conformance claims. Smaller tested increments are committed independently.
   engine failures, 384 harness errors and 153 exclusions across 1,928 cases.
 - Validation: full Rust suite, all-target/all-feature Clippy, the expanded XSLT
   gate and all 18,735 pinned QT3 cases pass without regressions.
+
+## Grouping profile audit
+
+- The remaining for-each-group-015a, -046 and -081a expectations target an
+  XSLT 2.0 processor. Their paired XSLT 3.0 cases test the same stylesheets and
+  already pass; stylesheet version must not be used as processor version.
+- The catalog runner currently accepts both processor profiles. Restricting it
+  to XSLT 3.0 also excludes three existing XSLT 2.0-only passing baseline cases
+  (match-039, match-082 and match-087). A profile correction should preserve
+  their regression coverage separately and report profile changes explicitly.
