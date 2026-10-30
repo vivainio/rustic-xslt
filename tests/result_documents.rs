@@ -231,6 +231,7 @@ fn malformed_media_type_names_are_serialization_parameter_errors() {
         "/plain",
         "text/pl ain",
         "text/plain/extra",
+        "\u{a0}text/html",
     ] {
         let body = format!(
             r#"<xsl:result-document method="html" media-type="{media}"><head/></xsl:result-document>"#
@@ -266,4 +267,13 @@ fn mime_extension_tokens_preserve_legal_braces() {
             .principal
             .contains("application/x{demo}; note={value}; charset=UTF-8")
     );
+}
+
+#[test]
+fn media_type_parameters_do_not_strip_unicode_whitespace() {
+    let media = "text/html; note=\u{a0}value";
+    let body = format!(
+        r#"<xsl:result-document method="html" media-type="{media}"><head/></xsl:result-document>"#
+    );
+    assert_eq!(run(&body).unwrap_err().code, "SEPM0016");
 }

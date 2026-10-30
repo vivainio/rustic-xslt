@@ -1037,7 +1037,11 @@ pub(crate) fn validate_media_type(value: &str) -> Result<(), Diagnostic> {
                 .bytes()
                 .all(|byte| (0x21..=0x7e).contains(&byte) && !b"()<>@,;:\\\"/[]?=".contains(&byte))
     };
-    let essence = value.split(';').next().unwrap_or("").trim();
+    let essence = value
+        .split(';')
+        .next()
+        .unwrap_or("")
+        .trim_matches([' ', '\t', '\r', '\n']);
     if !essence
         .split_once('/')
         .is_some_and(|(kind, subtype)| token(kind) && token(subtype))
@@ -1071,8 +1075,8 @@ pub(crate) fn validate_media_type(value: &str) -> Result<(), Diagnostic> {
             let segment = &value[start..index];
             if parameter {
                 let valid = segment.split_once('=').is_some_and(|(name, value)| {
-                    let value = value.trim();
-                    if !token(name.trim()) {
+                    let value = value.trim_matches([' ', '\t', '\r', '\n']);
+                    if !token(name.trim_matches([' ', '\t', '\r', '\n'])) {
                         return false;
                     }
                     if token(value) {
@@ -1108,9 +1112,10 @@ pub(crate) fn validate_media_type(value: &str) -> Result<(), Diagnostic> {
                 }
             }
             if parameter
-                && segment
-                    .split_once('=')
-                    .is_some_and(|(name, _)| name.trim().eq_ignore_ascii_case("charset"))
+                && segment.split_once('=').is_some_and(|(name, _)| {
+                    name.trim_matches([' ', '\t', '\r', '\n'])
+                        .eq_ignore_ascii_case("charset")
+                })
             {
                 return Err(Diagnostic::new(
                     "SEPM0016",

@@ -2302,3 +2302,12 @@ conformance claims. Smaller tested increments are committed independently.
 - Reference: https://www.rfc-editor.org/rfc/rfc2045.html#section-5.1
 - Validation: twenty-two result-document tests, all-target/all-feature Clippy
   and the full 931-case pinned XSLT gate pass without regressions.
+
+## Increment 205: ASCII whitespace in MIME parameter parsing
+
+- Media-type validation trims only ASCII MIME whitespace rather than Unicode
+  whitespace, preserving nonbreaking spaces as invalid unquoted token content.
+- Added nonbreaking-space regressions for a media-type name and parameter value.
+- Validation: the full all-feature Rust suite passed before this change;
+  twenty-three result-document tests, all-target/all-feature Clippy and the full
+  931-case pinned XSLT gate pass afterward without regressions.
