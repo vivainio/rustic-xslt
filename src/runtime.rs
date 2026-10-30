@@ -726,9 +726,19 @@ fn number_text<'a>(
                     if counted(candidate, budget)? {
                         total += 1;
                     }
-                    if candidate == node {
+                    if candidate == node
+                        || (node.is_attribute() && node.parent() == Some(candidate))
+                    {
                         seen_self = true;
                         break;
+                    }
+                }
+                if seen_self && node.is_attribute() && node.parent().is_some() {
+                    if is_from(node, budget)? {
+                        total = 0;
+                    }
+                    if counted(node, budget)? {
+                        total += 1;
                     }
                 }
                 if seen_self && total > 0 {

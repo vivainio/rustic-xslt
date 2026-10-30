@@ -2385,3 +2385,12 @@ conformance claims. Smaller tested increments are committed independently.
   regressions), 238 failures, 378 harness errors and 153 exclusions.
 - Validation: ten numbering tests, all-target/all-feature Clippy and the full
   pinned XSLT regression gate pass.
+
+## Increment 214: any-level numbering from attribute nodes
+
+- Any-level numbering reaches attribute context nodes via their parent boundary
+  and considers the selected attribute itself without counting unrelated prior
+  attributes. Preceding and ancestor element counts remain in document order.
+- Added ancestor-count and default attribute-count regressions. The gate has
+  1,077 passes (three new, zero regressions), 235 failures, 378 harness errors
+  and 153 exclusions. Eleven numbering tests and Clippy pass.

@@ -146,3 +146,9 @@ fn empty_place_markers_retain_picture_affixes() {
 fn any_level_counts_a_parentless_root_once() {
     assert_eq!(run(r#"<xsl:variable name="tree" as="element()"><a><b/><b/><b/><c/></a></xsl:variable><xsl:number level="any" select="$tree/c" count="a|b|c"/>"#, "<r/>").unwrap(), "5");
 }
+
+#[test]
+fn any_level_numbering_from_attributes_counts_preceding_and_ancestor_nodes() {
+    assert_eq!(run(r#"<xsl:for-each select="r/a/@title"><xsl:number level="any" count="a"/><xsl:text>;</xsl:text></xsl:for-each>"#, "<r><a title='first'/><a title='second'/></r>").unwrap(), "1;2;");
+    assert_eq!(run(r#"<xsl:for-each select="r/a/@title"><xsl:number level="any"/><xsl:text>;</xsl:text></xsl:for-each>"#, "<r><a title='first'/><a title='second'/></r>").unwrap(), "1;1;");
+}
