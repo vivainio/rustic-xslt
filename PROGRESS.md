@@ -2852,3 +2852,13 @@ conformance claims. Smaller tested increments are committed independently.
 - Twelve use-when tests, all-target/all-feature Clippy and the 1,212-case XSLT
   gate pass. Coverage includes whitespace, malformed syntax and unbound prefixes
   for all four namespace-sensitive functions.
+
+## Increment 253: format-integer argument conversion
+
+- Validate the required picture and optional language argument types before
+  returning for an empty integer. Invalid types and language cardinalities now
+  report XPTY0004; empty language remains accepted. Language-specific formatting
+  continues to use the existing fallback behavior.
+- Focused integer-format tests, all-target/all-feature Clippy and the 1,212-case
+  XSLT gate pass. Catalog recursion cases still need deeper execution and caching
+  support rather than a higher unchecked call-stack limit.

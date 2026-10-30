@@ -4198,6 +4198,10 @@ fn function<'a>(
         }]);
     }
     if name == "format-integer" {
+        let picture = crate::string_functions::string(&args[1], false, backwards)?;
+        if let Some(language) = args.get(2) {
+            crate::string_functions::string(language, true, backwards)?;
+        }
         let value = match args[0].as_slice() {
             [] => return Ok(vec![Item::String(String::new())]),
             [item] => match atomize(item) {
@@ -4215,7 +4219,6 @@ fn function<'a>(
                 ));
             }
         };
-        let picture = crate::string_functions::string(&args[1], false, backwards)?;
         return crate::numbering::format_integer(&value, &picture)
             .map(|text| vec![Item::String(text)])
             .map_err(|code| err(&code, "invalid integer picture"));
