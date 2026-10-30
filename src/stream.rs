@@ -718,6 +718,14 @@ pub(crate) fn transform<R: BufRead, W: Write>(
     options: &StreamOptions,
 ) -> Result<StreamStats, Diagnostic> {
     let path = validate(sheet, options)?;
+    if sheet.undeclare_prefixes && !sheet.text_output && sheet.markup != crate::result::Markup::Html
+    {
+        return Err(Diagnostic::new(
+            "SEPM0010",
+            "namespace prefix undeclarations require XML 1.1",
+            "run",
+        ));
+    }
     if let Some(media) = &sheet.media_type {
         crate::result::validate_media_type(media)?;
     }

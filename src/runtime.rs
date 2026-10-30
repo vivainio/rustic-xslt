@@ -1162,6 +1162,14 @@ fn execute<'a>(
     if budget.principal_output_claimed {
         return Ok(std::mem::take(&mut budget.principal_output));
     }
+    if sheet.undeclare_prefixes && !sheet.text_output && sheet.markup != crate::result::Markup::Html
+    {
+        return Err(Diagnostic::new(
+            "SEPM0010",
+            "namespace prefix undeclarations require XML 1.1",
+            "run",
+        ));
+    }
     if let Some(media) = &sheet.media_type {
         crate::result::validate_media_type(media)?;
     }
@@ -2256,6 +2264,15 @@ fn run_tasks<'a>(
                                     .transpose()
                             };
                         let indent_override = flag("indent", &spec.indent)?;
+                        let undeclare = flag("undeclare-prefixes", &spec.undeclare_prefixes)?
+                            .unwrap_or(settings.undeclare_prefixes);
+                        if undeclare && matches!(method, "xml" | "xhtml") {
+                            return Err(Diagnostic::new(
+                                "SEPM0010",
+                                "namespace prefix undeclarations require XML 1.1",
+                                "run",
+                            ));
+                        }
                         let metadata_override =
                             flag("include-content-type", &spec.include_content_type)?;
                         let uri_override =

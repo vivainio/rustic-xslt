@@ -95,6 +95,7 @@ pub(crate) struct ResultDocumentSpec {
     pub byte_order_mark: Option<Vec<Expr>>,
     pub indent: Option<Vec<Expr>>,
     pub escape_uri_attributes: Option<Vec<Expr>>,
+    pub undeclare_prefixes: Option<Vec<Expr>>,
     pub include_content_type: Option<Vec<Expr>>,
     pub media_type: Option<Vec<Expr>>,
     pub encoding: Option<Vec<Expr>>,
@@ -1273,6 +1274,7 @@ fn body(
                                 "byte-order-mark",
                                 "indent",
                                 "escape-uri-attributes",
+                                "undeclare-prefixes",
                                 "include-content-type",
                                 "media-type",
                                 "encoding",
@@ -1342,6 +1344,7 @@ fn body(
                             byte_order_mark: flag("byte-order-mark")?,
                             indent: flag("indent")?,
                             escape_uri_attributes: flag("escape-uri-attributes")?,
+                            undeclare_prefixes: flag("undeclare-prefixes")?,
                             include_content_type: flag("include-content-type")?,
                             media_type: n
                                 .attribute("media-type")
@@ -2146,6 +2149,7 @@ fn apply_output_properties(
         .unwrap_or_default();
     sheet.indent = get("indent") == Some("yes");
     sheet.escape_uri_attributes = get("escape-uri-attributes") != Some("no");
+    sheet.undeclare_prefixes = get("undeclare-prefixes") == Some("yes");
     sheet.include_content_type = get("include-content-type") != Some("no");
     sheet.media_type = get("media-type").map(str::to_owned);
     sheet.byte_order_mark = get("byte-order-mark") == Some("yes");
@@ -3076,6 +3080,7 @@ pub(crate) fn compile(
         indent: false,
         markup: crate::result::Markup::Xml,
         escape_uri_attributes: true,
+        undeclare_prefixes: false,
         include_content_type: true,
         media_type: None,
         encoding: Default::default(),
@@ -3139,6 +3144,7 @@ pub(crate) fn compile(
     sheet.text_output = primary.text_output;
     sheet.markup = primary.markup;
     sheet.escape_uri_attributes = primary.escape_uri_attributes;
+    sheet.undeclare_prefixes = primary.undeclare_prefixes;
     sheet.include_content_type = primary.include_content_type;
     sheet.media_type = primary.media_type.clone();
     sheet.encoding = primary.encoding;
@@ -3396,6 +3402,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                         &spec.doctype_system,
                         &spec.indent,
                         &spec.escape_uri_attributes,
+                        &spec.undeclare_prefixes,
                         &spec.include_content_type,
                         &spec.media_type,
                         &spec.omit_declaration,

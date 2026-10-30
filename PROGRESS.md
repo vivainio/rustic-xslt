@@ -2258,3 +2258,12 @@ conformance claims. Smaller tested increments are committed independently.
 - The regression also checks preserved titles, record counts and output bytes.
 - Validation: fifteen streaming tests, all-target/all-feature Clippy, formatting
   and diff checks pass. No runtime behavior changed.
+
+## Increment 200: namespace undeclaration serialization parameters
+
+- Output definitions and result-document AVTs carry undeclare-prefixes. XML 1.0
+  and XHTML reject enabled prefix undeclarations with SEPM0010; HTML and text
+  ignore the parameter. Streaming validates before emitting its preamble.
+- Added dynamic XML rejection and text-method regressions. The pinned XSLT gate
+  has 931 passes (two new, zero regressions), 224 failures, 264 harness errors
+  and 153 exclusions. Focused result-document tests and Clippy pass.

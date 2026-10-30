@@ -225,6 +225,7 @@ pub(crate) struct Serialization {
     pub include_content_type: bool,
     pub media_type: Option<String>,
     pub escape_uri_attributes: bool,
+    pub undeclare_prefixes: bool,
     pub doctype: Option<Doctype>,
     pub cdata_elements: std::sync::Arc<Vec<String>>,
     pub char_map: std::sync::Arc<BTreeMap<char, String>>,

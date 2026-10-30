@@ -207,3 +207,10 @@ fn generated_metadata_uses_each_result_documents_dynamic_settings() {
         assert_eq!(content.matches("charset=").count(), 1);
     }
 }
+
+#[test]
+fn prefix_undeclaration_flags_follow_the_output_method() {
+    let error = run(r#"<xsl:variable name="flag" select="'yes'"/><xsl:result-document method="xml" undeclare-prefixes="{$flag}"><out/></xsl:result-document>"#).unwrap_err();
+    assert_eq!(error.code, "SEPM0010");
+    assert_eq!(run(r#"<xsl:result-document method="text" undeclare-prefixes="yes"><out>text</out></xsl:result-document>"#).unwrap().principal, "text");
+}

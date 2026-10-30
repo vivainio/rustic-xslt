@@ -182,6 +182,7 @@ pub struct Stylesheet {
     indent: bool,
     markup: result::Markup,
     escape_uri_attributes: bool,
+    undeclare_prefixes: bool,
     include_content_type: bool,
     media_type: Option<String>,
     encoding: result::Encoding,
