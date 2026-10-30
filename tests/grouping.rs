@@ -90,3 +90,22 @@ fn composite_grouping_uses_sequence_keys_including_empty_sequences() {
     assert_eq!(run(r#"<xsl:for-each-group select="(1,2,3,4)" group-by="(if (. mod 2 = 0) then 0 else (), 9)" composite="yes"><xsl:value-of select="current-group()" separator=","/><xsl:text>;</xsl:text></xsl:for-each-group>"#).unwrap(), "1,3;2,4;");
     assert_eq!(run(r#"<xsl:for-each-group select="(1,2,3)" group-adjacent="()" composite="yes"><xsl:value-of select="count(current-group())"/></xsl:for-each-group>"#).unwrap(), "3");
 }
+
+#[test]
+fn explicit_codepoint_grouping_and_declaration_error_order() {
+    assert_eq!(run(r#"<xsl:for-each-group select="(1,2,1)" group-by="." collation="http://www.w3.org/2005/xpath-functions/collation/codepoint"><xsl:value-of select="count(current-group())"/></xsl:for-each-group>"#).unwrap(), "21");
+    assert_eq!(
+        run(r#"<xsl:for-each-group select="r/i" collation="unsupported"/>"#)
+            .unwrap_err()
+            .code,
+        "XTSE1080"
+    );
+    assert_eq!(
+        run(
+            r#"<xsl:for-each-group select="r/i" group-starting-with="i" collation="unsupported"/>"#
+        )
+        .unwrap_err()
+        .code,
+        "XTSE1090"
+    );
+}

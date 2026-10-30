@@ -2479,3 +2479,13 @@ conformance claims. Smaller tested increments are committed independently.
   (six new, zero regressions), 267 failures, 384 harness errors, 153 exclusions.
 - Validation: six grouping tests, all-target/all-feature Clippy and the full
   pinned XSLT regression gate pass.
+
+## Increment 224: codepoint grouping collation and declaration checks
+
+- Grouping accepts an explicit codepoint collation, matching its existing key
+  comparator. Other collations remain explicit implementation gaps.
+- Grouping-attribute cardinality is checked before collation support; collation
+  with starting/ending patterns reports XTSE1090. Added diagnostic-order and
+  explicit-codepoint regressions.
+- Validation: seven grouping tests, all-target/all-feature Clippy and the full
+  1,124-case pinned XSLT gate pass without regressions.

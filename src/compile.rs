@@ -1734,12 +1734,6 @@ fn body(
                             ],
                         )?;
                         let composite = boolean_attribute(n, "composite", false)?;
-                        if n.attribute("collation").is_some() {
-                            return Err(error(
-                                n,
-                                "grouping collations and composite keys are not implemented",
-                            ));
-                        }
                         let given = [
                             "group-by",
                             "group-adjacent",
@@ -1756,6 +1750,20 @@ fn body(
                                 "exactly one grouping attribute is required",
                             ));
                         };
+                        if let Some(collation) = n.attribute("collation") {
+                            if !matches!(*attribute, "group-by" | "group-adjacent") {
+                                return Err(static_error(
+                                    n,
+                                    "XTSE1090",
+                                    "collation requires group-by or group-adjacent",
+                                ));
+                            }
+                            if collation
+                                != "http://www.w3.org/2005/xpath-functions/collation/codepoint"
+                            {
+                                return Err(error(n, "unsupported grouping collation"));
+                            }
+                        }
                         let value = n.attribute(*attribute).unwrap();
                         let grouping = match *attribute {
                             "group-by" => Grouping::By(expr(n, value)?, composite),
