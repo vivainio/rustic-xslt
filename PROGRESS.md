@@ -2835,3 +2835,11 @@ conformance claims. Smaller tested increments are committed independently.
   Ten use-when tests, all-target/all-feature Clippy and the 1,212-case XSLT
   gate pass. Broader function signature conversion and package visibility
   behavior remain subject to the engine's existing implementation limits.
+
+## Increment 251: function-available arity conversion
+
+- Require exactly one integer when an arity is supplied, convert untyped XML
+  values to integers, and return false for negative or oversized arities instead
+  of treating them as omitted or matching a variadic function.
+- Eleven use-when tests, all-target/all-feature Clippy and the 1,212-case XSLT
+  gate pass. Added invalid type/cardinality and untyped-attribute coverage.

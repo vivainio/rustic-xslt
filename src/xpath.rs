@@ -4130,21 +4130,37 @@ fn function<'a>(
                     ),
             ),
             "function-available" => {
-                let arity = match args.get(1).map(Vec::as_slice) {
-                    Some([item]) => match atomize(item) {
-                        Item::Number(n) => {
-                            let value = n.double();
-                            Some(
-                                if value < 0.0 || !value.is_finite() || value.fract() != 0.0 {
-                                    usize::MAX
-                                } else {
-                                    value as usize
+                let arity = match args.get(1) {
+                    None => None,
+                    Some(value) => {
+                        let number = match value.as_slice() {
+                            [item] => match atomize(item) {
+                                Item::Number(Number::Integer(n) | Number::DerivedInteger(_, n)) => {
+                                    n
+                                }
+                                Item::Untyped(s) => match Number::cast("integer", &s)? {
+                                    Number::Integer(n) => n,
+                                    _ => unreachable!(),
                                 },
-                            )
+                                _ => {
+                                    return Err(err(
+                                        "XPTY0004",
+                                        "function-available arity must be an integer",
+                                    ));
+                                }
+                            },
+                            _ => {
+                                return Err(err(
+                                    "XPTY0004",
+                                    "function-available arity must be one integer",
+                                ));
+                            }
+                        };
+                        match number.to_usize() {
+                            Some(n) => Some(n),
+                            None => return Ok(vec![Item::Boolean(false)]),
                         }
-                        _ => None,
-                    },
-                    _ => None,
+                    }
                 };
                 let (uri, local) = crate::qname::parts(text);
                 let internal = match uri {

@@ -154,3 +154,45 @@ fn function_available_resolves_namespaces_and_user_functions() {
     .unwrap_err();
     assert_eq!(error.code, "XTDE1400");
 }
+
+#[test]
+fn function_available_requires_integer_arity() {
+    for expr in [
+        "function-available('concat', -1)",
+        "function-available('true', 999999999999999999999999999999)",
+    ] {
+        assert_eq!(
+            run("", &format!(r#"<xsl:value-of select="{expr}"/>"#)).unwrap(),
+            "false"
+        );
+    }
+    for expr in [
+        "function-available('true', ())",
+        "function-available('true', '0')",
+        "function-available('true', 0.0)",
+    ] {
+        assert_eq!(
+            run("", &format!(r#"<xsl:value-of select="{expr}"/>"#))
+                .unwrap_err()
+                .code,
+            "XPTY0004"
+        );
+    }
+    assert_eq!(
+        run(
+            "",
+            r#"<xsl:value-of select="function-available('true', /r/@arity)"/>"#
+        )
+        .unwrap_err()
+        .code,
+        "XPTY0004"
+    );
+    let sheet = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output omit-xml-declaration="yes"/><xsl:template match="/"><xsl:value-of select="function-available('true', /r/@arity)"/></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(
+        Stylesheet::compile(sheet)
+            .unwrap()
+            .transform("<r arity='0'/>")
+            .unwrap(),
+        "true"
+    );
+}
