@@ -2704,3 +2704,14 @@ conformance claims. Smaller tested increments are committed independently.
 - Validation: six stylesheet-function tests, all-target/all-feature Clippy,
   the 1,149-case XSLT gate and all 18,735 pinned QT3 cases pass without
   regressions.
+
+## Increment 240: stylesheet function catalog coverage
+
+- Surveyed and selected the full stylesheet function declaration set: 52
+  passes, 24 engine failures, 12 harness errors and 22 profile exclusions across
+  110 cases. Added all passing cases to the pinned gate.
+- The expanded gate now records 1,201 passes, 243 engine failures, 371 harness
+  errors and 223 profile exclusions across 2,038 selected cases. Remaining
+  failures include general constructors, recursion depth and declaration checks.
+- Validation: the full expanded XSLT gate passes without regressions. No runtime
+  behavior changed.
