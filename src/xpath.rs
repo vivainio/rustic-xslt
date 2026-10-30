@@ -67,7 +67,7 @@ pub(crate) enum Expr {
     TypeOp(String, Box<Expr>, crate::seqtype::SequenceType),
     QNameCast(Box<Expr>, BTreeMap<String, String>, bool, bool),
     InlineFunction(std::sync::Arc<InlineFunction>),
-    FunctionRef(String, usize),
+    FunctionRef(String, usize, Option<BTreeMap<String, String>>),
     DynamicCall(Box<Expr>, Vec<Expr>),
     Partial(Box<Expr>, Vec<Option<Expr>>),
     /// `xsl:perform-sort`: the value of the first expression ordered by the sort keys.
@@ -167,7 +167,7 @@ impl<'a> MapValue<'a> {
 #[derive(Debug, Clone)]
 pub(crate) enum FunctionValue<'a> {
     Inline(std::sync::Arc<InlineFunction>, Variables<'a>),
-    Named(String, usize),
+    Named(String, usize, Option<BTreeMap<String, String>>),
     /// current#0 retains the current item at the point the reference is created.
     Current(Item<'a>),
     /// A map or array used where a function item is expected.
@@ -180,7 +180,7 @@ impl FunctionValue<'_> {
     pub fn arity(&self) -> usize {
         match self {
             Self::Inline(def, _) => def.params.len(),
-            Self::Named(_, arity) => *arity,
+            Self::Named(_, arity, _) => *arity,
             Self::Current(_) => 0,
             Self::Map(_) | Self::Array(_) => 1,
             Self::Partial(_, slots) => slots.iter().filter(|s| s.is_none()).count(),
@@ -1276,7 +1276,11 @@ impl Parser {
                         .filter(|a| *a as f64 == arity.double())
                         .ok_or_else(|| syntax("invalid function arity"))?;
                     match self.call(n.clone(), vec![Expr::Context; arity])? {
-                        Expr::Call(name, _) => Expr::FunctionRef(name, arity),
+                        Expr::Call(name, _) => {
+                            let namespaces =
+                                (name == "element-available").then(|| self.namespaces.clone());
+                            Expr::FunctionRef(name, arity, namespaces)
+                        }
                         _ => return Err(syntax("unsupported function reference")),
                     }
                 }
@@ -1319,7 +1323,14 @@ impl Parser {
                         let Expr::Call(name, _) = self.call(n, vec![Expr::Context; arity])? else {
                             return Err(syntax("unsupported partial function application"));
                         };
-                        Expr::Partial(Box::new(Expr::FunctionRef(name, arity)), arguments)
+                        {
+                            let namespaces =
+                                (name == "element-available").then(|| self.namespaces.clone());
+                            Expr::Partial(
+                                Box::new(Expr::FunctionRef(name, arity, namespaces)),
+                                arguments,
+                            )
+                        }
                     } else {
                         self.call(n, arguments.into_iter().flatten().collect())?
                     }
@@ -1888,19 +1899,7 @@ pub(crate) fn eval<'a>(
         },
         Expr::ElementName(value, namespaces) => {
             let value = eval(value, focus, vars, budget, depth + 1, backwards)?;
-            let text = crate::string_functions::string(&value, false, backwards)?;
-            let text = text.trim();
-            let resolved = crate::qname::resolve(text, namespaces, "XTDE1440")
-                .map_err(|_| err("XTDE1440", "invalid or unbound element name"))?;
-            let resolved = if !text.starts_with("Q{") && !text.contains(':') {
-                match namespaces.get("").filter(|uri| !uri.is_empty()) {
-                    Some(uri) => format!("Q{{{uri}}}{resolved}"),
-                    None => resolved,
-                }
-            } else {
-                resolved
-            };
-            vec![Item::String(resolved)]
+            element_name(&value, namespaces, backwards)?
         }
         Expr::QNameCast(value, namespaces, optional, castable) => {
             let value = eval(value, focus, vars, budget, depth + 1, backwards)?;
@@ -2451,8 +2450,13 @@ pub(crate) fn eval<'a>(
                 captured,
             )))]
         }
-        Expr::FunctionRef(name, arity) => {
-            vec![Item::Function(named_function(name.clone(), *arity, vars))]
+        Expr::FunctionRef(name, arity, namespaces) => {
+            vec![Item::Function(named_function(
+                name.clone(),
+                *arity,
+                namespaces.clone(),
+                vars,
+            ))]
         }
         Expr::Evaluate {
             xpath,
@@ -2690,9 +2694,29 @@ fn function_arg<'a>(value: &[Item<'a>]) -> Result<std::rc::Rc<FunctionValue<'a>>
         _ => Err(err("XPTY0004", "a single function item is required")),
     }
 }
+fn element_name<'a>(
+    value: &[Item<'a>],
+    namespaces: &BTreeMap<String, String>,
+    backwards: bool,
+) -> Result<Value<'a>, Diagnostic> {
+    let text = crate::string_functions::string(value, false, backwards)?;
+    let text = text.trim();
+    let resolved = crate::qname::resolve(text, namespaces, "XTDE1440")
+        .map_err(|_| err("XTDE1440", "invalid or unbound element name"))?;
+    let resolved = if !text.starts_with("Q{") && !text.contains(':') {
+        match namespaces.get("").filter(|uri| !uri.is_empty()) {
+            Some(uri) => format!("Q{{{uri}}}{resolved}"),
+            None => resolved,
+        }
+    } else {
+        resolved
+    };
+    Ok(vec![Item::String(resolved)])
+}
 fn named_function<'a>(
     name: String,
     arity: usize,
+    namespaces: Option<BTreeMap<String, String>>,
     vars: &Variables<'a>,
 ) -> std::rc::Rc<FunctionValue<'a>> {
     std::rc::Rc::new(if name == "current" && arity == 0 {
@@ -2703,7 +2727,7 @@ fn named_function<'a>(
                 .unwrap_or(Item::Absent),
         )
     } else {
-        FunctionValue::Named(name, arity)
+        FunctionValue::Named(name, arity, namespaces)
     })
 }
 
@@ -2741,7 +2765,11 @@ fn call_function_item<'a>(
                 Ok(vec![item.clone()])
             }
         }
-        FunctionValue::Named(name, _) => {
+        FunctionValue::Named(name, _, namespaces) => {
+            let mut args = args;
+            if let Some(namespaces) = namespaces {
+                args[0] = element_name(&args[0], namespaces, backwards)?;
+            }
             if vars.contains_key(CURRENT_GROUP) || vars.contains_key(CURRENT_KEY) {
                 let scope = without_grouping_context(vars);
                 call_named(name, args, focus, &scope, budget, depth + 1, backwards)
@@ -2813,7 +2841,7 @@ fn higher_order<'a>(
         "function-name" => {
             let f = function_arg(&args[0])?;
             let name = match &*f {
-                FunctionValue::Named(name, _) => name.as_str(),
+                FunctionValue::Named(name, _, _) => name.as_str(),
                 FunctionValue::Current(_) => "current",
                 _ => return Ok(vec![]),
             };
@@ -2916,7 +2944,7 @@ fn higher_order<'a>(
                 }
             };
             Ok(known
-                .map(|n| vec![Item::Function(named_function(n, arity, vars))])
+                .map(|n| vec![Item::Function(named_function(n, arity, None, vars))])
                 .unwrap_or_default())
         }
         "for-each" => {

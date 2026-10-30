@@ -76,3 +76,15 @@ fn element_available_resolves_call_site_namespaces() {
     .unwrap_err();
     assert_eq!(err.code, "XTDE1440");
 }
+
+#[test]
+fn element_available_function_reference_captures_namespaces() {
+    let sheet = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:a="http://www.w3.org/1999/XSL/Transform"><xsl:output omit-xml-declaration="yes"/><xsl:template match="/"><xsl:variable name="f" select="element-available#1"/><xsl:variable name="p" select="element-available(?)"/><out><xsl:value-of select="$f('a:value-of'), $p('a:value-of'), local-name-from-QName(function-name($f))"/></out></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(
+        Stylesheet::compile(sheet)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap(),
+        "<out>true true element-available</out>"
+    );
+}

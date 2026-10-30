@@ -2783,3 +2783,12 @@ conformance claims. Smaller tested increments are committed independently.
   and the use-when integration tests pass.
 - First-class references to `element-available` still do not capture this static
   context, and the other availability functions still need namespace review.
+
+## Increment 246: element-available function references
+
+- Named references and partial applications of `element-available` retain their
+  creation site's namespace bindings, including when invoked from another
+  context. Added reference, partial application and function-name coverage.
+- Six use-when tests, all-target/all-feature Clippy and the 1,212-case XSLT
+  baseline pass. Dynamic `function-lookup` and the other availability functions
+  still require review for static-context capture.

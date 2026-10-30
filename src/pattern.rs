@@ -269,7 +269,7 @@ pub(crate) fn parse(
 fn validate_grouping_functions(expression: &Expr) -> Result<(), Diagnostic> {
     let mut pending = vec![expression];
     while let Some(e) = pending.pop() {
-        if let Expr::Call(name, _) | Expr::FunctionRef(name, _) = e {
+        if let Expr::Call(name, _) | Expr::FunctionRef(name, _, _) = e {
             let code = match name.as_str() {
                 "current-group" => Some("XTSE1060"),
                 "current-grouping-key" => Some("XTSE1070"),
@@ -343,7 +343,7 @@ fn validate_grouping_functions(expression: &Expr) -> Result<(), Diagnostic> {
             | Expr::Variable(_)
             | Expr::Context
             | Expr::Root
-            | Expr::FunctionRef(_, _) => {}
+            | Expr::FunctionRef(_, _, _) => {}
         }
     }
     Ok(())
