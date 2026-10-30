@@ -2499,3 +2499,12 @@ conformance claims. Smaller tested increments are committed independently.
   not be inferred from the stylesheet version.
 - Validation: eight grouping tests, formatting and diff checks pass. No runtime
   behavior changed.
+
+## Increment 226: grouping key array atomization
+
+- Group-by and group-adjacent flatten array keys through the checked atomization
+  path before cardinality checks and comparison. Maps/functions report FOTY0013
+  instead of reaching atomic-key comparison as unsupported item kinds.
+- Added composite-array, adjacent single-array and map-key error regressions.
+- Validation: nine grouping tests, all-target/all-feature Clippy and the full
+  1,124-case pinned XSLT gate pass without regressions.

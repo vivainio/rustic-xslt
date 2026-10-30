@@ -128,3 +128,15 @@ fn modern_pattern_grouping_accepts_atomics_in_older_stylesheets() {
         "2"
     );
 }
+
+#[test]
+fn grouping_keys_atomize_arrays_and_reject_maps() {
+    assert_eq!(run(r#"<xsl:for-each-group select="(1,2,3)" group-by="[. mod 2,9]" composite="yes"><xsl:value-of select="count(current-group())"/></xsl:for-each-group>"#).unwrap(), "21");
+    assert_eq!(run(r#"<xsl:for-each-group select="(1,2)" group-adjacent="[1]"><xsl:value-of select="count(current-group())"/></xsl:for-each-group>"#).unwrap(), "2");
+    assert_eq!(
+        run(r#"<xsl:for-each-group select="(1,2)" group-by="map{'key':.}"/>"#)
+            .unwrap_err()
+            .code,
+        "FOTY0013"
+    );
+}

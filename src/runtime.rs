@@ -465,7 +465,14 @@ fn form_groups<'a>(
         Grouping::By(e, composite) => {
             for (index, item) in items.iter().enumerate() {
                 budget.tick()?;
-                let keys = xpath::eval(e, &at(index, item), env, budget, 0, backwards)?;
+                let keys = xpath::flatten_arrays(xpath::eval(
+                    e,
+                    &at(index, item),
+                    env,
+                    budget,
+                    0,
+                    backwards,
+                )?)?;
                 if *composite {
                     let keys: Vec<_> = keys.iter().map(xpath::atomize).collect();
                     match groups.iter_mut().find(|(key, _)| {
@@ -503,7 +510,14 @@ fn form_groups<'a>(
         Grouping::Adjacent(e, composite) => {
             for (index, item) in items.iter().enumerate() {
                 budget.tick()?;
-                let keys = xpath::eval(e, &at(index, item), env, budget, 0, backwards)?;
+                let keys = xpath::flatten_arrays(xpath::eval(
+                    e,
+                    &at(index, item),
+                    env,
+                    budget,
+                    0,
+                    backwards,
+                )?)?;
                 if !*composite && keys.len() != 1 {
                     return Err(Diagnostic::new(
                         "XTTE1100",
