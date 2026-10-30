@@ -2881,3 +2881,15 @@ conformance claims. Smaller tested increments are committed independently.
   report the applicable dynamic errors.
 - The full all-feature Rust suite, all-target/all-feature Clippy and the
   1,212-case XSLT gate pass without regressions.
+
+## Increment 256: built-in schema type availability
+
+- Recognize the built-in `xs:anyType`, `xs:anySimpleType`, `xs:untyped` and
+  `xs:untypedAtomic` names when checking type availability, alongside the
+  existing atomic and temporal types. Unknown names continue to return false.
+- Surveyed the seven-case type-available catalog set: two pass, two are harness
+  errors for unsupported XSD-version dependencies, and three are profile
+  exclusions. Added both passing cases to the gate, which now has 1,214 passes,
+  232 failures, 373 harness errors and 226 exclusions across 2,045 selected cases.
+- Focused type-availability tests, all-target/all-feature Clippy and the expanded
+  XSLT gate pass. User-imported schema types remain outside the basic processor.

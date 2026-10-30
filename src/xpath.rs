@@ -4191,7 +4191,17 @@ fn function<'a>(
                 text.strip_prefix("Q{http://www.w3.org/2001/XMLSchema}")
                     .is_some_and(|l| {
                         function_arity(&format!("xs:{l}")).is_some() && l != "QName"
-                            || matches!(l, "QName" | "NOTATION" | "anyAtomicType" | "numeric")
+                            || matches!(
+                                l,
+                                "QName"
+                                    | "NOTATION"
+                                    | "anyAtomicType"
+                                    | "anySimpleType"
+                                    | "anyType"
+                                    | "untyped"
+                                    | "untypedAtomic"
+                                    | "numeric"
+                            )
                             || crate::temporal::TemporalType::parse(l).is_some()
                     }),
             ),

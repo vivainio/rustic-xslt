@@ -21,6 +21,7 @@
     "result-document",
     "template",
     "tunnel",
+    "type-available",
     "variable",
     "xpath-default-namespace"
   ],
@@ -4424,6 +4425,14 @@
     [
       "tunnel",
       "tunnel-0406"
+    ],
+    [
+      "type-available",
+      "type-available-0146"
+    ],
+    [
+      "type-available",
+      "type-available-0150"
     ],
     [
       "variable",

@@ -238,3 +238,25 @@ fn extension_attributes_on_xslt_elements_are_ignored() {
         "ok"
     );
 }
+
+#[test]
+fn type_available_includes_builtin_schema_base_types() {
+    for name in [
+        "anyType",
+        "anySimpleType",
+        "anyAtomicType",
+        "untyped",
+        "untypedAtomic",
+    ] {
+        let body = format!(r#"<xsl:value-of select="type-available('xs:{name}')"/>"#);
+        assert_eq!(run("", &body).unwrap(), "true", "{name}");
+    }
+    assert_eq!(
+        run(
+            "",
+            r#"<xsl:value-of select="type-available('xs:notAType')"/>"#
+        )
+        .unwrap(),
+        "false"
+    );
+}
