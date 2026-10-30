@@ -347,6 +347,17 @@ fn expression(n: Node<'_, '_>, s: &str, optional: bool) -> Result<Expr, Diagnost
 fn attrs(n: Node<'_, '_>, allowed: &[&str]) -> Result<(), Diagnostic> {
     excluded_uris(n)?;
     for a in n.attributes() {
+        if n.tag_name().namespace() == Some(XSL)
+            && n.tag_name().name() == "sequence"
+            && a.namespace().is_none()
+            && a.name() == "as"
+        {
+            return Err(static_error(
+                n,
+                "XTSE0090",
+                "xsl:sequence does not have an as attribute",
+            ));
+        }
         if a.namespace() == Some(XSL) && a.name() == "xpath-default-namespace" {
             return Err(static_error(
                 n,

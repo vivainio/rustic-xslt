@@ -2747,3 +2747,12 @@ conformance claims. Smaller tested increments are committed independently.
   the pinned XSLT gate pass. Two catalog cases join the baseline: 1,210 passes,
   234 engine failures, 371 harness errors and 223 profile exclusions across
   2,038 selected cases.
+
+## Increment 244: obsolete xsl:sequence type attribute
+
+- Reject the obsolete `as` attribute on xsl:sequence with XTSE0090 across
+  sequence constructors, including stylesheet functions and templates.
+- Validation: ten stylesheet-function tests, all-target/all-feature Clippy and
+  the pinned XSLT gate pass. One catalog case joins the baseline: 1,211 passes,
+  233 engine failures, 371 harness errors and 223 profile exclusions across
+  2,038 selected cases.

@@ -181,3 +181,15 @@ fn functions_and_parameters_must_appear_in_their_declaration_positions() {
     let late = r#"<xsl:function name="f:late"><xsl:sequence select="1"/><xsl:param name="p"/></xsl:function>"#;
     assert_eq!(run(late, "1").unwrap_err().code, "XTSE0010");
 }
+
+#[test]
+fn obsolete_sequence_type_attribute_is_a_static_error() {
+    let declaration =
+        r#"<xsl:function name="f:bad"><xsl:sequence as="xs:integer" select="1"/></xsl:function>"#;
+    assert_eq!(run(declaration, "1").unwrap_err().code, "XTSE0090");
+    let stylesheet = r#"<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="3.0"><xsl:template match="/"><xsl:sequence as="xs:integer" select="1"/></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(
+        Stylesheet::compile(stylesheet).unwrap_err().code,
+        "XTSE0090"
+    );
+}
