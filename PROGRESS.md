@@ -2311,3 +2311,13 @@ conformance claims. Smaller tested increments are committed independently.
 - Validation: the full all-feature Rust suite passed before this change;
   twenty-three result-document tests, all-target/all-feature Clippy and the full
   931-case pinned XSLT gate pass afterward without regressions.
+
+## Increment 206: numbering catalog regression coverage
+
+- Surveyed the pinned number catalog set: 108 passes, 49 engine failures and
+  114 harness errors across 271 cases. Added all passing cases to the gate and
+  retained the entire set in the selection so numbering gaps remain visible.
+- The expanded gate has 1,039 passes across 1,843 selected cases, with 273 engine
+  failures, 378 harness errors and 153 profile exclusions.
+- Validation: the full expanded pinned XSLT gate passes with zero regressions.
+  No runtime behavior changed.
