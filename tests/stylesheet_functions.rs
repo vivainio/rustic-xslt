@@ -99,3 +99,33 @@ fn pure_function_for_each_preserves_focus_order_and_sorting() {
         "1312,1422,2312,2422"
     );
 }
+
+#[test]
+fn function_declaration_boolean_attributes_are_checked() {
+    for attributes in [
+        "override=' '",
+        "override-extension-function='Yes'",
+        "new-each-time='Yes'",
+        "cache='maybe'",
+        "override='no' override-extension-function='1'",
+    ] {
+        let declaration = format!(
+            r#"<xsl:function name="f:test" {attributes}><xsl:sequence select="1"/></xsl:function>"#
+        );
+        assert_eq!(
+            run(&declaration, "f:test()").unwrap_err().code,
+            "XTSE0020",
+            "{attributes}"
+        );
+    }
+    for attributes in [
+        "override='yes' override-extension-function='1'",
+        "override='false' override-extension-function='0'",
+        "new-each-time='maybe' cache='yes'",
+    ] {
+        let declaration = format!(
+            r#"<xsl:function name="f:test" {attributes}><xsl:sequence select="1"/></xsl:function>"#
+        );
+        assert_eq!(run(&declaration, "f:test()").unwrap(), "1");
+    }
+}

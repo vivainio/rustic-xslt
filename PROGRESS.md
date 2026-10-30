@@ -2715,3 +2715,14 @@ conformance claims. Smaller tested increments are committed independently.
   failures include general constructors, recursion depth and declaration checks.
 - Validation: the full expanded XSLT gate passes without regressions. No runtime
   behavior changed.
+
+## Increment 241: stylesheet function declaration values
+
+- Validate function override, override-extension-function and cache as boolean
+  attributes; check that the two override synonyms agree. Validate new-each-time
+  as boolean or `maybe`. Invalid settings report XTSE0020.
+- Added valid aliases, conflicting synonyms, invalid spellings and `maybe`
+  coverage. Four catalog cases join the baseline: 1,205 passes, 239 engine
+  failures, 371 harness errors and 223 exclusions across 2,038 selected cases.
+- Validation: seven stylesheet-function tests, all-target/all-feature Clippy
+  and the expanded pinned XSLT gate pass without regressions.

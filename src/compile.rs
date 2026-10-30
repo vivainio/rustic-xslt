@@ -3038,6 +3038,30 @@ fn declarations(
                         "cache",
                     ],
                 )?;
+                let override_old = n
+                    .attribute("override")
+                    .map(|value| boolean_value(n, Some(value), true))
+                    .transpose()?;
+                let override_new = n
+                    .attribute("override-extension-function")
+                    .map(|value| boolean_value(n, Some(value), true))
+                    .transpose()?;
+                if override_old
+                    .zip(override_new)
+                    .is_some_and(|(old, new)| old != new)
+                {
+                    return Err(static_error(
+                        n,
+                        "XTSE0020",
+                        "function override attributes disagree",
+                    ));
+                }
+                boolean_attribute(n, "cache", false)?;
+                if let Some(value) = n.attribute("new-each-time")
+                    && value.trim() != "maybe"
+                {
+                    boolean_value(n, Some(value), false)?;
+                }
                 let id = component_name(
                     n,
                     n.attribute("name")
