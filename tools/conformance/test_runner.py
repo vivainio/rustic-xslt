@@ -108,6 +108,21 @@ class Assertions(unittest.TestCase):
         check.set("code", "SERE0008")
         self.assertFalse(assertion(check, {"diagnostics": [{"code": "SEPM0009"}]}, Path())[0])
 
+    def test_spec_dependencies_match_xslt_30_processor_profile(self):
+        from run import dependencies, ProfileExcluded
+        def check(value, satisfied="true"):
+            dependencies(node(f'<root xmlns="{NS[1:-1]}"><dependencies><spec value="{value}" satisfied="{satisfied}"/></dependencies></root>'))
+        for value in ["XSLT10+", "XSLT20+", "XSLT30", "XSLT30+", "XSLT20 XSLT30"]:
+            check(value)
+        for value in ["XSLT10", "XSLT20", "XSLT10 XSLT20", "XSLT40+"]:
+            with self.assertRaises(ProfileExcluded):
+                check(value)
+            check(value, "false")
+        with self.assertRaises(ProfileExcluded):
+            check("XSLT30+", "false")
+        with self.assertRaises(HarnessError):
+            check("XSLT20+ UNKNOWN")
+
     def test_serialization_dependencies_select_the_available_processor_feature(self):
         from run import dependencies, ProfileExcluded
         dependencies(node(f'<root xmlns="{NS[1:-1]}"><dependencies><feature value="serialization"/></dependencies></root>'))

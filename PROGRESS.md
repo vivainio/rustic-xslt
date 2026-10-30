@@ -2628,3 +2628,15 @@ conformance claims. Smaller tested increments are committed independently.
   to XSLT 3.0 also excludes three existing XSLT 2.0-only passing baseline cases
   (match-039, match-082 and match-087). A profile correction should preserve
   their regression coverage separately and report profile changes explicitly.
+
+## Increment 234: catalog processor profile selection
+
+- Catalog spec dependencies now select an XSLT 3.0 processor, respecting exact
+  versions, minimum-version suffixes, alternatives and negative dependencies.
+  Older-processor cases are excluded rather than reported as engine failures.
+- Removed three XSLT 2.0-only pattern cases from the applicable catalog baseline;
+  their exact pattern checks remain in the existing Rust versioned syntax test.
+- Validation: 44 Python harness tests, the Rust pattern regression and the full
+  revised XSLT gate pass. Across 1,928 selected cases: 1,148 passes, 220 engine
+  failures, 359 harness errors and 201 profile exclusions; no applicable baseline
+  regressions. The changed totals reflect profile selection, not engine gains.

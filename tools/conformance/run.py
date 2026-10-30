@@ -179,10 +179,14 @@ def dependencies(node):
         kind, value = tag(d), d.get("value", "")
         positive = d.get("satisfied", "true") != "false"
         if kind == "spec":
-            if "XSLT40" in value:
-                raise ProfileExcluded("XSLT 4.0 profile")
-            if not any(v in value for v in ["XSLT10", "XSLT20", "XSLT30"]):
+            versions = {"XSLT10": 10, "XSLT20": 20, "XSLT30": 30, "XSLT40": 40}
+            alternatives = value.split()
+            if not alternatives or any(v.removesuffix("+") not in versions for v in alternatives):
                 raise HarnessError(f"unknown spec dependency: {value}")
+            matches = any(versions[v.removesuffix("+")] <= 30 if v.endswith("+")
+                          else versions[v] == 30 for v in alternatives)
+            if matches != positive:
+                raise ProfileExcluded(f"processor version dependency: {value}, satisfied={positive}")
         elif kind == "feature" and value in {"streaming", "schema_aware", "schemaImport", "schemaValidation", "schemaAware", "static_typing", "staticTyping", "streaming-fallback"}:
             if positive:
                 raise ProfileExcluded(f"optional processor profile: {value}")
