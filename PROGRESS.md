@@ -2489,3 +2489,13 @@ conformance claims. Smaller tested increments are committed independently.
   explicit-codepoint regressions.
 - Validation: seven grouping tests, all-target/all-feature Clippy and the full
   1,124-case pinned XSLT gate pass without regressions.
+
+## Increment 225: modern atomic pattern grouping compatibility regression
+
+- Added coverage confirming atomic populations work for pattern grouping in both
+  version 2.0 and 3.0 stylesheets under the XSLT 3.0 processor behavior.
+- A stylesheet-version restriction experiment regressed the paired W3C 046a
+  fixture and was discarded. The catalog's processor-profile distinction must
+  not be inferred from the stylesheet version.
+- Validation: eight grouping tests, formatting and diff checks pass. No runtime
+  behavior changed.

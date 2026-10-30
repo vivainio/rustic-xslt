@@ -109,3 +109,22 @@ fn explicit_codepoint_grouping_and_declaration_error_order() {
         "XTSE1090"
     );
 }
+
+#[test]
+fn modern_pattern_grouping_accepts_atomics_in_older_stylesheets() {
+    let stylesheet = r#"<xsl:stylesheet version="2.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:for-each-group select="(1,2)" group-starting-with="/"><xsl:value-of select="count(current-group())"/></xsl:for-each-group></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(
+        Stylesheet::compile(stylesheet)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap(),
+        "2"
+    );
+    assert_eq!(
+        Stylesheet::compile(&stylesheet.replace("version=\"2.0\"", "version=\"3.0\""))
+            .unwrap()
+            .transform("<r/>")
+            .unwrap(),
+        "2"
+    );
+}
