@@ -58,3 +58,21 @@ fn availability_functions_report_features() {
         );
     }
 }
+
+#[test]
+fn element_available_resolves_call_site_namespaces() {
+    let sheet = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:alias="http://www.w3.org/1999/XSL/Transform"><xsl:output omit-xml-declaration="yes"/><xsl:template match="/"><out><xsl:variable name="name" select="'alias:value-of'"/><xsl:value-of select="element-available($name)"/><xsl:text> </xsl:text><alias:value-of select="element-available('xsl:value-of')" xmlns:xsl="urn:other"/><xsl:text> </xsl:text><xsl:value-of select="element-available('value-of')" xmlns="http://www.w3.org/1999/XSL/Transform"/></out></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(
+        Stylesheet::compile(sheet)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap(),
+        "<out>true false true</out>"
+    );
+    let err = run(
+        "",
+        r#"<xsl:value-of select="element-available('unknown:value-of')"/>"#,
+    )
+    .unwrap_err();
+    assert_eq!(err.code, "XTDE1440");
+}

@@ -61,6 +61,7 @@ pub(crate) enum Expr {
     Binary(String, Box<Expr>, Box<Expr>),
     Unary(bool, Box<Expr>),
     Call(String, Vec<Expr>),
+    ElementName(Box<Expr>, BTreeMap<String, String>),
     Sequence(Vec<Expr>),
     If(Box<Expr>, Box<Expr>, Box<Expr>),
     TypeOp(String, Box<Expr>, crate::seqtype::SequenceType),
@@ -915,6 +916,9 @@ impl Parser {
                 && key_name.contains(':')
             {
                 *key_name = crate::qname::resolve(key_name.trim(), &self.namespaces, "FOCA0002")?;
+            }
+            if local == "element-available" {
+                args[0] = Expr::ElementName(Box::new(args[0].clone()), self.namespaces.clone());
             }
             Ok(Expr::Call(local, args))
         }
@@ -1882,6 +1886,22 @@ pub(crate) fn eval<'a>(
             Item::Absent => return Err(err("XPDY0002", "context item is absent")),
             _ => return Err(err("XPTY0020", "root requires a node context")),
         },
+        Expr::ElementName(value, namespaces) => {
+            let value = eval(value, focus, vars, budget, depth + 1, backwards)?;
+            let text = crate::string_functions::string(&value, false, backwards)?;
+            let text = text.trim();
+            let resolved = crate::qname::resolve(text, namespaces, "XTDE1440")
+                .map_err(|_| err("XTDE1440", "invalid or unbound element name"))?;
+            let resolved = if !text.starts_with("Q{") && !text.contains(':') {
+                match namespaces.get("").filter(|uri| !uri.is_empty()) {
+                    Some(uri) => format!("Q{{{uri}}}{resolved}"),
+                    None => resolved,
+                }
+            } else {
+                resolved
+            };
+            vec![Item::String(resolved)]
+        }
         Expr::QNameCast(value, namespaces, optional, castable) => {
             let value = eval(value, focus, vars, budget, depth + 1, backwards)?;
             let cast = || -> Result<Value<'a>, Diagnostic> {

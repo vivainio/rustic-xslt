@@ -304,7 +304,7 @@ fn required<'a>(n: Node<'a, '_>, a: &str) -> Result<&'a str, Diagnostic> {
 fn namespaces(n: Node<'_, '_>) -> BTreeMap<String, String> {
     let mut namespaces: BTreeMap<_, _> = n
         .namespaces()
-        .filter_map(|ns| ns.name().map(|prefix| (prefix.into(), ns.uri().into())))
+        .map(|ns| (ns.name().unwrap_or("").into(), ns.uri().into()))
         .collect();
     if let Some(uri) = n.ancestors().find_map(|ancestor| {
         if ancestor.tag_name().namespace() == Some(XSL) {
@@ -3469,9 +3469,10 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     pending.push(y);
                     pending.push(n);
                 }
-                Expr::Unary(_, e) | Expr::TypeOp(_, e, _) | Expr::QNameCast(e, _, _, _) => {
-                    pending.push(e)
-                }
+                Expr::Unary(_, e)
+                | Expr::TypeOp(_, e, _)
+                | Expr::QNameCast(e, _, _, _)
+                | Expr::ElementName(e, _) => pending.push(e),
                 Expr::Call(_, args) | Expr::Sequence(args) | Expr::ArraySquare(args) => {
                     pending.extend(args)
                 }

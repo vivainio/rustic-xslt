@@ -2756,3 +2756,30 @@ conformance claims. Smaller tested increments are committed independently.
   the pinned XSLT gate pass. One catalog case joins the baseline: 1,211 passes,
   233 engine failures, 371 harness errors and 223 profile exclusions across
   2,038 selected cases.
+
+## Investigation: availability function namespace context
+
+- The `function-0302b` catalog failure includes an unprefixed dynamically
+  computed name evaluated where the default namespace is the XSLT namespace.
+  `element-available()` currently recognizes the literal `xsl:` prefix and
+  the XSLT URIQualifiedName spelling instead of resolving the supplied name
+  against the call site's static namespace context. This also misclassifies
+  aliases and a rebound `xsl` prefix.
+- A complete fix must retain the static context for dynamically computed names
+  and first-class function references, validate names and unbound prefixes,
+  and check default namespace handling. The related `system-property()`,
+  `function-available()` and `type-available()` implementations also contain
+  prefix-based dispatch and need independent review of their namespace rules.
+  No behavior or conformance baseline has changed in this investigation.
+
+## Increment 245: direct element-available namespace resolution
+
+- Direct calls resolve dynamically computed names using the expression's static
+  namespace bindings, including the default namespace; invalid or unbound names
+  report XTDE1440. Added alias, rebound prefix and default namespace regressions.
+- The `function-0302b` catalog case joins the baseline: 1,212 passes, 232 engine
+  failures, 371 harness errors and 223 exclusions among 2,038 selected cases.
+  The previous 1,211-case gate had no regressions. All-target/all-feature Clippy
+  and the use-when integration tests pass.
+- First-class references to `element-available` still do not capture this static
+  context, and the other availability functions still need namespace review.
