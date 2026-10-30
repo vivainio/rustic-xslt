@@ -164,3 +164,21 @@ fn composite_is_rejected_on_pattern_grouping_even_when_false() {
     assert_eq!(run(r#"<xsl:for-each-group select="(1,2,1)" group-by="." composite="no"><xsl:value-of select="count(current-group())"/></xsl:for-each-group>"#).unwrap(), "21");
     assert_eq!(run(r#"<xsl:for-each-group select="(1,1,2)" group-adjacent="." composite="false"><xsl:value-of select="count(current-group())"/></xsl:for-each-group>"#).unwrap(), "21");
 }
+
+#[test]
+fn function_values_do_not_capture_or_inherit_grouping_context() {
+    for (function, code) in [
+        ("current-group", "XTDE1061"),
+        ("current-grouping-key", "XTDE1071"),
+    ] {
+        for expression in [
+            format!("let $f := {function}#0 return $f()"),
+            format!("function() {{ {function}() }}()"),
+            format!("for-each((1), function($n) {{ {function}() }})"),
+        ] {
+            assert_eq!(run(&format!(r#"<xsl:for-each-group select="(1,2,1)" group-by="."><xsl:sequence select="{expression}"/></xsl:for-each-group>"#)).unwrap_err().code, code, "{expression}");
+        }
+    }
+    // Values explicitly saved in lexical variables remain available to closures.
+    assert_eq!(run(r#"<xsl:for-each-group select="(1,2,1)" group-by="."><xsl:variable name="g" select="current-group()"/><xsl:variable name="k" select="current-grouping-key()"/><xsl:sequence select="function() { count($g) + $k }()"/></xsl:for-each-group>"#).unwrap(), "3 3");
+}

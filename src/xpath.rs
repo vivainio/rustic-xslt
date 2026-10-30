@@ -2412,10 +2412,13 @@ pub(crate) fn eval<'a>(
             };
             crate::maps::lookup(&base, keys.as_deref(), budget)?
         }
-        Expr::InlineFunction(def) => vec![Item::Function(std::rc::Rc::new(FunctionValue::Inline(
-            def.clone(),
-            vars.clone(),
-        )))],
+        Expr::InlineFunction(def) => {
+            let captured = without_grouping_context(vars);
+            vec![Item::Function(std::rc::Rc::new(FunctionValue::Inline(
+                def.clone(),
+                captured,
+            )))]
+        }
         Expr::FunctionRef(name, arity) => {
             vec![Item::Function(named_function(name.clone(), *arity, vars))]
         }
@@ -2672,6 +2675,13 @@ fn named_function<'a>(
     })
 }
 
+fn without_grouping_context<'a>(vars: &Variables<'a>) -> Variables<'a> {
+    vars.iter()
+        .filter(|(name, _)| !matches!(name.as_str(), CURRENT_GROUP | CURRENT_KEY))
+        .map(|(name, value)| (name.clone(), value.clone()))
+        .collect()
+}
+
 fn call_function_item<'a>(
     f: &FunctionValue<'a>,
     args: Vec<Value<'a>>,
@@ -2700,7 +2710,12 @@ fn call_function_item<'a>(
             }
         }
         FunctionValue::Named(name, _) => {
-            call_named(name, args, focus, vars, budget, depth + 1, backwards)
+            if vars.contains_key(CURRENT_GROUP) || vars.contains_key(CURRENT_KEY) {
+                let scope = without_grouping_context(vars);
+                call_named(name, args, focus, &scope, budget, depth + 1, backwards)
+            } else {
+                call_named(name, args, focus, vars, budget, depth + 1, backwards)
+            }
         }
         FunctionValue::Partial(base, slots) => {
             let mut supplied = args.into_iter();

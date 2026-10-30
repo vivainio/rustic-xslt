@@ -2604,3 +2604,17 @@ conformance claims. Smaller tested increments are committed independently.
   valid for group-by and group-adjacent.
 - Validation: eleven grouping tests, all-target/all-feature Clippy and the full
   1,149-case pinned XSLT gate pass without regressions.
+
+## Increment 233: grouping context at function boundaries
+
+- Inline functions exclude current group/key entries from closures. Dynamic
+  calls through named function values clear the caller's grouping context,
+  reporting XTDE1061/XTDE1071 for current-group/current-grouping-key calls.
+- Explicit lexical variables holding group/key values remain available to
+  closures. Scope filtering avoids copying discarded group sequences, and
+  ordinary named calls avoid scope copies when no grouping context exists.
+- Added direct named, inline and higher-order call regressions plus lexical
+  capture coverage. Two catalog cases join the XSLT gate: 1,151 passes, 240
+  engine failures, 384 harness errors and 153 exclusions across 1,928 cases.
+- Validation: full Rust suite, all-target/all-feature Clippy, the expanded XSLT
+  gate and all 18,735 pinned QT3 cases pass without regressions.
