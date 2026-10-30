@@ -118,3 +118,21 @@ fn system_property_resolves_names_and_captures_context() {
     .unwrap_err();
     assert_eq!(error.code, "XTDE1390");
 }
+
+#[test]
+fn type_available_resolves_static_namespaces() {
+    let sheet = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:a="http://www.w3.org/2001/XMLSchema" exclude-result-prefixes="a"><xsl:output omit-xml-declaration="yes"/><xsl:template match="/"><xsl:variable name="f" select="type-available#1"/><xsl:variable name="g" select="function-lookup(QName('http://www.w3.org/2005/xpath-functions','type-available'),1)"/><out><xsl:value-of select="type-available('a:string')"/><xsl:text> </xsl:text><xsl:value-of xmlns:a="urn:other" select="$f('a:string'), $g('a:string'), type-available('a:string')"/><xsl:text> </xsl:text><xsl:value-of xmlns="http://www.w3.org/2001/XMLSchema" select="type-available('string')"/></out></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(
+        Stylesheet::compile(sheet)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap(),
+        "<out>true true true false true</out>"
+    );
+    let error = run(
+        "",
+        r#"<xsl:value-of select="type-available('missing:string')"/>"#,
+    )
+    .unwrap_err();
+    assert_eq!(error.code, "XTDE1428");
+}

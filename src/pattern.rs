@@ -302,8 +302,7 @@ fn validate_grouping_functions(expression: &Expr) -> Result<(), Diagnostic> {
             Expr::Unary(_, e)
             | Expr::TypeOp(_, e, _)
             | Expr::QNameCast(e, _, _, _)
-            | Expr::ElementName(e, _)
-            | Expr::PropertyName(e, _)
+            | Expr::StaticName(e, _, _)
             | Expr::LookupContext(e, _)
             | Expr::ArrayCurly(e) => pending.push(e),
             Expr::Call(_, args) | Expr::Sequence(args) | Expr::ArraySquare(args) => {

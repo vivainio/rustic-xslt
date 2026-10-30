@@ -61,8 +61,7 @@ pub(crate) enum Expr {
     Binary(String, Box<Expr>, Box<Expr>),
     Unary(bool, Box<Expr>),
     Call(String, Vec<Expr>),
-    ElementName(Box<Expr>, BTreeMap<String, String>),
-    PropertyName(Box<Expr>, BTreeMap<String, String>),
+    StaticName(Box<Expr>, BTreeMap<String, String>, &'static str),
     LookupContext(Box<Expr>, BTreeMap<String, String>),
     Sequence(Vec<Expr>),
     If(Box<Expr>, Box<Expr>, Box<Expr>),
@@ -920,10 +919,25 @@ impl Parser {
                 *key_name = crate::qname::resolve(key_name.trim(), &self.namespaces, "FOCA0002")?;
             }
             if local == "element-available" {
-                args[0] = Expr::ElementName(Box::new(args[0].clone()), self.namespaces.clone());
+                args[0] = Expr::StaticName(
+                    Box::new(args[0].clone()),
+                    self.namespaces.clone(),
+                    "XTDE1440",
+                );
             }
             if local == "system-property" {
-                args[0] = Expr::PropertyName(Box::new(args[0].clone()), self.namespaces.clone());
+                args[0] = Expr::StaticName(
+                    Box::new(args[0].clone()),
+                    self.namespaces.clone(),
+                    "XTDE1390",
+                );
+            }
+            if local == "type-available" {
+                args[0] = Expr::StaticName(
+                    Box::new(args[0].clone()),
+                    self.namespaces.clone(),
+                    "XTDE1428",
+                );
             }
             let lookup = local == "function-lookup";
             let call = Expr::Call(local, args);
@@ -1290,7 +1304,10 @@ impl Parser {
                         Expr::Call(name, _) => {
                             let namespaces = matches!(
                                 name.as_str(),
-                                "element-available" | "system-property" | "function-lookup"
+                                "element-available"
+                                    | "system-property"
+                                    | "type-available"
+                                    | "function-lookup"
                             )
                             .then(|| self.namespaces.clone());
                             Expr::FunctionRef(name, arity, namespaces)
@@ -1342,7 +1359,10 @@ impl Parser {
                         {
                             let namespaces = matches!(
                                 name.as_str(),
-                                "element-available" | "system-property" | "function-lookup"
+                                "element-available"
+                                    | "system-property"
+                                    | "type-available"
+                                    | "function-lookup"
                             )
                             .then(|| self.namespaces.clone());
                             Expr::Partial(
@@ -1922,13 +1942,9 @@ pub(crate) fn eval<'a>(
             eval(value, focus, vars, budget, depth + 1, backwards)?,
             namespaces,
         ),
-        Expr::ElementName(value, namespaces) => {
+        Expr::StaticName(value, namespaces, code) => {
             let value = eval(value, focus, vars, budget, depth + 1, backwards)?;
-            static_name(&value, namespaces, backwards, true)?
-        }
-        Expr::PropertyName(value, namespaces) => {
-            let value = eval(value, focus, vars, budget, depth + 1, backwards)?;
-            static_name(&value, namespaces, backwards, false)?
+            static_name(&value, namespaces, backwards, *code != "XTDE1390", code)?
         }
         Expr::QNameCast(value, namespaces, optional, castable) => {
             let value = eval(value, focus, vars, budget, depth + 1, backwards)?;
@@ -2728,14 +2744,10 @@ fn static_name<'a>(
     namespaces: &BTreeMap<String, String>,
     backwards: bool,
     default_namespace: bool,
+    code: &str,
 ) -> Result<Value<'a>, Diagnostic> {
     let text = crate::string_functions::string(value, false, backwards)?;
     let text = text.trim();
-    let code = if default_namespace {
-        "XTDE1440"
-    } else {
-        "XTDE1390"
-    };
     let resolved = crate::qname::resolve(text, namespaces, code)
         .map_err(|_| err(code, "invalid or unbound name"))?;
     let resolved = if default_namespace && !text.starts_with("Q{") && !text.contains(':') {
@@ -2763,7 +2775,10 @@ fn attach_lookup_context<'a>(value: Value<'a>, namespaces: &BTreeMap<String, Str
                 FunctionValue::Named(name, arity, _)
                     if matches!(
                         name.as_str(),
-                        "element-available" | "system-property" | "function-lookup"
+                        "element-available"
+                            | "system-property"
+                            | "type-available"
+                            | "function-lookup"
                     ) =>
                 {
                     Item::Function(std::rc::Rc::new(FunctionValue::Named(
@@ -2833,12 +2848,25 @@ fn call_function_item<'a>(
         }
         FunctionValue::Named(name, _, namespaces) => {
             let mut args = args;
-            if let Some(namespaces) = namespaces
-                .as_ref()
-                .filter(|_| matches!(name.as_str(), "element-available" | "system-property"))
-            {
-                args[0] =
-                    static_name(&args[0], namespaces, backwards, name == "element-available")?;
+            if let Some(namespaces) = namespaces.as_ref().filter(|_| {
+                matches!(
+                    name.as_str(),
+                    "element-available" | "system-property" | "type-available"
+                )
+            }) {
+                args[0] = static_name(
+                    &args[0],
+                    namespaces,
+                    backwards,
+                    name != "system-property",
+                    if name == "element-available" {
+                        "XTDE1440"
+                    } else if name == "type-available" {
+                        "XTDE1428"
+                    } else {
+                        "XTDE1390"
+                    },
+                )?;
             }
             let result = if vars.contains_key(CURRENT_GROUP) || vars.contains_key(CURRENT_KEY) {
                 let scope = without_grouping_context(vars);
@@ -4124,11 +4152,14 @@ fn function<'a>(
                             .is_some_and(|(lo, hi)| arity.is_none_or(|a| (lo..=hi).contains(&a))),
                 )
             }
-            _ => Item::Boolean(text.strip_prefix("xs:").is_some_and(|l| {
-                function_arity(&format!("xs:{l}")).is_some() && l != "QName"
-                    || matches!(l, "QName" | "NOTATION" | "anyAtomicType" | "numeric")
-                    || crate::temporal::TemporalType::parse(l).is_some()
-            })),
+            _ => Item::Boolean(
+                text.strip_prefix("Q{http://www.w3.org/2001/XMLSchema}")
+                    .is_some_and(|l| {
+                        function_arity(&format!("xs:{l}")).is_some() && l != "QName"
+                            || matches!(l, "QName" | "NOTATION" | "anyAtomicType" | "numeric")
+                            || crate::temporal::TemporalType::parse(l).is_some()
+                    }),
+            ),
         }]);
     }
     if name == "format-integer" {

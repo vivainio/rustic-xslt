@@ -2812,3 +2812,15 @@ conformance claims. Smaller tested increments are committed independently.
 - Added alias, rebinding, default namespace and lookup regressions. Eight
   use-when tests, all-target/all-feature Clippy and the 1,212-case XSLT gate pass.
   `function-available` and `type-available` still need namespace review.
+
+## Increment 249: type-available namespace resolution
+
+- Resolve type names against static namespaces, including the default namespace,
+  for direct calls, references, partial applications and dynamic lookup. Invalid
+  or unbound names report XTDE1428. Built-in type checks use expanded names.
+- Consolidated namespace-sensitive expression handling after an initial catalog
+  run revealed a recursion stack overflow from a separate evaluator branch. The
+  revised evaluator passes the previously failing catalog run.
+- Nine use-when tests, all-target/all-feature Clippy and the 1,212-case XSLT
+  gate pass. Imported schema types remain outside the current implementation;
+  `function-available` still needs namespace review.
