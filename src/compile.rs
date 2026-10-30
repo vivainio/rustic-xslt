@@ -136,6 +136,7 @@ pub(crate) struct NumberSpec {
     pub from: Option<Vec<crate::pattern::Branch>>,
     pub format: Vec<Expr>,
     pub ordinal: Vec<Expr>,
+    pub letter_value: Option<Vec<Expr>>,
     pub grouping_separator: Vec<Expr>,
     pub grouping_size: Vec<Expr>,
     pub start_at: Option<Vec<Expr>>,
@@ -1239,6 +1240,17 @@ fn body(
                                 "value excludes select, level, count and from",
                             ));
                         }
+                        if let Some(value) = n.attribute("letter-value")
+                            && !value.contains('{')
+                            && !value.contains('}')
+                            && !matches!(value, "alphabetic" | "traditional")
+                        {
+                            return Err(static_error(
+                                n,
+                                "XTSE0020",
+                                "invalid xsl:number letter-value",
+                            ));
+                        }
                         let level = match n.attribute("level").unwrap_or("single") {
                             "single" => NumberLevel::Single,
                             "multiple" => NumberLevel::Multiple,
@@ -1267,6 +1279,10 @@ fn body(
                                 None => vec![Expr::String("1".into())],
                             },
                             ordinal: optional_avt("ordinal")?,
+                            letter_value: n
+                                .attribute("letter-value")
+                                .map(|value| avt(n, value))
+                                .transpose()?,
                             grouping_separator: optional_avt("grouping-separator")?,
                             grouping_size: optional_avt("grouping-size")?,
                             start_at: n
@@ -3382,6 +3398,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     }
                     parts(&spec.format, &scope)?;
                     parts(&spec.ordinal, &scope)?;
+                    if let Some(value) = &spec.letter_value {
+                        parts(value, &scope)?;
+                    }
                     parts(&spec.grouping_separator, &scope)?;
                     parts(&spec.grouping_size, &scope)?;
                     if let Some(value) = &spec.start_at {

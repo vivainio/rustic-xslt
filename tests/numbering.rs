@@ -158,3 +158,31 @@ fn from_boundaries_are_included_when_they_also_match_count() {
     let source = "<r><chapter/><chapter><p/><p/></chapter></r>";
     assert_eq!(run(r#"<xsl:for-each select="r/chapter[2]/p[2]"><xsl:number level="multiple" count="chapter|p" from="chapter"/><xsl:text>;</xsl:text><xsl:number level="single" count="chapter" from="chapter"/><xsl:text>;</xsl:text><xsl:number level="any" count="chapter|p" from="chapter"/></xsl:for-each>"#, source).unwrap(), "2.2;2;3");
 }
+
+#[test]
+fn number_letter_value_avts_are_validated_and_scope_checked() {
+    assert_eq!(
+        run(r#"<xsl:number value="1" letter-value="invalid"/>"#, "<r/>")
+            .unwrap_err()
+            .code,
+        "XTSE0020"
+    );
+    assert_eq!(
+        run(
+            r#"<xsl:number value="1" letter-value="{'invalid'}"/>"#,
+            "<r/>"
+        )
+        .unwrap_err()
+        .code,
+        "XTDE0030"
+    );
+    assert_eq!(
+        run(
+            r#"<xsl:if test="false()"><xsl:number value="1" letter-value="{$missing}"/></xsl:if>"#,
+            "<r/>"
+        )
+        .unwrap_err()
+        .code,
+        "XPST0008"
+    );
+}

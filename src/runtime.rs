@@ -771,6 +771,16 @@ fn number_text<'a>(
         })
         .collect();
     let mut text = |parts: &[xpath::Expr]| parts_text(parts, focus, env, budget, backwards);
+    if let Some(value) = &spec.letter_value {
+        let value = text(value)?;
+        if !matches!(value.as_str(), "alphabetic" | "traditional") {
+            return Err(Diagnostic::new(
+                "XTDE0030",
+                "invalid xsl:number letter-value",
+                "run",
+            ));
+        }
+    }
     let format = text(&spec.format)?;
     let ordinal = !text(&spec.ordinal)?.is_empty();
     let separator = text(&spec.grouping_separator)?;

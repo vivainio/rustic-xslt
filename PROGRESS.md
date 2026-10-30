@@ -2403,3 +2403,12 @@ conformance claims. Smaller tested increments are committed independently.
 - Reference: https://www.w3.org/TR/xslt-30/#number
 - Validation: twelve numbering tests, all-target/all-feature Clippy, formatting
   and diff checks pass. No runtime behavior changed.
+
+## Increment 216: numbering letter-value validation
+
+- xsl:number retains letter-value AVTs, validates literals as alphabetic or
+  traditional, validates dynamic values at runtime and checks expression scope.
+  Existing supported numbering sequence formatting remains unchanged.
+- Added literal, dynamic and unexecuted-branch scope error regressions.
+- Validation: thirteen numbering tests, all-target/all-feature Clippy and the
+  full 1,077-case pinned XSLT gate pass without regressions.
