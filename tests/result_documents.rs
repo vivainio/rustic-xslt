@@ -240,3 +240,20 @@ fn malformed_media_type_names_are_serialization_parameter_errors() {
         assert_eq!(error.phase, "run");
     }
 }
+
+#[test]
+fn malformed_media_type_parameters_are_rejected() {
+    for media in [
+        "text/html; broken",
+        "text/html; =value",
+        "text/html; name=",
+        "text/html; name=two words",
+        "text/html;",
+    ] {
+        let body = format!(
+            r#"<xsl:result-document method="html" media-type="{media}"><head/></xsl:result-document>"#
+        );
+        assert_eq!(run(&body).unwrap_err().code, "SEPM0016");
+    }
+    assert!(run(r#"<xsl:result-document method="html" media-type='text/html; note="two words"'><head/></xsl:result-document>"#).is_ok());
+}

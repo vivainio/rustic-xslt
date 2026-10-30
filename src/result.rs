@@ -1069,6 +1069,44 @@ pub(crate) fn validate_media_type(value: &str) -> Result<(), Diagnostic> {
         }
         if c == ';' && !quoted {
             let segment = &value[start..index];
+            if parameter {
+                let valid = segment.split_once('=').is_some_and(|(name, value)| {
+                    let value = value.trim();
+                    if !token(name.trim()) {
+                        return false;
+                    }
+                    if token(value) {
+                        return true;
+                    }
+                    let Some(inner) = value
+                        .strip_prefix('"')
+                        .and_then(|value| value.strip_suffix('"'))
+                    else {
+                        return false;
+                    };
+                    let mut escaped = false;
+                    for c in inner.chars() {
+                        if c == '\r' || c == '\n' || (c.is_control() && c != '\t') {
+                            return false;
+                        }
+                        if escaped {
+                            escaped = false;
+                        } else if c == '\\' {
+                            escaped = true;
+                        } else if c == '"' {
+                            return false;
+                        }
+                    }
+                    !escaped
+                });
+                if !valid {
+                    return Err(Diagnostic::new(
+                        "SEPM0016",
+                        "media-type has an invalid parameter",
+                        "run",
+                    ));
+                }
+            }
             if parameter
                 && segment
                     .split_once('=')

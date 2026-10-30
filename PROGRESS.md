@@ -2284,3 +2284,12 @@ conformance claims. Smaller tested increments are committed independently.
 - Added five malformed media-type regressions.
 - Validation: twenty result-document tests, all-target/all-feature Clippy and
   the full 931-case pinned XSLT gate pass without regressions.
+
+## Increment 203: serialization media-type parameter grammar
+
+- Media-type parameters require valid names and token or quoted values.
+  Missing separators/values, unquoted spaces, malformed quotes and control
+  characters report SEPM0016; quoted spaces and escaped characters remain valid.
+- Added five invalid-parameter cases and a quoted-space success case.
+- Validation: twenty-one result-document tests, all-target/all-feature Clippy
+  and the full 931-case pinned XSLT gate pass without regressions.
