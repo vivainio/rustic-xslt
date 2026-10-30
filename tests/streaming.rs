@@ -449,3 +449,21 @@ fn record_metadata_settings_replace_each_records_existing_declaration() {
         assert!(output.contains("<title>B</title>"));
     }
 }
+
+#[test]
+fn prefix_undeclaration_errors_precede_streaming_preamble() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="xml" undeclare-prefixes="yes" byte-order-mark="yes"/><xsl:template name="record"><out/></xsl:template></xsl:stylesheet>"#).unwrap();
+    let mut output = Vec::new();
+    assert_eq!(
+        sheet
+            .stream_records(
+                Cursor::new("<records/>"),
+                &mut output,
+                &StreamOptions::default()
+            )
+            .unwrap_err()
+            .code,
+        "SEPM0010"
+    );
+    assert!(output.is_empty());
+}

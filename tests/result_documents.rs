@@ -214,3 +214,11 @@ fn prefix_undeclaration_flags_follow_the_output_method() {
     assert_eq!(error.code, "SEPM0010");
     assert_eq!(run(r#"<xsl:result-document method="text" undeclare-prefixes="yes"><out>text</out></xsl:result-document>"#).unwrap().principal, "text");
 }
+
+#[test]
+fn explicit_principal_results_can_disable_inherited_prefix_undeclarations() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="xml" omit-xml-declaration="yes" undeclare-prefixes="yes"/><xsl:template match="/"><xsl:result-document undeclare-prefixes="no"><out/></xsl:result-document></xsl:template></xsl:stylesheet>"#).unwrap();
+    assert_eq!(sheet.transform("<r/>").unwrap(), "<out></out>");
+    let inherited = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="xml" undeclare-prefixes="yes"/><xsl:template match="/"><out/></xsl:template></xsl:stylesheet>"#).unwrap();
+    assert_eq!(inherited.transform("<r/>").unwrap_err().code, "SEPM0010");
+}
