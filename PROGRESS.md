@@ -2321,3 +2321,13 @@ conformance claims. Smaller tested increments are committed independently.
   failures, 378 harness errors and 153 profile exclusions.
 - Validation: the full expanded pinned XSLT gate passes with zero regressions.
   No runtime behavior changed.
+
+## Increment 207: start-at numbering implementation analysis
+
+- Traced the number catalog's largest explicit implementation gap to compiler
+  rejection and unsigned runtime/formatter interfaces. Recorded signed-list AVT,
+  repeated-offset rebasing, scope and streaming requirements in
+  tools/conformance/NUMBER_START_AT.md using the W3C numbering rules.
+- The implementation must handle signed rebasing and formatting together;
+  existing large-number narrowing remains a separately identified runtime gap.
+- No runtime behavior changed in this increment.
