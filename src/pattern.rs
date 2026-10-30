@@ -257,10 +257,95 @@ pub(crate) fn parse(
         return Err(invalid_pattern("parenthesized patterns require XSLT 3.0"));
     }
     let e = xpath::parse(source, namespaces)?;
+    validate_grouping_functions(&e)?;
     validate_version(&e, source, version)?;
     let mut parts = vec![];
     collect(e, &mut parts)?;
     Ok(parts.into_iter().map(into_branch).collect())
+}
+
+// Inspect parsed expressions so strings, comments and unrelated function names
+// cannot trigger the restrictions on grouping functions in patterns.
+fn validate_grouping_functions(expression: &Expr) -> Result<(), Diagnostic> {
+    let mut pending = vec![expression];
+    while let Some(e) = pending.pop() {
+        if let Expr::Call(name, _) | Expr::FunctionRef(name, _) = e {
+            let code = match name.as_str() {
+                "current-group" => Some("XTSE1060"),
+                "current-grouping-key" => Some("XTSE1070"),
+                _ => None,
+            };
+            if let Some(code) = code {
+                return Err(Diagnostic::new(
+                    code,
+                    format!("{name} is not permitted in a pattern"),
+                    "compile",
+                ));
+            }
+        }
+        match e {
+            Expr::For(_, a, b)
+            | Expr::Let(_, a, b)
+            | Expr::Quantified(_, _, a, b)
+            | Expr::Binary(_, a, b)
+            | Expr::PathMap(a, b) => {
+                pending.extend([a.as_ref(), b.as_ref()]);
+            }
+            Expr::Path(base, steps) => {
+                pending.push(base);
+                pending.extend(steps.iter().flat_map(|step| &step.predicates));
+            }
+            Expr::Filter(base, predicates) | Expr::DynamicCall(base, predicates) => {
+                pending.push(base);
+                pending.extend(predicates);
+            }
+            Expr::Unary(_, e)
+            | Expr::TypeOp(_, e, _)
+            | Expr::QNameCast(e, _, _, _)
+            | Expr::ArrayCurly(e) => pending.push(e),
+            Expr::Call(_, args) | Expr::Sequence(args) | Expr::ArraySquare(args) => {
+                pending.extend(args)
+            }
+            Expr::If(c, y, n) => pending.extend([c.as_ref(), y.as_ref(), n.as_ref()]),
+            Expr::InlineFunction(def) => pending.push(&def.body),
+            Expr::Partial(callee, args) => {
+                pending.push(callee);
+                pending.extend(args.iter().flatten());
+            }
+            Expr::MapConstructor(entries) => {
+                for (key, value) in entries {
+                    pending.extend([key, value]);
+                }
+            }
+            Expr::Lookup(base, key) => {
+                pending.push(base);
+                pending.extend(key.iter().map(|e| e.as_ref()));
+            }
+            Expr::Sorted(base, keys) => {
+                pending.push(base);
+                for key in keys {
+                    pending.extend(key.expressions());
+                }
+            }
+            Expr::Evaluate {
+                xpath,
+                context,
+                params,
+                ..
+            } => {
+                pending.push(xpath);
+                pending.extend(context.iter().map(|e| e.as_ref()));
+                pending.extend(params.iter().map(|(_, e)| e));
+            }
+            Expr::String(_)
+            | Expr::Number(_)
+            | Expr::Variable(_)
+            | Expr::Context
+            | Expr::Root
+            | Expr::FunctionRef(_, _) => {}
+        }
+    }
+    Ok(())
 }
 
 fn invalid_pattern(message: &str) -> Diagnostic {

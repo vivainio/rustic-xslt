@@ -2579,3 +2579,17 @@ conformance claims. Smaller tested increments are committed independently.
   reaching 1,147 passes, 244 failures, 384 harness errors and 153 exclusions.
 - Validation: thirteen focused sorting/grouping tests, all-target/all-feature
   Clippy, the XSLT gate and all 18,735 pinned QT3 cases pass without regressions.
+
+## Increment 231: grouping function restrictions in patterns
+
+- Parsed patterns reject current-group and current-grouping-key references with
+  XTSE1060 and XTSE1070, including nested predicates, conditional branches,
+  arrays/maps and function references. The shared parser covers template,
+  numbering, key and grouping patterns.
+- AST inspection preserves harmless function text inside strings/comments and
+  recognizes built-in namespace aliases. Indirect calls through user functions
+  still require separate dynamic-context handling.
+- Validation: 34 focused pattern/grouping tests, all-target/all-feature Clippy
+  and the pinned XSLT gate pass without regressions. Two grouping catalog cases
+  join the gate: 1,149 passes, 242 engine failures, 384 harness errors and 153
+  profile exclusions across 1,928 selected cases.

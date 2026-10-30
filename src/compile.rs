@@ -168,7 +168,7 @@ pub(crate) struct Sort {
     pub case_order: String,
 }
 impl Sort {
-    fn expressions(&self) -> impl Iterator<Item = &Expr> {
+    pub(crate) fn expressions(&self) -> impl Iterator<Item = &Expr> {
         std::iter::once(&self.select).chain(
             [
                 &self.dynamic.stable,

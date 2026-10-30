@@ -155,3 +155,39 @@ fn id_anchored_paths_require_identity_and_the_correct_distance() {
         "CDN"
     );
 }
+
+#[test]
+fn grouping_functions_are_static_errors_in_all_pattern_positions() {
+    for (function, code) in [
+        ("current-group", "XTSE1060"),
+        ("current-grouping-key", "XTSE1070"),
+    ] {
+        for predicate in [
+            format!("exists({function}())"),
+            format!("if (true()) then true() else exists({function}())"),
+            format!("map {{'key': {function}()}}?key"),
+            format!("[{function}()]?1"),
+            format!("{function}#0"),
+        ] {
+            let pattern = format!("p[{predicate}]");
+            for instruction in [
+                format!(r#"<xsl:template match="{pattern}"/>"#),
+                format!(
+                    r#"<xsl:template match="/"><xsl:number count="{pattern}"/></xsl:template>"#
+                ),
+                format!(
+                    r#"<xsl:template match="/"><xsl:for-each-group select="doc/*" group-starting-with="{pattern}"/></xsl:template>"#
+                ),
+            ] {
+                assert_eq!(run(&instruction).unwrap_err().code, code, "{instruction}");
+            }
+        }
+    }
+}
+
+#[test]
+fn grouping_function_text_in_pattern_literals_and_comments_is_harmless() {
+    assert!(run(r#"<xsl:template match="p[. = 'current-group()']"/>"#).is_ok());
+    assert!(run(r#"<xsl:template match="p[true() (: current-grouping-key() :)]"/>"#).is_ok());
+    assert_eq!(run(r#"<xsl:template xmlns:fn="http://www.w3.org/2005/xpath-functions" match="p[exists(fn:current-group())]"/>"#).unwrap_err().code, "XTSE1060");
+}
