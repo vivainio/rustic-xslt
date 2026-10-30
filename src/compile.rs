@@ -3473,6 +3473,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 | Expr::TypeOp(_, e, _)
                 | Expr::QNameCast(e, _, _, _)
                 | Expr::ElementName(e, _)
+                | Expr::PropertyName(e, _)
                 | Expr::LookupContext(e, _) => pending.push(e),
                 Expr::Call(_, args) | Expr::Sequence(args) | Expr::ArraySquare(args) => {
                     pending.extend(args)

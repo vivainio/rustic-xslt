@@ -115,6 +115,7 @@ fn safe_expression(e: &Expr, global: bool) -> Result<(), Diagnostic> {
             | Expr::TypeOp(_, e, _)
             | Expr::QNameCast(e, _, _, _)
             | Expr::ElementName(e, _)
+            | Expr::PropertyName(e, _)
             | Expr::LookupContext(e, _) => pending.push(e),
             Expr::For(_, select, body)
             | Expr::Let(_, select, body)

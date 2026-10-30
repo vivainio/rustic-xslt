@@ -62,6 +62,7 @@ pub(crate) enum Expr {
     Unary(bool, Box<Expr>),
     Call(String, Vec<Expr>),
     ElementName(Box<Expr>, BTreeMap<String, String>),
+    PropertyName(Box<Expr>, BTreeMap<String, String>),
     LookupContext(Box<Expr>, BTreeMap<String, String>),
     Sequence(Vec<Expr>),
     If(Box<Expr>, Box<Expr>, Box<Expr>),
@@ -921,6 +922,9 @@ impl Parser {
             if local == "element-available" {
                 args[0] = Expr::ElementName(Box::new(args[0].clone()), self.namespaces.clone());
             }
+            if local == "system-property" {
+                args[0] = Expr::PropertyName(Box::new(args[0].clone()), self.namespaces.clone());
+            }
             let lookup = local == "function-lookup";
             let call = Expr::Call(local, args);
             Ok(if lookup {
@@ -1284,9 +1288,11 @@ impl Parser {
                         .ok_or_else(|| syntax("invalid function arity"))?;
                     match unwrap_lookup_call(self.call(n.clone(), vec![Expr::Context; arity])?) {
                         Expr::Call(name, _) => {
-                            let namespaces =
-                                matches!(name.as_str(), "element-available" | "function-lookup")
-                                    .then(|| self.namespaces.clone());
+                            let namespaces = matches!(
+                                name.as_str(),
+                                "element-available" | "system-property" | "function-lookup"
+                            )
+                            .then(|| self.namespaces.clone());
                             Expr::FunctionRef(name, arity, namespaces)
                         }
                         _ => return Err(syntax("unsupported function reference")),
@@ -1334,9 +1340,11 @@ impl Parser {
                             return Err(syntax("unsupported partial function application"));
                         };
                         {
-                            let namespaces =
-                                matches!(name.as_str(), "element-available" | "function-lookup")
-                                    .then(|| self.namespaces.clone());
+                            let namespaces = matches!(
+                                name.as_str(),
+                                "element-available" | "system-property" | "function-lookup"
+                            )
+                            .then(|| self.namespaces.clone());
                             Expr::Partial(
                                 Box::new(Expr::FunctionRef(name, arity, namespaces)),
                                 arguments,
@@ -1916,7 +1924,11 @@ pub(crate) fn eval<'a>(
         ),
         Expr::ElementName(value, namespaces) => {
             let value = eval(value, focus, vars, budget, depth + 1, backwards)?;
-            element_name(&value, namespaces, backwards)?
+            static_name(&value, namespaces, backwards, true)?
+        }
+        Expr::PropertyName(value, namespaces) => {
+            let value = eval(value, focus, vars, budget, depth + 1, backwards)?;
+            static_name(&value, namespaces, backwards, false)?
         }
         Expr::QNameCast(value, namespaces, optional, castable) => {
             let value = eval(value, focus, vars, budget, depth + 1, backwards)?;
@@ -2711,16 +2723,22 @@ fn function_arg<'a>(value: &[Item<'a>]) -> Result<std::rc::Rc<FunctionValue<'a>>
         _ => Err(err("XPTY0004", "a single function item is required")),
     }
 }
-fn element_name<'a>(
+fn static_name<'a>(
     value: &[Item<'a>],
     namespaces: &BTreeMap<String, String>,
     backwards: bool,
+    default_namespace: bool,
 ) -> Result<Value<'a>, Diagnostic> {
     let text = crate::string_functions::string(value, false, backwards)?;
     let text = text.trim();
-    let resolved = crate::qname::resolve(text, namespaces, "XTDE1440")
-        .map_err(|_| err("XTDE1440", "invalid or unbound element name"))?;
-    let resolved = if !text.starts_with("Q{") && !text.contains(':') {
+    let code = if default_namespace {
+        "XTDE1440"
+    } else {
+        "XTDE1390"
+    };
+    let resolved = crate::qname::resolve(text, namespaces, code)
+        .map_err(|_| err(code, "invalid or unbound name"))?;
+    let resolved = if default_namespace && !text.starts_with("Q{") && !text.contains(':') {
         match namespaces.get("").filter(|uri| !uri.is_empty()) {
             Some(uri) => format!("Q{{{uri}}}{resolved}"),
             None => resolved,
@@ -2743,7 +2761,10 @@ fn attach_lookup_context<'a>(value: Value<'a>, namespaces: &BTreeMap<String, Str
         .map(|item| match item {
             Item::Function(function) => match function.as_ref() {
                 FunctionValue::Named(name, arity, _)
-                    if matches!(name.as_str(), "element-available" | "function-lookup") =>
+                    if matches!(
+                        name.as_str(),
+                        "element-available" | "system-property" | "function-lookup"
+                    ) =>
                 {
                     Item::Function(std::rc::Rc::new(FunctionValue::Named(
                         name.clone(),
@@ -2812,8 +2833,12 @@ fn call_function_item<'a>(
         }
         FunctionValue::Named(name, _, namespaces) => {
             let mut args = args;
-            if let Some(namespaces) = namespaces.as_ref().filter(|_| name == "element-available") {
-                args[0] = element_name(&args[0], namespaces, backwards)?;
+            if let Some(namespaces) = namespaces
+                .as_ref()
+                .filter(|_| matches!(name.as_str(), "element-available" | "system-property"))
+            {
+                args[0] =
+                    static_name(&args[0], namespaces, backwards, name == "element-available")?;
             }
             let result = if vars.contains_key(CURRENT_GROUP) || vars.contains_key(CURRENT_KEY) {
                 let scope = without_grouping_context(vars);

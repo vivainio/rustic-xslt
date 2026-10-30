@@ -2802,3 +2802,13 @@ conformance claims. Smaller tested increments are committed independently.
   named-reference test by rebinding the prefix at the invocation site. Seven
   use-when tests, all-target/all-feature Clippy and the 1,212-case XSLT gate pass.
 - Other namespace-sensitive availability functions remain to be reviewed.
+
+## Increment 248: system-property namespace resolution
+
+- Resolve `system-property` names using static namespace bindings for direct
+  calls, named references, partial applications and dynamic lookup. Unprefixed
+  names remain in no namespace even when a default namespace is in scope;
+  invalid or unbound names report XTDE1390.
+- Added alias, rebinding, default namespace and lookup regressions. Eight
+  use-when tests, all-target/all-feature Clippy and the 1,212-case XSLT gate pass.
+  `function-available` and `type-available` still need namespace review.

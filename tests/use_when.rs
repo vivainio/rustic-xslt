@@ -100,3 +100,21 @@ fn element_available_dynamic_lookup_captures_namespaces() {
         "<out>true true true</out>"
     );
 }
+
+#[test]
+fn system_property_resolves_names_and_captures_context() {
+    let sheet = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:a="http://www.w3.org/1999/XSL/Transform"><xsl:output omit-xml-declaration="yes"/><xsl:template match="/"><xsl:variable name="f" select="system-property#1"/><xsl:variable name="g" select="function-lookup(QName('http://www.w3.org/2005/xpath-functions','system-property'), 1)"/><out><xsl:value-of select="system-property('a:version')"/><xsl:text>|</xsl:text><xsl:value-of xmlns:a="urn:other" select="$f('a:version'), $g('a:version'), system-property('a:version')"/><xsl:text>|</xsl:text><xsl:value-of xmlns="http://www.w3.org/1999/XSL/Transform" select="system-property('version')"/></out></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(
+        Stylesheet::compile(sheet)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap(),
+        "<out>3.0|3.0 3.0 |</out>"
+    );
+    let error = run(
+        "",
+        r#"<xsl:value-of select="system-property('missing:version')"/>"#,
+    )
+    .unwrap_err();
+    assert_eq!(error.code, "XTDE1390");
+}
