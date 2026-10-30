@@ -1031,6 +1031,23 @@ fn metadata_name(name: &Name, markup: Markup) -> Option<String> {
 }
 
 pub(crate) fn validate_media_type(value: &str) -> Result<(), Diagnostic> {
+    let token = |part: &str| {
+        !part.is_empty()
+            && part
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || b"!#$%&'*+-.^_`|~".contains(&byte))
+    };
+    let essence = value.split(';').next().unwrap_or("").trim();
+    if !essence
+        .split_once('/')
+        .is_some_and(|(kind, subtype)| token(kind) && token(subtype))
+    {
+        return Err(Diagnostic::new(
+            "SEPM0016",
+            "media-type must contain a valid type and subtype",
+            "run",
+        ));
+    }
     let mut quoted = false;
     let mut escaped = false;
     let mut start = 0;

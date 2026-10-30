@@ -2275,3 +2275,12 @@ conformance claims. Smaller tested increments are committed independently.
 - Added a zero-record streaming regression proving SEPM0010 precedes BOM output.
 - Validation: full all-feature Rust suite, all-target/all-feature Clippy,
   formatting and diff checks pass. No runtime behavior changed.
+
+## Increment 202: media-type type/subtype validation
+
+- Serialization media types require nonempty MIME token type and subtype names.
+  Missing components, embedded whitespace and additional slashes report runtime
+  SEPM0016 rather than generating malformed Content-Type metadata.
+- Added five malformed media-type regressions.
+- Validation: twenty result-document tests, all-target/all-feature Clippy and
+  the full 931-case pinned XSLT gate pass without regressions.

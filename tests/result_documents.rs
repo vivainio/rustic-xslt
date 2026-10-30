@@ -222,3 +222,21 @@ fn explicit_principal_results_can_disable_inherited_prefix_undeclarations() {
     let inherited = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="xml" undeclare-prefixes="yes"/><xsl:template match="/"><out/></xsl:template></xsl:stylesheet>"#).unwrap();
     assert_eq!(inherited.transform("<r/>").unwrap_err().code, "SEPM0010");
 }
+
+#[test]
+fn malformed_media_type_names_are_serialization_parameter_errors() {
+    for media in [
+        "invalid",
+        "text/",
+        "/plain",
+        "text/pl ain",
+        "text/plain/extra",
+    ] {
+        let body = format!(
+            r#"<xsl:result-document method="html" media-type="{media}"><head/></xsl:result-document>"#
+        );
+        let error = run(&body).unwrap_err();
+        assert_eq!(error.code, "SEPM0016");
+        assert_eq!(error.phase, "run");
+    }
+}
