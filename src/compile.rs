@@ -217,7 +217,13 @@ fn error(n: Node<'_, '_>, message: impl Into<String>) -> Diagnostic {
     }
 }
 fn xslt_version(n: Node<'_, '_>) -> u8 {
-    match n.document().root_element().attribute("version") {
+    let root = n.document().root_element();
+    let version = if root.tag_name().namespace() == Some(XSL) {
+        root.attribute("version")
+    } else {
+        root.attribute((XSL, "version"))
+    };
+    match version {
         Some("1.0") => 1,
         Some("2.0") => 2,
         _ => 3,
@@ -1857,6 +1863,7 @@ fn body(
                 for a in n.attributes() {
                     if a.namespace() == Some(XSL) {
                         if [
+                            "version",
                             "exclude-result-prefixes",
                             "xpath-default-namespace",
                             "inherit-namespaces",
@@ -3099,13 +3106,23 @@ pub(crate) fn compile(
     STATIC_VARIABLES.with(|v| v.borrow_mut().clear());
     let doc = crate::parse(source, "compile")?;
     let root = doc.root_element();
-    if root.tag_name().namespace() != Some(XSL)
-        || !matches!(root.tag_name().name(), "stylesheet" | "transform")
-    {
-        return Err(error(root, "expected xsl:stylesheet or xsl:transform"));
-    }
-    attrs(root, &["version"])?;
-    if !matches!(root.attribute("version"), Some("1.0" | "2.0" | "3.0")) {
+    let simplified = root.tag_name().namespace() != Some(XSL);
+    let version = if simplified {
+        root.attribute((XSL, "version")).ok_or_else(|| {
+            static_error(
+                root,
+                "XTSE0150",
+                "simplified stylesheet requires xsl:version",
+            )
+        })?
+    } else {
+        if !matches!(root.tag_name().name(), "stylesheet" | "transform") {
+            return Err(error(root, "expected xsl:stylesheet or xsl:transform"));
+        }
+        attrs(root, &["version"])?;
+        root.attribute("version").unwrap_or_default()
+    };
+    if !matches!(version, "1.0" | "2.0" | "3.0") {
         return Err(error(root, "expected version 1.0, 2.0, or 3.0"));
     }
     let mut sheet = Stylesheet {
@@ -3119,7 +3136,11 @@ pub(crate) fn compile(
         document_uris: vec![],
         outputs: BTreeMap::new(),
         space_rules: vec![],
-        default_mode: default_mode(root)?,
+        default_mode: if simplified {
+            String::new()
+        } else {
+            default_mode(root)?
+        },
         modes: BTreeMap::new(),
         omit_declaration: false,
         standalone: None,
@@ -3136,10 +3157,10 @@ pub(crate) fn compile(
         char_map: Default::default(),
         doctype: None,
         text_output: false,
-        backwards: root.attribute("version") == Some("1.0"),
-        version: match root.attribute("version") {
-            Some("1.0") => 1,
-            Some("2.0") => 2,
+        backwards: version == "1.0",
+        version: match version {
+            "1.0" => 1,
+            "2.0" => 2,
             _ => 3,
         },
     };
@@ -3152,24 +3173,37 @@ pub(crate) fn compile(
     let mut precedence_counter = 0u32;
     let mut global_precedence: BTreeMap<String, u32> = BTreeMap::new();
     let mut function_precedence: BTreeMap<(String, usize), u32> = BTreeMap::new();
-    declarations(
-        root,
-        &mut Declarations {
-            sheet: &mut sheet,
-            output_properties: &mut output_properties,
-            functions: &mut functions,
-            keys: &mut keys,
-            attribute_sets: &mut attribute_sets,
-            character_maps: &mut character_maps,
-            decimal_formats: &mut decimal_formats,
-            counter: &mut precedence_counter,
-            global_precedence: &mut global_precedence,
-            function_precedence: &mut function_precedence,
-        },
-        resolver,
-        0,
-        None,
-    )?;
+    if simplified {
+        sheet.templates.push(Template {
+            pattern: Some(crate::pattern::parse("/", namespaces(root), sheet.version)?),
+            modes: vec![String::new()],
+            priority: None,
+            name: None,
+            params: vec![],
+            result_type: None,
+            body: body(doc.root(), 0, false)?,
+            precedence: 0,
+        });
+    } else {
+        declarations(
+            root,
+            &mut Declarations {
+                sheet: &mut sheet,
+                output_properties: &mut output_properties,
+                functions: &mut functions,
+                keys: &mut keys,
+                attribute_sets: &mut attribute_sets,
+                character_maps: &mut character_maps,
+                decimal_formats: &mut decimal_formats,
+                counter: &mut precedence_counter,
+                global_precedence: &mut global_precedence,
+                function_precedence: &mut function_precedence,
+            },
+            resolver,
+            0,
+            None,
+        )?;
+    }
     for name in character_maps.keys() {
         sheet.character_maps.insert(
             name.clone(),

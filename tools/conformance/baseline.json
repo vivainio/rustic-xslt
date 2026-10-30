@@ -806,11 +806,43 @@
     ],
     [
       "for-each-group",
+      "for-each-group-001"
+    ],
+    [
+      "for-each-group",
+      "for-each-group-003"
+    ],
+    [
+      "for-each-group",
+      "for-each-group-005"
+    ],
+    [
+      "for-each-group",
+      "for-each-group-007"
+    ],
+    [
+      "for-each-group",
+      "for-each-group-009"
+    ],
+    [
+      "for-each-group",
+      "for-each-group-011"
+    ],
+    [
+      "for-each-group",
       "for-each-group-012"
     ],
     [
       "for-each-group",
       "for-each-group-013"
+    ],
+    [
+      "for-each-group",
+      "for-each-group-014"
+    ],
+    [
+      "for-each-group",
+      "for-each-group-015b"
     ],
     [
       "for-each-group",
@@ -831,6 +863,18 @@
     [
       "for-each-group",
       "for-each-group-024"
+    ],
+    [
+      "for-each-group",
+      "for-each-group-026"
+    ],
+    [
+      "for-each-group",
+      "for-each-group-027"
+    ],
+    [
+      "for-each-group",
+      "for-each-group-028"
     ],
     [
       "for-each-group",
@@ -902,6 +946,22 @@
     ],
     [
       "for-each-group",
+      "for-each-group-049"
+    ],
+    [
+      "for-each-group",
+      "for-each-group-050"
+    ],
+    [
+      "for-each-group",
+      "for-each-group-051"
+    ],
+    [
+      "for-each-group",
+      "for-each-group-052"
+    ],
+    [
+      "for-each-group",
       "for-each-group-055"
     ],
     [
@@ -959,6 +1019,18 @@
     [
       "for-each-group",
       "for-each-group-072"
+    ],
+    [
+      "for-each-group",
+      "for-each-group-073"
+    ],
+    [
+      "for-each-group",
+      "for-each-group-074"
+    ],
+    [
+      "for-each-group",
+      "for-each-group-075"
     ],
     [
       "for-each-group",
@@ -2475,6 +2547,14 @@
     [
       "number",
       "number-0809"
+    ],
+    [
+      "number",
+      "number-0810"
+    ],
+    [
+      "number",
+      "number-0811"
     ],
     [
       "number",
@@ -4183,6 +4263,10 @@
     [
       "variable",
       "variable-0303"
+    ],
+    [
+      "variable",
+      "variable-0401"
     ],
     [
       "variable",

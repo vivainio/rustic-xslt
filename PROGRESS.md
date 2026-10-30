@@ -2536,3 +2536,18 @@ conformance claims. Smaller tested increments are committed independently.
   disabled and two build jobs.
 - The full `cargo test --quiet -j 2` run passes. All 43 Python conformance harness
   unit tests also pass. The outstanding full Rust rerun above is now resolved.
+
+## Increment 228: simplified principal stylesheets
+
+- Literal result element roots with xsl:version compile as an implicit document
+  template in the unnamed mode, using the existing sequence constructor and
+  static validation. Missing xsl:version reports XTSE0150.
+- Preserve namespaces, local variables, attribute value templates and version
+  1.0 backwards compatibility. Literal xsl:version attributes are excluded from
+  output; literal default-mode does not relocate the implicit template.
+- Added five direct regressions. The pinned gate gains 21 cases (18 grouping,
+  two numbering and one variable), reaching 1,145 passes across 1,928 cases with
+  246 engine failures, 384 harness errors and 153 profile exclusions.
+- Validation: full Rust suite, all-target/all-feature Clippy, and the expanded
+  pinned XSLT gate pass without regressions. Simplified imported/included module
+  handling remains a separate declaration-loader gap.
