@@ -152,6 +152,7 @@ pub(crate) enum Grouping {
 /// Sort settings that are attribute value templates, resolved when the sort runs.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct DynamicSort {
+    pub stable: Option<Vec<Expr>>,
     pub data_type: Option<Vec<Expr>>,
     pub order: Option<Vec<Expr>>,
     pub case_order: Option<Vec<Expr>>,
@@ -165,6 +166,22 @@ pub(crate) struct Sort {
     pub numeric: bool,
     pub descending: bool,
     pub case_order: String,
+}
+impl Sort {
+    fn expressions(&self) -> impl Iterator<Item = &Expr> {
+        std::iter::once(&self.select).chain(
+            [
+                &self.dynamic.stable,
+                &self.dynamic.data_type,
+                &self.dynamic.order,
+                &self.dynamic.case_order,
+                &self.dynamic.collation,
+            ]
+            .into_iter()
+            .flatten()
+            .flatten(),
+        )
+    }
 }
 #[derive(Debug)]
 pub(crate) struct ComputedName {
@@ -816,13 +833,21 @@ fn sorts(n: Node<'_, '_>) -> Result<Vec<Sort>, Diagnostic> {
                 ],
             )?;
             empty(c)?;
+            if c.attribute("stable").is_some() && !keys.is_empty() {
+                return Err(static_error(
+                    c,
+                    "XTSE1017",
+                    "stable is permitted only on the first sort key",
+                ));
+            }
             let dynamic_attr = |name: &str| -> Result<Option<Vec<Expr>>, Diagnostic> {
                 match c.attribute(name) {
                     Some(v) if v.contains(['{', '}']) => avt(c, v).map(Some),
                     _ => Ok(None),
                 }
             };
-            let mut dynamic = DynamicSort {
+            let dynamic = DynamicSort {
+                stable: dynamic_attr("stable")?,
                 data_type: dynamic_attr("data-type")?,
                 order: dynamic_attr("order")?,
                 case_order: dynamic_attr("case-order")?,
@@ -858,7 +883,9 @@ fn sorts(n: Node<'_, '_>) -> Result<Vec<Sort>, Diagnostic> {
                 ),
                 _ => None,
             };
-            let _ = &mut dynamic;
+            if dynamic.stable.is_none() {
+                boolean_attribute(c, "stable", true)?;
+            }
             keys.push(Sort {
                 select: expr(c, c.attribute("select").unwrap_or("."))?,
                 numeric,
@@ -3338,7 +3365,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 Expr::Sorted(inner, keys) => {
                     pending.push(inner);
                     for key in keys {
-                        pending.push(&key.select);
+                        pending.extend(key.expressions());
                     }
                 }
                 Expr::Evaluate {
@@ -3397,7 +3424,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 Instruction::Value(_, Some(es)) => parts(es, &scope)?,
                 Instruction::Apply(_, _, keys, _) | Instruction::ForEach(_, keys, _) => {
                     for k in keys {
-                        expression(&k.select, &scope)?;
+                        for e in k.expressions() {
+                            expression(e, &scope)?;
+                        }
                     }
                 }
                 _ => {}
@@ -3620,7 +3649,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                         }
                     }
                     for k in keys {
-                        expression(&k.select, &scope)?;
+                        for e in k.expressions() {
+                            expression(e, &scope)?;
+                        }
                     }
                     instructions(body, scope.clone(), templates)?;
                 }

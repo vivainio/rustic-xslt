@@ -2565,3 +2565,17 @@ conformance claims. Smaller tested increments are committed independently.
   all-target/all-feature Clippy and the full 1,145-case pinned XSLT gate pass
   without regressions. This resolves the module-loader gap noted in increment
   228; broader mixed-version runtime behavior remains unchanged.
+
+## Increment 230: checked sort stability settings
+
+- Only the first sibling sort key may specify stable; later declarations report
+  XTSE1017. Literal boolean values are checked at compile time (XTSE0020), and
+  attribute value templates are evaluated and checked at runtime (XTDE0030).
+- Stable ordering is retained for equal keys even when stable is false, an
+  allowed implementation choice. All dynamic sort settings now receive static
+  variable-scope validation, including settings in perform-sort expressions.
+- Added literal/computed boolean, equal-key order, misplaced attribute and
+  undeclared-variable regressions. Two grouping catalog cases join the gate,
+  reaching 1,147 passes, 244 failures, 384 harness errors and 153 exclusions.
+- Validation: thirteen focused sorting/grouping tests, all-target/all-feature
+  Clippy, the XSLT gate and all 18,735 pinned QT3 cases pass without regressions.

@@ -41,3 +41,33 @@ fn sort_collations_lang_and_stable_are_accepted() {
     assert!(run(r#"<xsl:sort select="." collation="urn:unknown"/>"#).is_err());
     assert!(run(r#"<xsl:sort select="." collation="{'urn:unknown'}"/>"#).is_err());
 }
+
+#[test]
+fn stable_is_a_checked_boolean_avt_on_the_first_key_only() {
+    for value in ["yes", "no", "true", "false", "1", "0", "{'yes'}", "{'no'}"] {
+        assert_eq!(
+            run(&format!(r#"<xsl:sort select="'same'" stable="{value}"/>"#)).unwrap(),
+            "10,9,b,B,a,2,"
+        );
+    }
+    assert_eq!(
+        run(r#"<xsl:sort stable="maybe"/>"#).unwrap_err().code,
+        "XTSE0020"
+    );
+    assert_eq!(
+        run(r#"<xsl:sort stable="{'maybe'}"/>"#).unwrap_err().code,
+        "XTDE0030"
+    );
+    for value in ["yes", "no", "{'yes'}"] {
+        assert_eq!(
+            run(&format!(r#"<xsl:sort/><xsl:sort stable="{value}"/>"#))
+                .unwrap_err()
+                .code,
+            "XTSE1017"
+        );
+    }
+    assert_eq!(
+        run(r#"<xsl:sort stable="{$missing}"/>"#).unwrap_err().code,
+        "XPST0008"
+    );
+}

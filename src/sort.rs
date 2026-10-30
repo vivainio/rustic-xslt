@@ -41,6 +41,11 @@ fn resolve<'a>(
         Ok(Some(out.trim().to_owned()))
     };
     let invalid = |what: &str| Diagnostic::new("XTDE0030", format!("invalid sort {what}"), "run");
+    if let Some(v) = text(&sort.dynamic.stable, budget)?
+        && !["yes", "no", "true", "false", "1", "0"].contains(&v.as_str())
+    {
+        return Err(invalid("stable"));
+    }
     if let Some(v) = text(&sort.dynamic.data_type, budget)? {
         settings.numeric = match v.as_str() {
             "text" | "" => false,
