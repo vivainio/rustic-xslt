@@ -474,7 +474,13 @@ fn form_groups<'a>(
                     backwards,
                 )?)?;
                 if *composite {
-                    let keys: Vec<_> = keys.iter().map(xpath::atomize).collect();
+                    let keys: Vec<_> = keys
+                        .iter()
+                        .map(|item| match xpath::atomize(item) {
+                            Item::Untyped(value) => Item::String(value),
+                            item => item,
+                        })
+                        .collect();
                     match groups.iter_mut().find(|(key, _)| {
                         key.as_ref().is_some_and(|key| {
                             key.len() == keys.len()
@@ -489,7 +495,10 @@ fn form_groups<'a>(
                     continue;
                 }
                 let mut seen: Vec<Item<'a>> = vec![];
-                for key in keys.iter().map(xpath::atomize) {
+                for key in keys.iter().map(|item| match xpath::atomize(item) {
+                    Item::Untyped(value) => Item::String(value),
+                    item => item,
+                }) {
                     if seen
                         .iter()
                         .any(|k| crate::deep_equal::atomic_equal(k, &key, true))
@@ -525,7 +534,13 @@ fn form_groups<'a>(
                         "run",
                     ));
                 }
-                let keys: Vec<_> = keys.iter().map(xpath::atomize).collect();
+                let keys: Vec<_> = keys
+                    .iter()
+                    .map(|item| match xpath::atomize(item) {
+                        Item::Untyped(value) => Item::String(value),
+                        item => item,
+                    })
+                    .collect();
                 match groups.last_mut() {
                     Some((Some(k), members))
                         if k.len() == keys.len()

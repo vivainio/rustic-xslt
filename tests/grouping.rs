@@ -140,3 +140,9 @@ fn grouping_keys_atomize_arrays_and_reject_maps() {
         "FOTY0013"
     );
 }
+
+#[test]
+fn untyped_grouping_keys_are_exposed_as_strings_and_composites_retain_nan() {
+    assert_eq!(run(r#"<xsl:for-each-group select="r/i" group-by="@k"><xsl:value-of select="current-grouping-key() instance of xs:string"/><xsl:text>;</xsl:text></xsl:for-each-group>"#).unwrap(), "true;true;true;true;true;");
+    assert_eq!(run(r#"<xsl:for-each-group select="(1,2,3)" group-by="(xs:double('NaN'), . mod 2)" composite="yes"><xsl:value-of select="count(current-grouping-key())"/><xsl:text>:</xsl:text><xsl:value-of select="count(current-group())"/><xsl:text>;</xsl:text></xsl:for-each-group>"#).unwrap(), "2:2;2:1;");
+}

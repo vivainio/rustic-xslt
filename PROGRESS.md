@@ -2508,3 +2508,12 @@ conformance claims. Smaller tested increments are committed independently.
 - Added composite-array, adjacent single-array and map-key error regressions.
 - Validation: nine grouping tests, all-target/all-feature Clippy and the full
   1,124-case pinned XSLT gate pass without regressions.
+
+## Increment 227: grouping key string conversion and composite exposure
+
+- Untyped grouping keys convert to strings before comparison and storage,
+  ensuring current-grouping-key exposes xs:string rather than xs:untypedAtomic.
+- Added key-type coverage and a composite NaN regression checking complete key
+  exposure and equal-NaN component grouping.
+- Validation: ten grouping tests, all-target/all-feature Clippy and the full
+  1,124-case pinned XSLT gate pass without regressions.
