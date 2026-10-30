@@ -2351,3 +2351,12 @@ conformance claims. Smaller tested increments are committed independently.
 - String and boolean supplied values use numeric conversion. The gate has 1,048
   passes (one new, zero regressions), 264 failures, 378 harness errors and 153
   exclusions. Numbering tests and all-target/all-feature Clippy pass.
+
+## Increment 210: supplied numbering conversion coverage
+
+- Derived-string and URI atomic values use numeric conversion in xsl:number,
+  alongside ordinary strings, untyped values, booleans and numeric values.
+- Added regressions for exact rebasing beyond u64 with grouping, decimal ties,
+  booleans and derived-string supplied values.
+- Validation: full all-feature Rust suite, all-target/all-feature Clippy and the
+  full 1,048-case pinned XSLT gate pass without regressions.

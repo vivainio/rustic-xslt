@@ -107,3 +107,16 @@ fn start_at_rebases_signed_components_and_repeats_the_last_offset() {
         "XTDE0030"
     );
 }
+
+#[test]
+fn supplied_numbers_preserve_large_integers_and_numeric_conversion() {
+    assert_eq!(run(r#"<xsl:number value="18446744073709551616" start-at="3" format="1" grouping-separator="," grouping-size="3"/>"#, "<r/>").unwrap(), "18,446,744,073,709,551,618");
+    assert_eq!(
+        run(
+            r#"<xsl:number value="(2.5, true(), xs:token('2.5'))" format="1.1.1"/>"#,
+            "<r/>"
+        )
+        .unwrap(),
+        "3.1.3"
+    );
+}

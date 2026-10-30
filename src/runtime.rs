@@ -572,7 +572,10 @@ fn number_text<'a>(
             };
             let number = match xpath::atomize(item) {
                 Item::Number(number) => number,
-                Item::Untyped(value) | Item::String(value) => {
+                Item::Untyped(value)
+                | Item::String(value)
+                | Item::DerivedString(_, value)
+                | Item::AnyUri(value) => {
                     crate::number::Number::cast("double", value.trim()).map_err(|_| invalid())?
                 }
                 Item::Boolean(value) => {
