@@ -2528,3 +2528,11 @@ conformance claims. Smaller tested increments are committed independently.
   as recorded above; the full rerun remains outstanding after freeing space.
 - Next investigation: simplified stylesheets with literal result element roots,
   which currently hide additional grouping successes and static diagnostics.
+
+### Checkpoint validation follow-up
+
+- Cleared generated Cargo build artifacts with `cargo clean` to resolve the
+  disk-space failure, then rebuilt with incremental compilation and debug info
+  disabled and two build jobs.
+- The full `cargo test --quiet -j 2` run passes. All 43 Python conformance harness
+  unit tests also pass. The outstanding full Rust rerun above is now resolved.
