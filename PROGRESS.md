@@ -2449,3 +2449,13 @@ conformance claims. Smaller tested increments are committed independently.
 - Added large grouped and negative format-integer regressions.
 - Validation: numbering/numeric tests, all-target/all-feature Clippy, the full
   1,078-case XSLT gate and all 18,735 QT3 baseline cases pass without regressions.
+
+## Increment 221: zero-only numbering picture extension regression
+
+- Confirmed zero-only decimal pictures are an existing supported numbering
+  extension, including the pinned large-number fixture. Added direct coverage
+  retaining padding for both zero-only and zero-followed-by-one pictures.
+- A stricter token experiment regressed number-0111 and was discarded; shared
+  runtime formatting remains unchanged.
+- Validation: sixteen numbering tests and the full 1,078-case pinned XSLT gate
+  pass without regressions. Formatting and diff checks pass.

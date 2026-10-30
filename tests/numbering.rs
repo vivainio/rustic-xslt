@@ -231,3 +231,8 @@ fn alphabetic_numbering_supports_values_beyond_u64() {
         "aaaaaaaaaaaaaaa"
     );
 }
+
+#[test]
+fn numbering_zero_only_decimal_extension_retains_padding() {
+    assert_eq!(run(r#"<xsl:number value="7" format="000"/><xsl:text>;</xsl:text><xsl:number value="7" format="001"/>"#, "<r/>").unwrap(), "007;007");
+}
