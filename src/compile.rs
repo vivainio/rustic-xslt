@@ -1172,11 +1172,10 @@ fn body(
                         )?;
                         if n.attribute("namespace-context").is_some()
                             || n.attribute("base-uri").is_some()
-                            || n.attribute("with-params").is_some()
                         {
                             return Err(error(
                                 n,
-                                "xsl:evaluate namespace-context, base-uri and with-params are not implemented",
+                                "xsl:evaluate namespace-context and base-uri are not implemented",
                             ));
                         }
                         let mut params = vec![];
@@ -1210,6 +1209,10 @@ fn body(
                                 .map(|c| expr(n, c).map(Box::new))
                                 .transpose()?,
                             params,
+                            with_params: n
+                                .attribute("with-params")
+                                .map(|s| expr(n, s).map(Box::new))
+                                .transpose()?,
                             namespaces: namespaces(n),
                         }));
                     }
@@ -3506,8 +3509,10 @@ pub(crate) fn validate_expression(e: &Expr, scope: &BTreeSet<String>) -> Result<
                 xpath,
                 context,
                 params,
+                with_params,
                 ..
             } => {
+                pending.extend(with_params.iter().map(|e| e.as_ref()));
                 pending.push(xpath);
                 if let Some(context) = context {
                     pending.push(context);

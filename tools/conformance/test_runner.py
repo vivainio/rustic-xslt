@@ -129,6 +129,12 @@ class Assertions(unittest.TestCase):
         with self.assertRaises(ProfileExcluded):
             dependencies(node(f'<root xmlns="{NS[1:-1]}"><dependencies><feature value="serialization" satisfied="false"/></dependencies></root>'))
 
+    def test_dynamic_evaluation_dependency_selects_enabled_profile(self):
+        from run import dependencies, ProfileExcluded
+        dependencies(node(f'<root xmlns="{NS[1:-1]}"><dependencies><feature value="dynamic_evaluation"/></dependencies></root>'))
+        with self.assertRaises(ProfileExcluded):
+            dependencies(node(f'<root xmlns="{NS[1:-1]}"><dependencies><feature value="dynamic_evaluation" satisfied="false"/></dependencies></root>'))
+
     def test_serialization_comparison_is_exact_and_handles_non_xml_methods(self):
         for method, value in [("text", "plain text"), ("json", '{"a":1}'), ("html", "<br>"), ("adaptive", "1,2")]:
             check = node(f'<assert-serialization method="{method}">{value.replace("<", "&lt;")}</assert-serialization>')

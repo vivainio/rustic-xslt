@@ -78,6 +78,7 @@ pub(crate) enum Expr {
         xpath: Box<Expr>,
         context: Option<Box<Expr>>,
         params: Vec<(String, Expr)>,
+        with_params: Option<Box<Expr>>,
         namespaces: BTreeMap<String, String>,
     },
     MapConstructor(Vec<(Expr, Expr)>),
@@ -1859,6 +1860,100 @@ pub(crate) fn filter<'a>(
     }
     Ok(value)
 }
+fn evaluate_dynamic<'a>(
+    expression: &Expr,
+    focus: &Focus<'a>,
+    vars: &Variables<'a>,
+    budget: &mut Budget,
+    depth: usize,
+    backwards: bool,
+) -> Result<Value<'a>, Diagnostic> {
+    let Expr::Evaluate {
+        xpath,
+        context,
+        params,
+        with_params,
+        namespaces,
+    } = expression
+    else {
+        unreachable!();
+    };
+    let source = eval(xpath, focus, vars, budget, depth + 1, backwards)?;
+    let source = match source.as_slice() {
+        [item] => atomize(item).string(),
+        _ => return Err(err("XTDE3160", "xsl:evaluate needs a single XPath string")),
+    };
+    for _ in source.bytes() {
+        budget.tick()?;
+    }
+    let parsed = with_xpath_profile(|| parse(&source, namespaces.clone())).map_err(|mut e| {
+        e.code = "XTDE3160".into();
+        e.phase = "run";
+        e
+    })?;
+    let mut scope: Variables<'a> = vars
+        .iter()
+        .filter(|(k, _)| k.starts_with(GLOBAL_PREFIX))
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
+    let mut names = std::collections::BTreeSet::new();
+    for (name, value) in params {
+        names.insert(name.clone());
+        scope.insert(
+            name.clone(),
+            eval(value, focus, vars, budget, depth + 1, backwards)?,
+        );
+    }
+    if let Some(map_expr) = with_params {
+        let map_value = eval(map_expr, focus, vars, budget, depth + 1, backwards)?;
+        let [Item::Map(map)] = map_value.as_slice() else {
+            return Err(err(
+                "XTTE3165",
+                "xsl:evaluate with-params must be a map with QName keys",
+            ));
+        };
+        for (key, value) in map.iter() {
+            budget.tick()?;
+            let Item::QName(name) = key else {
+                return Err(err(
+                    "XTTE3165",
+                    "xsl:evaluate with-params must have QName keys",
+                ));
+            };
+            let name = match &name.uri {
+                Some(uri) => format!("Q{{{uri}}}{}", name.local),
+                None => name.local.clone(),
+            };
+            names.insert(name.clone());
+            scope.insert(name, value.clone());
+        }
+    }
+    crate::compile::validate_expression(&parsed, &names).map_err(|mut e| {
+        e.code = "XTDE3160".into();
+        e.phase = "run";
+        e
+    })?;
+    let inner = match context {
+        Some(c) => {
+            let items = eval(c, focus, vars, budget, depth + 1, backwards)?;
+            match items.as_slice() {
+                [item] => Focus {
+                    item: item.clone(),
+                    position: 1,
+                    size: 1,
+                },
+                _ => return Err(err("XTTE3210", "xsl:evaluate context must be one item")),
+            }
+        }
+        None => Focus {
+            item: Item::Absent,
+            position: 0,
+            size: 0,
+        },
+    };
+    scope.insert(CURRENT_ITEM.into(), vec![inner.item.clone()]);
+    eval(&parsed, &inner, &scope, budget, depth + 1, backwards)
+}
 pub(crate) fn eval<'a>(
     e: &Expr,
     focus: &Focus<'a>,
@@ -2511,64 +2606,7 @@ pub(crate) fn eval<'a>(
                 vars,
             ))]
         }
-        Expr::Evaluate {
-            xpath,
-            context,
-            params,
-            namespaces,
-        } => {
-            let source = eval(xpath, focus, vars, budget, depth + 1, backwards)?;
-            let source = match source.as_slice() {
-                [item] => atomize(item).string(),
-                _ => return Err(err("XTDE3160", "xsl:evaluate needs a single XPath string")),
-            };
-            for _ in source.bytes() {
-                budget.tick()?;
-            }
-            let parsed =
-                with_xpath_profile(|| parse(&source, namespaces.clone())).map_err(|mut e| {
-                    e.code = "XTDE3160".into();
-                    e.phase = "run";
-                    e
-                })?;
-            let names = params.iter().map(|(name, _)| name.clone()).collect();
-            crate::compile::validate_expression(&parsed, &names).map_err(|mut e| {
-                e.code = "XTDE3160".into();
-                e.phase = "run";
-                e
-            })?;
-            let mut scope: Variables<'a> = vars
-                .iter()
-                .filter(|(k, _)| k.starts_with(GLOBAL_PREFIX))
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect();
-            for (name, value) in params {
-                scope.insert(
-                    name.clone(),
-                    eval(value, focus, vars, budget, depth + 1, backwards)?,
-                );
-            }
-            let inner = match context {
-                Some(c) => {
-                    let items = eval(c, focus, vars, budget, depth + 1, backwards)?;
-                    match items.as_slice() {
-                        [item] => Focus {
-                            item: item.clone(),
-                            position: 1,
-                            size: 1,
-                        },
-                        _ => return Err(err("XTTE3210", "xsl:evaluate context must be one item")),
-                    }
-                }
-                None => Focus {
-                    item: Item::Absent,
-                    position: 0,
-                    size: 0,
-                },
-            };
-            scope.insert(CURRENT_ITEM.into(), vec![inner.item.clone()]);
-            eval(&parsed, &inner, &scope, budget, depth + 1, backwards)?
-        }
+        Expr::Evaluate { .. } => evaluate_dynamic(e, focus, vars, budget, depth, backwards)?,
         Expr::Sorted(inner, keys) => {
             let value = eval(inner, focus, vars, budget, depth + 1, backwards)?;
             crate::sort::sort(value, keys, vars, focus, budget, backwards)?

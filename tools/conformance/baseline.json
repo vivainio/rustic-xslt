@@ -6,6 +6,7 @@
     "choose",
     "copy",
     "current",
+    "evaluate",
     "for-each-group",
     "function",
     "function-available",
@@ -807,6 +808,114 @@
     [
       "current",
       "current-001"
+    ],
+    [
+      "evaluate",
+      "evaluate-001"
+    ],
+    [
+      "evaluate",
+      "evaluate-002"
+    ],
+    [
+      "evaluate",
+      "evaluate-003"
+    ],
+    [
+      "evaluate",
+      "evaluate-005"
+    ],
+    [
+      "evaluate",
+      "evaluate-006"
+    ],
+    [
+      "evaluate",
+      "evaluate-007"
+    ],
+    [
+      "evaluate",
+      "evaluate-008"
+    ],
+    [
+      "evaluate",
+      "evaluate-011"
+    ],
+    [
+      "evaluate",
+      "evaluate-016"
+    ],
+    [
+      "evaluate",
+      "evaluate-017"
+    ],
+    [
+      "evaluate",
+      "evaluate-018"
+    ],
+    [
+      "evaluate",
+      "evaluate-018a"
+    ],
+    [
+      "evaluate",
+      "evaluate-018b"
+    ],
+    [
+      "evaluate",
+      "evaluate-018c"
+    ],
+    [
+      "evaluate",
+      "evaluate-018d"
+    ],
+    [
+      "evaluate",
+      "evaluate-019"
+    ],
+    [
+      "evaluate",
+      "evaluate-021"
+    ],
+    [
+      "evaluate",
+      "evaluate-024"
+    ],
+    [
+      "evaluate",
+      "evaluate-026"
+    ],
+    [
+      "evaluate",
+      "evaluate-028"
+    ],
+    [
+      "evaluate",
+      "evaluate-029"
+    ],
+    [
+      "evaluate",
+      "evaluate-031"
+    ],
+    [
+      "evaluate",
+      "evaluate-041"
+    ],
+    [
+      "evaluate",
+      "evaluate-043"
+    ],
+    [
+      "evaluate",
+      "evaluate-047"
+    ],
+    [
+      "evaluate",
+      "evaluate-050"
+    ],
+    [
+      "evaluate",
+      "evaluate-051"
     ],
     [
       "for-each-group",

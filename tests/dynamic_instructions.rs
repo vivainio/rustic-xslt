@@ -116,3 +116,22 @@ fn evaluate_checks_target_variable_scope_before_execution() {
         "42"
     );
 }
+
+#[test]
+fn evaluate_with_params_maps_bind_qnames_and_override_children() {
+    assert_eq!(run(r#"<xsl:evaluate xpath="'$p + $q'" with-params="map{QName('', 'p'): 5, QName('', 'q'): 7}"><xsl:with-param name="p" select="1"/></xsl:evaluate>"#).unwrap(), "12");
+    assert_eq!(
+        run(r#"<xsl:evaluate xpath="'$p'" with-params="map{QName('', 'p'): (1, 2)}"/>"#).unwrap(),
+        "1 2"
+    );
+    for value in ["()", "42", "map{'p': 1}"] {
+        let body = format!(r#"<xsl:evaluate xpath="'1'" with-params="{value}"/>"#);
+        assert_eq!(run(&body).unwrap_err().code, "XTTE3165", "{value}");
+    }
+    assert_eq!(
+        run(r#"<xsl:evaluate xpath="'$p'" with-params="map{}"/>"#)
+            .unwrap_err()
+            .code,
+        "XTDE3160"
+    );
+}

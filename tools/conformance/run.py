@@ -190,7 +190,7 @@ def dependencies(node):
         elif kind == "feature" and value in {"streaming", "schema_aware", "schemaImport", "schemaValidation", "schemaAware", "static_typing", "staticTyping", "streaming-fallback"}:
             if positive:
                 raise ProfileExcluded(f"optional processor profile: {value}")
-        elif kind == "feature" and value in {"backwards_compatibility", "namespace_axis", "serialization", "XPath_3.1"}:
+        elif kind == "feature" and value in {"backwards_compatibility", "namespace_axis", "serialization", "XPath_3.1", "dynamic_evaluation"}:
             if not positive:
                 raise ProfileExcluded(f"requires processor without {value}")
         else:

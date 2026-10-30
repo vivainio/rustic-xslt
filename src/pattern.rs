@@ -333,8 +333,10 @@ fn validate_grouping_functions(expression: &Expr) -> Result<(), Diagnostic> {
                 xpath,
                 context,
                 params,
+                with_params,
                 ..
             } => {
+                pending.extend(with_params.iter().map(|e| e.as_ref()));
                 pending.push(xpath);
                 pending.extend(context.iter().map(|e| e.as_ref()));
                 pending.extend(params.iter().map(|(_, e)| e));

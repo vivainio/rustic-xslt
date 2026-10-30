@@ -2927,3 +2927,18 @@ conformance claims. Smaller tested increments are committed independently.
 - Reused the existing lexical-reference validator for dynamically parsed XPath.
   Five dynamic-instruction tests, all-target/all-feature Clippy and the 1,235-case
   XSLT gate pass. Dynamic with-params maps remain unsupported.
+
+
+## Increment 260: xsl:evaluate parameter maps
+
+- Support `with-params` maps keyed by QNames, with map values overriding matching
+  child parameters and static scope checks including map keys. Wrong map types
+  or non-QName keys report XTTE3165; map values can be arbitrary sequences.
+- Recognize the enabled dynamic-evaluation dependency in the catalog runner. The
+  57-case evaluate survey has 27 passes, 14 failures, one harness error and 15
+  profile exclusions. Added the passes to the expanded gate: 1,262 passes, 249
+  failures, 385 harness errors and 243 exclusions across 2,139 selected cases.
+- Extracted dynamic evaluation from the main evaluator after an initial run
+  exposed a recursive stack overflow. Focused tests, runner tests, Clippy and
+  the expanded XSLT gate then passed. Namespace context, base URI and typed
+  parameters remain among the unsupported xsl:evaluate features.
