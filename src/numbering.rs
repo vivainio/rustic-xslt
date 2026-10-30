@@ -375,19 +375,9 @@ pub(crate) fn format_list(
             out.push_str(&separator);
         }
         let tok = token(&token_text);
-        use num_traits::{Signed, ToPrimitive};
+        use num_traits::Signed;
         let magnitude = n.abs();
-        let mut text = magnitude.to_u64().map_or_else(
-            || match &tok {
-                Token::Decimal { zero, width } => format!("{:0>width$}", magnitude.to_string())
-                    .chars()
-                    .map(|c| char::from_u32(*zero as u32 + c.to_digit(10).unwrap()).unwrap_or(c))
-                    .collect(),
-                Token::Alpha(upper) => alphabetic_big(magnitude.clone(), *upper),
-                _ => magnitude.to_string(),
-            },
-            |value| format(value, &tok, ordinal),
-        );
+        let mut text = format_big(&magnitude, &tok, ordinal);
         if let (Some(g), Token::Decimal { .. }) = (grouping, &tok) {
             text = group(&text, &g.separator, g.size);
         }
@@ -400,12 +390,33 @@ pub(crate) fn format_list(
     out
 }
 
+fn format_big(magnitude: &num_bigint::BigInt, tok: &Token, ordinal: bool) -> String {
+    use num_traits::ToPrimitive;
+    if let Some(value) = magnitude.to_u64() {
+        return format(value, tok, ordinal);
+    }
+    match tok {
+        Token::Decimal { zero, width } => {
+            let mut text: String = format!("{:0>width$}", magnitude.to_string())
+                .chars()
+                .map(|c| char::from_u32(*zero as u32 + c.to_digit(10).unwrap()).unwrap_or(c))
+                .collect();
+            if ordinal && *zero == '0' {
+                text.push_str(ordinal_suffix((magnitude % 100u8).to_u64().unwrap()));
+            }
+            text
+        }
+        Token::Alpha(upper) => alphabetic_big(magnitude.clone(), *upper),
+        _ => magnitude.to_string(),
+    }
+}
+
 /// `fn:format-integer`: `picture` is a primary format token with optional modifiers.
 pub(crate) fn format_integer(
     value: &bigdecimal::num_bigint::BigInt,
     picture: &str,
 ) -> Result<String, String> {
-    use num_traits::{Signed, ToPrimitive};
+    use num_traits::Signed;
     let invalid = || "FODF1310".to_owned();
     let (primary, modifier) = match picture.rsplit_once(';') {
         Some((p, m)) => (p, m),
@@ -415,7 +426,7 @@ pub(crate) fn format_integer(
         return Err(invalid());
     }
     let ordinal = modifier.starts_with('o');
-    let magnitude = value.abs().to_u64().ok_or_else(invalid)?;
+    let magnitude = value.abs();
     let sign = if value.is_negative() { "-" } else { "" };
     let chars: Vec<char> = primary.chars().collect();
     let is_digit = |c: char| zero_of(c).is_some();
@@ -457,7 +468,7 @@ pub(crate) fn format_integer(
         }
         let width = digits.len();
         let token = Token::Decimal { zero, width };
-        let mut text = format(magnitude, &token, ordinal);
+        let mut text = format_big(&magnitude, &token, ordinal);
         if let Some(&(separator, first)) = separators.first() {
             let regular = separators
                 .iter()
@@ -484,9 +495,11 @@ pub(crate) fn format_integer(
         text
     } else {
         match primary {
-            "a" | "A" | "i" | "I" | "w" | "W" | "Ww" => format(magnitude, &token(primary), ordinal),
+            "a" | "A" | "i" | "I" | "w" | "W" | "Ww" => {
+                format_big(&magnitude, &token(primary), ordinal)
+            }
             // Unrecognized tokens fall back to plain decimal numbering.
-            _ => format(magnitude, &token("1"), ordinal),
+            _ => format_big(&magnitude, &token("1"), ordinal),
         }
     };
     Ok(format!("{sign}{body}"))

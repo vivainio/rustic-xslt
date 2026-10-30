@@ -2440,3 +2440,12 @@ conformance claims. Smaller tested increments are committed independently.
 - Added large uppercase and lowercase regressions.
 - Validation: fifteen numbering tests, all-target/all-feature Clippy and the
   full 1,078-case pinned XSLT gate pass without regressions.
+
+## Increment 220: shared arbitrary-precision integer formatting
+
+- fn:format-integer shares the large decimal/alphabetic token formatter with
+  xsl:number instead of rejecting values outside u64. Decimal signs, grouping,
+  width and digit families remain intact; large ASCII ordinals retain suffixes.
+- Added large grouped and negative format-integer regressions.
+- Validation: numbering/numeric tests, all-target/all-feature Clippy, the full
+  1,078-case XSLT gate and all 18,735 QT3 baseline cases pass without regressions.

@@ -527,6 +527,14 @@ fn format_integer_supports_digit_patterns_alphabetic_roman_and_words() {
         ("format-integer(1234567, '#,###')", "1,234,567"),
         ("format-integer(-42, '000')", "-042"),
         ("format-integer(27, 'a')", "aa"),
+        (
+            "format-integer(18446744073709551616, '#,###')",
+            "18,446,744,073,709,551,616",
+        ),
+        (
+            "format-integer(-18446744073709551616, '1')",
+            "-18446744073709551616",
+        ),
         ("format-integer(1999, 'I')", "MCMXCIX"),
         ("format-integer(7, 'w')", "seven"),
         ("format-integer(7, 'Ww;o')", "Seventh"),
