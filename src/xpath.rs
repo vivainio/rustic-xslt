@@ -2756,7 +2756,7 @@ fn static_name<'a>(
     code: &str,
 ) -> Result<Value<'a>, Diagnostic> {
     let text = crate::string_functions::string(value, false, backwards)?;
-    let text = text.as_str();
+    let text = text.trim_matches([' ', '\t', '\n', '\r']);
     let resolved = crate::qname::resolve(text, namespaces, code)
         .map_err(|_| err(code, "invalid or unbound name"))?;
     let resolved = if code == "XTDE1400" && !text.starts_with("Q{") && !text.contains(':') {

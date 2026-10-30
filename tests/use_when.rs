@@ -198,16 +198,43 @@ fn function_available_requires_integer_arity() {
 }
 
 #[test]
-fn availability_names_reject_whitespace_and_invalid_qnames() {
+fn availability_names_trim_whitespace_and_reject_invalid_qnames() {
     for (name, code) in [
         ("element-available", "XTDE1440"),
         ("system-property", "XTDE1390"),
         ("type-available", "XTDE1428"),
         ("function-available", "XTDE1400"),
     ] {
-        for text in [" value ", "bad::name", "missing:name"] {
+        for text in ["bad::name", "missing:name"] {
             let body = format!(r#"<xsl:value-of select="{name}('{text}')"/>"#);
             assert_eq!(run("", &body).unwrap_err().code, code, "{name} {text:?}");
         }
     }
+}
+
+#[test]
+fn availability_names_accept_surrounding_xml_whitespace() {
+    for (expr, expected) in [
+        ("element-available(' xsl:text ')", "true"),
+        ("system-property(' xsl:version ')", "3.0"),
+        ("type-available(' xs:string ')", "true"),
+        ("function-available(' concat ', 2)", "true"),
+    ] {
+        assert_eq!(
+            run("", &format!(r#"<xsl:value-of select="{expr}"/>"#)).unwrap(),
+            expected
+        );
+    }
+}
+
+#[test]
+fn extension_attributes_on_xslt_elements_are_ignored() {
+    let sheet = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:e="urn:extension" xmlns:f="urn:function" e:hint="yes"><xsl:output method="text" e:hint="yes"/><xsl:function name="f:test" e:hint="yes"><xsl:sequence select="'ok'" e:hint="yes"/></xsl:function><xsl:template match="/" e:hint="yes"><xsl:value-of select="f:test()" e:hint="yes"/></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(
+        Stylesheet::compile(sheet)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap(),
+        "ok"
+    );
 }

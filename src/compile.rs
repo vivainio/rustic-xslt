@@ -387,6 +387,9 @@ fn attrs(n: Node<'_, '_>, allowed: &[&str]) -> Result<(), Diagnostic> {
             boolean_attribute(n, "expand-text", false)?;
             continue;
         }
+        if n.tag_name().namespace() == Some(XSL) && a.namespace().is_some_and(|uri| uri != XSL) {
+            continue;
+        }
         if a.namespace().is_some() || !allowed.contains(&a.name()) {
             return Err(error(n, format!("unsupported attribute: {}", a.name())));
         }

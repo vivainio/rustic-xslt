@@ -2844,14 +2844,11 @@ conformance claims. Smaller tested increments are committed independently.
 - Eleven use-when tests, all-target/all-feature Clippy and the 1,212-case XSLT
   gate pass. Added invalid type/cardinality and untyped-attribute coverage.
 
-## Increment 252: availability EQName validation
+## Increment 252: availability EQName validation (corrected in increment 255)
 
-- Reject whitespace-padded and malformed EQNames instead of silently trimming
-  them in availability and system-property functions. Unbound prefixes retain
-  the corresponding function-specific dynamic error code.
-- Twelve use-when tests, all-target/all-feature Clippy and the 1,212-case XSLT
-  gate pass. Coverage includes whitespace, malformed syntax and unbound prefixes
-  for all four namespace-sensitive functions.
+- Added malformed-name and unbound-prefix checks for the four availability and
+  system-property functions. The original whitespace rejection was incorrect;
+  increment 255 restores the specification’s whitespace handling.
 
 ## Increment 253: format-integer argument conversion
 
@@ -2872,3 +2869,15 @@ conformance claims. Smaller tested increments are committed independently.
   1,212-case XSLT gate and the 18,735-case QT3 gate pass. An initial test run
   exhausted disk space during linking; clearing generated Cargo artifacts and
   disabling incremental compilation allowed the full run to complete.
+
+
+## Increment 255: extension attributes and EQName whitespace
+
+- Ignore non-XSLT namespaced extension attributes on XSLT elements, as permitted
+  by the specification. This removes the optimization-hint obstacle in catalog
+  function-1201, though its constructed function result remains unsupported.
+- Correct increment 252: XSLT EQNames allow surrounding XML whitespace, which is
+  now stripped before validation. Malformed names and unbound prefixes still
+  report the applicable dynamic errors.
+- The full all-feature Rust suite, all-target/all-feature Clippy and the
+  1,212-case XSLT gate pass without regressions.
