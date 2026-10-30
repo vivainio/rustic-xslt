@@ -2551,3 +2551,17 @@ conformance claims. Smaller tested increments are committed independently.
 - Validation: full Rust suite, all-target/all-feature Clippy, and the expanded
   pinned XSLT gate pass without regressions. Simplified imported/included module
   handling remains a separate declaration-loader gap.
+
+## Increment 229: simplified imported and included modules
+
+- The declaration loader accepts literal result element modules, creating the
+  same implicit document template used by simplified principal stylesheets.
+  Module root/version validation and implicit-template construction are shared.
+- Imported literal templates retain lower precedence and can be reached with
+  apply-imports. Included literal templates share the including module's
+  precedence and follow declaration order. Loader errors preserve XTSE0150 and
+  static variable diagnostics.
+- Validation: eight simplified stylesheet tests, four import tests,
+  all-target/all-feature Clippy and the full 1,145-case pinned XSLT gate pass
+  without regressions. This resolves the module-loader gap noted in increment
+  228; broader mixed-version runtime behavior remains unchanged.

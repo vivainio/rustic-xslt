@@ -2244,6 +2244,19 @@ fn declarations(
     depth: usize,
     inherited: Option<u32>,
 ) -> Result<(), Diagnostic> {
+    module_version(root)?;
+    if root.tag_name().namespace() != Some(XSL) {
+        let precedence = inherited.unwrap_or_else(|| {
+            let own = *state.counter;
+            *state.counter += 1;
+            own
+        });
+        state
+            .sheet
+            .templates
+            .push(simplified_template(root, precedence)?);
+        return Ok(());
+    }
     let Declarations {
         sheet,
         output_properties,
@@ -2282,15 +2295,7 @@ fn declarations(
         let imported = resolver(href)?;
         let doc = crate::parse(&imported, "compile")?;
         let imported_root = doc.root_element();
-        if imported_root.tag_name().namespace() != Some(XSL)
-            || !matches!(imported_root.tag_name().name(), "stylesheet" | "transform")
-        {
-            return Err(error(
-                imported_root,
-                "imported module must be xsl:stylesheet or xsl:transform",
-            ));
-        }
-        attrs(imported_root, &["version"])?;
+
         declarations(
             imported_root,
             &mut Declarations {
@@ -2742,15 +2747,7 @@ fn declarations(
                 let included = resolver(href)?;
                 let doc = crate::parse(&included, "compile")?;
                 let included_root = doc.root_element();
-                if included_root.tag_name().namespace() != Some(XSL)
-                    || !matches!(included_root.tag_name().name(), "stylesheet" | "transform")
-                {
-                    return Err(error(
-                        included_root,
-                        "included module must be xsl:stylesheet or xsl:transform",
-                    ));
-                }
-                attrs(included_root, &["version"])?;
+
                 declarations(
                     included_root,
                     &mut Declarations {
@@ -3098,16 +3095,8 @@ fn declarations(
     }
     Ok(())
 }
-pub(crate) fn compile(
-    source: &str,
-    resolver: Option<Resolver<'_>>,
-) -> Result<Stylesheet, Diagnostic> {
-    xpath::take_document_uris();
-    STATIC_VARIABLES.with(|v| v.borrow_mut().clear());
-    let doc = crate::parse(source, "compile")?;
-    let root = doc.root_element();
-    let simplified = root.tag_name().namespace() != Some(XSL);
-    let version = if simplified {
+fn module_version<'a>(root: Node<'a, '_>) -> Result<&'a str, Diagnostic> {
+    let version = if root.tag_name().namespace() != Some(XSL) {
         root.attribute((XSL, "version")).ok_or_else(|| {
             static_error(
                 root,
@@ -3125,6 +3114,36 @@ pub(crate) fn compile(
     if !matches!(version, "1.0" | "2.0" | "3.0") {
         return Err(error(root, "expected version 1.0, 2.0, or 3.0"));
     }
+    Ok(version)
+}
+
+fn simplified_template(root: Node<'_, '_>, precedence: u32) -> Result<Template, Diagnostic> {
+    Ok(Template {
+        pattern: Some(crate::pattern::parse(
+            "/",
+            namespaces(root),
+            xslt_version(root),
+        )?),
+        modes: vec![String::new()],
+        priority: None,
+        name: None,
+        params: vec![],
+        result_type: None,
+        body: body(root.document().root(), 0, false)?,
+        precedence,
+    })
+}
+
+pub(crate) fn compile(
+    source: &str,
+    resolver: Option<Resolver<'_>>,
+) -> Result<Stylesheet, Diagnostic> {
+    xpath::take_document_uris();
+    STATIC_VARIABLES.with(|v| v.borrow_mut().clear());
+    let doc = crate::parse(source, "compile")?;
+    let root = doc.root_element();
+    let simplified = root.tag_name().namespace() != Some(XSL);
+    let version = module_version(root)?;
     let mut sheet = Stylesheet {
         templates: vec![],
         globals: vec![],
@@ -3174,16 +3193,7 @@ pub(crate) fn compile(
     let mut global_precedence: BTreeMap<String, u32> = BTreeMap::new();
     let mut function_precedence: BTreeMap<(String, usize), u32> = BTreeMap::new();
     if simplified {
-        sheet.templates.push(Template {
-            pattern: Some(crate::pattern::parse("/", namespaces(root), sheet.version)?),
-            modes: vec![String::new()],
-            priority: None,
-            name: None,
-            params: vec![],
-            result_type: None,
-            body: body(doc.root(), 0, false)?,
-            precedence: 0,
-        });
+        sheet.templates.push(simplified_template(root, 0)?);
     } else {
         declarations(
             root,

@@ -55,3 +55,53 @@ fn literal_default_mode_does_not_change_the_implicit_template_mode() {
     let sheet = Stylesheet::compile(r#"<out xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xsl:version="3.0" xsl:default-mode="local">ok</out>"#).unwrap();
     assert!(sheet.transform("<r/>").unwrap().contains("<out>ok</out>"));
 }
+
+fn modular(body: &str, literal: &str) -> Result<String, rust_xslt::Diagnostic> {
+    Stylesheet::compile_with_resolver(
+        &format!(r#"<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="3.0">{body}<xsl:output omit-xml-declaration="yes"/></xsl:stylesheet>"#),
+        &|_| Ok(literal.to_owned()),
+    )?.transform("<r value='ok'/>")
+}
+
+#[test]
+fn imported_literal_templates_have_lower_precedence_and_support_apply_imports() {
+    let literal = r#"<base xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xsl:version="3.0"><xsl:value-of select="r/@value"/></base>"#;
+    assert_eq!(
+        modular(r#"<xsl:import href="base"/>"#, literal).unwrap(),
+        "<base>ok</base>"
+    );
+    assert_eq!(modular(r#"<xsl:import href="base"/><xsl:template match="/"><main><xsl:apply-imports/></main></xsl:template>"#, literal).unwrap(), "<main><base>ok</base></main>");
+}
+
+#[test]
+fn included_literal_templates_follow_declaration_order_at_equal_precedence() {
+    let literal =
+        r#"<included xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xsl:version="3.0"/>"#;
+    assert_eq!(
+        modular(
+            r#"<xsl:template match="/"><main/></xsl:template><xsl:include href="literal"/>"#,
+            literal
+        )
+        .unwrap(),
+        "<included></included>"
+    );
+    assert_eq!(
+        modular(
+            r#"<xsl:include href="literal"/><xsl:template match="/"><main/></xsl:template>"#,
+            literal
+        )
+        .unwrap(),
+        "<main></main>"
+    );
+}
+
+#[test]
+fn literal_modules_report_static_errors_through_the_loader() {
+    for instruction in [
+        r#"<xsl:import href="literal"/>"#,
+        r#"<xsl:include href="literal"/>"#,
+    ] {
+        assert_eq!(modular(instruction, "<out/>").unwrap_err().code, "XTSE0150");
+        assert_eq!(modular(instruction, r#"<out xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xsl:version="3.0"><xsl:value-of select="$missing"/></out>"#).unwrap_err().code, "XPST0008");
+    }
+}
