@@ -723,6 +723,26 @@ fn number_text<'a>(
             }
         }
     };
+    let offsets =
+        if let Some(value) = &spec.start_at {
+            let value = parts(value, focus, env, budget, backwards)?;
+            Some(crate::numbering::parse_start_at(&value).map_err(|_| {
+                Diagnostic::new("XTDE0030", "invalid xsl:number start-at list", "run")
+            })?)
+        } else {
+            None
+        };
+    let numbers: Vec<num_bigint::BigInt> = numbers
+        .into_iter()
+        .enumerate()
+        .map(|(index, value)| {
+            let value = num_bigint::BigInt::from(value);
+            match &offsets {
+                Some(offsets) => value + &offsets[index.min(offsets.len() - 1)] - 1,
+                None => value,
+            }
+        })
+        .collect();
     if numbers.is_empty() {
         return Ok(String::new());
     }

@@ -2331,3 +2331,14 @@ conformance claims. Smaller tested increments are committed independently.
 - The implementation must handle signed rebasing and formatting together;
   existing large-number narrowing remains a separately identified runtime gap.
 - No runtime behavior changed in this increment.
+
+## Increment 208: signed start-at numbering
+
+- xsl:number accepts start-at AVTs and rebases each place-marker component,
+  repeating the last offset. Signed arbitrary-precision offsets avoid unsigned
+  wraparound; formatting preserves negative signs. Literal and dynamic invalid
+  lists report XTSE0020 and XTDE0030 respectively, with static scope validation.
+- Added signed/repeated-offset and syntax regressions. The gate has 1,047 passes
+  (eight new, zero regressions), 265 failures, 378 harness errors, 153 exclusions.
+- Validation: numbering tests, all-target/all-feature Clippy and the full pinned
+  XSLT gate pass. Existing supplied-value floating-point narrowing remains open.

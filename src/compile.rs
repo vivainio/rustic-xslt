@@ -138,6 +138,7 @@ pub(crate) struct NumberSpec {
     pub ordinal: Vec<Expr>,
     pub grouping_separator: Vec<Expr>,
     pub grouping_size: Vec<Expr>,
+    pub start_at: Option<Vec<Expr>>,
 }
 #[derive(Debug)]
 pub(crate) enum Grouping {
@@ -1216,8 +1217,16 @@ fn body(
                             ],
                         )?;
                         empty(n)?;
-                        if n.attribute("start-at").is_some() {
-                            return Err(error(n, "xsl:number start-at is not implemented"));
+                        if let Some(value) = n.attribute("start-at")
+                            && !value.contains('{')
+                            && !value.contains('}')
+                            && crate::numbering::parse_start_at(value).is_err()
+                        {
+                            return Err(static_error(
+                                n,
+                                "XTSE0020",
+                                "invalid xsl:number start-at list",
+                            ));
                         }
                         if n.attribute("value").is_some()
                             && ["select", "level", "count", "from"]
@@ -1260,6 +1269,10 @@ fn body(
                             ordinal: optional_avt("ordinal")?,
                             grouping_separator: optional_avt("grouping-separator")?,
                             grouping_size: optional_avt("grouping-size")?,
+                            start_at: n
+                                .attribute("start-at")
+                                .map(|value| avt(n, value))
+                                .transpose()?,
                         })));
                     }
                     "result-document" => {
@@ -3371,6 +3384,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     parts(&spec.ordinal, &scope)?;
                     parts(&spec.grouping_separator, &scope)?;
                     parts(&spec.grouping_size, &scope)?;
+                    if let Some(value) = &spec.start_at {
+                        parts(value, &scope)?;
+                    }
                 }
                 Instruction::WherePopulated(body)
                 | Instruction::OnEmpty(body)

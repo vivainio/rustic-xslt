@@ -90,3 +90,20 @@ fn number_rejects_conflicting_attributes_and_non_nodes() {
     assert!(run(r#"<xsl:number level="deep"/>"#, DOC).is_err());
     assert!(run(r#"<xsl:number select="1"/>"#, DOC).is_err());
 }
+
+#[test]
+fn start_at_rebases_signed_components_and_repeats_the_last_offset() {
+    assert_eq!(run(r#"<xsl:variable name="start" select="'3 -2'"/><xsl:number value="(1,2,3)" start-at="{$start}" format="1.1.1"/>"#, "<r/>").unwrap(), "3.-1.0");
+    assert_eq!(
+        run(r#"<xsl:number value="1" start-at="+1"/>"#, "<r/>")
+            .unwrap_err()
+            .code,
+        "XTSE0020"
+    );
+    assert_eq!(
+        run(r#"<xsl:number value="1" start-at="{'bad'}"/>"#, "<r/>")
+            .unwrap_err()
+            .code,
+        "XTDE0030"
+    );
+}

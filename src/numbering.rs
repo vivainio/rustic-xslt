@@ -326,7 +326,7 @@ pub(crate) struct Grouping {
 
 /// Format a list of numbers according to an `xsl:number` format string.
 pub(crate) fn format_list(
-    numbers: &[u64],
+    numbers: &[num_bigint::BigInt],
     picture: &str,
     ordinal: bool,
     grouping: Option<&Grouping>,
@@ -354,9 +354,17 @@ pub(crate) fn format_list(
             out.push_str(&separator);
         }
         let tok = token(&token_text);
-        let mut text = format(*n, &tok, ordinal);
+        use num_traits::{Signed, ToPrimitive};
+        let magnitude = n.abs();
+        let mut text = magnitude.to_u64().map_or_else(
+            || magnitude.to_string(),
+            |value| format(value, &tok, ordinal),
+        );
         if let (Some(g), Token::Decimal { .. }) = (grouping, &tok) {
             text = group(&text, &g.separator, g.size);
+        }
+        if n.is_negative() {
+            out.push('-');
         }
         out.push_str(&text);
     }
@@ -454,4 +462,24 @@ pub(crate) fn format_integer(
         }
     };
     Ok(format!("{sign}{body}"))
+}
+
+pub(crate) fn parse_start_at(value: &str) -> Result<Vec<num_bigint::BigInt>, ()> {
+    if value.is_empty()
+        || value.starts_with([' ', '\t', '\r', '\n'])
+        || value.ends_with([' ', '\t', '\r', '\n'])
+    {
+        return Err(());
+    }
+    value
+        .split([' ', '\t', '\r', '\n'])
+        .filter(|part| !part.is_empty())
+        .map(|part| {
+            let digits = part.strip_prefix('-').unwrap_or(part);
+            if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+                return Err(());
+            }
+            part.parse().map_err(|_| ())
+        })
+        .collect()
 }
