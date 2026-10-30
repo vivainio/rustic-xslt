@@ -2342,3 +2342,12 @@ conformance claims. Smaller tested increments are committed independently.
   (eight new, zero regressions), 265 failures, 378 harness errors, 153 exclusions.
 - Validation: numbering tests, all-target/all-feature Clippy and the full pinned
   XSLT gate pass. Existing supplied-value floating-point narrowing remains open.
+
+## Increment 209: exact supplied numbering values
+
+- Supplied numeric values round through the numeric implementation and retain
+  arbitrary-precision integers through start-at rebasing. Large decimal formatting
+  preserves digit families, width and grouping instead of narrowing to u64.
+- String and boolean supplied values use numeric conversion. The gate has 1,048
+  passes (one new, zero regressions), 264 failures, 378 harness errors and 153
+  exclusions. Numbering tests and all-target/all-feature Clippy pass.

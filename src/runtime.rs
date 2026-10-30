@@ -559,24 +559,38 @@ fn number_text<'a>(
     backwards: bool,
 ) -> Result<String, Diagnostic> {
     use crate::compile::NumberLevel;
-    let numbers: Vec<u64> = if let Some(value) = &spec.value {
+    let numbers: Vec<num_bigint::BigInt> = if let Some(value) = &spec.value {
         let items = xpath::eval(value, focus, env, budget, 0, backwards)?;
         let mut out = vec![];
         for item in &items {
-            let n = match xpath::atomize(item) {
-                xpath::Item::Number(n) => n.double(),
-                xpath::Item::Untyped(s) => s.trim().parse().unwrap_or(f64::NAN),
-                _ => f64::NAN,
-            };
-            let rounded = (n + 0.5).floor();
-            if !rounded.is_finite() || rounded < 0.0 {
-                return Err(Diagnostic::new(
+            let invalid = || {
+                Diagnostic::new(
                     "XTDE0980",
                     "xsl:number value must be a non-negative number",
                     "run",
-                ));
+                )
+            };
+            let number = match xpath::atomize(item) {
+                Item::Number(number) => number,
+                Item::Untyped(value) | Item::String(value) => {
+                    crate::number::Number::cast("double", value.trim()).map_err(|_| invalid())?
+                }
+                Item::Boolean(value) => {
+                    crate::number::Number::Integer(num_bigint::BigInt::from(u8::from(value)))
+                }
+                _ => return Err(invalid()),
+            };
+            let rounded = number
+                .round(&num_bigint::BigInt::from(0), false)
+                .and_then(|value| value.convert("integer"))
+                .map_err(|_| invalid())?;
+            let crate::number::Number::Integer(value) = rounded else {
+                unreachable!()
+            };
+            if value < num_bigint::BigInt::from(0) {
+                return Err(invalid());
             }
-            out.push(rounded as u64);
+            out.push(value);
         }
         out
     } else {
@@ -656,7 +670,7 @@ fn number_text<'a>(
                 }
                 Ok(position)
             };
-        match spec.level {
+        let counted_numbers = match spec.level {
             NumberLevel::Single => {
                 let mut current = Some(node);
                 let mut target = None;
@@ -721,7 +735,11 @@ fn number_text<'a>(
                     vec![]
                 }
             }
-        }
+        };
+        counted_numbers
+            .into_iter()
+            .map(num_bigint::BigInt::from)
+            .collect()
     };
     let offsets =
         if let Some(value) = &spec.start_at {
@@ -735,12 +753,9 @@ fn number_text<'a>(
     let numbers: Vec<num_bigint::BigInt> = numbers
         .into_iter()
         .enumerate()
-        .map(|(index, value)| {
-            let value = num_bigint::BigInt::from(value);
-            match &offsets {
-                Some(offsets) => value + &offsets[index.min(offsets.len() - 1)] - 1,
-                None => value,
-            }
+        .map(|(index, value)| match &offsets {
+            Some(offsets) => value + &offsets[index.min(offsets.len() - 1)] - 1,
+            None => value,
         })
         .collect();
     if numbers.is_empty() {

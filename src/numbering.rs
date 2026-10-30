@@ -357,7 +357,13 @@ pub(crate) fn format_list(
         use num_traits::{Signed, ToPrimitive};
         let magnitude = n.abs();
         let mut text = magnitude.to_u64().map_or_else(
-            || magnitude.to_string(),
+            || match &tok {
+                Token::Decimal { zero, width } => format!("{:0>width$}", magnitude.to_string())
+                    .chars()
+                    .map(|c| char::from_u32(*zero as u32 + c.to_digit(10).unwrap()).unwrap_or(c))
+                    .collect(),
+                _ => magnitude.to_string(),
+            },
             |value| format(value, &tok, ordinal),
         );
         if let (Some(g), Token::Decimal { .. }) = (grouping, &tok) {
