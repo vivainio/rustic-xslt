@@ -196,3 +196,18 @@ fn function_available_requires_integer_arity() {
         "true"
     );
 }
+
+#[test]
+fn availability_names_reject_whitespace_and_invalid_qnames() {
+    for (name, code) in [
+        ("element-available", "XTDE1440"),
+        ("system-property", "XTDE1390"),
+        ("type-available", "XTDE1428"),
+        ("function-available", "XTDE1400"),
+    ] {
+        for text in [" value ", "bad::name", "missing:name"] {
+            let body = format!(r#"<xsl:value-of select="{name}('{text}')"/>"#);
+            assert_eq!(run("", &body).unwrap_err().code, code, "{name} {text:?}");
+        }
+    }
+}

@@ -2843,3 +2843,12 @@ conformance claims. Smaller tested increments are committed independently.
   of treating them as omitted or matching a variadic function.
 - Eleven use-when tests, all-target/all-feature Clippy and the 1,212-case XSLT
   gate pass. Added invalid type/cardinality and untyped-attribute coverage.
+
+## Increment 252: availability EQName validation
+
+- Reject whitespace-padded and malformed EQNames instead of silently trimming
+  them in availability and system-property functions. Unbound prefixes retain
+  the corresponding function-specific dynamic error code.
+- Twelve use-when tests, all-target/all-feature Clippy and the 1,212-case XSLT
+  gate pass. Coverage includes whitespace, malformed syntax and unbound prefixes
+  for all four namespace-sensitive functions.
