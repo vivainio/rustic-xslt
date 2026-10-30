@@ -3131,8 +3131,15 @@ fn function_expression(n: Node<'_, '_>, body: Vec<Instruction>) -> Result<Expr, 
             Instruction::Bind(Binding {
                 name,
                 value: BindingValue::Select(select),
+                ty,
                 ..
-            }) => Expr::Let(name, Box::new(select), Box::new(tail)),
+            }) => {
+                let select = match ty {
+                    Some(ty) => Expr::TypeOp("variable".into(), Box::new(select), ty),
+                    None => select,
+                };
+                Expr::Let(name, Box::new(select), Box::new(tail))
+            }
             Instruction::Sequence(expression) => append(expression, tail),
             Instruction::If(test, body) => append(
                 Expr::If(

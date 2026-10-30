@@ -71,3 +71,16 @@ fn pure_function_constructors_support_branches_and_scoped_sequences() {
     let invalid = r#"<xsl:function name="f:bad"><xsl:if test="false()"><xsl:variable name="private" select="1"/></xsl:if><xsl:sequence select="$private"/></xsl:function>"#;
     assert_eq!(run(invalid, "1").unwrap_err().code, "XPST0008");
 }
+
+#[test]
+fn typed_local_bindings_in_function_bodies_use_function_conversion() {
+    let valid = r#"<xsl:function name="f:local"><xsl:param name="n"/><xsl:variable name="x" as="xs:integer" select="$n"/><xsl:sequence select="$x + 1"/></xsl:function>"#;
+    assert_eq!(run(valid, "f:local(r/n[1])").unwrap(), "2");
+    assert_eq!(run(valid, "f:local('wrong')").unwrap_err().code, "XTTE0570");
+    let branch = r#"<xsl:function name="f:branch"><xsl:param name="n"/><xsl:if test="$n"><xsl:variable name="x" as="xs:integer" select="'bad'"/><xsl:sequence select="$x"/></xsl:if></xsl:function>"#;
+    assert_eq!(run(branch, "f:branch(false())").unwrap(), "");
+    assert_eq!(
+        run(branch, "f:branch(true())").unwrap_err().code,
+        "XTTE0570"
+    );
+}

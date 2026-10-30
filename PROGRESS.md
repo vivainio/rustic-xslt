@@ -2683,3 +2683,13 @@ conformance claims. Smaller tested increments are committed independently.
   the grouping catalog's recursive constructor case still requires that work.
 - Validation: full Rust suite, all-target/all-feature Clippy and the 1,149-case
   pinned XSLT gate pass without regressions.
+
+## Increment 238: typed function-local variables
+
+- Preserve `as` declarations when lowering local select bindings in stylesheet
+  functions. Values now use sequence-type function conversion and report
+  XTTE0570 when conversion fails, including inside conditional branches.
+- Added untyped-node conversion, invalid value and unexecuted-branch coverage.
+  This also corrects typed local bindings accepted before increment 237.
+- Validation: five stylesheet-function tests, all-target/all-feature Clippy
+  and the full 1,149-case pinned XSLT gate pass without regressions.

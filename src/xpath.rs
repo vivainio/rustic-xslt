@@ -1923,6 +1923,7 @@ pub(crate) fn eval<'a>(
         Expr::TypeOp(op, e, ty) => {
             let value = eval(e, focus, vars, budget, depth + 1, backwards)?;
             match op.as_str() {
+                "variable" => ty.convert(value, "XTTE0570")?,
                 "instance" => vec![Item::Boolean(ty.matches(&value))],
                 "treat" => {
                     if !ty.matches(&value) {
