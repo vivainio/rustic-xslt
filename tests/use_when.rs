@@ -79,12 +79,24 @@ fn element_available_resolves_call_site_namespaces() {
 
 #[test]
 fn element_available_function_reference_captures_namespaces() {
-    let sheet = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:a="http://www.w3.org/1999/XSL/Transform"><xsl:output omit-xml-declaration="yes"/><xsl:template match="/"><xsl:variable name="f" select="element-available#1"/><xsl:variable name="p" select="element-available(?)"/><out><xsl:value-of select="$f('a:value-of'), $p('a:value-of'), local-name-from-QName(function-name($f))"/></out></xsl:template></xsl:stylesheet>"#;
+    let sheet = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:a="http://www.w3.org/1999/XSL/Transform"><xsl:output omit-xml-declaration="yes"/><xsl:template match="/"><xsl:variable name="f" select="element-available#1"/><xsl:variable name="p" select="element-available(?)"/><out><xsl:value-of xmlns:a="urn:other" select="$f('a:value-of'), $p('a:value-of'), local-name-from-QName(function-name($f))"/></out></xsl:template></xsl:stylesheet>"#;
     assert_eq!(
         Stylesheet::compile(sheet)
             .unwrap()
             .transform("<r/>")
             .unwrap(),
         "<out>true true element-available</out>"
+    );
+}
+
+#[test]
+fn element_available_dynamic_lookup_captures_namespaces() {
+    let sheet = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:a="http://www.w3.org/1999/XSL/Transform"><xsl:output omit-xml-declaration="yes"/><xsl:template match="/"><xsl:variable name="f" select="function-lookup(QName('http://www.w3.org/2005/xpath-functions','element-available'), 1)"/><xsl:variable name="lookup" select="function-lookup#2"/><xsl:variable name="g" select="$lookup(QName('http://www.w3.org/2005/xpath-functions','element-available'), 1)"/><out><xsl:value-of xmlns:a="urn:other" select="$f('a:value-of'), $g('a:value-of'), function-lookup(QName('http://www.w3.org/2005/xpath-functions','element-available'), 1)('xsl:value-of')"/></out></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(
+        Stylesheet::compile(sheet)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap(),
+        "<out>true true true</out>"
     );
 }

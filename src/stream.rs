@@ -114,7 +114,8 @@ fn safe_expression(e: &Expr, global: bool) -> Result<(), Diagnostic> {
             Expr::Unary(_, e)
             | Expr::TypeOp(_, e, _)
             | Expr::QNameCast(e, _, _, _)
-            | Expr::ElementName(e, _) => pending.push(e),
+            | Expr::ElementName(e, _)
+            | Expr::LookupContext(e, _) => pending.push(e),
             Expr::For(_, select, body)
             | Expr::Let(_, select, body)
             | Expr::Quantified(_, _, select, body) => {

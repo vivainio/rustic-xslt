@@ -2792,3 +2792,13 @@ conformance claims. Smaller tested increments are committed independently.
 - Six use-when tests, all-target/all-feature Clippy and the 1,212-case XSLT
   baseline pass. Dynamic `function-lookup` and the other availability functions
   still require review for static-context capture.
+
+## Increment 247: lookup context for element-available
+
+- `function-lookup` captures the lookup site's namespace bindings for returned
+  `element-available` and `function-lookup` items, including recursive lookup.
+  Immediate dynamic calls and lookup references retain those bindings.
+- Added direct, referenced and immediate lookup coverage, and strengthened the
+  named-reference test by rebinding the prefix at the invocation site. Seven
+  use-when tests, all-target/all-feature Clippy and the 1,212-case XSLT gate pass.
+- Other namespace-sensitive availability functions remain to be reviewed.

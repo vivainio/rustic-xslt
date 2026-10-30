@@ -62,6 +62,7 @@ pub(crate) enum Expr {
     Unary(bool, Box<Expr>),
     Call(String, Vec<Expr>),
     ElementName(Box<Expr>, BTreeMap<String, String>),
+    LookupContext(Box<Expr>, BTreeMap<String, String>),
     Sequence(Vec<Expr>),
     If(Box<Expr>, Box<Expr>, Box<Expr>),
     TypeOp(String, Box<Expr>, crate::seqtype::SequenceType),
@@ -920,7 +921,13 @@ impl Parser {
             if local == "element-available" {
                 args[0] = Expr::ElementName(Box::new(args[0].clone()), self.namespaces.clone());
             }
-            Ok(Expr::Call(local, args))
+            let lookup = local == "function-lookup";
+            let call = Expr::Call(local, args);
+            Ok(if lookup {
+                Expr::LookupContext(Box::new(call), self.namespaces.clone())
+            } else {
+                call
+            })
         }
     }
     fn node_qname(&self, text: String, element: bool) -> Result<Name, Diagnostic> {
@@ -1275,10 +1282,11 @@ impl Parser {
                         .to_usize()
                         .filter(|a| *a as f64 == arity.double())
                         .ok_or_else(|| syntax("invalid function arity"))?;
-                    match self.call(n.clone(), vec![Expr::Context; arity])? {
+                    match unwrap_lookup_call(self.call(n.clone(), vec![Expr::Context; arity])?) {
                         Expr::Call(name, _) => {
                             let namespaces =
-                                (name == "element-available").then(|| self.namespaces.clone());
+                                matches!(name.as_str(), "element-available" | "function-lookup")
+                                    .then(|| self.namespaces.clone());
                             Expr::FunctionRef(name, arity, namespaces)
                         }
                         _ => return Err(syntax("unsupported function reference")),
@@ -1320,12 +1328,15 @@ impl Parser {
                     let arguments = self.arguments()?;
                     if arguments.iter().any(Option::is_none) {
                         let arity = arguments.len();
-                        let Expr::Call(name, _) = self.call(n, vec![Expr::Context; arity])? else {
+                        let Expr::Call(name, _) =
+                            unwrap_lookup_call(self.call(n, vec![Expr::Context; arity])?)
+                        else {
                             return Err(syntax("unsupported partial function application"));
                         };
                         {
                             let namespaces =
-                                (name == "element-available").then(|| self.namespaces.clone());
+                                matches!(name.as_str(), "element-available" | "function-lookup")
+                                    .then(|| self.namespaces.clone());
                             Expr::Partial(
                                 Box::new(Expr::FunctionRef(name, arity, namespaces)),
                                 arguments,
@@ -1344,6 +1355,7 @@ impl Parser {
             Expr::InlineFunction(_)
                 | Expr::FunctionRef(..)
                 | Expr::Call(..)
+                | Expr::LookupContext(..)
                 | Expr::MapConstructor(_)
                 | Expr::ArraySquare(_)
                 | Expr::ArrayCurly(_)
@@ -1367,6 +1379,7 @@ impl Parser {
                         | Expr::DynamicCall(..)
                         | Expr::Filter(..)
                         | Expr::Call(..)
+                        | Expr::LookupContext(..)
                         | Expr::If(..)
                         | Expr::Path(..)
                         | Expr::Binary(..)
@@ -1897,6 +1910,10 @@ pub(crate) fn eval<'a>(
             Item::Absent => return Err(err("XPDY0002", "context item is absent")),
             _ => return Err(err("XPTY0020", "root requires a node context")),
         },
+        Expr::LookupContext(value, namespaces) => attach_lookup_context(
+            eval(value, focus, vars, budget, depth + 1, backwards)?,
+            namespaces,
+        ),
         Expr::ElementName(value, namespaces) => {
             let value = eval(value, focus, vars, budget, depth + 1, backwards)?;
             element_name(&value, namespaces, backwards)?
@@ -2713,6 +2730,34 @@ fn element_name<'a>(
     };
     Ok(vec![Item::String(resolved)])
 }
+fn unwrap_lookup_call(expr: Expr) -> Expr {
+    match expr {
+        Expr::LookupContext(inner, _) => *inner,
+        other => other,
+    }
+}
+
+fn attach_lookup_context<'a>(value: Value<'a>, namespaces: &BTreeMap<String, String>) -> Value<'a> {
+    value
+        .into_iter()
+        .map(|item| match item {
+            Item::Function(function) => match function.as_ref() {
+                FunctionValue::Named(name, arity, _)
+                    if matches!(name.as_str(), "element-available" | "function-lookup") =>
+                {
+                    Item::Function(std::rc::Rc::new(FunctionValue::Named(
+                        name.clone(),
+                        *arity,
+                        Some(namespaces.clone()),
+                    )))
+                }
+                _ => Item::Function(function),
+            },
+            other => other,
+        })
+        .collect()
+}
+
 fn named_function<'a>(
     name: String,
     arity: usize,
@@ -2767,15 +2812,21 @@ fn call_function_item<'a>(
         }
         FunctionValue::Named(name, _, namespaces) => {
             let mut args = args;
-            if let Some(namespaces) = namespaces {
+            if let Some(namespaces) = namespaces.as_ref().filter(|_| name == "element-available") {
                 args[0] = element_name(&args[0], namespaces, backwards)?;
             }
-            if vars.contains_key(CURRENT_GROUP) || vars.contains_key(CURRENT_KEY) {
+            let result = if vars.contains_key(CURRENT_GROUP) || vars.contains_key(CURRENT_KEY) {
                 let scope = without_grouping_context(vars);
-                call_named(name, args, focus, &scope, budget, depth + 1, backwards)
+                call_named(name, args, focus, &scope, budget, depth + 1, backwards)?
             } else {
-                call_named(name, args, focus, vars, budget, depth + 1, backwards)
-            }
+                call_named(name, args, focus, vars, budget, depth + 1, backwards)?
+            };
+            Ok(match namespaces {
+                Some(context) if name == "function-lookup" => {
+                    attach_lookup_context(result, context)
+                }
+                _ => result,
+            })
         }
         FunctionValue::Partial(base, slots) => {
             let mut supplied = args.into_iter();
