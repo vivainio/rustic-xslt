@@ -2517,3 +2517,14 @@ conformance claims. Smaller tested increments are committed independently.
   exposure and equal-NaN component grouping.
 - Validation: ten grouping tests, all-target/all-feature Clippy and the full
   1,124-case pinned XSLT gate pass without regressions.
+
+## Session checkpoint: 2026-10-30
+
+- Implementation milestones through increment 227 are committed and pushed.
+- Final pinned XSLT gate: 1,124 passes across 1,928 selected cases, zero baseline
+  regressions; 267 engine failures, 384 harness errors, 153 profile exclusions.
+- A final full Rust test rerun could not finish: the linker reported ENOSPC
+  (no space left on device). Earlier focused grouping tests and Clippy passed
+  as recorded above; the full rerun remains outstanding after freeing space.
+- Next investigation: simplified stylesheets with literal result element roots,
+  which currently hide additional grouping successes and static diagnostics.
