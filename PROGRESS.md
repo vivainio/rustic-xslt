@@ -2360,3 +2360,11 @@ conformance claims. Smaller tested increments are committed independently.
   booleans and derived-string supplied values.
 - Validation: full all-feature Rust suite, all-target/all-feature Clippy and the
   full 1,048-case pinned XSLT gate pass without regressions.
+
+## Increment 211: punctuation-only numbering pictures
+
+- Number pictures containing no alphanumeric token retain their punctuation as
+  both prefix and suffix, with the default decimal token between them.
+- Added multi-component punctuation-only and empty-picture regressions.
+- Validation: eight numbering tests, all-target/all-feature Clippy and the full
+  1,048-case pinned XSLT gate pass without regressions.

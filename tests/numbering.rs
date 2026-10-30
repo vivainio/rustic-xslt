@@ -120,3 +120,15 @@ fn supplied_numbers_preserve_large_integers_and_numeric_conversion() {
         "3.1.3"
     );
 }
+
+#[test]
+fn punctuation_only_number_pictures_supply_prefix_and_suffix() {
+    assert_eq!(
+        run(r#"<xsl:number value="(1,2)" format="--"/>"#, "<r/>").unwrap(),
+        "--1.2--"
+    );
+    assert_eq!(
+        run(r#"<xsl:number value="1" format=""/>"#, "<r/>").unwrap(),
+        "1"
+    );
+}

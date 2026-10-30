@@ -316,7 +316,12 @@ pub(crate) fn parse_format(format: &str) -> (String, Vec<(String, String)>, Stri
             return (prefix, tokens, non);
         }
     }
-    (prefix, tokens, String::new())
+    let suffix = if tokens.is_empty() {
+        prefix.clone()
+    } else {
+        String::new()
+    };
+    (prefix, tokens, suffix)
 }
 
 pub(crate) struct Grouping {
