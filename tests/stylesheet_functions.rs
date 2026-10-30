@@ -47,7 +47,7 @@ fn function_declaration_errors_are_static() {
     let overloaded = r#"<xsl:function name="f:a"><xsl:sequence select="1"/></xsl:function><xsl:function name="f:a"><xsl:param name="x"/><xsl:sequence select="2"/></xsl:function>"#;
     assert_eq!(run(overloaded, "f:a() + f:a(0)").unwrap(), "3");
     let unqualified = r#"<xsl:function name="a"><xsl:sequence select="1"/></xsl:function>"#;
-    assert_eq!(run(unqualified, "1").unwrap_err().code, "XTSE0080");
+    assert_eq!(run(unqualified, "1").unwrap_err().code, "XTSE0740");
     let unbound = r#"<xsl:function name="f:a"><xsl:sequence select="$nope"/></xsl:function>"#;
     assert_eq!(run(unbound, "1").unwrap_err().code, "XPST0008");
     assert_eq!(run("", "f:missing()").unwrap_err().code, "XPST0017");
@@ -128,4 +128,48 @@ fn function_declaration_boolean_attributes_are_checked() {
         );
         assert_eq!(run(&declaration, "f:test()").unwrap(), "1");
     }
+}
+
+#[test]
+fn function_parameters_are_required_and_have_no_defaults() {
+    for setting in [
+        "required='yes'",
+        "required='1' tunnel='no'",
+        "required='true' static='false'",
+    ] {
+        let declaration = format!(
+            r#"<xsl:function name="f:id"><xsl:param name="p" {setting}/><xsl:sequence select="$p"/></xsl:function>"#
+        );
+        assert_eq!(run(&declaration, "f:id(42)").unwrap(), "42");
+    }
+    for setting in [
+        "required='no'",
+        "required='maybe'",
+        "tunnel='yes'",
+        "static='yes'",
+    ] {
+        let declaration = format!(
+            r#"<xsl:function name="f:id"><xsl:param name="p" {setting}/><xsl:sequence select="$p"/></xsl:function>"#
+        );
+        assert_eq!(run(&declaration, "1").unwrap_err().code, "XTSE0020");
+    }
+    for param in [
+        r#"<xsl:param name="p" select="1"/>"#,
+        r#"<xsl:param name="p"><xsl:sequence select="1"/></xsl:param>"#,
+        r#"<xsl:param name="p" xml:space="preserve"> </xsl:param>"#,
+    ] {
+        let declaration = format!(
+            r#"<xsl:function name="f:id">{param}<xsl:sequence select="$p"/></xsl:function>"#
+        );
+        assert_eq!(run(&declaration, "1").unwrap_err().code, "XTSE0760");
+    }
+    assert_eq!(
+        run(
+            r#"<xsl:function name="Q{}no-namespace"><xsl:sequence select="1"/></xsl:function>"#,
+            "1"
+        )
+        .unwrap_err()
+        .code,
+        "XTSE0740"
+    );
 }

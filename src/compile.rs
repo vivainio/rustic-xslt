@@ -3070,7 +3070,7 @@ fn declarations(
                 if crate::qname::parts(&id).0.is_none_or(str::is_empty) {
                     return Err(static_error(
                         n,
-                        "XTSE0080",
+                        "XTSE0740",
                         "function names need a namespace",
                     ));
                 }
@@ -3089,7 +3089,39 @@ fn declarations(
                         if content {
                             return Err(error(c, "function parameters must precede the body"));
                         }
-                        attrs(c, &["name", "as"])?;
+                        attrs(c, &["name", "as", "required", "tunnel", "static", "select"])?;
+                        if c.attribute("select").is_some()
+                            || c.children().any(|child| {
+                                child.is_element()
+                                    || child.is_text()
+                                        && (!xml_space(child.text().unwrap_or_default())
+                                            || c.ancestors()
+                                                .filter_map(|ancestor| {
+                                                    ancestor.attribute((
+                                                        "http://www.w3.org/XML/1998/namespace",
+                                                        "space",
+                                                    ))
+                                                })
+                                                .next()
+                                                == Some("preserve"))
+                            })
+                        {
+                            return Err(static_error(
+                                c,
+                                "XTSE0760",
+                                "function parameters cannot have default values",
+                            ));
+                        }
+                        if !boolean_attribute(c, "required", true)?
+                            || boolean_attribute(c, "tunnel", false)?
+                            || boolean_attribute(c, "static", false)?
+                        {
+                            return Err(static_error(
+                                c,
+                                "XTSE0020",
+                                "invalid function parameter setting",
+                            ));
+                        }
                         let name = component_name(
                             c,
                             c.attribute("name").ok_or_else(|| {

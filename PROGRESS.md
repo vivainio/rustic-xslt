@@ -2726,3 +2726,15 @@ conformance claims. Smaller tested increments are committed independently.
   failures, 371 harness errors and 223 exclusions across 2,038 selected cases.
 - Validation: seven stylesheet-function tests, all-target/all-feature Clippy
   and the expanded pinned XSLT gate pass without regressions.
+
+## Increment 242: function parameter declarations
+
+- Accept explicit required=yes on stylesheet function parameters, reject false
+  required and true tunnel/static settings with XTSE0020, and reject defaults
+  or preserved non-empty content with XTSE0760. Unqualified function names now
+  report the specified XTSE0740 instead of XTSE0080.
+- Added required aliases, default-value, preserved whitespace and no-namespace
+  regressions. Three catalog cases join the baseline: 1,208 passes, 236 engine
+  failures, 371 harness errors and 223 exclusions across 2,038 selected cases.
+- Validation: eight stylesheet-function tests, all-target/all-feature Clippy and
+  the expanded pinned XSLT gate pass without regressions.
