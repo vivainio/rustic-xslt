@@ -2394,3 +2394,12 @@ conformance claims. Smaller tested increments are committed independently.
 - Added ancestor-count and default attribute-count regressions. The gate has
   1,077 passes (three new, zero regressions), 235 failures, 378 harness errors
   and 153 exclusions. Eleven numbering tests and Clippy pass.
+
+## Increment 215: inclusive numbering from-boundary regression
+
+- Confirmed the W3C rule includes the from-boundary node when it also matches
+  count. Added a regression spanning single, multiple and any numbering levels,
+  including sibling positions of the matching boundary itself.
+- Reference: https://www.w3.org/TR/xslt-30/#number
+- Validation: twelve numbering tests, all-target/all-feature Clippy, formatting
+  and diff checks pass. No runtime behavior changed.

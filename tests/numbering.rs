@@ -152,3 +152,9 @@ fn any_level_numbering_from_attributes_counts_preceding_and_ancestor_nodes() {
     assert_eq!(run(r#"<xsl:for-each select="r/a/@title"><xsl:number level="any" count="a"/><xsl:text>;</xsl:text></xsl:for-each>"#, "<r><a title='first'/><a title='second'/></r>").unwrap(), "1;2;");
     assert_eq!(run(r#"<xsl:for-each select="r/a/@title"><xsl:number level="any"/><xsl:text>;</xsl:text></xsl:for-each>"#, "<r><a title='first'/><a title='second'/></r>").unwrap(), "1;1;");
 }
+
+#[test]
+fn from_boundaries_are_included_when_they_also_match_count() {
+    let source = "<r><chapter/><chapter><p/><p/></chapter></r>";
+    assert_eq!(run(r#"<xsl:for-each select="r/chapter[2]/p[2]"><xsl:number level="multiple" count="chapter|p" from="chapter"/><xsl:text>;</xsl:text><xsl:number level="single" count="chapter" from="chapter"/><xsl:text>;</xsl:text><xsl:number level="any" count="chapter|p" from="chapter"/></xsl:for-each>"#, source).unwrap(), "2.2;2;3");
+}
