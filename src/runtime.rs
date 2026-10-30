@@ -761,9 +761,6 @@ fn number_text<'a>(
             None => value,
         })
         .collect();
-    if numbers.is_empty() {
-        return Ok(String::new());
-    }
     let mut text = |parts: &[xpath::Expr]| parts_text(parts, focus, env, budget, backwards);
     let format = text(&spec.format)?;
     let ordinal = !text(&spec.ordinal)?.is_empty();

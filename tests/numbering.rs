@@ -132,3 +132,12 @@ fn punctuation_only_number_pictures_supply_prefix_and_suffix() {
         "1"
     );
 }
+
+#[test]
+fn empty_place_markers_retain_picture_affixes() {
+    assert_eq!(run(r#"<xsl:for-each select="r"><xsl:number level="multiple" count="missing" format="A."/></xsl:for-each>"#, "<r/>").unwrap(), ".");
+    assert_eq!(
+        run(r#"<xsl:number value="()" format="(1)"/>"#, "<r/>").unwrap(),
+        "()"
+    );
+}

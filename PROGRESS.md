@@ -2368,3 +2368,11 @@ conformance claims. Smaller tested increments are committed independently.
 - Added multi-component punctuation-only and empty-picture regressions.
 - Validation: eight numbering tests, all-target/all-feature Clippy and the full
   1,048-case pinned XSLT gate pass without regressions.
+
+## Increment 212: affixes for empty numbering place markers
+
+- Empty numbering place markers pass through picture formatting rather than
+  returning early, preserving prefixes and suffixes such as the dot in A.
+- Added computed-empty and supplied-empty marker regressions. The gate has
+  1,072 passes (24 new, zero regressions), 240 failures, 378 harness errors and
+  153 exclusions. Nine numbering tests and all-target/all-feature Clippy pass.
