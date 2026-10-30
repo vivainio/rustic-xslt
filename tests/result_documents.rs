@@ -257,3 +257,13 @@ fn malformed_media_type_parameters_are_rejected() {
     }
     assert!(run(r#"<xsl:result-document method="html" media-type='text/html; note="two words"'><head/></xsl:result-document>"#).is_ok());
 }
+
+#[test]
+fn mime_extension_tokens_preserve_legal_braces() {
+    let result = run(r#"<xsl:result-document method="html" media-type="application/x{{demo}}; note={{value}}"><head/></xsl:result-document>"#).unwrap();
+    assert!(
+        result
+            .principal
+            .contains("application/x{demo}; note={value}; charset=UTF-8")
+    );
+}

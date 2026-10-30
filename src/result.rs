@@ -1035,7 +1035,7 @@ pub(crate) fn validate_media_type(value: &str) -> Result<(), Diagnostic> {
         !part.is_empty()
             && part
                 .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || b"!#$%&'*+-.^_`|~".contains(&byte))
+                .all(|byte| (0x21..=0x7e).contains(&byte) && !b"()<>@,;:\\\"/[]?=".contains(&byte))
     };
     let essence = value.split(';').next().unwrap_or("").trim();
     if !essence

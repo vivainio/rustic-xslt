@@ -2293,3 +2293,12 @@ conformance claims. Smaller tested increments are committed independently.
 - Added five invalid-parameter cases and a quoted-space success case.
 - Validation: twenty-one result-document tests, all-target/all-feature Clippy
   and the full 931-case pinned XSLT gate pass without regressions.
+
+## Increment 204: RFC 2045 MIME token punctuation
+
+- Media-type tokens use RFC 2045's printable ASCII minus tspecials rule rather
+  than a narrower HTTP-style allowlist, preserving legal extension punctuation.
+- Added a regression for braces in subtype and parameter values.
+- Reference: https://www.rfc-editor.org/rfc/rfc2045.html#section-5.1
+- Validation: twenty-two result-document tests, all-target/all-feature Clippy
+  and the full 931-case pinned XSLT gate pass without regressions.
