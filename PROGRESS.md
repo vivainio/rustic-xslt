@@ -2917,3 +2917,13 @@ conformance claims. Smaller tested increments are committed independently.
 - Dynamic-instruction tests, all-target/all-feature Clippy and the expanded
   XSLT gate pass. Dynamic function lookup and target variable visibility still
   need separate review against the xsl:evaluate static context rules.
+
+## Increment 259: xsl:evaluate target variable scope
+
+- Validate target-expression variable references against supplied parameters and
+  lexical bindings, including in branches that are not executed. Unbound names
+  now produce XTDE3160, and stylesheet globals are not directly in scope.
+  Called stylesheet functions still retain access to their own globals.
+- Reused the existing lexical-reference validator for dynamically parsed XPath.
+  Five dynamic-instruction tests, all-target/all-feature Clippy and the 1,235-case
+  XSLT gate pass. Dynamic with-params maps remain unsupported.

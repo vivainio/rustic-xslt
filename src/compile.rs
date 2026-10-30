@@ -3424,6 +3424,102 @@ pub(crate) fn compile(
     Ok(sheet)
 }
 
+pub(crate) fn validate_expression(e: &Expr, scope: &BTreeSet<String>) -> Result<(), Diagnostic> {
+    let mut pending = vec![e];
+    while let Some(e) = pending.pop() {
+        match e {
+            Expr::Variable(n) if !scope.contains(n) => {
+                return Err(Diagnostic::new(
+                    "XPST0008",
+                    format!("unknown variable: {n}"),
+                    "compile",
+                ));
+            }
+            Expr::For(name, select, body)
+            | Expr::Let(name, select, body)
+            | Expr::Quantified(_, name, select, body) => {
+                validate_expression(select, scope)?;
+                let mut inner = scope.clone();
+                inner.insert(name.clone());
+                validate_expression(body, &inner)?;
+            }
+            Expr::Path(base, steps) => {
+                pending.push(base);
+                for s in steps {
+                    pending.extend(&s.predicates);
+                }
+            }
+            Expr::Filter(base, ps) => {
+                pending.push(base);
+                pending.extend(ps);
+            }
+            Expr::Binary(_, a, b) | Expr::PathMap(a, b) => {
+                pending.push(a);
+                pending.push(b);
+            }
+            Expr::If(c, y, n) => {
+                pending.push(c);
+                pending.push(y);
+                pending.push(n);
+            }
+            Expr::Unary(_, e)
+            | Expr::TypeOp(_, e, _)
+            | Expr::QNameCast(e, _, _, _)
+            | Expr::StaticName(e, _, _)
+            | Expr::LookupContext(e, _) => pending.push(e),
+            Expr::Call(_, args) | Expr::Sequence(args) | Expr::ArraySquare(args) => {
+                pending.extend(args)
+            }
+            Expr::InlineFunction(def) => {
+                let mut inner = scope.clone();
+                inner.extend(def.params.iter().map(|(name, _)| name.clone()));
+                validate_expression(&def.body, &inner)?;
+            }
+            Expr::DynamicCall(callee, args) => {
+                pending.push(callee);
+                pending.extend(args);
+            }
+            Expr::Partial(callee, slots) => {
+                pending.push(callee);
+                pending.extend(slots.iter().flatten());
+            }
+            Expr::MapConstructor(entries) => {
+                for (key, value) in entries {
+                    pending.push(key);
+                    pending.push(value);
+                }
+            }
+            Expr::ArrayCurly(inner) => pending.push(inner),
+            Expr::Lookup(base, key) => {
+                pending.push(base);
+                if let Some(key) = key {
+                    pending.push(key);
+                }
+            }
+            Expr::Sorted(inner, keys) => {
+                pending.push(inner);
+                for key in keys {
+                    pending.extend(key.expressions());
+                }
+            }
+            Expr::Evaluate {
+                xpath,
+                context,
+                params,
+                ..
+            } => {
+                pending.push(xpath);
+                if let Some(context) = context {
+                    pending.push(context);
+                }
+                pending.extend(params.iter().map(|(_, e)| e));
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
 // Check lexical references even in branches that will not execute.
 fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
     use std::collections::BTreeSet;
@@ -3434,101 +3530,6 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
         character_maps: BTreeSet<String>,
         backwards: bool,
     }
-    fn expression(e: &Expr, scope: &Scope) -> Result<(), Diagnostic> {
-        let mut pending = vec![e];
-        while let Some(e) = pending.pop() {
-            match e {
-                Expr::Variable(n) if !scope.contains(n) => {
-                    return Err(Diagnostic::new(
-                        "XPST0008",
-                        format!("unknown variable: {n}"),
-                        "compile",
-                    ));
-                }
-                Expr::For(name, select, body)
-                | Expr::Let(name, select, body)
-                | Expr::Quantified(_, name, select, body) => {
-                    expression(select, scope)?;
-                    let mut inner = scope.clone();
-                    inner.insert(name.clone());
-                    expression(body, &inner)?;
-                }
-                Expr::Path(base, steps) => {
-                    pending.push(base);
-                    for s in steps {
-                        pending.extend(&s.predicates);
-                    }
-                }
-                Expr::Filter(base, ps) => {
-                    pending.push(base);
-                    pending.extend(ps);
-                }
-                Expr::Binary(_, a, b) | Expr::PathMap(a, b) => {
-                    pending.push(a);
-                    pending.push(b);
-                }
-                Expr::If(c, y, n) => {
-                    pending.push(c);
-                    pending.push(y);
-                    pending.push(n);
-                }
-                Expr::Unary(_, e)
-                | Expr::TypeOp(_, e, _)
-                | Expr::QNameCast(e, _, _, _)
-                | Expr::StaticName(e, _, _)
-                | Expr::LookupContext(e, _) => pending.push(e),
-                Expr::Call(_, args) | Expr::Sequence(args) | Expr::ArraySquare(args) => {
-                    pending.extend(args)
-                }
-                Expr::InlineFunction(def) => {
-                    let mut inner = scope.clone();
-                    inner.extend(def.params.iter().map(|(name, _)| name.clone()));
-                    expression(&def.body, &inner)?;
-                }
-                Expr::DynamicCall(callee, args) => {
-                    pending.push(callee);
-                    pending.extend(args);
-                }
-                Expr::Partial(callee, slots) => {
-                    pending.push(callee);
-                    pending.extend(slots.iter().flatten());
-                }
-                Expr::MapConstructor(entries) => {
-                    for (key, value) in entries {
-                        pending.push(key);
-                        pending.push(value);
-                    }
-                }
-                Expr::ArrayCurly(inner) => pending.push(inner),
-                Expr::Lookup(base, key) => {
-                    pending.push(base);
-                    if let Some(key) = key {
-                        pending.push(key);
-                    }
-                }
-                Expr::Sorted(inner, keys) => {
-                    pending.push(inner);
-                    for key in keys {
-                        pending.extend(key.expressions());
-                    }
-                }
-                Expr::Evaluate {
-                    xpath,
-                    context,
-                    params,
-                    ..
-                } => {
-                    pending.push(xpath);
-                    if let Some(context) = context {
-                        pending.push(context);
-                    }
-                    pending.extend(params.iter().map(|(_, e)| e));
-                }
-                _ => {}
-            }
-        }
-        Ok(())
-    }
     fn instructions(
         body: &[Instruction],
         mut scope: Scope,
@@ -3536,7 +3537,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
     ) -> Result<(), Diagnostic> {
         fn parts(es: &[Expr], scope: &Scope) -> Result<(), Diagnostic> {
             for e in es {
-                expression(e, scope)?;
+                validate_expression(e, scope)?;
             }
             Ok(())
         }
@@ -3554,7 +3555,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
         ) -> Result<(), Diagnostic> {
             match c {
                 Content::Select(e, sep) => {
-                    expression(e, scope)?;
+                    validate_expression(e, scope)?;
                     parts(sep, scope)
                 }
                 Content::Body(body, sep) => {
@@ -3569,7 +3570,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 Instruction::Apply(_, _, keys, _) | Instruction::ForEach(_, keys, _) => {
                     for k in keys {
                         for e in k.expressions() {
-                            expression(e, &scope)?;
+                            validate_expression(e, &scope)?;
                         }
                     }
                 }
@@ -3581,7 +3582,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
             {
                 for p in params {
                     match &p.value {
-                        BindingValue::Select(e) => expression(e, &scope)?,
+                        BindingValue::Select(e) => validate_expression(e, &scope)?,
                         BindingValue::Body(body)
                         | BindingValue::Document(body)
                         | BindingValue::Raw(body) => instructions(body, scope.clone(), templates)?,
@@ -3604,7 +3605,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     matching,
                     non_matching,
                 } => {
-                    expression(select, &scope)?;
+                    validate_expression(select, &scope)?;
                     parts(regex, &scope)?;
                     parts(flags, &scope)?;
                     instructions(matching, scope.clone(), templates)?;
@@ -3616,11 +3617,11 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     on_completion,
                     body,
                 } => {
-                    expression(select, &scope)?;
+                    validate_expression(select, &scope)?;
                     let mut inner = scope.clone();
                     for p in params {
                         if let BindingValue::Select(e) = &p.value {
-                            expression(e, &scope)?;
+                            validate_expression(e, &scope)?;
                         }
                         inner.insert(p.name.clone());
                     }
@@ -3629,7 +3630,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 }
                 Instruction::Number(spec) => {
                     for e in [&spec.value, &spec.select].into_iter().flatten() {
-                        expression(e, &scope)?;
+                        validate_expression(e, &scope)?;
                     }
                     parts(&spec.format, &scope)?;
                     parts(&spec.ordinal, &scope)?;
@@ -3715,7 +3716,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 Instruction::NextIteration(params) => {
                     for p in params {
                         if let BindingValue::Select(e) = &p.value {
-                            expression(e, &scope)?;
+                            validate_expression(e, &scope)?;
                         }
                     }
                 }
@@ -3749,10 +3750,10 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 Instruction::Value(e, _)
                 | Instruction::Apply(e, _, _, _)
                 | Instruction::CopyOf(e, _)
-                | Instruction::Sequence(e) => expression(e, &scope)?,
+                | Instruction::Sequence(e) => validate_expression(e, &scope)?,
                 Instruction::Bind(b) => {
                     match &b.value {
-                        BindingValue::Select(e) => expression(e, &scope)?,
+                        BindingValue::Select(e) => validate_expression(e, &scope)?,
                         BindingValue::Body(body)
                         | BindingValue::Document(body)
                         | BindingValue::Raw(body) => instructions(body, scope.clone(), templates)?,
@@ -3764,7 +3765,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 } => {
                     for (_, parts) in attributes {
                         for e in parts {
-                            expression(e, &scope)?;
+                            validate_expression(e, &scope)?;
                         }
                     }
                     instructions(body, scope.clone(), templates)?;
@@ -3772,29 +3773,29 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 Instruction::Document(body) => instructions(body, scope.clone(), templates)?,
                 Instruction::Copy { select, body, .. } => {
                     if let Some(e) = select {
-                        expression(e, &scope)?;
+                        validate_expression(e, &scope)?;
                     }
                     instructions(body, scope.clone(), templates)?;
                 }
                 Instruction::ForEach(e, _, body) | Instruction::If(e, body) => {
-                    expression(e, &scope)?;
+                    validate_expression(e, &scope)?;
                     instructions(body, scope.clone(), templates)?;
                 }
                 Instruction::ForEachGroup(e, grouping, keys, body) => {
-                    expression(e, &scope)?;
+                    validate_expression(e, &scope)?;
                     if let Grouping::By(g, _) | Grouping::Adjacent(g, _) = grouping {
-                        expression(g, &scope)?;
+                        validate_expression(g, &scope)?;
                     }
                     if let Grouping::Starting(branches) | Grouping::Ending(branches) = grouping {
                         for branch in branches {
                             for predicate in crate::pattern::expressions(branch) {
-                                expression(predicate, &scope)?;
+                                validate_expression(predicate, &scope)?;
                             }
                         }
                     }
                     for k in keys {
                         for e in k.expressions() {
-                            expression(e, &scope)?;
+                            validate_expression(e, &scope)?;
                         }
                     }
                     instructions(body, scope.clone(), templates)?;
@@ -3802,7 +3803,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 Instruction::Choose(branches) => {
                     for (test, body) in branches {
                         if let Some(e) = test {
-                            expression(e, &scope)?;
+                            validate_expression(e, &scope)?;
                         }
                         instructions(body, scope.clone(), templates)?;
                     }
@@ -3842,7 +3843,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     }
                     for p in params {
                         match &p.value {
-                            BindingValue::Select(e) => expression(e, &scope)?,
+                            BindingValue::Select(e) => validate_expression(e, &scope)?,
                             BindingValue::Body(body)
                             | BindingValue::Document(body)
                             | BindingValue::Raw(body) => {
@@ -3891,7 +3892,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
     };
     for b in &sheet.globals {
         match &b.value {
-            BindingValue::Select(e) => expression(e, &globals)?,
+            BindingValue::Select(e) => validate_expression(e, &globals)?,
             BindingValue::Body(body) | BindingValue::Document(body) | BindingValue::Raw(body) => {
                 instructions(body, globals.clone(), &templates)?
             }
@@ -3901,29 +3902,29 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
         for definition in definitions {
             for branch in &definition.branches {
                 for predicate in crate::pattern::expressions(branch) {
-                    expression(predicate, &globals)?;
+                    validate_expression(predicate, &globals)?;
                 }
             }
-            expression(&definition.value, &globals)?;
+            validate_expression(&definition.value, &globals)?;
         }
     }
     for function in sheet.functions.values() {
         let mut scope = globals.clone();
         scope.extend(function.params.iter().map(|(p, _)| p.clone()));
-        expression(&function.body, &scope)?;
+        validate_expression(&function.body, &scope)?;
     }
     for t in &sheet.templates {
         if let Some(branches) = &t.pattern {
             for b in branches {
                 for expression_in_pattern in crate::pattern::expressions(b) {
-                    expression(expression_in_pattern, &globals)?;
+                    validate_expression(expression_in_pattern, &globals)?;
                 }
             }
         }
         let mut scope = globals.clone();
         for p in &t.params {
             match &p.value {
-                BindingValue::Select(e) => expression(e, &scope)?,
+                BindingValue::Select(e) => validate_expression(e, &scope)?,
                 BindingValue::Body(body)
                 | BindingValue::Document(body)
                 | BindingValue::Raw(body) => instructions(body, scope.clone(), &templates)?,

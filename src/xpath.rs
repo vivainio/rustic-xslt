@@ -2531,10 +2531,16 @@ pub(crate) fn eval<'a>(
                     e.phase = "run";
                     e
                 })?;
+            let names = params.iter().map(|(name, _)| name.clone()).collect();
+            crate::compile::validate_expression(&parsed, &names).map_err(|mut e| {
+                e.code = "XTDE3160".into();
+                e.phase = "run";
+                e
+            })?;
             let mut scope: Variables<'a> = vars
                 .iter()
                 .filter(|(k, _)| k.starts_with(GLOBAL_PREFIX))
-                .map(|(k, v)| (k[GLOBAL_PREFIX.len()..].to_owned(), v.clone()))
+                .map(|(k, v)| (k.clone(), v.clone()))
                 .collect();
             for (name, value) in params {
                 scope.insert(

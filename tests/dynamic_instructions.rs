@@ -14,7 +14,10 @@ fn evaluate_runs_dynamic_xpath_with_context_and_parameters() {
         run(r#"<xsl:evaluate xpath="'$a * $b'"><xsl:with-param name="a" select="6"/><xsl:with-param name="b" select="7"/></xsl:evaluate>"#).unwrap(),
         "42"
     );
-    assert_eq!(run(r#"<xsl:evaluate xpath="'$g + 1'"/>"#).unwrap(), "101");
+    assert_eq!(
+        run(r#"<xsl:evaluate xpath="'$g + 1'"/>"#).unwrap_err().code,
+        "XTDE3160"
+    );
     assert_eq!(
         run(r#"<xsl:evaluate xpath="&quot;concat('p', 'q')&quot;"/>"#).unwrap(),
         "pq"
@@ -88,6 +91,25 @@ fn evaluate_target_uses_xpath_function_library() {
     let stylesheet = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:f="urn:f"><xsl:output method="text"/><xsl:function name="f:test"><xsl:sequence select="42"/></xsl:function><xsl:template match="/"><xsl:evaluate xpath="'f:test()'"/></xsl:template></xsl:stylesheet>"#;
     assert_eq!(
         Stylesheet::compile(stylesheet)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap(),
+        "42"
+    );
+}
+
+#[test]
+fn evaluate_checks_target_variable_scope_before_execution() {
+    assert_eq!(
+        run(r#"<xsl:evaluate xpath="'if (false()) then $g else 1'"/>"#)
+            .unwrap_err()
+            .code,
+        "XTDE3160"
+    );
+    assert_eq!(run(r#"<xsl:evaluate xpath="'let $v := 4 return $v + $p'"><xsl:with-param name="p" select="3"/></xsl:evaluate>"#).unwrap(), "7");
+    let sheet = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:f="urn:f"><xsl:output method="text"/><xsl:variable name="global" select="41"/><xsl:function name="f:test"><xsl:sequence select="$global + 1"/></xsl:function><xsl:template match="/"><xsl:evaluate xpath="'f:test()'"/></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(
+        Stylesheet::compile(sheet)
             .unwrap()
             .transform("<r/>")
             .unwrap(),
