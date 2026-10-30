@@ -2651,3 +2651,13 @@ conformance claims. Smaller tested increments are committed independently.
   catalog; changing comparison or source whitespace policy requires separate
   evidence about the suite's intended comparison/input configuration.
 - Validation: all thirteen grouping tests pass. No runtime behavior changed.
+
+### Increment 235 follow-up: catalog comparison evidence
+
+- The pinned suite's `admin/catalog-schema.xsd` specifies canonical XML or
+  deep-equal comparison for assert-xml. Its `runner/compare.xsl` compares text
+  nodes and child counts explicitly, without stripping whitespace. The harness's
+  strict comparison is therefore consistent with that documented assertion.
+- The fixture's expected tree omits whitespace present in the supplied XML and
+  copied by built-in templates. Keep the mismatch visible; the preceding Rust
+  regression preserves the source-whitespace behavior.
