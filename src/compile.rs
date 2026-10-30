@@ -1783,19 +1783,21 @@ fn body(
                                 "exactly one grouping attribute is required",
                             ));
                         };
-                        if let Some(collation) = n.attribute("collation") {
-                            if !matches!(*attribute, "group-by" | "group-adjacent") {
-                                return Err(static_error(
-                                    n,
-                                    "XTSE1090",
-                                    "collation requires group-by or group-adjacent",
-                                ));
-                            }
-                            if collation
+                        if !matches!(*attribute, "group-by" | "group-adjacent")
+                            && (n.attribute("collation").is_some()
+                                || n.attribute("composite").is_some())
+                        {
+                            return Err(static_error(
+                                n,
+                                "XTSE1090",
+                                "collation and composite require group-by or group-adjacent",
+                            ));
+                        }
+                        if let Some(collation) = n.attribute("collation")
+                            && collation
                                 != "http://www.w3.org/2005/xpath-functions/collation/codepoint"
-                            {
-                                return Err(error(n, "unsupported grouping collation"));
-                            }
+                        {
+                            return Err(error(n, "unsupported grouping collation"));
                         }
                         let value = n.attribute(*attribute).unwrap();
                         let grouping = match *attribute {

@@ -146,3 +146,21 @@ fn untyped_grouping_keys_are_exposed_as_strings_and_composites_retain_nan() {
     assert_eq!(run(r#"<xsl:for-each-group select="r/i" group-by="@k"><xsl:value-of select="current-grouping-key() instance of xs:string"/><xsl:text>;</xsl:text></xsl:for-each-group>"#).unwrap(), "true;true;true;true;true;");
     assert_eq!(run(r#"<xsl:for-each-group select="(1,2,3)" group-by="(xs:double('NaN'), . mod 2)" composite="yes"><xsl:value-of select="count(current-grouping-key())"/><xsl:text>:</xsl:text><xsl:value-of select="count(current-group())"/><xsl:text>;</xsl:text></xsl:for-each-group>"#).unwrap(), "2:2;2:1;");
 }
+
+#[test]
+fn composite_is_rejected_on_pattern_grouping_even_when_false() {
+    for attribute in ["group-starting-with", "group-ending-with"] {
+        for composite in ["yes", "no", "true", "false", "1", "0"] {
+            assert_eq!(
+                run(&format!(
+                    r#"<xsl:for-each-group select="r/i" {attribute}="i" composite="{composite}"/>"#
+                ))
+                .unwrap_err()
+                .code,
+                "XTSE1090"
+            );
+        }
+    }
+    assert_eq!(run(r#"<xsl:for-each-group select="(1,2,1)" group-by="." composite="no"><xsl:value-of select="count(current-group())"/></xsl:for-each-group>"#).unwrap(), "21");
+    assert_eq!(run(r#"<xsl:for-each-group select="(1,1,2)" group-adjacent="." composite="false"><xsl:value-of select="count(current-group())"/></xsl:for-each-group>"#).unwrap(), "21");
+}

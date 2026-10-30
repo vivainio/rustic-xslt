@@ -2593,3 +2593,14 @@ conformance claims. Smaller tested increments are committed independently.
   and the pinned XSLT gate pass without regressions. Two grouping catalog cases
   join the gate: 1,149 passes, 242 engine failures, 384 harness errors and 153
   profile exclusions across 1,928 selected cases.
+
+## Increment 232: composite declaration restrictions
+
+- Pattern grouping rejects an explicitly supplied composite attribute with
+  XTSE1090, including false/no/zero values. The restriction concerns attribute
+  presence, rather than whether composite grouping was enabled.
+- Shared checking covers both starting and ending patterns and retains the
+  existing collation restriction. Explicit false composite settings remain
+  valid for group-by and group-adjacent.
+- Validation: eleven grouping tests, all-target/all-feature Clippy and the full
+  1,149-case pinned XSLT gate pass without regressions.
