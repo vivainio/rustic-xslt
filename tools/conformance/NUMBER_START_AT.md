@@ -16,8 +16,8 @@ scope validation checks it, and runtime rebasing uses signed arbitrary-precision
 integers. Invalid literal and dynamic lists report XTSE0020 and XTDE0030.
 Supplied integers and decimals round through the numeric implementation rather
 than narrowing through floating point and u64. Decimal picture width, digit
-families and grouping are retained for large results. Non-decimal formats above
-the existing u64 formatter range currently fall back to decimal digits.
+families and grouping are retained for large results. Alphabetic numbering also supports arbitrary-precision values. Other non-decimal
+formats above the existing u64 formatter range currently fall back to decimal digits.
 Record streaming continues to reject xsl:number as a whole during static safety
 validation, before reading input.
 

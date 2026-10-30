@@ -211,3 +211,23 @@ fn numbering_language_avts_validate_values_and_variable_scope() {
         "XPST0008"
     );
 }
+
+#[test]
+fn alphabetic_numbering_supports_values_beyond_u64() {
+    assert_eq!(
+        run(
+            r#"<xsl:number value="67090373691429037015" format="A"/>"#,
+            "<r/>"
+        )
+        .unwrap(),
+        "AAAAAAAAAAAAAAA"
+    );
+    assert_eq!(
+        run(
+            r#"<xsl:number value="67090373691429037015" format="a"/>"#,
+            "<r/>"
+        )
+        .unwrap(),
+        "aaaaaaaaaaaaaaa"
+    );
+}

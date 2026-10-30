@@ -84,6 +84,22 @@ fn alphabetic(mut n: u64, upper: bool) -> String {
     String::from_utf8(out).unwrap()
 }
 
+fn alphabetic_big(mut n: num_bigint::BigInt, upper: bool) -> String {
+    use num_traits::{ToPrimitive, Zero};
+    if n.is_zero() {
+        return "0".into();
+    }
+    let base = if upper { b'A' } else { b'a' };
+    let mut out = Vec::new();
+    while n > num_bigint::BigInt::zero() {
+        n -= 1;
+        out.push(base + (&n % 26u8).to_u8().unwrap());
+        n /= 26u8;
+    }
+    out.reverse();
+    String::from_utf8(out).unwrap()
+}
+
 fn roman(n: u64, upper: bool) -> Option<String> {
     if n == 0 || n >= 4000 {
         return None;
@@ -367,6 +383,7 @@ pub(crate) fn format_list(
                     .chars()
                     .map(|c| char::from_u32(*zero as u32 + c.to_digit(10).unwrap()).unwrap_or(c))
                     .collect(),
+                Token::Alpha(upper) => alphabetic_big(magnitude.clone(), *upper),
                 _ => magnitude.to_string(),
             },
             |value| format(value, &tok, ordinal),

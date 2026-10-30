@@ -2431,3 +2431,12 @@ conformance claims. Smaller tested increments are committed independently.
 - Updated the start-at analysis document to reflect implemented signed rebasing,
   exact supplied numeric conversion, current streaming rejection and remaining
   large non-decimal formatting limits. No runtime behavior changed.
+
+## Increment 219: arbitrary-precision alphabetic numbering
+
+- Alphabetic numbering pictures use arbitrary-precision bijective base-26
+  conversion above u64, retaining uppercase/lowercase sequences instead of
+  falling back to decimal digits. Updated remaining formatter-limit notes.
+- Added large uppercase and lowercase regressions.
+- Validation: fifteen numbering tests, all-target/all-feature Clippy and the
+  full 1,078-case pinned XSLT gate pass without regressions.
