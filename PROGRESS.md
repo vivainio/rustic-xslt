@@ -2693,3 +2693,14 @@ conformance claims. Smaller tested increments are committed independently.
   This also corrects typed local bindings accepted before increment 237.
 - Validation: five stylesheet-function tests, all-target/all-feature Clippy
   and the full 1,149-case pinned XSLT gate pass without regressions.
+
+## Increment 239: pure for-each in stylesheet functions
+
+- Lower xsl:for-each with pure sequence-constructor bodies into an instruction
+  map, preserving population order, optional sorting, position/size and the
+  per-instruction current item, including in nested loops.
+- Added sorted, empty and nested atomic-population regressions. General node
+  construction and grouping instructions in functions remain unsupported.
+- Validation: six stylesheet-function tests, all-target/all-feature Clippy,
+  the 1,149-case XSLT gate and all 18,735 pinned QT3 cases pass without
+  regressions.

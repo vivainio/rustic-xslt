@@ -84,3 +84,18 @@ fn typed_local_bindings_in_function_bodies_use_function_conversion() {
         "XTTE0570"
     );
 }
+
+#[test]
+fn pure_function_for_each_preserves_focus_order_and_sorting() {
+    let declaration = r#"<xsl:function name="f:loop"><xsl:param name="items"/><xsl:for-each select="$items"><xsl:sort select="." data-type="number" order="descending"/><xsl:variable name="value" select="."/><xsl:sequence select="concat($value, ':', position(), '/', last(), ':', current())"/></xsl:for-each></xsl:function>"#;
+    assert_eq!(
+        run(declaration, "string-join(f:loop((2,1,3)), ',')").unwrap(),
+        "3:1/3:3,2:2/3:2,1:3/3:1"
+    );
+    assert_eq!(run(declaration, "count(f:loop(()))").unwrap(), "0");
+    let nested = r#"<xsl:function name="f:nested"><xsl:for-each select="(1,2)"><xsl:variable name="outer" select="."/><xsl:for-each select="(3,4)"><xsl:sequence select="concat($outer, current(), position(), last())"/></xsl:for-each></xsl:for-each></xsl:function>"#;
+    assert_eq!(
+        run(nested, "string-join(f:nested(), ',')").unwrap(),
+        "1312,1422,2312,2422"
+    );
+}

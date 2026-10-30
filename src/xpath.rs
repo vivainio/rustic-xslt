@@ -2152,11 +2152,22 @@ pub(crate) fn eval<'a>(
         }
         Expr::Binary(op, a, b) => {
             let a = eval(a, focus, vars, budget, depth + 1, backwards)?;
-            if op == "!" {
+            if op == "!" || op == "instruction-map" {
                 let size = a.len();
                 let mut result = vec![];
                 for (index, item) in a.into_iter().enumerate() {
                     budget.tick()?;
+                    let scope;
+                    let vars = if op == "instruction-map" {
+                        scope = {
+                            let mut scope = vars.clone();
+                            scope.insert(CURRENT_ITEM.into(), vec![item.clone()]);
+                            scope
+                        };
+                        &scope
+                    } else {
+                        vars
+                    };
                     let mapped = eval(
                         b,
                         &Focus {

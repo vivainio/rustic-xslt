@@ -3141,6 +3141,18 @@ fn function_expression(n: Node<'_, '_>, body: Vec<Instruction>) -> Result<Expr, 
                 Expr::Let(name, Box::new(select), Box::new(tail))
             }
             Instruction::Sequence(expression) => append(expression, tail),
+            Instruction::ForEach(select, sorts, body) => {
+                let select = if sorts.is_empty() {
+                    select
+                } else {
+                    Expr::Sorted(Box::new(select), sorts)
+                };
+                let body = function_expression(n, body)?;
+                append(
+                    Expr::Binary("instruction-map".into(), Box::new(select), Box::new(body)),
+                    tail,
+                )
+            }
             Instruction::If(test, body) => append(
                 Expr::If(
                     Box::new(test),
