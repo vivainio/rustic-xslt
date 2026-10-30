@@ -137,6 +137,7 @@ pub(crate) struct NumberSpec {
     pub format: Vec<Expr>,
     pub ordinal: Vec<Expr>,
     pub letter_value: Option<Vec<Expr>>,
+    pub lang: Option<Vec<Expr>>,
     pub grouping_separator: Vec<Expr>,
     pub grouping_size: Vec<Expr>,
     pub start_at: Option<Vec<Expr>>,
@@ -1240,6 +1241,15 @@ fn body(
                                 "value excludes select, level, count and from",
                             ));
                         }
+                        if let Some(value) = n.attribute("lang")
+                            && !value.contains('{')
+                            && !value.contains('}')
+                            && crate::string_type::StringType::Language
+                                .cast(value)
+                                .is_err()
+                        {
+                            return Err(static_error(n, "XTSE0020", "invalid xsl:number language"));
+                        }
                         if let Some(value) = n.attribute("letter-value")
                             && !value.contains('{')
                             && !value.contains('}')
@@ -1279,6 +1289,7 @@ fn body(
                                 None => vec![Expr::String("1".into())],
                             },
                             ordinal: optional_avt("ordinal")?,
+                            lang: n.attribute("lang").map(|value| avt(n, value)).transpose()?,
                             letter_value: n
                                 .attribute("letter-value")
                                 .map(|value| avt(n, value))
@@ -3398,6 +3409,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     }
                     parts(&spec.format, &scope)?;
                     parts(&spec.ordinal, &scope)?;
+                    if let Some(value) = &spec.lang {
+                        parts(value, &scope)?;
+                    }
                     if let Some(value) = &spec.letter_value {
                         parts(value, &scope)?;
                     }

@@ -771,6 +771,12 @@ fn number_text<'a>(
         })
         .collect();
     let mut text = |parts: &[xpath::Expr]| parts_text(parts, focus, env, budget, backwards);
+    if let Some(value) = &spec.lang {
+        let value = text(value)?;
+        crate::string_type::StringType::Language
+            .cast(&value)
+            .map_err(|_| Diagnostic::new("XTDE0030", "invalid xsl:number language", "run"))?;
+    }
     if let Some(value) = &spec.letter_value {
         let value = text(value)?;
         if !matches!(value.as_str(), "alphabetic" | "traditional") {

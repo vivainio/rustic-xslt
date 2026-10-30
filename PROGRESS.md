@@ -2412,3 +2412,13 @@ conformance claims. Smaller tested increments are committed independently.
 - Added literal, dynamic and unexecuted-branch scope error regressions.
 - Validation: thirteen numbering tests, all-target/all-feature Clippy and the
   full 1,077-case pinned XSLT gate pass without regressions.
+
+## Increment 217: numbering language AVT validation
+
+- xsl:number retains and evaluates language AVTs, validates language syntax
+  with the existing language facets and checks static variable scope. Valid
+  unsupported languages retain the existing formatter fallback.
+- Added literal, dynamic and scope regressions. The gate has 1,078 passes
+  (one new, zero regressions), 234 failures, 378 harness errors, 153 exclusions.
+- Validation: fourteen numbering tests, all-target/all-feature Clippy and the
+  full pinned XSLT gate pass.

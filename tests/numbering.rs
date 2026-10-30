@@ -186,3 +186,28 @@ fn number_letter_value_avts_are_validated_and_scope_checked() {
         "XPST0008"
     );
 }
+
+#[test]
+fn numbering_language_avts_validate_values_and_variable_scope() {
+    assert_eq!(
+        run(r#"<xsl:number value="1" lang="invalid!"/>"#, "<r/>")
+            .unwrap_err()
+            .code,
+        "XTSE0020"
+    );
+    assert_eq!(
+        run(r#"<xsl:number value="1" lang="{'invalid!'}"/>"#, "<r/>")
+            .unwrap_err()
+            .code,
+        "XTDE0030"
+    );
+    assert_eq!(
+        run(
+            r#"<xsl:if test="false()"><xsl:number value="1" lang="{$missing}"/></xsl:if>"#,
+            "<r/>"
+        )
+        .unwrap_err()
+        .code,
+        "XPST0008"
+    );
+}
