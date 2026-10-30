@@ -2469,3 +2469,13 @@ conformance claims. Smaller tested increments are committed independently.
   384 harness errors and 153 profile exclusions.
 - Validation: the full expanded XSLT regression gate passes without regressions.
   No runtime behavior changed.
+
+## Increment 223: composite grouping sequence keys
+
+- Group-by and group-adjacent support composite sequence keys, comparing whole
+  atomized sequences including empty keys. Non-composite cardinality behavior
+  and first-appearance/consecutive grouping order remain intact.
+- Added sequence-key and empty-adjacent-key regressions. The gate has 1,124 passes
+  (six new, zero regressions), 267 failures, 384 harness errors, 153 exclusions.
+- Validation: six grouping tests, all-target/all-feature Clippy and the full
+  pinned XSLT regression gate pass.

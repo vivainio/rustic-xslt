@@ -462,10 +462,25 @@ fn form_groups<'a>(
     };
     let mut groups: Vec<Group<'a>> = vec![];
     match grouping {
-        Grouping::By(e) => {
+        Grouping::By(e, composite) => {
             for (index, item) in items.iter().enumerate() {
                 budget.tick()?;
                 let keys = xpath::eval(e, &at(index, item), env, budget, 0, backwards)?;
+                if *composite {
+                    let keys: Vec<_> = keys.iter().map(xpath::atomize).collect();
+                    match groups.iter_mut().find(|(key, _)| {
+                        key.as_ref().is_some_and(|key| {
+                            key.len() == keys.len()
+                                && key.iter().zip(&keys).all(|(left, right)| {
+                                    crate::deep_equal::atomic_equal(left, right, true)
+                                })
+                        })
+                    }) {
+                        Some((_, members)) => members.push(item.clone()),
+                        None => groups.push((Some(keys), vec![item.clone()])),
+                    }
+                    continue;
+                }
                 let mut seen: Vec<Item<'a>> = vec![];
                 for key in keys.iter().map(xpath::atomize) {
                     if seen
@@ -485,25 +500,28 @@ fn form_groups<'a>(
                 }
             }
         }
-        Grouping::Adjacent(e) => {
+        Grouping::Adjacent(e, composite) => {
             for (index, item) in items.iter().enumerate() {
                 budget.tick()?;
                 let keys = xpath::eval(e, &at(index, item), env, budget, 0, backwards)?;
-                let [key] = keys.as_slice() else {
+                if !*composite && keys.len() != 1 {
                     return Err(Diagnostic::new(
                         "XTTE1100",
                         "group-adjacent requires a single grouping key per item",
                         "run",
                     ));
-                };
-                let key = xpath::atomize(key);
+                }
+                let keys: Vec<_> = keys.iter().map(xpath::atomize).collect();
                 match groups.last_mut() {
                     Some((Some(k), members))
-                        if crate::deep_equal::atomic_equal(&k[0], &key, true) =>
+                        if k.len() == keys.len()
+                            && k.iter().zip(&keys).all(|(left, right)| {
+                                crate::deep_equal::atomic_equal(left, right, true)
+                            }) =>
                     {
                         members.push(item.clone());
                     }
-                    _ => groups.push((Some(vec![key]), vec![item.clone()])),
+                    _ => groups.push((Some(keys), vec![item.clone()])),
                 }
             }
         }

@@ -84,3 +84,9 @@ fn groups_can_be_sorted_by_keys_that_see_the_group() {
         "1,2,3,4,5,"
     );
 }
+
+#[test]
+fn composite_grouping_uses_sequence_keys_including_empty_sequences() {
+    assert_eq!(run(r#"<xsl:for-each-group select="(1,2,3,4)" group-by="(if (. mod 2 = 0) then 0 else (), 9)" composite="yes"><xsl:value-of select="current-group()" separator=","/><xsl:text>;</xsl:text></xsl:for-each-group>"#).unwrap(), "1,3;2,4;");
+    assert_eq!(run(r#"<xsl:for-each-group select="(1,2,3)" group-adjacent="()" composite="yes"><xsl:value-of select="count(current-group())"/></xsl:for-each-group>"#).unwrap(), "3");
+}

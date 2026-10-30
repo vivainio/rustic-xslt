@@ -144,8 +144,8 @@ pub(crate) struct NumberSpec {
 }
 #[derive(Debug)]
 pub(crate) enum Grouping {
-    By(Expr),
-    Adjacent(Expr),
+    By(Expr, bool),
+    Adjacent(Expr, bool),
     Starting(Vec<crate::pattern::Branch>),
     Ending(Vec<crate::pattern::Branch>),
 }
@@ -1733,9 +1733,8 @@ fn body(
                                 "collation",
                             ],
                         )?;
-                        if n.attribute("collation").is_some()
-                            || boolean_attribute(n, "composite", false)?
-                        {
+                        let composite = boolean_attribute(n, "composite", false)?;
+                        if n.attribute("collation").is_some() {
                             return Err(error(
                                 n,
                                 "grouping collations and composite keys are not implemented",
@@ -1759,8 +1758,8 @@ fn body(
                         };
                         let value = n.attribute(*attribute).unwrap();
                         let grouping = match *attribute {
-                            "group-by" => Grouping::By(expr(n, value)?),
-                            "group-adjacent" => Grouping::Adjacent(expr(n, value)?),
+                            "group-by" => Grouping::By(expr(n, value)?, composite),
+                            "group-adjacent" => Grouping::Adjacent(expr(n, value)?, composite),
                             "group-starting-with" => Grouping::Starting(crate::pattern::parse(
                                 value,
                                 namespaces(n),
@@ -3558,7 +3557,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 }
                 Instruction::ForEachGroup(e, grouping, keys, body) => {
                     expression(e, &scope)?;
-                    if let Grouping::By(g) | Grouping::Adjacent(g) = grouping {
+                    if let Grouping::By(g, _) | Grouping::Adjacent(g, _) = grouping {
                         expression(g, &scope)?;
                     }
                     if let Grouping::Starting(branches) | Grouping::Ending(branches) = grouping {
