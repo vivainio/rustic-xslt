@@ -52,3 +52,22 @@ fn function_declaration_errors_are_static() {
     assert_eq!(run(unbound, "1").unwrap_err().code, "XPST0008");
     assert_eq!(run("", "f:missing()").unwrap_err().code, "XPST0017");
 }
+
+#[test]
+fn pure_function_constructors_support_branches_and_scoped_sequences() {
+    let declarations = r#"<xsl:function name="f:values"><xsl:param name="n"/><xsl:sequence select="0"/><xsl:variable name="x" select="$n * 2"/><xsl:if test="$n gt 1"><xsl:variable name="y" select="$x + 1"/><xsl:sequence select="$y"/></xsl:if><xsl:choose><xsl:when test="$n = 1"><xsl:sequence select="11, 12"/></xsl:when><xsl:when test="$n = 2"><xsl:sequence select="$x"/></xsl:when><xsl:otherwise><xsl:sequence select="99"/></xsl:otherwise></xsl:choose><xsl:sequence select="$x"/></xsl:function>"#;
+    assert_eq!(
+        run(declarations, "string-join(f:values(1)!string(.), ',')").unwrap(),
+        "0,11,12,2"
+    );
+    assert_eq!(
+        run(declarations, "string-join(f:values(2)!string(.), ',')").unwrap(),
+        "0,5,4,4"
+    );
+    assert_eq!(
+        run(declarations, "string-join(f:values(3)!string(.), ',')").unwrap(),
+        "0,7,99,6"
+    );
+    let invalid = r#"<xsl:function name="f:bad"><xsl:if test="false()"><xsl:variable name="private" select="1"/></xsl:if><xsl:sequence select="$private"/></xsl:function>"#;
+    assert_eq!(run(invalid, "1").unwrap_err().code, "XPST0008");
+}

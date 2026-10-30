@@ -262,7 +262,7 @@ pub(crate) struct Focus<'a> {
     pub position: usize,
     pub size: usize,
 }
-/// A stylesheet function whose body is a chain of `let` bindings ending in an expression.
+/// A stylesheet function lowered to an XPath expression.
 #[derive(Debug)]
 pub(crate) struct UserFunction {
     pub params: Vec<(String, Option<crate::seqtype::SequenceType>)>,

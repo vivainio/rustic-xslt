@@ -2671,3 +2671,15 @@ conformance claims. Smaller tested increments are committed independently.
   pinned XSLT gate pass without regressions. One catalog case joins the baseline,
   reaching 1,149 passes, 219 engine failures, 359 harness errors and 201 profile
   exclusions among 1,928 selected cases.
+
+## Increment 237: pure branching stylesheet function bodies
+
+- Lower pure function sequence constructors to XPath expressions, supporting
+  multiple xsl:sequence instructions, xsl:if and xsl:choose, and local select
+  bindings with branch-local scope. Existing expression-only recursive functions
+  avoid extra nesting and retain their previous behavior.
+- Added branch, sequence order, variable scope and static reference checks.
+  General instruction and node-construction function bodies remain unsupported;
+  the grouping catalog's recursive constructor case still requires that work.
+- Validation: full Rust suite, all-target/all-feature Clippy and the 1,149-case
+  pinned XSLT gate pass without regressions.

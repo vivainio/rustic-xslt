@@ -3091,28 +3091,7 @@ fn declarations(
                         content = true;
                     }
                 }
-                let mut bindings = vec![];
-                let mut result_expr = None;
-                for instruction in body(n, 1, true)? {
-                    match instruction {
-                        Instruction::Bind(Binding {
-                            name,
-                            value: BindingValue::Select(select),
-                            ..
-                        }) if result_expr.is_none() => bindings.push((name, select)),
-                        Instruction::Sequence(e) if result_expr.is_none() => result_expr = Some(e),
-                        _ => {
-                            return Err(error(
-                                n,
-                                "function bodies are limited to variables followed by xsl:sequence",
-                            ));
-                        }
-                    }
-                }
-                let mut function_body = result_expr.unwrap_or(Expr::Sequence(vec![]));
-                for (name, select) in bindings.into_iter().rev() {
-                    function_body = Expr::Let(name, Box::new(select), Box::new(function_body));
-                }
+                let function_body = function_expression(n, body(n, 1, true)?)?;
                 let key = (id, params.len());
                 if function_precedence.get(&key) == Some(&precedence) {
                     return Err(static_error(
@@ -3136,6 +3115,55 @@ fn declarations(
     }
     Ok(())
 }
+// Lower pure sequence constructors into XPath expressions. Branch-local
+// bindings remain scoped to their branch, and bindings affect only what follows.
+fn function_expression(n: Node<'_, '_>, body: Vec<Instruction>) -> Result<Expr, Diagnostic> {
+    fn append(head: Expr, tail: Expr) -> Expr {
+        if matches!(&tail, Expr::Sequence(items) if items.is_empty()) {
+            head
+        } else {
+            Expr::Sequence(vec![head, tail])
+        }
+    }
+    let mut tail = Expr::Sequence(vec![]);
+    for instruction in body.into_iter().rev() {
+        tail = match instruction {
+            Instruction::Bind(Binding {
+                name,
+                value: BindingValue::Select(select),
+                ..
+            }) => Expr::Let(name, Box::new(select), Box::new(tail)),
+            Instruction::Sequence(expression) => append(expression, tail),
+            Instruction::If(test, body) => append(
+                Expr::If(
+                    Box::new(test),
+                    Box::new(function_expression(n, body)?),
+                    Box::new(Expr::Sequence(vec![])),
+                ),
+                tail,
+            ),
+            Instruction::Choose(branches) => {
+                let mut choice = Expr::Sequence(vec![]);
+                for (test, branch) in branches.into_iter().rev() {
+                    let result = function_expression(n, branch)?;
+                    choice = match test {
+                        Some(test) => Expr::If(Box::new(test), Box::new(result), Box::new(choice)),
+                        None => result,
+                    };
+                }
+                append(choice, tail)
+            }
+            _ => {
+                return Err(error(
+                    n,
+                    "unsupported instruction in stylesheet function body",
+                ));
+            }
+        };
+    }
+    Ok(tail)
+}
+
 fn module_version<'a>(root: Node<'a, '_>) -> Result<&'a str, Diagnostic> {
     let version = if root.tag_name().namespace() != Some(XSL) {
         root.attribute((XSL, "version")).ok_or_else(|| {
