@@ -2459,3 +2459,13 @@ conformance claims. Smaller tested increments are committed independently.
   runtime formatting remains unchanged.
 - Validation: sixteen numbering tests and the full 1,078-case pinned XSLT gate
   pass without regressions. Formatting and diff checks pass.
+
+## Increment 222: grouping catalog regression coverage
+
+- Surveyed the pinned for-each-group set: 40 passes, 39 engine failures and six
+  harness errors across 85 cases. Added passing cases to the gate while keeping
+  the complete set selected and failures visible.
+- The expanded gate has 1,118 passes across 1,928 cases, with 273 engine failures,
+  384 harness errors and 153 profile exclusions.
+- Validation: the full expanded XSLT regression gate passes without regressions.
+  No runtime behavior changed.
