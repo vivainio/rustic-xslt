@@ -2640,3 +2640,14 @@ conformance claims. Smaller tested increments are committed independently.
   revised XSLT gate pass. Across 1,928 selected cases: 1,148 passes, 220 engine
   failures, 359 harness errors and 201 profile exclusions; no applicable baseline
   regressions. The changed totals reflect profile selection, not engine gains.
+
+## Increment 235: grouped tunnel parameter whitespace regression
+
+- Investigated for-each-group-085: the engine constructs and tunnels the two
+  expected grouped nodes, but also copies the source's whitespace-only text via
+  built-in template rules. The catalog's expected XML omits that whitespace.
+- Added a focused regression for typed grouped sequences, tunnel parameters and
+  preservation of source whitespace. The case remains an XML mismatch in the
+  catalog; changing comparison or source whitespace policy requires separate
+  evidence about the suite's intended comparison/input configuration.
+- Validation: all thirteen grouping tests pass. No runtime behavior changed.

@@ -182,3 +182,16 @@ fn function_values_do_not_capture_or_inherit_grouping_context() {
     // Values explicitly saved in lexical variables remain available to closures.
     assert_eq!(run(r#"<xsl:for-each-group select="(1,2,1)" group-by="."><xsl:variable name="g" select="current-group()"/><xsl:variable name="k" select="current-grouping-key()"/><xsl:sequence select="function() { count($g) + $k }()"/></xsl:for-each-group>"#).unwrap(), "3 3");
 }
+
+#[test]
+fn typed_group_sequences_in_tunnel_parameters_preserve_source_whitespace() {
+    let stylesheet = r#"<xsl:stylesheet version="2.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output omit-xml-declaration="yes"/><xsl:template match="/"><out><xsl:apply-templates/></out></xsl:template><xsl:template match="c"><xsl:variable name="t" as="element()*"><tt n="T"/><tt n="U"/><tt n="U"/></xsl:variable><xsl:variable name="o" as="element()*"><xsl:for-each-group select="$t" group-by="@n"><xsl:variable name="g" as="element()+" select="current-group()"/><xsl:sequence select="$g[@n='U']"/></xsl:for-each-group></xsl:variable><xsl:apply-templates><xsl:with-param name="o" tunnel="yes" select="$o"/></xsl:apply-templates></xsl:template><xsl:template match="t"><xsl:param name="o" tunnel="yes" as="element()*"/><xsl:copy><xsl:copy-of select="@*"/><xsl:copy-of select="$o"/></xsl:copy></xsl:template></xsl:stylesheet>"#;
+    let result = Stylesheet::compile(stylesheet)
+        .unwrap()
+        .transform("<c>\n <t n='T'/>\n <t n='U'/>\n</c>")
+        .unwrap();
+    assert_eq!(
+        result,
+        "<out>\n <t n=\"T\"><tt n=\"U\"></tt><tt n=\"U\"></tt></t>\n <t n=\"U\"><tt n=\"U\"></tt><tt n=\"U\"></tt></t>\n</out>"
+    );
+}
