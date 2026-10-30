@@ -939,6 +939,13 @@ impl Parser {
                     "XTDE1428",
                 );
             }
+            if local == "function-available" {
+                args[0] = Expr::StaticName(
+                    Box::new(args[0].clone()),
+                    self.namespaces.clone(),
+                    "XTDE1400",
+                );
+            }
             let lookup = local == "function-lookup";
             let call = Expr::Call(local, args);
             Ok(if lookup {
@@ -1307,6 +1314,7 @@ impl Parser {
                                 "element-available"
                                     | "system-property"
                                     | "type-available"
+                                    | "function-available"
                                     | "function-lookup"
                             )
                             .then(|| self.namespaces.clone());
@@ -1362,6 +1370,7 @@ impl Parser {
                                 "element-available"
                                     | "system-property"
                                     | "type-available"
+                                    | "function-available"
                                     | "function-lookup"
                             )
                             .then(|| self.namespaces.clone());
@@ -2750,7 +2759,9 @@ fn static_name<'a>(
     let text = text.trim();
     let resolved = crate::qname::resolve(text, namespaces, code)
         .map_err(|_| err(code, "invalid or unbound name"))?;
-    let resolved = if default_namespace && !text.starts_with("Q{") && !text.contains(':') {
+    let resolved = if code == "XTDE1400" && !text.starts_with("Q{") && !text.contains(':') {
+        format!("Q{{http://www.w3.org/2005/xpath-functions}}{resolved}")
+    } else if default_namespace && !text.starts_with("Q{") && !text.contains(':') {
         match namespaces.get("").filter(|uri| !uri.is_empty()) {
             Some(uri) => format!("Q{{{uri}}}{resolved}"),
             None => resolved,
@@ -2778,6 +2789,7 @@ fn attach_lookup_context<'a>(value: Value<'a>, namespaces: &BTreeMap<String, Str
                         "element-available"
                             | "system-property"
                             | "type-available"
+                            | "function-available"
                             | "function-lookup"
                     ) =>
                 {
@@ -2851,7 +2863,10 @@ fn call_function_item<'a>(
             if let Some(namespaces) = namespaces.as_ref().filter(|_| {
                 matches!(
                     name.as_str(),
-                    "element-available" | "system-property" | "type-available"
+                    "element-available"
+                        | "system-property"
+                        | "type-available"
+                        | "function-available"
                 )
             }) {
                 args[0] = static_name(
@@ -2863,6 +2878,8 @@ fn call_function_item<'a>(
                         "XTDE1440"
                     } else if name == "type-available" {
                         "XTDE1428"
+                    } else if name == "function-available" {
+                        "XTDE1400"
                     } else {
                         "XTDE1390"
                     },
@@ -4115,42 +4132,44 @@ fn function<'a>(
             "function-available" => {
                 let arity = match args.get(1).map(Vec::as_slice) {
                     Some([item]) => match atomize(item) {
-                        Item::Number(n) => Some(n.double() as usize),
+                        Item::Number(n) => {
+                            let value = n.double();
+                            Some(
+                                if value < 0.0 || !value.is_finite() || value.fract() != 0.0 {
+                                    usize::MAX
+                                } else {
+                                    value as usize
+                                },
+                            )
+                        }
                         _ => None,
                     },
                     _ => None,
                 };
-                let internal = if let Some(rest) = text.strip_prefix("Q{") {
-                    match rest.split_once('}') {
-                        Some(("http://www.w3.org/2005/xpath-functions", l)) => l.to_owned(),
-                        Some(("http://www.w3.org/2001/XMLSchema", l)) => format!("xs:{l}"),
-                        Some(("http://www.w3.org/2005/xpath-functions/math", l)) => {
-                            format!("math:{l}")
-                        }
-                        Some(("http://www.w3.org/2005/xpath-functions/map", l)) => {
-                            format!("map:{l}")
-                        }
-                        Some(("http://www.w3.org/2005/xpath-functions/array", l)) => {
-                            format!("array:{l}")
-                        }
-                        _ => String::new(),
+                let (uri, local) = crate::qname::parts(text);
+                let internal = match uri {
+                    Some("http://www.w3.org/2005/xpath-functions") => Some(local.to_owned()),
+                    Some("http://www.w3.org/2001/XMLSchema") => Some(format!("xs:{local}")),
+                    Some("http://www.w3.org/2005/xpath-functions/math") => {
+                        Some(format!("math:{local}"))
                     }
-                } else {
-                    match text.split_once(':') {
-                        Some(("xs", l)) => format!("xs:{l}"),
-                        Some(("math", l)) => format!("math:{l}"),
-                        Some(("map", l)) => format!("map:{l}"),
-                        Some(("array", l)) => format!("array:{l}"),
-                        Some(("fn", l)) => l.to_owned(),
-                        Some(_) => String::new(),
-                        None => text.to_owned(),
+                    Some("http://www.w3.org/2005/xpath-functions/map") => {
+                        Some(format!("map:{local}"))
                     }
+                    Some("http://www.w3.org/2005/xpath-functions/array") => {
+                        Some(format!("array:{local}"))
+                    }
+                    _ => None,
                 };
-                Item::Boolean(
-                    !internal.is_empty()
-                        && function_arity(&internal)
-                            .is_some_and(|(lo, hi)| arity.is_none_or(|a| (lo..=hi).contains(&a))),
-                )
+                let builtin = internal
+                    .as_deref()
+                    .and_then(function_arity)
+                    .is_some_and(|(lo, hi)| arity.is_none_or(|a| (lo..=hi).contains(&a)));
+                let user = budget
+                    .functions
+                    .keys()
+                    .any(|(name, a)| name == text && arity.is_none_or(|n| n == *a));
+                Item::Boolean(builtin || user)
             }
             _ => Item::Boolean(
                 text.strip_prefix("Q{http://www.w3.org/2001/XMLSchema}")

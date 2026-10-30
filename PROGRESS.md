@@ -2824,3 +2824,14 @@ conformance claims. Smaller tested increments are committed independently.
 - Nine use-when tests, all-target/all-feature Clippy and the 1,212-case XSLT
   gate pass. Imported schema types remain outside the current implementation;
   `function-available` still needs namespace review.
+
+## Increment 250: function-available namespace resolution
+
+- Resolve function names using the call site's namespace bindings, with the
+  standard function namespace for unprefixed names and XTDE1400 for invalid or
+  unbound names. References, partial applications and dynamic lookup retain
+  those bindings. Stylesheet functions are checked by expanded name and arity.
+- Added alias, rebound prefix, stylesheet function, arity and lookup coverage.
+  Ten use-when tests, all-target/all-feature Clippy and the 1,212-case XSLT
+  gate pass. Broader function signature conversion and package visibility
+  behavior remain subject to the engine's existing implementation limits.

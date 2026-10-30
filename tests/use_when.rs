@@ -1,6 +1,6 @@
 use rust_xslt::Stylesheet;
 fn run(declarations: &str, body: &str) -> Result<String, rust_xslt::Diagnostic> {
-    Stylesheet::compile(&format!(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output omit-xml-declaration="yes"/>{declarations}<xsl:template match="/">{body}</xsl:template></xsl:stylesheet>"#))?
+    Stylesheet::compile(&format!(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:math="http://www.w3.org/2005/xpath-functions/math" exclude-result-prefixes="math"><xsl:output omit-xml-declaration="yes"/>{declarations}<xsl:template match="/">{body}</xsl:template></xsl:stylesheet>"#))?
         .transform("<r/>")
 }
 #[test]
@@ -135,4 +135,22 @@ fn type_available_resolves_static_namespaces() {
     )
     .unwrap_err();
     assert_eq!(error.code, "XTDE1428");
+}
+
+#[test]
+fn function_available_resolves_namespaces_and_user_functions() {
+    let sheet = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:f="urn:fun" xmlns:a="http://www.w3.org/2005/xpath-functions" exclude-result-prefixes="f a"><xsl:output omit-xml-declaration="yes"/><xsl:function name="f:test"><xsl:param name="v"/><xsl:sequence select="$v"/></xsl:function><xsl:template match="/"><xsl:variable name="ref" select="function-available#2"/><xsl:variable name="lookup" select="function-lookup(QName('http://www.w3.org/2005/xpath-functions','function-available'),2)"/><out><xsl:value-of select="function-available('a:concat',2), function-available('f:test',1), function-available('f:test',2), function-available('true',-1)"/><xsl:text> </xsl:text><xsl:value-of xmlns:a="urn:other" select="$ref('a:concat',2), $lookup('a:concat',2), function-available('a:concat',2)"/></out></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(
+        Stylesheet::compile(sheet)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap(),
+        "<out>true true false false true true false</out>"
+    );
+    let error = run(
+        "",
+        r#"<xsl:value-of select="function-available('missing:foo')"/>"#,
+    )
+    .unwrap_err();
+    assert_eq!(error.code, "XTDE1400");
 }
