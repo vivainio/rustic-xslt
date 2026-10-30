@@ -2862,3 +2862,13 @@ conformance claims. Smaller tested increments are committed independently.
 - Focused integer-format tests, all-target/all-feature Clippy and the 1,212-case
   XSLT gate pass. Catalog recursion cases still need deeper execution and caching
   support rather than a higher unchecked call-stack limit.
+
+## Increment 254: QName default namespace regression
+
+- Keep XML's default namespace available to XSLT availability functions without
+  applying it to unprefixed `xs:QName()` casts; those use the XPath default
+  element/type namespace. An existing QName scope regression caught the issue.
+- The complete all-feature Rust suite, all-target/all-feature Clippy, the
+  1,212-case XSLT gate and the 18,735-case QT3 gate pass. An initial test run
+  exhausted disk space during linking; clearing generated Cargo artifacts and
+  disabling incremental compilation allowed the full run to complete.

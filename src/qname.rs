@@ -165,7 +165,6 @@ impl AtomicQName {
         } else {
             namespaces
                 .get(XPATH_DEFAULT_NAMESPACE)
-                .or_else(|| namespaces.get(""))
                 .map_or("", String::as_str)
         };
         Self::new(uri, lexical)
