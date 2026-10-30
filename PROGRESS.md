@@ -2661,3 +2661,13 @@ conformance claims. Smaller tested increments are committed independently.
 - The fixture's expected tree omits whitespace present in the supplied XML and
   copied by built-in templates. Keep the mismatch visible; the preceding Rust
   regression preserves the source-whitespace behavior.
+
+## Increment 236: obsolete grouping binding attributes
+
+- Reject the former draft attributes bind-group and bind-grouping-key on
+  xsl:for-each-group with XTSE0090, rather than reporting an implementation
+  limitation. Other unsupported attributes retain their existing diagnostics.
+- Validation: fourteen grouping tests, all-target/all-feature Clippy and the
+  pinned XSLT gate pass without regressions. One catalog case joins the baseline,
+  reaching 1,149 passes, 219 engine failures, 359 harness errors and 201 profile
+  exclusions among 1,928 selected cases.

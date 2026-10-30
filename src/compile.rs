@@ -1754,6 +1754,18 @@ fn body(
                         ));
                     }
                     "for-each-group" => {
+                        // These attributes belonged to an earlier draft and are
+                        // not part of the XSLT 3.0 instruction.
+                        if let Some(name) = ["bind-group", "bind-grouping-key"]
+                            .into_iter()
+                            .find(|name| n.attribute(*name).is_some())
+                        {
+                            return Err(static_error(
+                                n,
+                                "XTSE0090",
+                                format!("invalid grouping attribute: {name}"),
+                            ));
+                        }
                         attrs(
                             n,
                             &[

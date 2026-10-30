@@ -195,3 +195,17 @@ fn typed_group_sequences_in_tunnel_parameters_preserve_source_whitespace() {
         "<out>\n <t n=\"T\"><tt n=\"U\"></tt><tt n=\"U\"></tt></t>\n <t n=\"U\"><tt n=\"U\"></tt><tt n=\"U\"></tt></t>\n</out>"
     );
 }
+
+#[test]
+fn obsolete_group_binding_attributes_are_static_errors() {
+    for attribute in ["bind-group", "bind-grouping-key"] {
+        assert_eq!(
+            run(&format!(
+                r#"<xsl:for-each-group select="r/i" group-by="@k" {attribute}="g"/>"#
+            ))
+            .unwrap_err()
+            .code,
+            "XTSE0090"
+        );
+    }
+}
