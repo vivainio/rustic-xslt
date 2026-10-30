@@ -2422,3 +2422,12 @@ conformance claims. Smaller tested increments are committed independently.
   (one new, zero regressions), 234 failures, 378 harness errors, 153 exclusions.
 - Validation: fourteen numbering tests, all-target/all-feature Clippy and the
   full pinned XSLT gate pass.
+
+## Increment 218: numbering regression audit and implementation status
+
+- Rechecked numbering changes against the full all-feature Rust suite and QT3
+  workload: all 18,735 recorded QT3 cases remain green across 26,966 selected
+  cases. All 43 Python harness tests, formatting and diff checks pass.
+- Updated the start-at analysis document to reflect implemented signed rebasing,
+  exact supplied numeric conversion, current streaming rejection and remaining
+  large non-decimal formatting limits. No runtime behavior changed.
