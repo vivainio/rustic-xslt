@@ -9,6 +9,7 @@ pub(crate) struct XNode<'a> {
     detached_attribute: bool,
     empty_text: bool,
     boundary: Option<Node<'a, 'a>>,
+    document_uri: Option<&'a str>,
 }
 impl<'a> XNode<'a> {
     pub fn tree(raw: Node<'a, 'a>) -> Self {
@@ -19,6 +20,7 @@ impl<'a> XNode<'a> {
             detached_attribute: false,
             empty_text: false,
             boundary: None,
+            document_uri: None,
         }
     }
     pub fn fragment(raw: Node<'a, 'a>) -> Self {
@@ -29,6 +31,7 @@ impl<'a> XNode<'a> {
             detached_attribute: false,
             empty_text: false,
             boundary: None,
+            document_uri: None,
         }
     }
     pub fn relative(self, raw: Node<'a, 'a>) -> Self {
@@ -39,7 +42,15 @@ impl<'a> XNode<'a> {
             detached_attribute: false,
             empty_text: self.empty_text && raw == self.raw,
             boundary: self.boundary,
+            document_uri: self.document_uri,
         }
+    }
+    pub fn with_document_uri(mut self, uri: Option<&'a str>) -> Self {
+        self.document_uri = uri;
+        self
+    }
+    pub fn document_uri(self) -> Option<&'a str> {
+        self.is_document().then_some(self.document_uri).flatten()
     }
     pub fn detached(mut self) -> Self {
         self.detached_attribute = self.is_attribute();
@@ -198,6 +209,7 @@ impl<'a> XNode<'a> {
                 detached_attribute: false,
                 empty_text: false,
                 boundary: self.boundary,
+                document_uri: self.document_uri,
             })
             .collect()
     }

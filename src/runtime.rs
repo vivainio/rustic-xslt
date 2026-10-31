@@ -159,6 +159,13 @@ impl BindNext<'_> {
             Self::Local(..) => "XTTE0570",
         }
     }
+    fn binding_type_error(&self, binding: &Binding) -> &'static str {
+        if binding.parameter && matches!(self, Self::Local(..)) {
+            "XTTE0590"
+        } else {
+            self.type_error()
+        }
+    }
 }
 fn complete_binding<'a>(
     binding: &Binding,
@@ -168,7 +175,7 @@ fn complete_binding<'a>(
     tasks: &mut Vec<Task<'a>>,
 ) -> Result<(), Diagnostic> {
     if let Some(ty) = &binding.ty {
-        value = ty.convert(value, next.type_error())?;
+        value = ty.convert(value, next.binding_type_error(binding))?;
     }
     match next {
         BindNext::Local(body, index) => {
@@ -873,6 +880,19 @@ fn focus_sequence(value: Value<'_>) -> Vec<Focus<'_>> {
 }
 /// Principal result, secondary documents (href, content) and message texts.
 type AllResults = (String, Vec<(String, String)>, Vec<String>);
+fn source_uri(options: &TransformOptions) -> Result<Option<&str>, Diagnostic> {
+    let Some(uri) = options.source_uri.as_deref() else {
+        return Ok(None);
+    };
+    if uri.contains('#') || crate::uri_resolution::resolve(uri, None).is_err() {
+        return Err(Diagnostic::new(
+            "RUST_XSLT_INVALID_URI",
+            "source URI must be an absolute URI without a fragment",
+            "run",
+        ));
+    }
+    Ok(Some(uri))
+}
 /// Transform and also return the documents created by `xsl:result-document`.
 pub(crate) fn transform_all(
     sheet: &Stylesheet,
@@ -887,7 +907,7 @@ pub(crate) fn transform_all(
         item: if absent {
             Item::Absent
         } else {
-            Item::Node(XNode::tree(doc.root()))
+            Item::Node(XNode::tree(doc.root()).with_document_uri(source_uri(options)?))
         },
         position: 1,
         size: 1,
@@ -916,7 +936,7 @@ pub(crate) fn transform(
         item: if absent {
             Item::Absent
         } else {
-            Item::Node(XNode::tree(doc.root()))
+            Item::Node(XNode::tree(doc.root()).with_document_uri(source_uri(options)?))
         },
         position: 1,
         size: 1,
@@ -1041,14 +1061,28 @@ fn execute<'a>(
     }
     let limits = options.limits;
     let mut globals = Variables::new();
+    if let Item::Node(node) = root.item
+        && let Some(uri) = node.document_uri()
+    {
+        let key = xpath::document_key(uri);
+        let document = vec![Item::Node(node)];
+        globals.insert(format!("{}{key}", xpath::GLOBAL_PREFIX), document.clone());
+        globals.insert(key, document);
+    }
     // Documents named by literal URIs in the stylesheet are loaded up front.
     if let Some(resolver) = &options.resolver {
         for uri in &sheet.document_uris {
             budget.tick()?;
+            if globals.contains_key(&xpath::document_key(uri)) {
+                continue;
+            }
             let Ok(text) = (resolver.0)(uri) else {
                 continue;
             };
-            let document = match trees.load_document(text) {
+            let absolute_uri = crate::uri_resolution::resolve(uri, None)
+                .ok()
+                .map(|_| uri.as_str());
+            let document = match trees.load_document(text, absolute_uri) {
                 Ok(document) => document,
                 Err(error) if error.code == "XPDY0130" => return Err(error),
                 Err(_) => continue,
@@ -1562,7 +1596,7 @@ fn run_tasks<'a>(
                     } else {
                         binding.ty.as_ref()
                     },
-                    next.type_error(),
+                    next.binding_type_error(binding),
                 )?;
                 restore_raw(&mut captures, was_raw);
                 complete_binding(binding, value, frame, next, &mut tasks)?;

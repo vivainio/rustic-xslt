@@ -44,6 +44,25 @@ fn parameter(value: &Value) -> Result<ParameterValue, Diagnostic> {
 }
 fn run(req: Value) -> Value {
     let string = |key| req.get(key).and_then(Value::as_str).unwrap_or("");
+    let resources: std::sync::Arc<std::collections::BTreeMap<String, String>> = std::sync::Arc::new(
+        req.get("resources")
+            .and_then(Value::as_object)
+            .map(|m| {
+                m.iter()
+                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_owned())))
+                    .collect()
+            })
+            .unwrap_or_default(),
+    );
+    let resolve = |href: &str| {
+        resources.get(href).cloned().ok_or_else(|| Diagnostic {
+            code: "RUST_XSLT_UNSUPPORTED".into(),
+            message: format!("stylesheet module not mapped: {href}"),
+            phase: "compile",
+            line: 0,
+            column: 0,
+        })
+    };
     let compiled = if req
         .get("xpathOnly")
         .and_then(Value::as_bool)
@@ -63,8 +82,16 @@ fn run(req: Value) -> Value {
                 column: 0,
             })
         }
-    } else {
+    } else if let Some(uri) = req.get("stylesheetURI").and_then(Value::as_str) {
+        if resources.is_empty() {
+            Stylesheet::compile_with_base_uri(string("stylesheet"), uri)
+        } else {
+            Stylesheet::compile_with_base_uri_and_resolver(string("stylesheet"), uri, &resolve)
+        }
+    } else if resources.is_empty() {
         Stylesheet::compile(string("stylesheet"))
+    } else {
+        Stylesheet::compile_with_resolver(string("stylesheet"), &resolve)
     };
     let sheet = match compiled {
         Ok(s) => s,
@@ -73,15 +100,6 @@ fn run(req: Value) -> Value {
     if string("operation") == "compile" {
         return json!({"diagnostics":[]});
     }
-    let resources: std::collections::BTreeMap<String, String> = req
-        .get("resources")
-        .and_then(Value::as_object)
-        .map(|m| {
-            m.iter()
-                .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_owned())))
-                .collect()
-        })
-        .unwrap_or_default();
     let mut options = TransformOptions {
         resolver: Some(rust_xslt::ResourceResolver::new(move |href| {
             resources.get(href).cloned().ok_or_else(|| Diagnostic {
@@ -98,6 +116,10 @@ fn run(req: Value) -> Value {
             .map(str::to_owned),
         initial_mode: req
             .get("initialMode")
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+        source_uri: req
+            .get("sourceURI")
             .and_then(Value::as_str)
             .map(str::to_owned),
         limits: rust_xslt::Limits {

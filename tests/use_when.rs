@@ -228,6 +228,18 @@ fn availability_names_accept_surrounding_xml_whitespace() {
 }
 
 #[test]
+fn expanded_text_uses_parent_namespace_context() {
+    let sheet = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:p="urn:p" expand-text="yes"><xsl:output omit-xml-declaration="yes"/><xsl:template match="/"><xsl:variable name="p:value" select="'ok'"/><out><xsl:comment>{system-property('xsl:version')} {system-property('Q{urn:unknown}property')} {$p:value}</xsl:comment></out></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(
+        Stylesheet::compile(sheet)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap(),
+        "<out xmlns:p=\"urn:p\"><!--3.0  ok--></out>"
+    );
+}
+
+#[test]
 fn extension_attributes_on_xslt_elements_are_ignored() {
     let sheet = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:e="urn:extension" xmlns:f="urn:function" e:hint="yes"><xsl:output method="text" e:hint="yes"/><xsl:function name="f:test" e:hint="yes"><xsl:sequence select="'ok'" e:hint="yes"/></xsl:function><xsl:template match="/" e:hint="yes"><xsl:value-of select="f:test()" e:hint="yes"/></xsl:template></xsl:stylesheet>"#;
     assert_eq!(

@@ -85,11 +85,21 @@ def read_resource(node, base):
         # Test catalogs are local trusted development inputs. No network fetching.
         if "://" in node.get("file"):
             raise HarnessError("network catalog resource")
-        return path.read_text(encoding="utf-8-sig")
+        try:
+            return path.read_text(encoding="utf-8-sig")
+        except UnicodeError as error:
+            raise HarnessError(f"unsupported non-UTF-8 catalog resource: {path}") from error
     content = child(node, "content")
     if content is not None:
         return text(content)
     raise HarnessError(f"{tag(node)} requires file or content")
+
+def resource_uri(node, base):
+    if node.get("uri"):
+        return urljoin(base.resolve().as_uri() + "/", node.get("uri"))
+    if node.get("file"):
+        return (base / node.get("file")).resolve().as_uri()
+    return None
 
 def component_name(node):
     """Resolve catalog QName attributes in their own namespace scope."""
@@ -159,12 +169,35 @@ def environment(node, registry, seen=()):
         kind = tag(part)
         if kind == "source":
             check_attrs(part, ["role", "file", "uri", "validation"])
-            if part.get("role") != "." or part.get("validation", "skip") != "skip":
+            role = part.get("role")
+            if role not in {None, "."} or part.get("validation", "skip") != "skip":
                 raise HarnessError("source variable bindings or validation")
-            result["source"] = read_resource(part, base)
+            content = read_resource(part, base)
+            uri = resource_uri(part, base)
+            if role is None:
+                if uri is None:
+                    raise HarnessError("unbound source requires a URI")
+                result.setdefault("resources", {})[uri] = content
+            else:
+                result["source"] = content
+                if uri:
+                    result["sourceURI"] = uri
+                else:
+                    result.pop("sourceURI", None)
         elif kind == "stylesheet":
             check_attrs(part, ["file", "uri"])
             result["stylesheet"] = read_resource(part, base)
+            uri = resource_uri(part, base)
+            if uri:
+                result["stylesheetURI"] = uri
+            else:
+                result.pop("stylesheetURI", None)
+        elif kind == "resource":
+            check_attrs(part, ["file", "uri", "media-type"])
+            uri = resource_uri(part, base)
+            if uri is None:
+                raise HarnessError("resource requires a URI")
+            result.setdefault("resources", {})[uri] = read_resource(part, base)
         elif kind == "param":
             result["params"].update(parameters([part]))
         else:
@@ -408,8 +441,9 @@ def run_case(case, base, registry, driver):
     for env in children(case, "environment"):
         registry[id(env)] = env, base
         resolved = environment(env, registry)
-        request.update({k: v for k, v in resolved.items() if k != "params"})
+        request.update({k: v for k, v in resolved.items() if k not in {"params", "resources"}})
         request["params"].update(resolved["params"])
+        request.setdefault("resources", {}).update(resolved.get("resources", {}))
     test = child(case, "test")
     if test is None:
         raise HarnessError("missing test")
@@ -418,6 +452,11 @@ def run_case(case, base, registry, driver):
         if kind == "stylesheet":
             check_attrs(part, ["file", "uri"])
             request["stylesheet"] = read_resource(part, base)
+            uri = resource_uri(part, base)
+            if uri:
+                request["stylesheetURI"] = uri
+            else:
+                request.pop("stylesheetURI", None)
         elif kind == "param":
             request["params"].update(parameters([part]))
         elif kind in {"initial-template", "initial-mode"}:

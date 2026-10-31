@@ -32,6 +32,7 @@ mod unicode_blocks;
 mod uri_resolution;
 mod whitespace;
 mod xpath;
+mod xpointer;
 pub use stream::{StreamOptions, StreamStats};
 
 use std::fmt;
@@ -153,6 +154,8 @@ pub struct TransformOptions {
     pub initial_tunnel_parameters: std::collections::BTreeMap<String, ParameterValue>,
     pub initial_template: Option<String>,
     pub initial_mode: Option<String>,
+    /// Absolute URI identifying the principal source document, when known.
+    pub source_uri: Option<String>,
     pub limits: Limits,
     /// Resource loader for `unparsed-text()`, `unparsed-text-lines()` and `json-doc()`.
     pub resolver: Option<ResourceResolver>,
@@ -208,6 +211,22 @@ pub struct Stylesheet {
 impl Stylesheet {
     pub fn compile(source: &str) -> Result<Self, Diagnostic> {
         compile::compile(source, None)
+    }
+    /// Compile stylesheet text with an absolute stylesheet document URI.
+    /// The URI supplies the static base for supported XPath resource functions
+    /// and `xsl:evaluate` targets. Dynamic XML document loading remains limited.
+    pub fn compile_with_base_uri(source: &str, base_uri: &str) -> Result<Self, Diagnostic> {
+        compile::compile_with_base(source, base_uri, None)
+    }
+    /// Compile with an absolute URI and resolve included or imported modules.
+    /// The resolver receives absolute module URIs when they can be resolved.
+    /// The URI also supplies the static base for supported XPath resource functions.
+    pub fn compile_with_base_uri_and_resolver(
+        source: &str,
+        base_uri: &str,
+        resolver: &dyn Fn(&str) -> Result<String, Diagnostic>,
+    ) -> Result<Self, Diagnostic> {
+        compile::compile_with_base(source, base_uri, Some(resolver))
     }
     /// Development bridge entry point: compile its stylesheet with the XPath function library.
     #[cfg(feature = "conformance")]

@@ -8,6 +8,7 @@ from pathlib import Path
 import subprocess
 import sys
 from xml.sax.saxutils import quoteattr
+from urllib.parse import urljoin
 from run import Driver, HarnessError, ProfileExcluded, ROOT, baseline_sets, parse_catalog
 
 NS = "{http://www.w3.org/2010/09/qt-fots-catalog}"
@@ -71,6 +72,7 @@ def environment(node, registry, seen=()):
             text = (base / part.get("file")).read_text(encoding="utf-8-sig")
             if role == ".":
                 result["source"] = text
+                result["sourceURI"] = urljoin(base.resolve().as_uri() + "/", part.get("uri") or part.get("file"))
             else:
                 uri = part.get("uri") or part.get("file")
                 result.setdefault("resources", {})[uri] = text
@@ -186,7 +188,7 @@ def assertion(a, probe, expression, env, driver):
                 actual, value = f"normalize-space({actual})", " ".join(re.findall(r"[^ \t\r\n]+", value))
             condition = f"{actual} eq {literal(value)}"
         style = stylesheet(expression, env["namespaces"], assertion=condition, decimal_formats=env.get("decimal_formats", ()), params=env.get("params", ()), source_variables=env.get("source_variables", ()))
-    response = driver.call({"xpathOnly": True, "stylesheet": style, "source": env["source"], "resources": env.get("resources", {}), "initialTemplate": "entry"})
+    response = driver.call({"xpathOnly": True, "stylesheet": style, "source": env["source"], "sourceURI": env.get("sourceURI"), "resources": env.get("resources", {}), "initialTemplate": "entry"})
     if response.get("diagnostics"):
         raise HarnessError("QT3 assertion evaluator: " + "; ".join(e.get("message", "") for e in response["diagnostics"]))
     output = response.get("output", "")
@@ -209,7 +211,7 @@ def run_case(case, base, registry, driver):
     if test is None:
         raise HarnessError("missing QT3 test expression")
     expression = (base / test.get("file")).read_text() if test.get("file") else text(test)
-    probe = driver.call({"xpathOnly": True, "stylesheet": stylesheet(expression, env["namespaces"], decimal_formats=env.get("decimal_formats", ()), params=env.get("params", ()), source_variables=env.get("source_variables", ())), "source": env["source"], "resources": env.get("resources", {}), "initialTemplate": "entry"})
+    probe = driver.call({"xpathOnly": True, "stylesheet": stylesheet(expression, env["namespaces"], decimal_formats=env.get("decimal_formats", ()), params=env.get("params", ()), source_variables=env.get("source_variables", ())), "source": env["source"], "sourceURI": env.get("sourceURI"), "resources": env.get("resources", {}), "initialTemplate": "entry"})
     answers = [assertion(a, probe, expression, env, driver) for a in result]
     reason = "; ".join(e.get("code", "") + ": " + e.get("message", "") for e in probe.get("diagnostics", []))
     return ("pass", "") if all(answers) else ("fail", reason or "QT3 assertion is false")

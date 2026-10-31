@@ -154,7 +154,15 @@ rules; ordinary and tunnel values remain separate. Initial tunnel values use
 `initial_tunnel_parameters`.
 No schema awareness or cancellation yet; `xsl:import` and `xsl:include` load modules through
 `Stylesheet::compile_with_resolver`, and `TransformOptions::resolver` backs
-`unparsed-text()`, `json-doc()` and literal-URI `doc()`. Record streaming is described below. Empty result elements use
+`unparsed-text()`, `json-doc()` and literal-URI `doc()`. Set `TransformOptions::source_uri`
+to an absolute URI when the source document's origin is known; it supplies
+`document-uri()` and the initial base URI. `Stylesheet::compile_with_base_uri`
+and `compile_with_base_uri_and_resolver` provide module URIs for includes,
+imports, `xsl:evaluate`, and supported XPath resource functions. Dynamic XML
+document loading remains limited. Relative `document()` references require a
+known static or node base URI. XML fragments support shorthand `xml:id` and
+XPointer `element()` selection; other pointer schemes are not implemented.
+Record streaming is described below. Empty result elements use
 explicit start/end tags. Literal results preserve in-scope non-XSLT namespaces except declared exclusions;
 required element/attribute namespace bindings are always retained. `indent="yes"`,
 `method="html"`/`"xhtml"` and DOCTYPE declarations are supported; non-UTF-8 output is not.
@@ -238,7 +246,7 @@ streamable modes/accumulators and automatic plan selection remain ahead.
 
 ## W3C development checks
 
-A pinned, partial catalog runner and a 1,262-case passing regression gate are in
+A pinned, partial catalog runner and a 1,330-case passing regression gate are in
 [tools/conformance](tools/conformance/README.md). Selected-case reports distinguish
 engine failures, missing harness support and optional-profile exclusions. These
 are development checks, not a conformance claim. An initial internal QT3 bridge

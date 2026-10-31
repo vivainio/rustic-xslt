@@ -301,8 +301,37 @@ fn required<'a>(n: Node<'a, '_>, a: &str) -> Result<&'a str, Diagnostic> {
     n.attribute(a)
         .ok_or_else(|| error(n, format!("missing required attribute: {a}")))
 }
+thread_local! {
+    static MODULE_BASE_URI: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+}
+fn with_module_base<T>(base: Option<String>, f: impl FnOnce() -> T) -> T {
+    struct Restore(Option<String>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            MODULE_BASE_URI.with(|value| *value.borrow_mut() = self.0.take());
+        }
+    }
+    let old = MODULE_BASE_URI.with(|value| std::mem::replace(&mut *value.borrow_mut(), base));
+    let _restore = Restore(old);
+    f()
+}
+fn stylesheet_base_uri(n: Node<'_, '_>) -> Option<String> {
+    let ancestors: Vec<_> = n.ancestors().collect();
+    let mut base = MODULE_BASE_URI.with(|value| value.borrow().clone());
+    for node in ancestors.into_iter().rev() {
+        if let Some(reference) = node.attribute(("http://www.w3.org/XML/1998/namespace", "base")) {
+            base = crate::uri_resolution::resolve(reference, base.as_deref()).ok();
+        }
+    }
+    base
+}
 fn namespaces(n: Node<'_, '_>) -> BTreeMap<String, String> {
-    let mut namespaces: BTreeMap<_, _> = n
+    let namespace_node = if n.is_element() {
+        n
+    } else {
+        n.parent_element().unwrap_or(n)
+    };
+    let mut namespaces: BTreeMap<_, _> = namespace_node
         .namespaces()
         .map(|ns| (ns.name().unwrap_or("").into(), ns.uri().into()))
         .collect();
@@ -319,6 +348,9 @@ fn namespaces(n: Node<'_, '_>) -> BTreeMap<String, String> {
         );
     }
     namespaces.insert("xml".into(), "http://www.w3.org/XML/1998/namespace".into());
+    if let Some(uri) = stylesheet_base_uri(n) {
+        namespaces.insert(xpath::STATIC_BASE_URI.into(), uri);
+    }
     namespaces
         .entry("xs".into())
         .or_insert_with(|| "http://www.w3.org/2001/XMLSchema".into());
@@ -1170,28 +1202,59 @@ fn body(
                                 "static",
                             ],
                         )?;
-                        if n.attribute("namespace-context").is_some()
-                            || n.attribute("base-uri").is_some()
+                        if let Some(value) = n.attribute("schema-aware")
+                            && !value.contains(['{', '}'])
                         {
-                            return Err(error(
-                                n,
-                                "xsl:evaluate namespace-context and base-uri are not implemented",
-                            ));
+                            boolean_value(n, Some(value), false)?;
                         }
                         let mut params = vec![];
+                        let mut constructed_params = vec![];
                         for c in n.children() {
+                            if c.is_element() && use_when_excludes(c)? {
+                                continue;
+                            }
+                            if c.is_element()
+                                && c.tag_name().namespace() == Some(XSL)
+                                && c.tag_name().name() == "fallback"
+                            {
+                                continue;
+                            }
                             if c.is_element()
                                 && c.tag_name().namespace() == Some(XSL)
                                 && c.tag_name().name() == "with-param"
                             {
-                                let b = binding(c, true, depth)?;
-                                let BindingValue::Select(e) = b.value else {
-                                    return Err(error(
+                                let mut b = binding(c, true, depth)?;
+                                if b.tunnel {
+                                    return Err(static_error(
                                         c,
-                                        "xsl:evaluate parameters need a select attribute",
+                                        "XTSE0020",
+                                        "xsl:evaluate parameters cannot be tunnel parameters",
                                     ));
-                                };
-                                params.push((b.name, e));
+                                }
+                                if params.iter().any(|(name, _, _)| *name == b.name) {
+                                    return Err(static_error(
+                                        c,
+                                        "XTSE0670",
+                                        "duplicate xsl:evaluate parameter",
+                                    ));
+                                }
+                                if matches!(b.value, BindingValue::Select(_)) {
+                                    let BindingValue::Select(e) = b.value else {
+                                        unreachable!()
+                                    };
+                                    params.push((b.name, e, b.ty));
+                                } else {
+                                    let name = std::mem::replace(
+                                        &mut b.name,
+                                        format!(
+                                            "\u{0}evaluate-param:{}:{}",
+                                            n.range().start,
+                                            constructed_params.len()
+                                        ),
+                                    );
+                                    params.push((name, Expr::Variable(b.name.clone()), None));
+                                    constructed_params.push(Instruction::Bind(b));
+                                }
                             } else if c.is_element()
                                 || c.is_text() && !xml_space(c.text().unwrap_or_default())
                             {
@@ -1202,19 +1265,42 @@ fn body(
                                 ));
                             }
                         }
-                        out.push(Instruction::Sequence(Expr::Evaluate {
+                        let evaluate = Instruction::Sequence(Expr::Evaluate {
                             xpath: Box::new(expr(n, required(n, "xpath")?)?),
                             context: n
                                 .attribute("context-item")
                                 .map(|c| expr(n, c).map(Box::new))
                                 .transpose()?,
+                            namespace_context: n
+                                .attribute("namespace-context")
+                                .map(|c| expr(n, c).map(Box::new))
+                                .transpose()?,
+                            schema_aware: n
+                                .attribute("schema-aware")
+                                .map(|s| avt(n, s))
+                                .transpose()?,
+                            base_uri: n.attribute("base-uri").map(|s| avt(n, s)).transpose()?,
+                            stylesheet_base_uri: stylesheet_base_uri(n),
                             params,
+                            result_type: n
+                                .attribute("as")
+                                .map(|s| crate::seqtype::SequenceType::parse(s, &namespaces(n)))
+                                .transpose()?,
                             with_params: n
                                 .attribute("with-params")
                                 .map(|s| expr(n, s).map(Box::new))
                                 .transpose()?,
                             namespaces: namespaces(n),
-                        }));
+                        });
+                        if constructed_params.is_empty() {
+                            out.push(evaluate);
+                        } else {
+                            constructed_params.push(evaluate);
+                            out.push(Instruction::If(
+                                Expr::Call("true".into(), vec![]),
+                                constructed_params,
+                            ));
+                        }
                     }
                     "perform-sort" => {
                         attrs(n, &["select"])?;
@@ -2357,28 +2443,32 @@ fn declarations(
         if depth >= 32 {
             return Err(static_error(n, "XTSE0210", "stylesheet import is too deep"));
         }
-        let imported = resolver(href)?;
+        let module_uri =
+            crate::uri_resolution::resolve(href, stylesheet_base_uri(n).as_deref()).ok();
+        let imported = resolver(module_uri.as_deref().unwrap_or(href))?;
         let doc = crate::parse(&imported, "compile")?;
         let imported_root = doc.root_element();
 
-        declarations(
-            imported_root,
-            &mut Declarations {
-                sheet,
-                output_properties,
-                functions,
-                keys,
-                attribute_sets,
-                character_maps,
-                decimal_formats,
-                counter,
-                global_precedence,
-                function_precedence,
-            },
-            Some(resolver),
-            depth + 1,
-            None,
-        )?;
+        with_module_base(module_uri, || {
+            declarations(
+                imported_root,
+                &mut Declarations {
+                    sheet,
+                    output_properties,
+                    functions,
+                    keys,
+                    attribute_sets,
+                    character_maps,
+                    decimal_formats,
+                    counter,
+                    global_precedence,
+                    function_precedence,
+                },
+                Some(resolver),
+                depth + 1,
+                None,
+            )
+        })?;
     }
     let precedence = inherited.unwrap_or_else(|| {
         let own = **counter;
@@ -2809,28 +2899,32 @@ fn declarations(
                         "stylesheet inclusion is too deep",
                     ));
                 }
-                let included = resolver(href)?;
+                let module_uri =
+                    crate::uri_resolution::resolve(href, stylesheet_base_uri(n).as_deref()).ok();
+                let included = resolver(module_uri.as_deref().unwrap_or(href))?;
                 let doc = crate::parse(&included, "compile")?;
                 let included_root = doc.root_element();
 
-                declarations(
-                    included_root,
-                    &mut Declarations {
-                        sheet,
-                        output_properties,
-                        functions,
-                        keys,
-                        attribute_sets,
-                        character_maps,
-                        decimal_formats,
-                        counter,
-                        global_precedence,
-                        function_precedence,
-                    },
-                    Some(resolver),
-                    depth + 1,
-                    Some(precedence),
-                )?;
+                with_module_base(module_uri, || {
+                    declarations(
+                        included_root,
+                        &mut Declarations {
+                            sheet,
+                            output_properties,
+                            functions,
+                            keys,
+                            attribute_sets,
+                            character_maps,
+                            decimal_formats,
+                            counter,
+                            global_precedence,
+                            function_precedence,
+                        },
+                        Some(resolver),
+                        depth + 1,
+                        Some(precedence),
+                    )
+                })?;
             }
             "decimal-format" => {
                 attrs(
@@ -3103,6 +3197,11 @@ fn declarations(
                     .attribute("as")
                     .map(|s| crate::seqtype::SequenceType::parse(s, &namespaces(n)))
                     .transpose()?;
+                let dynamic_visible = match n.attribute("visibility").unwrap_or("private").trim() {
+                    "public" | "final" | "abstract" => true,
+                    "private" | "hidden" => false,
+                    _ => return Err(static_error(n, "XTSE0020", "invalid function visibility")),
+                };
                 let mut params: Vec<(String, Option<crate::seqtype::SequenceType>)> = vec![];
                 let mut content = false;
                 for c in n.children() {
@@ -3191,6 +3290,7 @@ fn declarations(
                         params,
                         body: function_body,
                         result,
+                        dynamic_visible,
                     },
                 );
             }
@@ -3310,6 +3410,23 @@ pub(crate) fn compile(
     source: &str,
     resolver: Option<Resolver<'_>>,
 ) -> Result<Stylesheet, Diagnostic> {
+    with_module_base(None, || compile_inner(source, resolver))
+}
+pub(crate) fn compile_with_base(
+    source: &str,
+    base: &str,
+    resolver: Option<Resolver<'_>>,
+) -> Result<Stylesheet, Diagnostic> {
+    if base.contains('#') || crate::uri_resolution::resolve(base, None).is_err() {
+        return Err(Diagnostic::new(
+            "RUST_XSLT_INVALID_URI",
+            "stylesheet URI must be an absolute URI without a fragment",
+            "compile",
+        ));
+    }
+    with_module_base(Some(base.to_owned()), || compile_inner(source, resolver))
+}
+fn compile_inner(source: &str, resolver: Option<Resolver<'_>>) -> Result<Stylesheet, Diagnostic> {
     xpath::take_document_uris();
     STATIC_VARIABLES.with(|v| v.borrow_mut().clear());
     let doc = crate::parse(source, "compile")?;
@@ -3427,7 +3544,26 @@ pub(crate) fn compile(
     Ok(sheet)
 }
 
-pub(crate) fn validate_expression(e: &Expr, scope: &BTreeSet<String>) -> Result<(), Diagnostic> {
+fn validate_expression(
+    e: &Expr,
+    scope: &BTreeSet<String>,
+    functions: &xpath::FunctionTable,
+) -> Result<(), Diagnostic> {
+    validate_expression_inner(e, scope, functions, false)
+}
+pub(crate) fn validate_dynamic_expression(
+    e: &Expr,
+    scope: &BTreeSet<String>,
+    functions: &xpath::FunctionTable,
+) -> Result<(), Diagnostic> {
+    validate_expression_inner(e, scope, functions, true)
+}
+fn validate_expression_inner(
+    e: &Expr,
+    scope: &BTreeSet<String>,
+    functions: &xpath::FunctionTable,
+    dynamic_only: bool,
+) -> Result<(), Diagnostic> {
     let mut pending = vec![e];
     while let Some(e) = pending.pop() {
         match e {
@@ -3441,10 +3577,10 @@ pub(crate) fn validate_expression(e: &Expr, scope: &BTreeSet<String>) -> Result<
             Expr::For(name, select, body)
             | Expr::Let(name, select, body)
             | Expr::Quantified(_, name, select, body) => {
-                validate_expression(select, scope)?;
+                validate_expression_inner(select, scope, functions, dynamic_only)?;
                 let mut inner = scope.clone();
                 inner.insert(name.clone());
-                validate_expression(body, &inner)?;
+                validate_expression_inner(body, &inner, functions, dynamic_only)?;
             }
             Expr::Path(base, steps) => {
                 pending.push(base);
@@ -3470,13 +3606,38 @@ pub(crate) fn validate_expression(e: &Expr, scope: &BTreeSet<String>) -> Result<
             | Expr::QNameCast(e, _, _, _)
             | Expr::StaticName(e, _, _)
             | Expr::LookupContext(e, _) => pending.push(e),
+            Expr::Call(name, args) if name.starts_with("Q{") => {
+                if !functions
+                    .get(&(name.clone(), args.len()))
+                    .is_some_and(|f| !dynamic_only || f.dynamic_visible)
+                {
+                    return Err(Diagnostic::new(
+                        "XPST0017",
+                        format!("function {name} is not available with the requested arity"),
+                        "compile",
+                    ));
+                }
+                pending.extend(args);
+            }
+            Expr::FunctionRef(name, arity, _) if name.starts_with("Q{") => {
+                if !functions
+                    .get(&(name.clone(), *arity))
+                    .is_some_and(|f| !dynamic_only || f.dynamic_visible)
+                {
+                    return Err(Diagnostic::new(
+                        "XPST0017",
+                        format!("function {name} is not available with the requested arity"),
+                        "compile",
+                    ));
+                }
+            }
             Expr::Call(_, args) | Expr::Sequence(args) | Expr::ArraySquare(args) => {
                 pending.extend(args)
             }
             Expr::InlineFunction(def) => {
                 let mut inner = scope.clone();
                 inner.extend(def.params.iter().map(|(name, _)| name.clone()));
-                validate_expression(&def.body, &inner)?;
+                validate_expression_inner(&def.body, &inner, functions, dynamic_only)?;
             }
             Expr::DynamicCall(callee, args) => {
                 pending.push(callee);
@@ -3508,16 +3669,22 @@ pub(crate) fn validate_expression(e: &Expr, scope: &BTreeSet<String>) -> Result<
             Expr::Evaluate {
                 xpath,
                 context,
+                namespace_context,
+                schema_aware,
+                base_uri,
                 params,
                 with_params,
                 ..
             } => {
                 pending.extend(with_params.iter().map(|e| e.as_ref()));
+                pending.extend(namespace_context.iter().map(|e| e.as_ref()));
+                pending.extend(schema_aware.iter().flatten());
+                pending.extend(base_uri.iter().flatten());
                 pending.push(xpath);
                 if let Some(context) = context {
                     pending.push(context);
                 }
-                pending.extend(params.iter().map(|(_, e)| e));
+                pending.extend(params.iter().map(|(_, e, _)| e));
             }
             _ => {}
         }
@@ -3534,22 +3701,31 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
         attribute_sets: BTreeSet<String>,
         character_maps: BTreeSet<String>,
         backwards: bool,
+        functions: &'a xpath::FunctionTable,
     }
     fn instructions(
         body: &[Instruction],
         mut scope: Scope,
         templates: &TemplateNames<'_>,
     ) -> Result<(), Diagnostic> {
-        fn parts(es: &[Expr], scope: &Scope) -> Result<(), Diagnostic> {
+        fn parts(
+            es: &[Expr],
+            scope: &Scope,
+            templates: &TemplateNames<'_>,
+        ) -> Result<(), Diagnostic> {
             for e in es {
-                validate_expression(e, scope)?;
+                validate_expression(e, scope, templates.functions)?;
             }
             Ok(())
         }
-        fn cname(n: &ComputedName, scope: &Scope) -> Result<(), Diagnostic> {
-            parts(&n.parts, scope)?;
+        fn cname(
+            n: &ComputedName,
+            scope: &Scope,
+            templates: &TemplateNames<'_>,
+        ) -> Result<(), Diagnostic> {
+            parts(&n.parts, scope, templates)?;
             if let Some(es) = &n.namespace {
-                parts(es, scope)?;
+                parts(es, scope, templates)?;
             }
             Ok(())
         }
@@ -3560,22 +3736,22 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
         ) -> Result<(), Diagnostic> {
             match c {
                 Content::Select(e, sep) => {
-                    validate_expression(e, scope)?;
-                    parts(sep, scope)
+                    validate_expression(e, scope, templates.functions)?;
+                    parts(sep, scope, templates)
                 }
                 Content::Body(body, sep) => {
-                    parts(sep, scope)?;
+                    parts(sep, scope, templates)?;
                     instructions(body, scope.clone(), templates)
                 }
             }
         }
         for i in body {
             match i {
-                Instruction::Value(_, Some(es)) => parts(es, &scope)?,
+                Instruction::Value(_, Some(es)) => parts(es, &scope, templates)?,
                 Instruction::Apply(_, _, keys, _) | Instruction::ForEach(_, keys, _) => {
                     for k in keys {
                         for e in k.expressions() {
-                            validate_expression(e, &scope)?;
+                            validate_expression(e, &scope, templates.functions)?;
                         }
                     }
                 }
@@ -3587,7 +3763,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
             {
                 for p in params {
                     match &p.value {
-                        BindingValue::Select(e) => validate_expression(e, &scope)?,
+                        BindingValue::Select(e) => {
+                            validate_expression(e, &scope, templates.functions)?
+                        }
                         BindingValue::Body(body)
                         | BindingValue::Document(body)
                         | BindingValue::Raw(body) => instructions(body, scope.clone(), templates)?,
@@ -3596,11 +3774,11 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
             }
             match i {
                 Instruction::ComputedElement(n, _, body) => {
-                    cname(n, &scope)?;
+                    cname(n, &scope, templates)?;
                     instructions(body, scope.clone(), templates)?;
                 }
                 Instruction::Attribute(n, c) => {
-                    cname(n, &scope)?;
+                    cname(n, &scope, templates)?;
                     value(c, &scope, templates)?;
                 }
                 Instruction::AnalyzeString {
@@ -3610,9 +3788,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     matching,
                     non_matching,
                 } => {
-                    validate_expression(select, &scope)?;
-                    parts(regex, &scope)?;
-                    parts(flags, &scope)?;
+                    validate_expression(select, &scope, templates.functions)?;
+                    parts(regex, &scope, templates)?;
+                    parts(flags, &scope, templates)?;
                     instructions(matching, scope.clone(), templates)?;
                     instructions(non_matching, scope.clone(), templates)?;
                 }
@@ -3622,11 +3800,11 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     on_completion,
                     body,
                 } => {
-                    validate_expression(select, &scope)?;
+                    validate_expression(select, &scope, templates.functions)?;
                     let mut inner = scope.clone();
                     for p in params {
                         if let BindingValue::Select(e) = &p.value {
-                            validate_expression(e, &scope)?;
+                            validate_expression(e, &scope, templates.functions)?;
                         }
                         inner.insert(p.name.clone());
                     }
@@ -3635,20 +3813,20 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 }
                 Instruction::Number(spec) => {
                     for e in [&spec.value, &spec.select].into_iter().flatten() {
-                        validate_expression(e, &scope)?;
+                        validate_expression(e, &scope, templates.functions)?;
                     }
-                    parts(&spec.format, &scope)?;
-                    parts(&spec.ordinal, &scope)?;
+                    parts(&spec.format, &scope, templates)?;
+                    parts(&spec.ordinal, &scope, templates)?;
                     if let Some(value) = &spec.lang {
-                        parts(value, &scope)?;
+                        parts(value, &scope, templates)?;
                     }
                     if let Some(value) = &spec.letter_value {
-                        parts(value, &scope)?;
+                        parts(value, &scope, templates)?;
                     }
-                    parts(&spec.grouping_separator, &scope)?;
-                    parts(&spec.grouping_size, &scope)?;
+                    parts(&spec.grouping_separator, &scope, templates)?;
+                    parts(&spec.grouping_size, &scope, templates)?;
                     if let Some(value) = &spec.start_at {
-                        parts(value, &scope)?;
+                        parts(value, &scope, templates)?;
                     }
                 }
                 Instruction::WherePopulated(body)
@@ -3675,7 +3853,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                             ));
                         }
                     }
-                    parts(&spec.href, &scope)?;
+                    parts(&spec.href, &scope, templates)?;
                     for value in [
                         &spec.doctype_public,
                         &spec.doctype_system,
@@ -3694,18 +3872,18 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     .into_iter()
                     .flatten()
                     {
-                        parts(value, &scope)?;
+                        parts(value, &scope, templates)?;
                     }
                     if let Some((value, _)) = &spec.cdata {
-                        parts(value, &scope)?;
+                        parts(value, &scope, templates)?;
                     }
                     if let Some((format, _)) = &spec.format {
-                        parts(format, &scope)?;
+                        parts(format, &scope, templates)?;
                     }
                     instructions(&spec.body, scope.clone(), templates)?;
                 }
                 Instruction::Namespace(name, content) => {
-                    parts(name, &scope)?;
+                    parts(name, &scope, templates)?;
                     value(content, &scope, templates)?;
                 }
                 Instruction::Try { body, catches } => {
@@ -3721,7 +3899,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 Instruction::NextIteration(params) => {
                     for p in params {
                         if let BindingValue::Select(e) = &p.value {
-                            validate_expression(e, &scope)?;
+                            validate_expression(e, &scope, templates.functions)?;
                         }
                     }
                 }
@@ -3739,26 +3917,28 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 }
                 Instruction::LiteralAttributes(attributes) => {
                     for (_, value) in attributes {
-                        parts(value, &scope)?;
+                        parts(value, &scope, templates)?;
                     }
                 }
                 Instruction::Comment(c)
                 | Instruction::Message(c, _)
                 | Instruction::AssertFailure(c) => value(c, &scope, templates)?,
                 Instruction::Pi(n, c) => {
-                    parts(n, &scope)?;
+                    parts(n, &scope, templates)?;
                     value(c, &scope, templates)?;
                 }
                 Instruction::Text(_) | Instruction::NextMatch(_) | Instruction::ApplyImports(_) => {
                 }
-                Instruction::TextValue(items) => parts(items, &scope)?,
+                Instruction::TextValue(items) => parts(items, &scope, templates)?,
                 Instruction::Value(e, _)
                 | Instruction::Apply(e, _, _, _)
                 | Instruction::CopyOf(e, _)
-                | Instruction::Sequence(e) => validate_expression(e, &scope)?,
+                | Instruction::Sequence(e) => validate_expression(e, &scope, templates.functions)?,
                 Instruction::Bind(b) => {
                     match &b.value {
-                        BindingValue::Select(e) => validate_expression(e, &scope)?,
+                        BindingValue::Select(e) => {
+                            validate_expression(e, &scope, templates.functions)?
+                        }
                         BindingValue::Body(body)
                         | BindingValue::Document(body)
                         | BindingValue::Raw(body) => instructions(body, scope.clone(), templates)?,
@@ -3770,7 +3950,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 } => {
                     for (_, parts) in attributes {
                         for e in parts {
-                            validate_expression(e, &scope)?;
+                            validate_expression(e, &scope, templates.functions)?;
                         }
                     }
                     instructions(body, scope.clone(), templates)?;
@@ -3778,29 +3958,29 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 Instruction::Document(body) => instructions(body, scope.clone(), templates)?,
                 Instruction::Copy { select, body, .. } => {
                     if let Some(e) = select {
-                        validate_expression(e, &scope)?;
+                        validate_expression(e, &scope, templates.functions)?;
                     }
                     instructions(body, scope.clone(), templates)?;
                 }
                 Instruction::ForEach(e, _, body) | Instruction::If(e, body) => {
-                    validate_expression(e, &scope)?;
+                    validate_expression(e, &scope, templates.functions)?;
                     instructions(body, scope.clone(), templates)?;
                 }
                 Instruction::ForEachGroup(e, grouping, keys, body) => {
-                    validate_expression(e, &scope)?;
+                    validate_expression(e, &scope, templates.functions)?;
                     if let Grouping::By(g, _) | Grouping::Adjacent(g, _) = grouping {
-                        validate_expression(g, &scope)?;
+                        validate_expression(g, &scope, templates.functions)?;
                     }
                     if let Grouping::Starting(branches) | Grouping::Ending(branches) = grouping {
                         for branch in branches {
                             for predicate in crate::pattern::expressions(branch) {
-                                validate_expression(predicate, &scope)?;
+                                validate_expression(predicate, &scope, templates.functions)?;
                             }
                         }
                     }
                     for k in keys {
                         for e in k.expressions() {
-                            validate_expression(e, &scope)?;
+                            validate_expression(e, &scope, templates.functions)?;
                         }
                     }
                     instructions(body, scope.clone(), templates)?;
@@ -3808,7 +3988,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 Instruction::Choose(branches) => {
                     for (test, body) in branches {
                         if let Some(e) = test {
-                            validate_expression(e, &scope)?;
+                            validate_expression(e, &scope, templates.functions)?;
                         }
                         instructions(body, scope.clone(), templates)?;
                     }
@@ -3848,7 +4028,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     }
                     for p in params {
                         match &p.value {
-                            BindingValue::Select(e) => validate_expression(e, &scope)?,
+                            BindingValue::Select(e) => {
+                                validate_expression(e, &scope, templates.functions)?
+                            }
                             BindingValue::Body(body)
                             | BindingValue::Document(body)
                             | BindingValue::Raw(body) => {
@@ -3894,10 +4076,11 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
             .filter_map(|t| t.name.clone().map(|n| (n, t)))
             .collect(),
         backwards: sheet.backwards,
+        functions: &sheet.functions,
     };
     for b in &sheet.globals {
         match &b.value {
-            BindingValue::Select(e) => validate_expression(e, &globals)?,
+            BindingValue::Select(e) => validate_expression(e, &globals, templates.functions)?,
             BindingValue::Body(body) | BindingValue::Document(body) | BindingValue::Raw(body) => {
                 instructions(body, globals.clone(), &templates)?
             }
@@ -3907,29 +4090,29 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
         for definition in definitions {
             for branch in &definition.branches {
                 for predicate in crate::pattern::expressions(branch) {
-                    validate_expression(predicate, &globals)?;
+                    validate_expression(predicate, &globals, templates.functions)?;
                 }
             }
-            validate_expression(&definition.value, &globals)?;
+            validate_expression(&definition.value, &globals, templates.functions)?;
         }
     }
     for function in sheet.functions.values() {
         let mut scope = globals.clone();
         scope.extend(function.params.iter().map(|(p, _)| p.clone()));
-        validate_expression(&function.body, &scope)?;
+        validate_expression(&function.body, &scope, templates.functions)?;
     }
     for t in &sheet.templates {
         if let Some(branches) = &t.pattern {
             for b in branches {
                 for expression_in_pattern in crate::pattern::expressions(b) {
-                    validate_expression(expression_in_pattern, &globals)?;
+                    validate_expression(expression_in_pattern, &globals, templates.functions)?;
                 }
             }
         }
         let mut scope = globals.clone();
         for p in &t.params {
             match &p.value {
-                BindingValue::Select(e) => validate_expression(e, &scope)?,
+                BindingValue::Select(e) => validate_expression(e, &scope, templates.functions)?,
                 BindingValue::Body(body)
                 | BindingValue::Document(body)
                 | BindingValue::Raw(body) => instructions(body, scope.clone(), &templates)?,

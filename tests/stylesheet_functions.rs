@@ -54,6 +54,28 @@ fn function_declaration_errors_are_static() {
 }
 
 #[test]
+fn stylesheet_function_calls_are_resolved_statically_in_all_expression_contexts() {
+    for body in [
+        r#"<xsl:template match="*[f:missing(.)]"/>"#,
+        r#"<xsl:template match="/"><xsl:if test="false()"><xsl:sequence select="f:missing()"/></xsl:if></xsl:template>"#,
+        r#"<xsl:variable name="v" select="f:missing#1"/><xsl:template match="/"/>"#,
+        r#"<xsl:key name="k" match="*" use="f:missing(.)"/><xsl:template match="/"/>"#,
+        r#"<xsl:function name="f:test"><xsl:sequence select="f:missing()"/></xsl:function><xsl:template match="/"/>"#,
+    ] {
+        let stylesheet = format!(
+            r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:f="urn:f">{body}</xsl:stylesheet>"#
+        );
+        assert_eq!(
+            Stylesheet::compile(&stylesheet).unwrap_err().code,
+            "XPST0017",
+            "{body}"
+        );
+    }
+    let forward = r#"<xsl:function name="f:first"><xsl:sequence select="f:later()"/></xsl:function><xsl:function name="f:later" visibility="private"><xsl:sequence select="42"/></xsl:function>"#;
+    assert_eq!(run(forward, "f:first()").unwrap(), "42");
+}
+
+#[test]
 fn pure_function_constructors_support_branches_and_scoped_sequences() {
     let declarations = r#"<xsl:function name="f:values"><xsl:param name="n"/><xsl:sequence select="0"/><xsl:variable name="x" select="$n * 2"/><xsl:if test="$n gt 1"><xsl:variable name="y" select="$x + 1"/><xsl:sequence select="$y"/></xsl:if><xsl:choose><xsl:when test="$n = 1"><xsl:sequence select="11, 12"/></xsl:when><xsl:when test="$n = 2"><xsl:sequence select="$x"/></xsl:when><xsl:otherwise><xsl:sequence select="99"/></xsl:otherwise></xsl:choose><xsl:sequence select="$x"/></xsl:function>"#;
     assert_eq!(

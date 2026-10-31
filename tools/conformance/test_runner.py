@@ -204,6 +204,32 @@ class Assertions(unittest.TestCase):
             registry = {'parent':(parent,base/'global'),id(parent):(parent,base/'global'),id(reference):(reference,base/'case')}
             self.assertEqual(environment(parent,registry)['source'],'<global/>')
             self.assertEqual(environment(reference,registry)['source'],'<local/>')
+            self.assertEqual(environment(parent,registry)['sourceURI'], (base/'global'/'source.xml').resolve().as_uri())
+            self.assertEqual(environment(reference,registry)['sourceURI'], (base/'case'/'source.xml').resolve().as_uri())
+            override = node(f'<environment xmlns="{NS[1:-1]}" ref="parent"><source role="."><content>&lt;inline/&gt;</content></source></environment>')
+            registry[id(override)] = (override, base/'case')
+            self.assertNotIn('sourceURI', environment(override, registry))
+            mapped = node(f'<environment xmlns="{NS[1:-1]}"><source role="." file="source.xml" uri="https://example.test/input.xml"/></environment>')
+            registry[id(mapped)] = (mapped, base/'case')
+            self.assertEqual(environment(mapped, registry)['sourceURI'], 'https://example.test/input.xml')
+
+    def test_environment_resolves_resource_and_stylesheet_uris(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            (base/'main.xsl').write_text('<stylesheet/>')
+            (base/'data.xml').write_text('<data/>')
+            setup = node(f'<environment xmlns="{NS[1:-1]}"><stylesheet file="main.xsl"/><source file="data.xml" uri="data.xml"/></environment>')
+            result = environment(setup, {id(setup): (setup, base)})
+            self.assertEqual(result['stylesheetURI'], (base/'main.xsl').resolve().as_uri())
+            self.assertEqual(result['resources'], {(base/'data.xml').resolve().as_uri(): '<data/>'})
+            invalid = node(f'<environment xmlns="{NS[1:-1]}"><source role="$variable" file="data.xml"/></environment>')
+            with self.assertRaises(HarnessError):
+                environment(invalid, {id(invalid): (invalid, base)})
+            (base/'binary.dat').write_bytes(b'\xff')
+            binary = node(f'<environment xmlns="{NS[1:-1]}"><resource file="binary.dat" uri="urn:binary"/></environment>')
+            with self.assertRaises(HarnessError):
+                environment(binary, {id(binary): (binary, base)})
 
 
 class XPathAssertions(unittest.TestCase):

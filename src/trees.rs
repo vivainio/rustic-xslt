@@ -15,7 +15,11 @@ pub(crate) struct Trees<'a> {
     used: Cell<usize>,
 }
 impl<'a> Trees<'a> {
-    pub fn load_document(&self, xml: String) -> Result<Value<'a>, Diagnostic> {
+    pub fn load_document(
+        &self,
+        xml: String,
+        uri: Option<&'a str>,
+    ) -> Result<Value<'a>, Diagnostic> {
         if xml.len() > self.max.saturating_sub(self.used.get()) {
             return Err(Diagnostic::new(
                 "XPDY0130",
@@ -26,7 +30,9 @@ impl<'a> Trees<'a> {
         self.used.set(self.used.get() + xml.len());
         let text: &'a str = self.sources.alloc(xml).as_str();
         let doc: &'a roxmltree::Document<'a> = self.documents.alloc(crate::parse(text, "run")?);
-        Ok(vec![Item::Node(XNode::tree(doc.root()))])
+        Ok(vec![Item::Node(
+            XNode::tree(doc.root()).with_document_uri(uri),
+        )])
     }
     pub fn new(
         sources: &'a Arena<String>,

@@ -46,6 +46,7 @@ fn unsupported() -> Diagnostic {
 
 fn is_descendant_separator(step: &Step) -> bool {
     matches!(step.axis, Axis::DescendantOrSelf)
+        && !step.explicit_axis
         && matches!(step.test, Test::Node)
         && step.predicates.is_empty()
 }
@@ -165,6 +166,20 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
                 steps: vec![],
                 gaps: vec![],
                 selected: Some(Expr::Variable(name)),
+                predicate: None,
+                required: vec![],
+                excluded: vec![],
+                path_map: None,
+            });
+            Ok(())
+        }
+        Expr::LookupContext(call, namespaces) if matches!(call.as_ref(), Expr::Call(name, _) if matches!(name.as_str(), "doc" | "document")) =>
+        {
+            out.push(Parts {
+                absolute: false,
+                steps: vec![],
+                gaps: vec![],
+                selected: Some(Expr::LookupContext(call, namespaces)),
                 predicate: None,
                 required: vec![],
                 excluded: vec![],
@@ -332,14 +347,20 @@ fn validate_grouping_functions(expression: &Expr) -> Result<(), Diagnostic> {
             Expr::Evaluate {
                 xpath,
                 context,
+                namespace_context,
+                schema_aware,
+                base_uri,
                 params,
                 with_params,
                 ..
             } => {
                 pending.extend(with_params.iter().map(|e| e.as_ref()));
+                pending.extend(namespace_context.iter().map(|e| e.as_ref()));
+                pending.extend(schema_aware.iter().flatten());
+                pending.extend(base_uri.iter().flatten());
                 pending.push(xpath);
                 pending.extend(context.iter().map(|e| e.as_ref()));
-                pending.extend(params.iter().map(|(_, e)| e));
+                pending.extend(params.iter().map(|(_, e, _)| e));
             }
             Expr::String(_)
             | Expr::Number(_)
@@ -652,6 +673,9 @@ fn step_matches<'a>(
 ) -> Result<bool, Diagnostic> {
     budget.tick()?;
     let step = &branch.steps[index];
+    if step.explicit_axis && matches!(step.axis, Axis::Child) && node.is_document() {
+        return Ok(false);
+    }
     if matches!(step.axis, Axis::Descendant | Axis::DescendantOrSelf) {
         if index == 0 {
             if branch.absolute && !node.root().is_document() {

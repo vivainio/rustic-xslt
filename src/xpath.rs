@@ -42,6 +42,7 @@ pub(crate) enum Axis {
 #[derive(Debug, Clone)]
 pub(crate) struct Step {
     pub axis: Axis,
+    pub explicit_axis: bool,
     pub test: Test,
     pub predicates: Vec<Expr>,
 }
@@ -77,7 +78,12 @@ pub(crate) enum Expr {
     Evaluate {
         xpath: Box<Expr>,
         context: Option<Box<Expr>>,
-        params: Vec<(String, Expr)>,
+        namespace_context: Option<Box<Expr>>,
+        schema_aware: Option<Vec<Expr>>,
+        base_uri: Option<Vec<Expr>>,
+        stylesheet_base_uri: Option<String>,
+        params: Vec<(String, Expr, Option<crate::seqtype::SequenceType>)>,
+        result_type: Option<crate::seqtype::SequenceType>,
         with_params: Option<Box<Expr>>,
         namespaces: BTreeMap<String, String>,
     },
@@ -271,6 +277,7 @@ pub(crate) struct UserFunction {
     pub params: Vec<(String, Option<crate::seqtype::SequenceType>)>,
     pub body: Expr,
     pub result: Option<crate::seqtype::SequenceType>,
+    pub dynamic_visible: bool,
 }
 /// Global variables are also bound under this prefix so function bodies can reach
 /// them even when a caller's local variable shadows the plain name.
@@ -290,6 +297,22 @@ pub(crate) const CURRENT_ITEM: &str = "\u{0}current-item";
 pub(crate) const CURRENT_GROUP: &str = "\u{0}current-group";
 pub(crate) const REGEX_GROUPS: &str = "\u{0}regex-groups";
 pub(crate) const CURRENT_KEY: &str = "\u{0}current-grouping-key";
+const DYNAMIC_LOOKUP_CONTEXT: &str = "\u{0}dynamic-lookup-context";
+pub(crate) const STATIC_BASE_URI: &str = "\u{0}static-base-uri";
+fn base_sensitive(name: &str) -> bool {
+    matches!(
+        name,
+        "static-base-uri"
+            | "resolve-uri"
+            | "unparsed-text"
+            | "unparsed-text-available"
+            | "unparsed-text-lines"
+            | "json-doc"
+            | "doc"
+            | "doc-available"
+            | "document"
+    )
+}
 pub(crate) type DecimalFormats = std::sync::Arc<BTreeMap<String, crate::format_number::Format>>;
 thread_local! {
     static DOCUMENT_URIS: std::cell::RefCell<std::collections::BTreeSet<String>> =
@@ -322,6 +345,7 @@ pub(crate) struct Budget {
     pub functions: FunctionTable,
     pub keys: KeyTable,
     pub xpath_only: bool,
+    dynamic_lookup: bool,
     /// Keys currently being evaluated, identified by expanded name and document root.
     active_keys: Vec<KeyIdentity>,
     key_indexes: BTreeMap<KeyIdentity, KeyIndex>,
@@ -345,6 +369,7 @@ impl Budget {
             functions: FunctionTable::default(),
             keys: KeyTable::default(),
             xpath_only: false,
+            dynamic_lookup: false,
             active_keys: vec![],
             key_indexes: BTreeMap::new(),
             decimal_formats: DecimalFormats::default(),
@@ -904,7 +929,22 @@ impl Parser {
             if matches!(local.as_str(), "doc" | "document" | "doc-available")
                 && let Some(Expr::String(uri)) = args.first()
             {
-                DOCUMENT_URIS.with(|uris| uris.borrow_mut().insert(uri.trim().to_owned()));
+                let original = if local == "document" {
+                    uri.trim()
+                        .split_once('#')
+                        .map_or(uri.trim(), |(path, _)| path)
+                        .to_owned()
+                } else {
+                    uri.trim().to_owned()
+                };
+                let resolved = if local != "document" || args.len() == 1 {
+                    self.namespaces
+                        .get(STATIC_BASE_URI)
+                        .and_then(|base| crate::uri_resolution::resolve(&original, Some(base)).ok())
+                } else {
+                    None
+                };
+                DOCUMENT_URIS.with(|uris| uris.borrow_mut().insert(resolved.unwrap_or(original)));
             }
             if local == "format-number"
                 && let Some(Expr::String(format_name)) = args.get_mut(2)
@@ -947,7 +987,7 @@ impl Parser {
                     "XTDE1400",
                 );
             }
-            let lookup = local == "function-lookup";
+            let lookup = local == "function-lookup" || base_sensitive(&local);
             let call = Expr::Call(local, args);
             Ok(if lookup {
                 Expr::LookupContext(Box::new(call), self.namespaces.clone())
@@ -1131,6 +1171,7 @@ impl Parser {
             Box::new(base),
             vec![Step {
                 axis: Axis::DescendantOrSelf,
+                explicit_axis: false,
                 test: Test::Node,
                 predicates: vec![],
             }],
@@ -1317,6 +1358,15 @@ impl Parser {
                                     | "type-available"
                                     | "function-available"
                                     | "function-lookup"
+                                    | "static-base-uri"
+                                    | "resolve-uri"
+                                    | "unparsed-text"
+                                    | "unparsed-text-available"
+                                    | "unparsed-text-lines"
+                                    | "json-doc"
+                                    | "doc"
+                                    | "doc-available"
+                                    | "document"
                             )
                             .then(|| self.namespaces.clone());
                             Expr::FunctionRef(name, arity, namespaces)
@@ -1373,6 +1423,15 @@ impl Parser {
                                     | "type-available"
                                     | "function-available"
                                     | "function-lookup"
+                                    | "static-base-uri"
+                                    | "resolve-uri"
+                                    | "unparsed-text"
+                                    | "unparsed-text-available"
+                                    | "unparsed-text-lines"
+                                    | "json-doc"
+                                    | "doc"
+                                    | "doc-available"
+                                    | "document"
                             )
                             .then(|| self.namespaces.clone());
                             Expr::Partial(
@@ -1516,6 +1575,7 @@ impl Parser {
             || matches!(self.peek(), Token::Symbol(s) if [".", "..", "@", "*"].contains(&s.as_str()))
     }
     fn step(&mut self) -> Result<Step, Diagnostic> {
+        let mut explicit_axis = false;
         let (axis, test) = if self.eat(".") {
             (Axis::SelfNode, Test::Node)
         } else if self.eat("..") {
@@ -1529,6 +1589,7 @@ impl Parser {
             if let Token::Name(n) = self.peek().clone()
                 && self.tokens.get(self.index + 1) == Some(&Token::Symbol("::".into()))
             {
+                explicit_axis = true;
                 self.next();
                 self.next();
                 axis = match n.as_str() {
@@ -1615,6 +1676,12 @@ impl Parser {
                     _ => return Err(syntax("expected node test")),
                 }
             };
+            if !explicit_axis
+                && matches!(axis, Axis::Child)
+                && matches!(test, Test::AttributeKind(_))
+            {
+                axis = Axis::Attribute;
+            }
             (axis, test)
         };
         let mut predicates = vec![];
@@ -1624,6 +1691,7 @@ impl Parser {
         }
         Ok(Step {
             axis,
+            explicit_axis,
             test,
             predicates,
         })
@@ -1827,6 +1895,29 @@ fn ordered<'a>(mut nodes: Vec<XNode<'a>>) -> Value<'a> {
     nodes.dedup();
     nodes.into_iter().map(Item::Node).collect()
 }
+fn node_base_uri(node: XNode<'_>, budget: &mut Budget) -> Result<Option<String>, Diagnostic> {
+    let mut path = Vec::new();
+    let mut current = Some(node);
+    let mut base = None;
+    while let Some(node) = current {
+        budget.tick()?;
+        if let Some(uri) = node.document_uri() {
+            base = Some(uri.to_owned());
+        }
+        if node.is_element()
+            && let Some(uri) = node
+                .raw
+                .attribute(("http://www.w3.org/XML/1998/namespace", "base"))
+        {
+            path.push(uri);
+        }
+        current = node.parent();
+    }
+    for reference in path.into_iter().rev() {
+        base = crate::uri_resolution::resolve(reference, base.as_deref()).ok();
+    }
+    Ok(base)
+}
 pub(crate) fn filter<'a>(
     mut value: Value<'a>,
     predicates: &[Expr],
@@ -1871,7 +1962,12 @@ fn evaluate_dynamic<'a>(
     let Expr::Evaluate {
         xpath,
         context,
+        namespace_context,
+        schema_aware,
+        base_uri,
+        stylesheet_base_uri,
         params,
+        result_type,
         with_params,
         namespaces,
     } = expression
@@ -1879,14 +1975,69 @@ fn evaluate_dynamic<'a>(
         unreachable!();
     };
     let source = eval(xpath, focus, vars, budget, depth + 1, backwards)?;
-    let source = match source.as_slice() {
-        [item] => atomize(item).string(),
-        _ => return Err(err("XTDE3160", "xsl:evaluate needs a single XPath string")),
-    };
+    let source = crate::string_functions::string(&source, false, backwards)?;
     for _ in source.bytes() {
         budget.tick()?;
     }
-    let parsed = with_xpath_profile(|| parse(&source, namespaces.clone())).map_err(|mut e| {
+    if let Some(parts) = schema_aware {
+        let mut value = String::new();
+        for part in parts {
+            let mut items = eval(part, focus, vars, budget, depth + 1, backwards)?;
+            if backwards {
+                items.truncate(1);
+            }
+            value.push_str(&simple_string(&items, " ", usize::MAX, backwards)?);
+        }
+        if !matches!(
+            value.trim_matches([' ', '\t', '\r', '\n']),
+            "yes" | "no" | "true" | "false" | "1" | "0"
+        ) {
+            return Err(err("XTDE0030", "invalid xsl:evaluate schema-aware value"));
+        }
+    }
+    let mut target_namespaces = if let Some(expr) = namespace_context {
+        let value = eval(expr, focus, vars, budget, depth + 1, backwards)?;
+        let [Item::Node(node)] = value.as_slice() else {
+            return Err(err(
+                "XTTE3170",
+                "xsl:evaluate namespace-context must be one node",
+            ));
+        };
+        let mut bindings = BTreeMap::new();
+        if node.is_element() {
+            for ns in node.raw.namespaces() {
+                bindings.insert(ns.name().unwrap_or("").to_owned(), ns.uri().to_owned());
+                if ns.name().is_none() && !ns.uri().is_empty() {
+                    bindings.insert(
+                        crate::qname::XPATH_DEFAULT_NAMESPACE.into(),
+                        ns.uri().into(),
+                    );
+                }
+            }
+        }
+        bindings.insert("xml".into(), "http://www.w3.org/XML/1998/namespace".into());
+        bindings
+    } else {
+        namespaces.clone()
+    };
+    target_namespaces.insert(DYNAMIC_LOOKUP_CONTEXT.into(), String::new());
+    let dynamic_base = if let Some(parts) = base_uri {
+        let mut uri = String::new();
+        for part in parts {
+            let mut value = eval(part, focus, vars, budget, depth + 1, backwards)?;
+            if backwards {
+                value.truncate(1);
+            }
+            uri.push_str(&simple_string(&value, " ", usize::MAX, backwards)?);
+        }
+        Some(uri)
+    } else {
+        stylesheet_base_uri.clone()
+    };
+    if let Some(uri) = &dynamic_base {
+        target_namespaces.insert(STATIC_BASE_URI.into(), uri.clone());
+    }
+    let parsed = with_xpath_profile(|| parse(&source, target_namespaces)).map_err(|mut e| {
         e.code = "XTDE3160".into();
         e.phase = "run";
         e
@@ -1896,13 +2047,19 @@ fn evaluate_dynamic<'a>(
         .filter(|(k, _)| k.starts_with(GLOBAL_PREFIX))
         .map(|(k, v)| (k.clone(), v.clone()))
         .collect();
+    if let Some(uri) = dynamic_base {
+        scope.insert(STATIC_BASE_URI.into(), vec![Item::AnyUri(uri)]);
+    }
     let mut names = std::collections::BTreeSet::new();
-    for (name, value) in params {
+    for (name, value, ty) in params {
         names.insert(name.clone());
-        scope.insert(
-            name.clone(),
-            eval(value, focus, vars, budget, depth + 1, backwards)?,
-        );
+        let value = eval(value, focus, vars, budget, depth + 1, backwards)?;
+        let value = if let Some(ty) = ty {
+            ty.convert(value, "XTTE0590")?
+        } else {
+            value
+        };
+        scope.insert(name.clone(), value);
     }
     if let Some(map_expr) = with_params {
         let map_value = eval(map_expr, focus, vars, budget, depth + 1, backwards)?;
@@ -1928,15 +2085,22 @@ fn evaluate_dynamic<'a>(
             scope.insert(name, value.clone());
         }
     }
-    crate::compile::validate_expression(&parsed, &names).map_err(|mut e| {
-        e.code = "XTDE3160".into();
-        e.phase = "run";
-        e
-    })?;
+    crate::compile::validate_dynamic_expression(&parsed, &names, &budget.functions).map_err(
+        |mut e| {
+            e.code = "XTDE3160".into();
+            e.phase = "run";
+            e
+        },
+    )?;
     let inner = match context {
         Some(c) => {
             let items = eval(c, focus, vars, budget, depth + 1, backwards)?;
             match items.as_slice() {
+                [] => Focus {
+                    item: Item::Absent,
+                    position: 0,
+                    size: 0,
+                },
                 [item] => Focus {
                     item: item.clone(),
                     position: 1,
@@ -1952,7 +2116,11 @@ fn evaluate_dynamic<'a>(
         },
     };
     scope.insert(CURRENT_ITEM.into(), vec![inner.item.clone()]);
-    eval(&parsed, &inner, &scope, budget, depth + 1, backwards)
+    let value = eval(&parsed, &inner, &scope, budget, depth + 1, false)?;
+    match result_type {
+        Some(ty) => ty.convert(value, "XPTY0004"),
+        None => Ok(value),
+    }
 }
 pub(crate) fn eval<'a>(
     e: &Expr,
@@ -2041,10 +2209,9 @@ pub(crate) fn eval<'a>(
             Item::Absent => return Err(err("XPDY0002", "context item is absent")),
             _ => return Err(err("XPTY0020", "root requires a node context")),
         },
-        Expr::LookupContext(value, namespaces) => attach_lookup_context(
-            eval(value, focus, vars, budget, depth + 1, backwards)?,
-            namespaces,
-        ),
+        Expr::LookupContext(value, namespaces) => {
+            eval_lookup_context(value, namespaces, focus, vars, budget, depth, backwards)?
+        }
         Expr::StaticName(value, namespaces, code) => {
             let value = eval(value, focus, vars, budget, depth + 1, backwards)?;
             static_name(&value, namespaces, backwards, *code != "XTDE1390", code)?
@@ -2645,13 +2812,56 @@ pub(crate) fn eval<'a>(
 }
 fn call_named<'a>(
     name: &str,
-    args: Vec<Value<'a>>,
+    mut args: Vec<Value<'a>>,
     focus: &Focus<'a>,
     vars: &Variables<'a>,
     budget: &mut Budget,
     depth: usize,
     backwards: bool,
 ) -> Result<Value<'a>, Diagnostic> {
+    if name == "static-base-uri" {
+        return Ok(vars.get(STATIC_BASE_URI).cloned().unwrap_or_default());
+    }
+    if name == "resolve-uri"
+        && args.len() == 1
+        && let Some(base) = vars.get(STATIC_BASE_URI)
+    {
+        args.push(base.clone());
+    }
+    if matches!(name, "doc" | "doc-available")
+        && let Some([Item::AnyUri(base)]) = vars.get(STATIC_BASE_URI).map(Vec::as_slice)
+        && !args[0].is_empty()
+    {
+        let uri = crate::string_functions::string(&args[0], false, backwards)?;
+        match crate::uri_resolution::resolve(uri.trim_matches([' ', '\t', '\r', '\n']), Some(base))
+        {
+            Ok(uri) => args[0] = vec![Item::String(uri)],
+            Err(_) if name == "doc-available" => return Ok(vec![Item::Boolean(false)]),
+            Err(_) => return Err(err("FODC0005", "invalid document URI")),
+        }
+    }
+    if matches!(
+        name,
+        "unparsed-text" | "unparsed-text-available" | "unparsed-text-lines" | "json-doc"
+    ) && let Some([Item::AnyUri(base)]) = vars.get(STATIC_BASE_URI).map(Vec::as_slice)
+        && !args[0].is_empty()
+    {
+        let uri = crate::string_functions::string(&args[0], false, backwards)?;
+        match crate::uri_resolution::resolve(&uri, Some(base)) {
+            Ok(uri) => args[0] = vec![Item::String(uri)],
+            Err(_) if name == "unparsed-text-available" => return Ok(vec![Item::Boolean(false)]),
+            Err(_) => {
+                return Err(err(
+                    if name == "json-doc" {
+                        "FODC0005"
+                    } else {
+                        "FOUT1170"
+                    },
+                    "invalid resource URI",
+                ));
+            }
+        }
+    }
     Ok(if name == "current" {
         match vars.get(CURRENT_ITEM).and_then(|value| value.first()) {
             Some(item) if !matches!(item, Item::Absent) => vec![item.clone()],
@@ -2705,23 +2915,26 @@ fn call_named<'a>(
             }
         }
         ordered(found)
-    } else if matches!(name, "doc" | "document" | "doc-available") {
-        let mut found: Value<'a> = vec![];
-        let mut available = true;
-        for item in &args[0] {
-            let uri = atomize(item).string();
-            match vars.get(&document_key(uri.trim())) {
-                Some(document) => found.extend(document.iter().cloned()),
-                None => available = false,
-            }
+    } else if matches!(name, "doc" | "doc-available") {
+        if args[0].is_empty() {
+            return Ok(if name == "doc-available" {
+                vec![Item::Boolean(false)]
+            } else {
+                vec![]
+            });
         }
+        let uri = crate::string_functions::string(&args[0], false, backwards)?;
+        let uri = uri.trim_matches([' ', '\t', '\r', '\n']);
+        let document = vars.get(&document_key(uri));
         if name == "doc-available" {
-            vec![Item::Boolean(available && args[0].len() == 1)]
-        } else if !available {
-            return Err(err("FODC0002", "the document could not be loaded"));
+            vec![Item::Boolean(document.is_some())]
         } else {
-            found
+            document
+                .cloned()
+                .ok_or_else(|| err("FODC0002", "the document could not be loaded"))?
         }
+    } else if name == "document" {
+        evaluate_document(&args, vars, budget, backwards)?
     } else if name == "regex-group" {
         let index = match args[0].as_slice() {
             [Item::Number(n)] => n.double(),
@@ -2754,6 +2967,67 @@ fn call_named<'a>(
     } else {
         function(name, &args, focus, budget, backwards)?
     })
+}
+#[inline(never)]
+fn evaluate_document<'a>(
+    args: &[Value<'a>],
+    vars: &Variables<'a>,
+    budget: &mut Budget,
+    backwards: bool,
+) -> Result<Value<'a>, Diagnostic> {
+    let explicit_base = if let Some(value) = args.get(1) {
+        let node = match value.as_slice() {
+            [Item::Node(node)] => *node,
+            [Item::Node(node), ..] if backwards => *node,
+            _ => return Err(err("XPTY0004", "document base must be a single node")),
+        };
+        Some(node_base_uri(node, budget)?)
+    } else {
+        None
+    };
+    let mut nodes = Vec::new();
+    for item in flatten_arrays(args[0].clone())? {
+        budget.tick()?;
+        let base = match (&explicit_base, &item) {
+            (Some(base), _) => base.clone(),
+            (None, Item::Node(node)) => node_base_uri(*node, budget)?,
+            (None, _) => vars
+                .get(STATIC_BASE_URI)
+                .and_then(|value| value.first())
+                .map(Item::string),
+        };
+        let uri = match atomize(&item) {
+            Item::String(s) | Item::Untyped(s) | Item::AnyUri(s) | Item::DerivedString(_, s) => {
+                crate::string_functions::collapse_xml_whitespace(&s)
+            }
+            _ => return Err(err("XPTY0004", "document URI must be a string or node")),
+        };
+        let resolved = match crate::uri_resolution::resolve(&uri, base.as_deref()) {
+            Ok(uri) => uri,
+            Err(error) if error.code == "FONS0005" && base.is_none() => {
+                return Err(err("XTDE1162", "document URI has no base URI"));
+            }
+            Err(_) => return Err(err("FODC0005", "invalid document URI")),
+        };
+        let (document_uri, fragment) = resolved
+            .split_once('#')
+            .map_or((resolved.as_str(), None), |(uri, fragment)| {
+                (uri, Some(fragment))
+            });
+        let document = vars
+            .get(&document_key(document_uri))
+            .ok_or_else(|| err("FODC0002", "the document could not be loaded"))?;
+        for item in document {
+            if let Item::Node(node) = item {
+                nodes.push(if let Some(fragment) = fragment {
+                    crate::xpointer::select(*node, fragment, budget)?
+                } else {
+                    *node
+                });
+            }
+        }
+    }
+    Ok(ordered(nodes))
 }
 /// Atomization of arrays: members are atomized recursively; maps and functions
 /// have no typed value (FOTY0013).
@@ -2815,6 +3089,42 @@ fn static_name<'a>(
     };
     Ok(vec![Item::String(resolved)])
 }
+#[inline(never)]
+fn eval_lookup_context<'a>(
+    value: &Expr,
+    namespaces: &BTreeMap<String, String>,
+    focus: &Focus<'a>,
+    vars: &Variables<'a>,
+    budget: &mut Budget,
+    depth: usize,
+    backwards: bool,
+) -> Result<Value<'a>, Diagnostic> {
+    let result = if let Expr::Call(name, args) = value
+        && (base_sensitive(name)
+            || name == "function-lookup" && namespaces.contains_key(DYNAMIC_LOOKUP_CONTEXT))
+    {
+        let args = args
+            .iter()
+            .map(|arg| eval(arg, focus, vars, budget, depth + 1, backwards))
+            .collect::<Result<Vec<_>, _>>()?;
+        if name == "function-lookup" {
+            with_dynamic_lookup(budget, |budget| {
+                call_named(name, args, focus, vars, budget, depth + 1, backwards)
+            })?
+        } else {
+            let mut scope = vars.clone();
+            scope.remove(STATIC_BASE_URI);
+            if let Some(uri) = namespaces.get(STATIC_BASE_URI) {
+                scope.insert(STATIC_BASE_URI.into(), vec![Item::AnyUri(uri.clone())]);
+            }
+            call_named(name, args, focus, &scope, budget, depth + 1, backwards)?
+        }
+    } else {
+        eval(value, focus, vars, budget, depth + 1, backwards)?
+    };
+    Ok(attach_lookup_context(result, namespaces))
+}
+
 fn unwrap_lookup_call(expr: Expr) -> Expr {
     match expr {
         Expr::LookupContext(inner, _) => *inner,
@@ -2835,6 +3145,15 @@ fn attach_lookup_context<'a>(value: Value<'a>, namespaces: &BTreeMap<String, Str
                             | "type-available"
                             | "function-available"
                             | "function-lookup"
+                            | "static-base-uri"
+                            | "resolve-uri"
+                            | "unparsed-text"
+                            | "unparsed-text-available"
+                            | "unparsed-text-lines"
+                            | "json-doc"
+                            | "doc"
+                            | "doc-available"
+                            | "document"
                     ) =>
                 {
                     Item::Function(std::rc::Rc::new(FunctionValue::Named(
@@ -2873,6 +3192,17 @@ fn without_grouping_context<'a>(vars: &Variables<'a>) -> Variables<'a> {
         .filter(|(name, _)| !matches!(name.as_str(), CURRENT_GROUP | CURRENT_KEY))
         .map(|(name, value)| (name.clone(), value.clone()))
         .collect()
+}
+
+fn with_dynamic_lookup<T>(budget: &mut Budget, f: impl FnOnce(&mut Budget) -> T) -> T {
+    let previous_xpath = budget.xpath_only;
+    let previous_dynamic = budget.dynamic_lookup;
+    budget.xpath_only = true;
+    budget.dynamic_lookup = true;
+    let result = f(budget);
+    budget.xpath_only = previous_xpath;
+    budget.dynamic_lookup = previous_dynamic;
+    result
 }
 
 fn call_function_item<'a>(
@@ -2929,11 +3259,24 @@ fn call_function_item<'a>(
                     },
                 )?;
             }
-            let result = if vars.contains_key(CURRENT_GROUP) || vars.contains_key(CURRENT_KEY) {
-                let scope = without_grouping_context(vars);
-                call_named(name, args, focus, &scope, budget, depth + 1, backwards)?
+            let scope = without_grouping_context(vars);
+            let mut scope = scope;
+            if base_sensitive(name) {
+                scope.remove(STATIC_BASE_URI);
+                if let Some(uri) = namespaces.as_ref().and_then(|ns| ns.get(STATIC_BASE_URI)) {
+                    scope.insert(STATIC_BASE_URI.into(), vec![Item::AnyUri(uri.clone())]);
+                }
+            }
+            let dynamic = name == "function-lookup"
+                && namespaces
+                    .as_ref()
+                    .is_some_and(|ns| ns.contains_key(DYNAMIC_LOOKUP_CONTEXT));
+            let result = if dynamic {
+                with_dynamic_lookup(budget, |budget| {
+                    call_named(name, args, focus, &scope, budget, depth + 1, backwards)
+                })?
             } else {
-                call_named(name, args, focus, vars, budget, depth + 1, backwards)?
+                call_named(name, args, focus, &scope, budget, depth + 1, backwards)?
             };
             Ok(match namespaces {
                 Some(context) if name == "function-lookup" => {
@@ -3104,7 +3447,8 @@ fn higher_order<'a>(
                     let expanded = format!("Q{{{uri}}}{local}");
                     budget
                         .functions
-                        .contains_key(&(expanded.clone(), arity))
+                        .get(&(expanded.clone(), arity))
+                        .is_some_and(|f| !budget.dynamic_lookup || f.dynamic_visible)
                         .then_some(expanded)
                 }
             };
@@ -3506,7 +3850,7 @@ fn call_user_function<'a>(
         .collect();
     for ((param, ty), value) in function.params.iter().zip(args) {
         let value = match ty {
-            Some(ty) => ty.convert(value, "XTTE0790")?,
+            Some(ty) => ty.convert(value, "XPTY0004")?,
             None => value,
         };
         scope.insert(param.clone(), value);
@@ -4060,11 +4404,22 @@ fn function<'a>(
                 .collect());
         }
         "base-uri" | "document-uri" => {
-            // Source documents carry no URI in this API.
-            if args.len() == 1 && args[0].len() > 1 {
-                return Err(err("XPTY0004", "expected an optional node"));
+            let node = match first.as_slice() {
+                [] => return Ok(vec![]),
+                [Item::Node(node)] => *node,
+                _ => return Err(err("XPTY0004", "expected an optional node")),
+            };
+            if name == "document-uri" {
+                return Ok(node
+                    .document_uri()
+                    .map(|uri| Item::AnyUri(uri.into()))
+                    .into_iter()
+                    .collect());
             }
-            return Ok(vec![]);
+            return Ok(node_base_uri(node, budget)?
+                .map(Item::AnyUri)
+                .into_iter()
+                .collect());
         }
         "collation-key" => {
             let text = crate::string_functions::string(&args[0], false, backwards)?;

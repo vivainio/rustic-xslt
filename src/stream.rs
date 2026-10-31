@@ -908,6 +908,7 @@ pub(crate) fn transform<R: BufRead, W: Write>(
                 initial_tunnel_parameters: options.initial_tunnel_parameters.clone(),
                 initial_template: Some(options.template.clone()),
                 initial_mode: None,
+                source_uri: None,
                 limits: crate::Limits {
                     max_output_bytes: remaining,
                     ..options.limits

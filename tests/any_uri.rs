@@ -77,6 +77,30 @@ fn namespace_functions_return_uri_atomic_values() {
         assert_eq!(evaluate(expr), expected, "{expr}");
     }
 }
+
+#[test]
+fn base_uri_uses_xml_base_and_checks_node_arguments() {
+    let style = source(
+        "string-join((base-uri(/r), base-uri(/r/a), base-uri(/r/a/@id), base-uri(/r/a/text()), base-uri(/r/a/comment()), base-uri(/r/a/processing-instruction())), ' ')",
+    );
+    let xml = r#"<r xml:base="https://example.test/root/"><a xml:base="../child/" id="v">text<!--c--><?pi data?></a></r>"#;
+    assert_eq!(
+        Stylesheet::compile(&style).unwrap().transform(xml).unwrap(),
+        "https://example.test/root/ https://example.test/child/ https://example.test/child/ https://example.test/child/ https://example.test/child/ https://example.test/child/"
+    );
+    for expr in ["base-uri(1)", "document-uri(1)", "(1, 2) ! base-uri()"] {
+        assert_eq!(
+            Stylesheet::compile(&source(expr))
+                .unwrap()
+                .transform("<r/>")
+                .unwrap_err()
+                .code,
+            "XPTY0004",
+            "{expr}"
+        );
+    }
+    assert_eq!(evaluate("empty(base-uri(()))"), "true");
+}
 #[test]
 fn uri_invalid_casts_and_boolean_use_report_type_errors() {
     for (expr, code) in [

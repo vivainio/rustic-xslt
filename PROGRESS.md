@@ -2942,3 +2942,261 @@ conformance claims. Smaller tested increments are committed independently.
   exposed a recursive stack overflow. Focused tests, runner tests, Clippy and
   the expanded XSLT gate then passed. Namespace context, base URI and typed
   parameters remain among the unsupported xsl:evaluate features.
+
+## Increment 261: empty dynamic context
+
+- An empty `xsl:evaluate` context-item now leaves the dynamic context item
+  absent; accessing it reports XPDY0002. Multiple items still report XTTE3210.
+- The dynamic-instruction integration tests pass, including the empty and
+  multiple-item cases. Namespace context and base URI remain unsupported.
+
+## Increment 262: dynamic namespace context
+
+- Support `xsl:evaluate` namespace-context using the selected node's in-scope
+  bindings and default element/type namespace, independently of the stylesheet
+  bindings. Non-node or non-singleton results report XTTE3170. Static variable
+  validation includes the namespace-context expression.
+- Four additional evaluate catalog cases pass and are added to the gate, which
+  now has 1,266 passes, 245 failures, 385 harness errors and 243 exclusions
+  across 2,139 selected cases. The full all-feature Rust suite, all-target
+  Clippy and the expanded gate pass. Base URI and typed parameters remain gaps.
+
+## Increment 263: dynamic evaluation type conversion
+
+- Apply declared types to select-based child parameters and to the result of
+  `xsl:evaluate`, including normal function conversion and type errors. Map
+  parameters still override child values. Validate the target XPath string's
+  type, and evaluate the target with XPath 1.0 compatibility disabled.
+- Added one passing evaluate case to the gate: 1,267 passes, 244 failures, 385
+  harness errors and 243 exclusions across 2,139 selected cases. Focused tests,
+  all-target/all-feature Clippy and the expanded gate pass. Base URI and
+  sequence-constructor child parameters remain unsupported.
+
+## Increment 264: dynamic function visibility
+
+- Check direct stylesheet function calls and references in dynamic target
+  expressions against function visibility, including in unexecuted branches.
+  Private and hidden functions report XTDE3160; public and final functions
+  remain available. Dynamic function-lookup visibility still needs review.
+- Added the passing evaluate-045 case to the gate, now 1,268 passes, 243
+  failures, 385 harness errors and 243 exclusions across 2,139 selected cases.
+  Focused tests, all-target/all-feature Clippy and the expanded gate pass.
+  General static base URI propagation and dynamic resource resolution remain
+  unfinished.
+
+## Increment 265: dynamic function lookup
+
+- Apply the target XPath function library and stylesheet function visibility to
+  `function-lookup`, including lookup function items called after they leave
+  `xsl:evaluate`. Ordinary stylesheet lookups keep their own function library.
+- Focused all-feature dynamic-instruction and XPath-profile tests, all-target
+  Clippy, and the 1,268-case XSLT gate pass. Base URI support remains unfinished.
+
+## Increment 266: explicit dynamic base URI
+
+- Evaluate the `base-uri` attribute as an AVT and carry its value into the
+  target's `static-base-uri()`, implicit `resolve-uri()`, and text/JSON resource
+  resolution. Function references capture that context for later calls.
+- Two additional evaluate cases pass and are included in the 1,270-case gate;
+  the selected set has 241 failures, 385 harness errors and 243 exclusions.
+  Focused all-feature tests, all-target Clippy and the expanded gate pass.
+  Inherited stylesheet base URIs and dynamic XML document loading remain gaps.
+
+## Increment 267: stylesheet xml:base for dynamic evaluation
+
+- When no `base-uri` attribute is supplied, derive the target's base URI from
+  an absolute stylesheet `xml:base` and any nested relative `xml:base` values.
+  An explicit `base-uri` still takes precedence.
+- Focused all-feature tests, all-target/all-feature Clippy and the 1,270-case
+  gate pass. The compile API does not supply a stylesheet document URI, so
+  location-based fallback and dynamic XML document loading remain gaps.
+
+## Increment 268: source-node base URI
+
+- Resolve absolute and nested relative `xml:base` values for `base-uri()` on
+  source nodes, including attributes and text. Both `base-uri()` and
+  `document-uri()` now check their argument type and cardinality. A dynamic
+  evaluation regression checks a source-node base URI used in an AVT.
+- The selected QT3 gate now contains 18,742 passes across 27,020 cases, with
+  406 failures, 764 harness errors and 7,108 exclusions. Focused all-feature
+  tests, Clippy and the 1,270-case XSLT gate pass. Document-origin URIs and
+  dynamic XML document loading remain unsupported.
+
+## Increment 269: loaded document origins
+
+- Preserve an absolute resolver URI on preloaded document nodes and propagate it
+  to descendants. `document-uri()` returns the origin for document nodes, and
+  `base-uri()` resolves descendant `xml:base` values against that origin.
+  Relative resolver names still have no known absolute document URI.
+- The all-feature Rust suite, all-target/all-feature Clippy, 1,270-case XSLT
+  gate and 18,742-case QT3 gate pass. Loading XML documents whose URIs are
+  discovered only during evaluation remains unsupported.
+
+## Increment 270: document function argument checks
+
+- Validate the optional URI arguments of `doc()` and `doc-available()` using
+  function conversion, including empty sequences and cardinality errors.
+- Added the 24 passing `fn-doc` and `fn-doc-available` QT3 cases to the gate:
+  18,766 passes, 417 failures, 784 harness errors and 7,115 exclusions across
+  27,082 cases. Focused tests, all-target/all-feature Clippy and both catalog
+  gates pass. Dynamic document loading still requires an evaluation context
+  that can access the per-transformation arena without changing node lifetimes.
+
+## Increment 271: stylesheet function argument errors
+
+- Use XPath's XPTY0004 when stylesheet function argument conversion fails,
+  including direct calls, function references and calls from `xsl:evaluate`.
+- Added evaluate-022 to the XSLT gate, now 1,271 passes, 240 failures, 385
+  harness errors and 243 exclusions across 2,139 selected cases. Focused
+  all-feature tests, all-target/all-feature Clippy and the expanded gate pass.
+
+## Increment 272: expanded-text namespace scope
+
+- Compile expressions in expanded text with their parent element's namespace
+  bindings, so prefixed names and XSLT availability functions resolve correctly
+  inside text value templates, including those in `xsl:comment`.
+- Added evaluate-052 to the XSLT gate, now 1,272 passes, 239 failures, 385
+  harness errors and 243 exclusions across 2,139 selected cases. Focused
+  all-feature tests, all-target/all-feature Clippy and the expanded gate pass.
+
+## Increment 273: dynamic evaluation parameter checks
+
+- Reject duplicate `xsl:evaluate` child parameters by expanded QName with
+  XTSE0670, and reject tunnel parameters. Explicit `tunnel="no"` remains valid.
+- Focused all-feature tests, all-target/all-feature Clippy and the 1,272-case
+  XSLT gate pass. General function-body execution, source document URIs and
+  default collation support remain among the dynamic evaluation gaps.
+
+## Increment 274: dynamic evaluation schema-aware attribute
+
+- Evaluate and validate `schema-aware` as a boolean AVT, with static and dynamic
+  errors for invalid values and ordinary lexical-scope checks. The non-schema-
+  aware processor continues to expose only its built-in schema types.
+- Focused all-feature tests, all-target/all-feature Clippy and the 1,272-case
+  XSLT gate pass. Schema import and validation remain outside this milestone.
+
+## Increment 275: constructed dynamic parameters
+
+- Allow `xsl:evaluate` child parameters to use sequence constructors, reusing
+  the existing binding and temporary-tree machinery. Typed values, caller
+  scope, and map overrides are covered; type failures report XTTE0590.
+- The full all-feature Rust suite, all-target/all-feature Clippy and the
+  1,272-case XSLT gate pass. Existing general constructor limitations and
+  stylesheet-function body limitations still apply.
+
+## Increment 276: principal source URI
+
+- Add `TransformOptions::source_uri` for an absolute principal source URI.
+  `document-uri()` and inherited `base-uri()` use it, and looking the URI up
+  with `doc()` returns the original source document without invoking the resolver.
+- Pass file-backed source URIs through both development catalog runners. Added
+  evaluate-015 and 27 QT3 cases to their gates: 1,273 XSLT and 18,793 QT3
+  passing cases. The full all-feature Rust suite, runner tests, Clippy and both
+  expanded gates pass. Arbitrary dynamically discovered XML URIs still need a
+  document-loading context integrated with the per-transformation arena.
+
+## Increment 277: dynamic evaluation fallback and static exclusion
+
+- Ignore `xsl:fallback` children when dynamic evaluation is enabled, and apply
+  `use-when` exclusion before validating `xsl:evaluate` child parameters.
+- Focused all-feature tests, all-target/all-feature Clippy and the 1,273-case
+  XSLT gate pass. A node-only loader callback was investigated but still made
+  XPath values lifetime-invariant; dynamic XML loading remains unfinished.
+
+## Increment 278: stylesheet module URI context
+
+- Add compilation entry points accepting an absolute stylesheet URI, with an
+  optional module resolver. Includes and imports resolve their URIs against the
+  containing module and `xml:base`; dynamic expressions inherit their module's
+  base URI. Compilation restores module context after nested modules or errors.
+- Focused all-feature dynamic-evaluation and module tests, all-target/all-feature
+  Clippy and the 1,273-case XSLT gate pass. Ordinary stylesheet expressions do
+  not yet receive general static-base-URI propagation; dynamic XML loading also
+  remains unfinished.
+
+## Increment 279: static base in XPath resource calls
+
+- Carry the containing module's static base into ordinary `static-base-uri()`,
+  `resolve-uri()`, `doc()`, `doc-available()`, text and JSON resource calls,
+  including function references and lookup. Resolve literal `doc()` URIs before
+  preloading and preserve `doc()`-anchored patterns.
+- Extracted the context-aware call path from the main evaluator after an
+  initial full run exposed a recursive stack overflow. The full all-feature Rust
+  suite, all-target/all-feature Clippy, 1,273-case XSLT gate and 18,793-case QT3
+  gate pass. Dynamically discovered XML URIs and general `document()` URI
+  resolution remain unfinished.
+
+## Increment 280: document URI resolution
+
+- Resolve `document()` string arguments against the call site's static base,
+  node arguments against their node base, and all arguments against an explicit
+  base node when supplied. Check argument types and return documents in order
+  without duplicates. Function items retain their lexical static base.
+- The full all-feature Rust suite, all-target/all-feature Clippy, the 1,273-case
+  XSLT gate and the focused QT3 URI-accessor sets pass. A 64-case XSLT document
+  survey has five failures and 59 harness errors. Loading newly discovered
+  URIs, fragment selection, and strict missing-base handling remain gaps;
+  legacy relative resolver names still work when no base is known.
+
+## Increment 281: missing document base errors
+
+- Report XTDE1162 for relative `document()` references when the applicable
+  static or node base URI is absent, rather than passing the relative name to
+  the resolver. Absolute references and empty sequences remain supported.
+- Focused all-feature resource and static-base tests, all-target/all-feature
+  Clippy and the 1,273-case XSLT gate pass. Dynamic XML loading and document
+  fragment selection remain unfinished.
+
+## Increment 282: XML document fragments
+
+- Resolve `document()` fragments against the cached XML document using XPointer
+  shorthand `xml:id` and `element()` paths, including percent decoding and
+  ordered fallback across pointer parts. Unsupported or unresolved fragments
+  report XTDE1160. Literal document preloading strips the fragment first.
+- The full all-feature Rust suite, all-target/all-feature Clippy and the
+  1,273-case XSLT gate pass. Other XPointer schemes, schema/DTD ID types and
+  dynamically loading newly discovered XML URIs remain unsupported.
+
+## Increment 283: XSLT catalog resource environments
+
+- Load URI-mapped local catalog sources and resources, pass stylesheet module
+  URIs into compilation, and expose mapped modules to the development driver.
+  Unsupported source-variable bindings, network resources and non-UTF-8 files
+  remain explicit harness errors.
+- The document set now has 12 passes, 43 failures and nine harness errors;
+  previously 59 of its 64 cases were harness errors. Added these 12 passes and
+  34 newly exposed passes from existing sets to the expanded gate: 1,319 passes,
+  284 failures, 357 harness errors and 243 exclusions across 2,203 cases.
+  All 46 runner tests, all-target/all-feature Clippy and the expanded gate pass.
+
+## Increment 284: explicit axes in patterns
+
+- Preserve explicit axis syntax in parsed steps so that `child::document-node()`
+  cannot match a document root, while a bare `document-node()` still can. Treat
+  an explicit `descendant-or-self::node()` as an axis rather than a `//`
+  separator.
+- The expanded XSLT gate passes 1,320 cases, with 283 failures, 357 harness
+  errors and 243 exclusions across 2,203 selected cases. The full all-feature
+  Rust suite and all-target/all-feature Clippy pass.
+
+## Increment 285: static stylesheet function resolution
+
+- Resolve named stylesheet function calls and references by expanded name and
+  arity while validating stylesheet expressions, including patterns, keys,
+  function bodies and unexecuted branches. Forward and private declarations
+  remain available in ordinary stylesheet expressions; dynamic evaluation
+  continues to enforce its separate visibility rules.
+- Added the repaired match case to the XSLT gate: 1,321 passes, 282 failures,
+  357 harness errors and 243 exclusions across 2,203 selected cases. The full
+  all-feature Rust suite, focused final-code tests and all-target/all-feature
+  Clippy pass.
+
+## Increment 286: implicit attribute axes
+
+- Parse an unprefixed `attribute()` kind test with the implicit attribute axis,
+  while retaining an explicitly written axis. This applies consistently to
+  XPath expressions and match patterns, including positional predicates.
+- Added nine repaired match cases to the XSLT gate: 1,330 passes, 273 failures,
+  357 harness errors and 243 exclusions across 2,203 selected cases. The full
+  all-feature Rust suite, all-target/all-feature Clippy, and the 18,793-case
+  QT3 baseline gate pass.

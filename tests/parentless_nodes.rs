@@ -48,6 +48,13 @@ fn document_node_patterns_match_actual_document_roots() {
     assert_eq!(s.transform("<r/>").unwrap(), "document");
 }
 #[test]
+fn explicit_child_document_pattern_never_matches_the_root() {
+    let s = sheet(
+        r#"<xsl:template match="child::document-node()" priority="10">wrong</xsl:template><xsl:template match="document-node()">document</xsl:template>"#,
+    );
+    assert_eq!(s.transform("<r/>").unwrap(), "document");
+}
+#[test]
 fn record_streaming_rejects_root_navigation_before_consuming_input() {
     let s = sheet(r#"<xsl:template name="record"><xsl:sequence select="root()"/></xsl:template>"#);
     let mut output = vec![];
