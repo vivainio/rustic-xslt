@@ -72,14 +72,20 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut arguments = std::env::args_os().skip(1);
     let transpiler_path = arguments
         .next()
-        .ok_or("usage: schematron TRANSPILER.xsl SCHEMA.sch [--iso] [--phase NAME] [--max-steps N] DOCUMENT.xml [DOCUMENT.xml ...]")?;
+        .ok_or("usage: schematron TRANSPILER.xsl SCHEMA.sch [--iso] [--iso-preprocess] [--phase NAME] [--max-steps N] DOCUMENT.xml [DOCUMENT.xml ...]")?;
     let schema_path = arguments.next().ok_or("missing Schematron schema")?;
     let mut phase = None;
     let mut max_steps = None;
     let mut iso = false;
+    let mut iso_preprocess = false;
     let mut documents = Vec::new();
     while let Some(argument) = arguments.next() {
-        if argument == "--iso" {
+        if argument == "--iso-preprocess" {
+            if iso_preprocess {
+                return Err("--iso-preprocess may be supplied only once".into());
+            }
+            iso_preprocess = true;
+        } else if argument == "--iso" {
             if iso {
                 return Err("--iso may be supplied only once".into());
             }
@@ -114,6 +120,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     if documents.is_empty() {
         return Err("provide at least one XML document".into());
     }
+    if iso_preprocess && !iso {
+        return Err("--iso-preprocess requires --iso".into());
+    }
     let transpiler_path = Path::new(&transpiler_path);
     let schema_path = Path::new(&schema_path);
     let schema_uri = file_uri(schema_path)?;
@@ -128,7 +137,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .parent()
         .ok_or("transpiler has no parent directory")?
         .to_path_buf();
-    let compiler_resolver = local_resolver(compiler_root);
+    let compiler_resolver = local_resolver(compiler_root.clone());
     let transpiler = Stylesheet::compile_with_base_uri_and_resolver(
         &fs::read_to_string(transpiler_path)?,
         &file_uri(transpiler_path)?,
@@ -155,8 +164,21 @@ fn main() -> Result<(), Box<dyn Error>> {
         };
         schema_options.parameters.insert(name.into(), phase);
     }
-    let generated =
-        transpiler.transform_with_options(&fs::read_to_string(schema_path)?, &schema_options)?;
+    let mut schema = fs::read_to_string(schema_path)?;
+    if iso_preprocess {
+        let mut preprocess_options = schema_options.clone();
+        preprocess_options.parameters.clear();
+        for name in ["iso_dsdl_include.xsl", "iso_abstract_expand.xsl"] {
+            let path = compiler_root.join(name);
+            let stage = Stylesheet::compile_with_base_uri_and_resolver(
+                &fs::read_to_string(&path)?,
+                &file_uri(&path)?,
+                &*compiler_resolver.0,
+            )?;
+            schema = stage.transform_with_options(&schema, &preprocess_options)?;
+        }
+    }
+    let generated = transpiler.transform_with_options(&schema, &schema_options)?;
     let validator =
         Stylesheet::compile_with_base_uri_and_resolver(&generated, &schema_uri, &*resolver.0)?;
     for path in documents {

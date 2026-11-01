@@ -56,6 +56,25 @@ def main():
             raise AssertionError('ISO phase selection did not run the alternative pattern')
         print('PASS ISO phase selection', flush=True)
 
+        # The ISO include processor resolves against the schema document URI.
+        nested = Path(tmp) / 'nested'
+        nested.mkdir()
+        (nested / 'rules.sch').write_text((fixture / 'includes/nested/rules.sch').read_text())
+        for filename in ('abstract.sch', 'includes/main.sch', 'includes/main-fragment.sch'):
+            source = (fixture / filename).read_text().replace('queryBinding="xslt3"', 'queryBinding="xslt2"')
+            source = source.replace(' xml:base="nested/"', '').replace('href="rules.sch', 'href="nested/rules.sch')
+            schema.write_text(source)
+            process = subprocess.run([str(cli), str(compiler), str(schema), '--iso', '--iso-preprocess',
+                                      str(fixture / 'valid.xml'), str(fixture / 'invalid.xml')],
+                                     text=True, capture_output=True, check=True, timeout=120)
+            reports = [ET.fromstring(chunk) for chunk in re.split(r'(?=<\?xml\s)', process.stdout) if chunk.strip()]
+            if len(reports) != 2 or any(not report.findall('.//' + SVRL + 'fired-rule') for report in reports):
+                raise AssertionError(f'{filename}: expected two reports with fired rules')
+            failures = [[node.get('test') for node in report.findall('.//' + SVRL + 'failed-assert')] for report in reports]
+            if failures != [[], ['@id']]:
+                raise AssertionError(f'{filename}: incorrect assertion results: {failures}')
+            print('PASS ISO preprocessing', filename, flush=True)
+
 
 if __name__ == '__main__':
     main()

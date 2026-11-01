@@ -213,10 +213,14 @@ python3 tools/workloads/nemsis_cli.py --nemsis /tmp/xslt-workloads/nemsis --rele
 ```
 
 `--iso` supplies the ISO compiler's `allow-foreign` parameter and uses its
-unqualified `phase` parameter when `--phase` is supplied. This command runs
-the specified compiler directly: schemas requiring separate ISO include or
-abstract-pattern preprocessing need those stages before compilation. The pinned
-NEMSIS schemas used here are already expanded.
+unqualified `phase` parameter when `--phase` is supplied. Add
+`--iso-preprocess` to run `iso_dsdl_include.xsl` and `iso_abstract_expand.xsl`
+from the compiler's directory before compiling the schema. The include stage
+uses the schema document URI as the base for relative references; the pinned
+ISO stylesheet does not honor an inherited element `xml:base` for those
+references. The pinned NEMSIS schemas are already expanded and do not need
+preprocessing; the include stage currently exceeds the engine's execution-depth
+limit on the demographic schema and the upstream `svrl.sch` schema.
 
 Pass `--dataset ems` to run the same comparison on the larger NEMSIS
 patient-care schema and its 198 upstream sample documents and expected reports.
