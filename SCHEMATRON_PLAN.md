@@ -15,12 +15,15 @@ upstream SchXslt2 fixtures, including one using an accumulator, as well as a
 500-item document with 50 expected failures, relative/fragment includes and a
 two-parameter abstract pattern. A separate Peppol BIS invoice probe exercises
 a 94 KB XSLT 2.0-binding schema against the upstream invoice and a mutated
-invoice, with a raised work limit. The probes check SVRL assertions,
+invoice, with a raised work limit. An optional four-way SaxonC cross-check
+agrees on fired-rule contexts and assertion details for both inputs. The probes
+check SVRL assertions,
 reports, locations, diagnostics and selected phases. A separate message case
 currently fails: a whitespace-only separator between `sch:name` and
 `sch:value-of` is stripped when the generated validator is compiled. The probe
 also verifies that `xml:space="preserve"` on the assertion retains the space.
-This is not yet broad coverage of external schemas. Constructor-based stylesheet
+SaxonC-HE 12.9 shows the same whitespace behavior with either generated
+stylesheet. This is not yet broad coverage of external schemas. Constructor-based stylesheet
 functions have a conservative nesting limit of two; stylesheet function calls
 also have a native-recursion cap of at most 13. Deeply recursive schemas need
 a shared trampoline. Select-based accumulator rules run on unstreamed

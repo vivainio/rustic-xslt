@@ -72,8 +72,18 @@ fixture, and an upstream fixture containing an XSLT accumulator.
 Known message limitation: a whitespace-only separator between adjacent
 `sch:name` and `sch:value-of` elements is present in the generated stylesheet
 but is stripped when that stylesheet is compiled. The probe reports this as a
-failure and therefore exits nonzero. Setting `xml:space="preserve"` on the
-assertion retains the separator; the probe also checks that workaround.
+limitation and therefore exits nonzero. Setting `xml:space="preserve"` on the
+assertion retains the separator. SaxonC-HE 12.9 gives the same results, including
+when each processor executes the other processor's generated stylesheet.
+
+To repeat that independent cross-check, install SaxonC in a temporary directory
+and run the optional reference probe (it is not a runtime dependency):
+
+```sh
+python3 -m pip install --target /tmp/rust-xslt-saxonche saxonche==12.9.0
+PYTHONPATH=/tmp/rust-xslt-saxonche python3 tools/workloads/reference_whitespace.py \
+  --schxslt2 /tmp/xslt-workloads/schxslt2
+```
 
 The probe also exercises a two-parameter abstract pattern and external includes
 with an inherited `xml:base`, including an ID fragment. For example:
@@ -96,12 +106,29 @@ git -C /tmp/xslt-workloads/peppol sparse-checkout set rules/sch rules/examples
 python3 tools/workloads/peppol.py \
   --schxslt2 /tmp/xslt-workloads/schxslt2 \
   --peppol /tmp/xslt-workloads/peppol \
+  --release \
   --generated /tmp/xslt-workloads/peppol-validator.xsl
 ```
 
 The probe checks that rules fire, the upstream example has no failed
 assertions, and removing its `cbc:ProfileID` triggers `PEPPOL-EN16931-R001`.
 It uses a 500-million-step limit per transformation by default; override it
-with `--max-steps`. The normal 20-million-step library limit was insufficient
-for this stylesheet. This is a focused behavior check, not independent
-verification of every Peppol rule.
+with `--max-steps`. The normal 20-million-step library limit was insufficient for both stages.
+For the pinned inputs, 100 million steps was enough to generate the validator
+but not to validate the invoice; 250 million was enough for both. On one local
+run, a release build took about 1.5 seconds to generate the validator and 6
+seconds to validate each invoice. These are
+measurements, not performance guarantees.
+
+To compare SaxonC and rust-xslt on the same Peppol inputs, using the optional
+SaxonC installation above:
+
+```sh
+PYTHONPATH=/tmp/rust-xslt-saxonche python3 tools/workloads/reference_peppol.py \
+  --schxslt2 /tmp/xslt-workloads/schxslt2 \
+  --peppol /tmp/xslt-workloads/peppol --release
+```
+
+The comparison cross-runs both generated validators through both processors,
+checking fired-rule contexts and assertion IDs, tests, locations, and text.
+It covers these two inputs, not every Peppol rule.

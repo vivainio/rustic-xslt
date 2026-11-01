@@ -119,7 +119,15 @@ def main():
                 try:
                     check_report(result['output'], case, invalid)
                 except (AssertionError, ET.ParseError) as error:
-                    print('FAIL', case, name, str(error))
+                    actual = ''
+                    if case == 'whitespace' and isinstance(error, AssertionError):
+                        report = ET.fromstring(result['output'])
+                        message = report.find('.//' + SVRL + 'failed-assert/' + SVRL + 'text')
+                        actual = ''.join(message.itertext()) if message is not None else ''
+                    if actual == 'Quantity for itembad must be at least two.':
+                        print('LIMITATION', case, name, 'unpreserved separator is lost (also observed with SaxonC on the pinned revision)')
+                    else:
+                        print('FAIL', case, name, str(error))
                     blocked = True
                     continue
                 print('PASS', case, name, 'SVRL matches expected validation outcome')

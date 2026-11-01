@@ -19,12 +19,17 @@ def main():
     parser.add_argument('--max-steps', type=int, default=500_000_000)
     parser.add_argument('--generated', type=Path, help='save generated validator XSLT')
     parser.add_argument('--timeout', type=int, default=300, help='seconds per transformation')
+    parser.add_argument('--release', action='store_true', help='use an optimized driver')
     args = parser.parse_args()
     sch, peppol = args.schxslt2.resolve(), args.peppol.resolve()
     print('SchXslt2 revision:', revision(sch), flush=True)
     print('Peppol revision:', revision(peppol), flush=True)
-    subprocess.run(['cargo', 'build', '--example', 'reference_driver', '--features', 'conformance'], cwd=ROOT, check=True)
-    driver = ROOT / 'target/debug/examples/reference_driver'
+    build = ['cargo', 'build', '--example', 'reference_driver', '--features', 'conformance']
+    if args.release:
+        build.append('--release')
+    subprocess.run(build, cwd=ROOT, check=True)
+    profile = 'release' if args.release else 'debug'
+    driver = ROOT / 'target' / profile / 'examples/reference_driver'
     transpiler = sch / 'src/main/resources/content/transpile.xsl'
     schema = peppol / 'rules/sch/PEPPOL-EN16931-UBL.sch'
     invoice = peppol / 'rules/examples/base-example.xml'
