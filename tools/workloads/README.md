@@ -198,8 +198,10 @@ normalizes the current local time and time zone in one diagnostic, since the
 processors can use different local time zones. The probe uses the default
 20-million-step limit. SchXslt2 generates an invalid call to `path()` for this
 schema's multi-node `subject` expressions, so its generated validator does not
-compile. The NEMSIS ISO compiler provides a working Rust-only pipeline for these
-cases.
+compile. Further investigation found that it also omits the schema's embedded
+XSLT variable and does not add an `xs` namespace binding to the generated
+validator. The NEMSIS ISO compiler provides a working Rust-only pipeline for
+these cases.
 
 The public example can run the pinned NEMSIS ISO compiler and validate multiple
 documents without SaxonC:
@@ -234,3 +236,16 @@ compiler/validator combinations agree and match the expected failure IDs with
 the default step limit. SchXslt2 exceeds that limit while transpiling this
 schema; with a 100-million-step limit, transpilation completes but its generated
 validator still has invalid `path()` calls for multi-node subjects.
+
+The optional diagnostic below tests three *temporary* compatibility changes:
+selecting the first subject node for `path()`, passing through the embedded XSLT
+variable, and adding an `xs` Schematron namespace declaration. With those
+changes, three demographic samples—including both multi-subject failures—agree
+across Rust and Saxon compilation and validation and match upstream failure IDs.
+The diagnostic does not modify either checkout, and is not a general fix for
+SchXslt2 or a substitute for the unmodified NEMSIS workflow above.
+
+```sh
+PYTHONPATH=/tmp/rust-xslt-saxonche python3 tools/workloads/schxslt2_nemsis_diagnostic.py \
+  --nemsis /tmp/xslt-workloads/nemsis --schxslt2 /tmp/xslt-workloads/schxslt2 --release
+```
