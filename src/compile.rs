@@ -39,6 +39,7 @@ pub(crate) enum Instruction {
     Pi(Vec<Expr>, Content),
     Element {
         element: crate::result::Element,
+        in_scope_namespaces: BTreeMap<String, String>,
         attributes: Vec<(crate::result::Name, Vec<Expr>)>,
         body: Vec<Instruction>,
     },
@@ -807,7 +808,7 @@ fn text_instruction(n: Node<'_, '_>, text: &str) -> Result<Instruction, Diagnost
 }
 thread_local! {
     static STATIC_VARIABLES: std::cell::RefCell<xpath::Variables<'static>> =
-        const { std::cell::RefCell::new(BTreeMap::new()) };
+        const { std::cell::RefCell::new(xpath::Variables::new()) };
 }
 /// Evaluate a static (compile-time) expression such as a `use-when` condition.
 fn static_value(n: Node<'_, '_>, source: &str) -> Result<xpath::Value<'static>, Diagnostic> {
@@ -2190,6 +2191,7 @@ fn body(
                 let mut element = crate::result::source_element(n, false);
                 element.inherit_namespaces =
                     boolean_value(n, n.attribute((XSL, "inherit-namespaces")), true)?;
+                let in_scope_namespaces = element.namespaces.clone();
                 let excluded = excluded_uris(n)?;
                 element
                     .namespaces
@@ -2203,6 +2205,7 @@ fn body(
                 }
                 out.push(Instruction::Element {
                     element,
+                    in_scope_namespaces,
                     attributes,
                     body: inner,
                 });
@@ -2434,7 +2437,7 @@ impl<T> Default for ModeProperty<T> {
         Self { value: None }
     }
 }
-impl<T: Copy + PartialEq> ModeProperty<T> {
+impl<T: Clone + PartialEq> ModeProperty<T> {
     fn add(&mut self, precedence: u32, value: Option<T>) {
         let Some(value) = value else { return };
         match &mut self.value {
@@ -2444,13 +2447,13 @@ impl<T: Copy + PartialEq> ModeProperty<T> {
         }
     }
     fn resolved(&self) -> Result<Option<T>, Diagnostic> {
-        match self.value {
+        match &self.value {
             Some((_, _, true)) => Err(Diagnostic::new(
                 "XTSE0545",
                 "conflicting mode declarations",
                 "compile",
             )),
-            Some((_, value, false)) => Ok(Some(value)),
+            Some((_, value, false)) => Ok(Some(value.clone())),
             None => Ok(None),
         }
     }
@@ -2465,6 +2468,174 @@ struct ModeDeclarations {
     warning_no_match: ModeProperty<bool>,
     streamable: ModeProperty<bool>,
     typed: ModeProperty<crate::mode::Typed>,
+    accumulators: ModeProperty<crate::mode::AccumulatorUse>,
+}
+
+#[derive(Debug)]
+pub(crate) struct AccumulatorRule {
+    pub branches: Vec<crate::pattern::Branch>,
+    pub end: bool,
+    pub select: Expr,
+}
+#[derive(Debug)]
+pub(crate) struct Accumulator {
+    pub initial: Expr,
+    pub ty: Option<crate::seqtype::SequenceType>,
+    pub rules: Vec<AccumulatorRule>,
+    pub precedence: u32,
+}
+
+fn accumulator_use(
+    n: Node<'_, '_>,
+    value: &str,
+) -> Result<crate::mode::AccumulatorUse, Diagnostic> {
+    let words: Vec<_> = value.split_whitespace().collect();
+    if words == ["#all"] {
+        return Ok(crate::mode::AccumulatorUse::All);
+    }
+    let mut names = BTreeSet::new();
+    for word in words {
+        if word.starts_with('#') || !names.insert(component_name(n, word)?) {
+            return Err(static_error(
+                n,
+                "XTSE3300",
+                "invalid or duplicate accumulator name",
+            ));
+        }
+    }
+    Ok(crate::mode::AccumulatorUse::Names(names))
+}
+
+fn add_accumulator(
+    n: Node<'_, '_>,
+    sheet: &mut Stylesheet,
+    precedence: u32,
+) -> Result<(), Diagnostic> {
+    attrs(n, &["name", "initial-value", "as", "streamable"])?;
+    let name = component_name(n, required(n, "name")?)?;
+    check_component_namespace(n, &name, false)?;
+    boolean_attribute(n, "streamable", false)?;
+    let initial = expr(n, required(n, "initial-value")?)?;
+    let ty = n
+        .attribute("as")
+        .map(|s| crate::seqtype::SequenceType::parse(s, &namespaces(n)))
+        .transpose()?;
+    let mut rules = Vec::new();
+    for child in n.children() {
+        if child.is_text() && !xml_space(child.text().unwrap_or_default()) {
+            return Err(static_error(
+                child,
+                "XTSE0010",
+                "unexpected accumulator text",
+            ));
+        }
+        if !child.is_element() || use_when_excludes(child)? {
+            continue;
+        }
+        if child.tag_name().namespace() != Some(XSL)
+            || child.tag_name().name() != "accumulator-rule"
+        {
+            return Err(static_error(
+                child,
+                "XTSE0010",
+                "expected xsl:accumulator-rule",
+            ));
+        }
+        attrs(child, &["match", "phase", "select"])?;
+        let end = match child.attribute("phase").unwrap_or("start").trim() {
+            "start" => false,
+            "end" => true,
+            _ => return Err(static_error(child, "XTSE0020", "invalid accumulator phase")),
+        };
+        let branches = crate::pattern::parse(
+            required(child, "match")?,
+            namespaces(child),
+            xslt_version(child),
+        )?;
+        let select = child.attribute("select").ok_or_else(|| {
+            error(
+                child,
+                "accumulator rule sequence constructors are not implemented",
+            )
+        })?;
+        empty(child)?;
+        rules.push(AccumulatorRule {
+            branches,
+            end,
+            select: expr(child, select)?,
+        });
+    }
+    if rules.is_empty() {
+        return Err(static_error(n, "XTSE0010", "accumulator requires a rule"));
+    }
+    if let Some(previous) = sheet.accumulators.get(&name) {
+        if previous.precedence == precedence {
+            return Err(static_error(n, "XTSE0010", "duplicate accumulator"));
+        }
+        if previous.precedence > precedence {
+            return Ok(());
+        }
+    }
+    sheet.accumulators.insert(
+        name,
+        Accumulator {
+            initial,
+            ty,
+            rules,
+            precedence,
+        },
+    );
+    Ok(())
+}
+
+#[derive(Debug)]
+pub(crate) struct NamespaceAlias {
+    pub target: String,
+    pub prefix: String,
+    precedence: u32,
+    conflict: bool,
+}
+
+fn add_namespace_alias(
+    n: Node<'_, '_>,
+    sheet: &mut Stylesheet,
+    precedence: u32,
+) -> Result<(), Diagnostic> {
+    attrs(n, &["stylesheet-prefix", "result-prefix"])?;
+    empty(n)?;
+    let resolve = |name: &str| -> Result<(String, String), Diagnostic> {
+        let prefix = required(n, name)?.trim();
+        if prefix == "#default" {
+            return Ok((
+                String::new(),
+                n.lookup_namespace_uri(None).unwrap_or("").to_owned(),
+            ));
+        }
+        let uri = n.lookup_namespace_uri(Some(prefix)).ok_or_else(|| {
+            static_error(n, "XTSE0812", format!("unbound namespace prefix: {prefix}"))
+        })?;
+        Ok((prefix.to_owned(), uri.to_owned()))
+    };
+    let (_, literal) = resolve("stylesheet-prefix")?;
+    let (prefix, target) = resolve("result-prefix")?;
+    let candidate = NamespaceAlias {
+        target,
+        prefix,
+        precedence,
+        conflict: false,
+    };
+    match sheet.namespace_aliases.get_mut(&literal) {
+        Some(old) if old.precedence > precedence => {}
+        Some(old) if old.precedence == precedence => {
+            old.conflict |= old.target != candidate.target;
+            old.target = candidate.target;
+            old.prefix = candidate.prefix;
+        }
+        _ => {
+            sheet.namespace_aliases.insert(literal, candidate);
+        }
+    }
+    Ok(())
 }
 
 struct Declarations<'a> {
@@ -2602,6 +2773,8 @@ fn declarations(
         }
         other_seen = true;
         match n.tag_name().name() {
+            "namespace-alias" => add_namespace_alias(n, sheet, precedence)?,
+            "accumulator" => add_accumulator(n, sheet, precedence)?,
             "mode" => {
                 use crate::mode::OnNoMatch;
                 attrs(
@@ -2622,11 +2795,10 @@ fn declarations(
                 if boolean_attribute(n, "streamable", false)? {
                     return Err(error(n, "XSLT streamable modes are not implemented"));
                 }
-                if n.attribute("use-accumulators")
-                    .is_some_and(|s| !s.trim().is_empty())
-                {
-                    return Err(error(n, "mode accumulators are not implemented"));
-                }
+                let accumulator_use = n
+                    .attribute("use-accumulators")
+                    .map(|value| accumulator_use(n, value))
+                    .transpose()?;
                 let name = n
                     .attribute("name")
                     .map(|s| component_name(n, s))
@@ -2710,6 +2882,7 @@ fn declarations(
                 entry.warning.add(precedence, warning);
                 entry.warning_no_match.add(precedence, warning_no_match);
                 entry.typed.add(precedence, typed);
+                entry.accumulators.add(precedence, accumulator_use);
                 entry
                     .streamable
                     .add(precedence, n.attribute("streamable").map(|_| false));
@@ -2753,7 +2926,22 @@ fn declarations(
                 sheet.globals.push(b);
             }
             "template" => {
-                attrs(n, &["match", "name", "mode", "priority", "as"])?;
+                attrs(
+                    n,
+                    &["match", "name", "mode", "priority", "as", "visibility"],
+                )?;
+                if let Some(visibility) = n.attribute("visibility") {
+                    if visibility.trim() != "private" {
+                        return Err(error(n, "only private template visibility is supported"));
+                    }
+                    if n.attribute("name").is_none() {
+                        return Err(static_error(
+                            n,
+                            "XTSE0500",
+                            "template visibility requires a name",
+                        ));
+                    }
+                }
                 let p = n
                     .attribute("match")
                     .map(|p| crate::pattern::parse(p, namespaces(n), xslt_version(n)))
@@ -3443,7 +3631,15 @@ fn declarations(
                         content = true;
                     }
                 }
-                let function_body = function_expression(n, body(n, 1, true)?)?;
+                let function_instructions = body(n, 1, true)?;
+                let function_body = if can_lower_function(&function_instructions) {
+                    xpath::UserFunctionBody::Expression(function_expression(
+                        n,
+                        function_instructions,
+                    )?)
+                } else {
+                    xpath::UserFunctionBody::Constructor(function_instructions)
+                };
                 let key = (id, params.len());
                 if function_precedence.get(&key) == Some(&precedence) {
                     return Err(static_error(
@@ -3533,6 +3729,25 @@ fn may_reference_variable(expression: &Expr, name: &str) -> bool {
     false
 }
 
+fn can_lower_function(body: &[Instruction]) -> bool {
+    body.iter().all(|instruction| match instruction {
+        Instruction::Bind(Binding {
+            value: BindingValue::Select(_),
+            ..
+        })
+        | Instruction::Sequence(_) => true,
+        Instruction::Bind(Binding {
+            value: BindingValue::Raw(body),
+            ..
+        })
+        | Instruction::Map(body)
+        | Instruction::ForEach(_, _, body)
+        | Instruction::If(_, body) => can_lower_function(body),
+        Instruction::Choose(branches) => branches.iter().all(|(_, body)| can_lower_function(body)),
+        _ => false,
+    })
+}
+
 // Lower pure sequence constructors into XPath expressions. Branch-local
 // bindings remain scoped to their branch, and bindings affect only what follows.
 fn function_expression(n: Node<'_, '_>, body: Vec<Instruction>) -> Result<Expr, Diagnostic> {
@@ -3552,6 +3767,23 @@ fn function_expression(n: Node<'_, '_>, body: Vec<Instruction>) -> Result<Expr, 
                 ty,
                 ..
             }) => {
+                let select = match ty {
+                    Some(ty) => Expr::TypeOp("variable".into(), Box::new(select), ty),
+                    None => select,
+                };
+                let unused = !may_reference_variable(&tail, &name);
+                Expr::Let(name, Box::new(select), Box::new(tail), unused)
+            }
+            Instruction::Bind(Binding {
+                name,
+                value: BindingValue::Raw(body),
+                ty,
+                ..
+            }) => {
+                // Lower only constructors that preserve their original XDM items.
+                // Node-creating instructions remain unsupported here until the
+                // function evaluator can use the transformation's tree arena.
+                let select = function_expression(n, body)?;
                 let select = match ty {
                     Some(ty) => Expr::TypeOp("variable".into(), Box::new(select), ty),
                     None => select,
@@ -3674,6 +3906,7 @@ fn compile_inner(source: &str, resolver: Option<Resolver<'_>>) -> Result<Stylesh
     let version = module_version(root)?;
     let mut sheet = Stylesheet {
         templates: vec![],
+        namespace_aliases: BTreeMap::new(),
         globals: vec![],
         functions: Default::default(),
         keys: Default::default(),
@@ -3690,6 +3923,7 @@ fn compile_inner(source: &str, resolver: Option<Resolver<'_>>) -> Result<Stylesh
             default_mode(root)?
         },
         modes: BTreeMap::new(),
+        accumulators: BTreeMap::new(),
         omit_declaration: false,
         standalone: None,
         byte_order_mark: false,
@@ -3753,6 +3987,13 @@ fn compile_inner(source: &str, resolver: Option<Resolver<'_>>) -> Result<Stylesh
             None,
         )?;
     }
+    if sheet.namespace_aliases.values().any(|alias| alias.conflict) {
+        return Err(Diagnostic::new(
+            "XTSE0810",
+            "conflicting namespace aliases",
+            "compile",
+        ));
+    }
     for (name, declarations) in mode_declarations {
         let _ = declarations.warning.resolved()?;
         let _ = declarations.warning_no_match.resolved()?;
@@ -3772,8 +4013,22 @@ fn compile_inner(source: &str, resolver: Option<Resolver<'_>>) -> Result<Stylesh
                 fail_on_multiple: declarations.multiple.resolved()?,
                 visibility: declarations.visibility.resolved()?,
                 typed,
+                accumulators: declarations.accumulators.resolved()?,
             },
         );
+    }
+    for mode in sheet.modes.values() {
+        if let Some(crate::mode::AccumulatorUse::Names(names)) = &mode.accumulators {
+            for name in names {
+                if !sheet.accumulators.contains_key(name) {
+                    return Err(Diagnostic::new(
+                        "XTSE3300",
+                        format!("unknown accumulator: {name}"),
+                        "compile",
+                    ));
+                }
+            }
+        }
     }
     for name in character_maps.keys() {
         sheet.character_maps.insert(
@@ -4365,6 +4620,19 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
             }
         }
     }
+    for accumulator in sheet.accumulators.values() {
+        validate_expression(&accumulator.initial, &globals, templates.functions)?;
+        let mut scope = globals.clone();
+        scope.insert("value".into());
+        for rule in &accumulator.rules {
+            for branch in &rule.branches {
+                for predicate in crate::pattern::expressions(branch) {
+                    validate_expression(predicate, &globals, templates.functions)?;
+                }
+            }
+            validate_expression(&rule.select, &scope, templates.functions)?;
+        }
+    }
     for definitions in sheet.keys.values() {
         for definition in definitions {
             for branch in &definition.branches {
@@ -4378,7 +4646,12 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
     for function in sheet.functions.values() {
         let mut scope = globals.clone();
         scope.extend(function.params.iter().map(|(p, _)| p.clone()));
-        validate_expression(&function.body, &scope, templates.functions)?;
+        match &function.body {
+            xpath::UserFunctionBody::Expression(body) => {
+                validate_expression(body, &scope, templates.functions)?
+            }
+            xpath::UserFunctionBody::Constructor(body) => instructions(body, scope, &templates)?,
+        }
     }
     for t in &sheet.templates {
         if let Some(branches) = &t.pattern {

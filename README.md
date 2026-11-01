@@ -85,12 +85,20 @@ XPath 3.1 and XSLT 3.0 additions beyond the core above:
   `xsl:try`/`xsl:catch`, `xsl:analyze-string`, `xsl:number`, `xsl:map`,
   `xsl:perform-sort`, `xsl:evaluate`, `xsl:where-populated`, `xsl:on-empty`/`xsl:on-non-empty`, `xsl:namespace`,
   `xsl:message` (collected by `transform_with_documents`), `xsl:result-document`,
-  `xsl:attribute-set`, `xsl:import`/`xsl:apply-imports`, `use-when`, static
+  `xsl:attribute-set`, `xsl:namespace-alias`, `xsl:import`/`xsl:apply-imports`, `use-when`, static
   variables and `expand-text`.
 
-Not yet implemented: schema awareness, packages, accumulators, `xsl:merge`,
+Not yet implemented: schema awareness, packages, full accumulator support, `xsl:merge`,
 `xsl:fork`, `xsl:source-document`, other encodings than UTF-8/ISO-8859-1/US-ASCII, dynamic
 `doc()` URIs, and the XSLT `streamable` feature.
+
+Select-based, non-streamed accumulators support start/end rules, accumulator
+functions and initial-mode applicability. Rule sequence constructors, record
+streaming and copied accumulator state are not supported; accumulator
+queries currently traverse the tree on demand and may be costly when repeated.
+Accumulator dependency nesting is capped at four. See
+[the Schematron workload guide](tools/workloads/README.md) for an end-to-end
+validation example, the tested subset, and a known message-whitespace limitation.
 
 Versions 1.0, 2.0 and 3.0 are accepted; complete version semantics are not yet
 implemented. Version 1.0 currently enables first-item value-of/AVT conversion
@@ -173,7 +181,11 @@ are buffered; execution limits are not a hard memory limit. Runtime diagnostic
 locations and full W3C error-code fidelity remain ahead. Execution defaults to
 128 levels; XPath nesting is capped at 128 even when execution depth is raised.
 Template execution, result-content capture and binding constructors use an
-explicit task stack. Per-run arenas own temporary documents and source strings;
+explicit task stack. Stylesheet functions with node constructors use that same
+runtime and temporary-tree arena, but are limited to two nested constructor
+function calls (or fewer inside other nested instruction runtimes) until XPath
+and instruction execution share a trampoline. Exceeding this limit reports
+`XPDY0130`. Per-run arenas own temporary documents and source strings;
 node handles preserve parent/root navigation and identity across documents.
 Typed constructed nodes are parentless, and their backing parser wrapper/siblings
 are hidden. `root()` returns the actual root; absolute paths require a document

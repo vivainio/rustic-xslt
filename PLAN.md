@@ -1,5 +1,9 @@
 # Rust XSLT engine port
 
+> Current delivery priority: [practical Schematron validation](SCHEMATRON_PLAN.md).
+> The milestones below are the original broad port plan; use the Schematron
+> plan to choose the next feature work and PROGRESS.md for implementation history.
+
 ## Scope and baseline
 
 Build a native Rust library that ports the transformation engine in

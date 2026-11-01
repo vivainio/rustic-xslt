@@ -30,3 +30,44 @@ CI gate. The driver currently limits each transformation to one million steps.
 
 Unparsed-entity lookup currently only supports documents without DTDs: the XML
 parser rejects DTDs, and thus declared unparsed entities cannot yet be resolved.
+
+To run the Schematron-focused, two-stage probe without DocBook:
+
+```sh
+python3 tools/workloads/schematron.py \
+  --schxslt2 /tmp/xslt-workloads/schxslt2 \
+  --generated /tmp/xslt-workloads/validator.xsl
+```
+
+It compiles the upstream transpiler, generates a validator for a namespaced
+inventory schema, and checks valid and invalid documents against expected SVRL
+assertion and report details. It reports the failing stage and exits nonzero
+when either compilation, transformation or the expected SVRL fails. Generated
+XSLT is saved only after successful transpilation. The `reference_driver`
+limits each transformation to one million steps.
+
+The public-library example can compile one schema and validate multiple files:
+
+```sh
+cargo run --example schematron -- \
+  /tmp/xslt-workloads/schxslt2/src/main/resources/content/transpile.xsl \
+  tools/workloads/schematron/typical.sch \
+  tools/workloads/schematron/typical-valid.xml \
+  tools/workloads/schematron/typical-invalid.xml
+```
+
+Use `--phase NAME` after the schema to choose a phase. Each SVRL document is
+written to stdout; counts of failed assertions and successful reports are
+written to stderr. Invalid input is reported in SVRL and does not itself set a
+nonzero exit status; compile and runtime errors do. With multiple inputs,
+stdout contains consecutive XML documents separated by newlines. The example uses local
+files and no resource resolver, so schemas needing external includes are not
+yet supported by this example. The probe also checks a default phase,
+variables, diagnostic references, dynamic message text, an upstream root-rule
+fixture, and an upstream fixture containing an XSLT accumulator.
+
+Known message limitation: a whitespace-only separator between adjacent
+`sch:name` and `sch:value-of` elements is present in the generated stylesheet
+but is stripped when that stylesheet is compiled. The probe reports this as a
+failure and therefore exits nonzero. Setting `xml:space="preserve"` on the
+assertion retains the separator; the probe also checks that workaround.

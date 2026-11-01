@@ -736,6 +736,13 @@ pub(crate) fn transform<R: BufRead, W: Write>(
     output: &mut W,
     options: &StreamOptions,
 ) -> Result<StreamStats, Diagnostic> {
+    if !sheet.accumulators.is_empty() {
+        return Err(Diagnostic::new(
+            "RUST_XSLT_UNSUPPORTED",
+            "accumulators are not supported by record streaming",
+            "compile",
+        ));
+    }
     let path = validate(sheet, options)?;
     if sheet.undeclare_prefixes && !sheet.text_output && sheet.markup != crate::result::Markup::Html
     {

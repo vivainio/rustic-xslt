@@ -215,3 +215,97 @@ fn obsolete_sequence_type_attribute_is_a_static_error() {
         "XTSE0090"
     );
 }
+
+#[test]
+fn typed_sequence_constructor_bindings_in_functions_preserve_node_identity_and_order() {
+    let declaration = r#"<xsl:function name="f:sorted"><xsl:param name="nodes" as="element()*"/><xsl:variable name="sorted" as="element()*"><xsl:for-each select="$nodes"><xsl:sort select="." data-type="number" order="descending"/><xsl:sequence select="."/></xsl:for-each></xsl:variable><xsl:sequence select="$sorted"/></xsl:function>"#;
+    assert_eq!(
+        run(declaration, "string-join(f:sorted(r/n) ! string(.), ',')").unwrap(),
+        "3,2,1"
+    );
+    assert_eq!(
+        run(declaration, "f:sorted(r/n)[1] is r/n[3]").unwrap(),
+        "true"
+    );
+    assert_eq!(run(declaration, "count(f:sorted(()))").unwrap(), "0");
+    let wrong = r#"<xsl:function name="f:bad"><xsl:variable name="nodes" as="element()*"><xsl:for-each select="(1, 2)"><xsl:sequence select="."/></xsl:for-each></xsl:variable><xsl:sequence select="$nodes"/></xsl:function>"#;
+    assert_eq!(run(wrong, "f:bad()").unwrap_err().code, "XTTE0570");
+}
+
+#[test]
+fn function_constructors_return_real_nodes_and_share_the_runtime() {
+    let declaration = r#"<xsl:variable name="prefix" select="'global'"/><xsl:function name="f:make" as="element()"><xsl:param name="x"/><item><xsl:value-of select="concat($prefix, $x)"/></item></xsl:function>"#;
+    assert_eq!(
+        run(declaration, "f:make('!') instance of element(item)").unwrap(),
+        "true"
+    );
+    assert_eq!(run(declaration, "string(f:make('!'))").unwrap(), "global!");
+    assert_eq!(
+        run(declaration, "empty(f:make('!')/parent::node())").unwrap(),
+        "true"
+    );
+    assert_eq!(
+        run(declaration, "f:make('!') is f:make('!')").unwrap(),
+        "false"
+    );
+}
+
+#[test]
+fn functions_can_construct_typed_text_and_sorted_node_variables() {
+    let declaration = r#"<xsl:function name="f:first" as="xs:string"><xsl:param name="nodes" as="element()*"/><xsl:variable name="sorted" as="element()*"><xsl:for-each select="$nodes"><xsl:sort select="." data-type="number" order="descending"/><xsl:sequence select="."/></xsl:for-each></xsl:variable><xsl:value-of select="$sorted[1]"/></xsl:function>"#;
+    assert_eq!(run(declaration, "f:first(r/n)").unwrap(), "3");
+}
+
+#[test]
+fn constructor_functions_keep_lexical_scope_through_indirect_calls() {
+    let declaration = r#"<xsl:variable name="v" select="'global'"/><xsl:function name="f:make" as="element()"><item><xsl:value-of select="$v"/></item></xsl:function><xsl:function name="f:call" as="element()"><xsl:variable name="v" select="'local'"/><xsl:sequence select="(function(){f:make()})()"/></xsl:function>"#;
+    assert_eq!(run(declaration, "string(f:call())").unwrap(), "global");
+    assert_eq!(run(declaration, "string((f:make#0)())").unwrap(), "global");
+}
+
+#[test]
+fn constructor_functions_obey_temporary_tree_and_recursion_limits() {
+    use rust_xslt::{Limits, TransformOptions};
+    let source = r#"<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:f="urn:f" version="3.0"><xsl:function name="f:make"><item>hello</item></xsl:function><xsl:function name="f:recurse"><xsl:sequence select="f:recurse()"/><item/></xsl:function><xsl:template match="/"><xsl:sequence select="f:make()"/></xsl:template></xsl:stylesheet>"#;
+    let options = TransformOptions {
+        limits: Limits {
+            max_temporary_bytes: 10,
+            ..Limits::default()
+        },
+        ..TransformOptions::default()
+    };
+    assert_eq!(
+        Stylesheet::compile(source)
+            .unwrap()
+            .transform_with_options("<r/>", &options)
+            .unwrap_err()
+            .code,
+        "XPDY0130"
+    );
+    let source = source.replace("select=\"f:make()\"", "select=\"f:recurse()\"");
+    let options = TransformOptions {
+        limits: Limits {
+            max_depth: 8,
+            ..Limits::default()
+        },
+        ..TransformOptions::default()
+    };
+    assert_eq!(
+        Stylesheet::compile(&source)
+            .unwrap()
+            .transform_with_options("<r/>", &options)
+            .unwrap_err()
+            .code,
+        "XPDY0130"
+    );
+}
+
+#[test]
+fn constructor_functions_inside_nested_instruction_runtimes_are_bounded() {
+    let source = r#"<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:f="urn:f" version="3.0"><xsl:function name="f:make"><item/></xsl:function><xsl:template match="/"><xsl:try><xsl:try><xsl:try><xsl:sequence select="f:make()"/><xsl:catch><xsl:sequence select="error()"/></xsl:catch></xsl:try><xsl:catch><xsl:sequence select="error()"/></xsl:catch></xsl:try><xsl:catch><xsl:sequence select="error()"/></xsl:catch></xsl:try></xsl:template></xsl:stylesheet>"#;
+    let error = Stylesheet::compile(source)
+        .unwrap()
+        .transform("<r/>")
+        .unwrap_err();
+    assert!(matches!(error.code.as_str(), "XPDY0130" | "FOER0000"));
+}

@@ -10,7 +10,7 @@ thread_local! {
 }
 /// Equality of map values and array members; nesting is bounded so that
 /// hostile deeply nested containers cannot exhaust the stack.
-fn members_equal(a: &Value<'_>, b: &Value<'_>) -> bool {
+fn members_equal<'a>(a: &Value<'a>, b: &Value<'a>) -> bool {
     NESTING.with(|depth| {
         if depth.get() >= 64 {
             return false;

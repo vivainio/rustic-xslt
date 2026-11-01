@@ -310,6 +310,18 @@ fn raw_text<'a>(
         })
         .collect())
 }
+pub(crate) fn nested_instruction_runs() -> usize {
+    TRY_DEPTH.with(|depth| depth.get())
+}
+
+pub(crate) struct FunctionRuntime<'a> {
+    pub sheet: &'a Stylesheet,
+    pub options: TransformOptions,
+    pub trees: crate::trees::Trees<'a>,
+    pub initial_root: Option<(usize, u32)>,
+    pub initial_accumulators: Option<crate::mode::AccumulatorUse>,
+}
+
 struct Run<'a, 'r> {
     sheet: &'a Stylesheet,
     options: &'r TransformOptions,
@@ -325,10 +337,10 @@ enum Capture {
     Assertion,
     Pi(String),
 }
-fn parts(
+fn parts<'a>(
     parts: &[xpath::Expr],
-    focus: &Focus<'_>,
-    env: &Variables<'_>,
+    focus: &Focus<'a>,
+    env: &Variables<'a>,
     budget: &mut Budget,
     backwards: bool,
 ) -> Result<String, Diagnostic> {
@@ -1095,6 +1107,42 @@ fn execute<'a>(
     }
     let limits = options.limits;
     let mut globals = Variables::new();
+    globals.runtime = Some(Rc::new(FunctionRuntime {
+        sheet,
+        options: options.clone(),
+        trees: trees.clone(),
+        initial_root: if options.initial_template.is_none() {
+            match root.item {
+                Item::Node(node) => {
+                    let order = node.root().order();
+                    Some((order.0, order.1))
+                }
+                _ => None,
+            }
+        } else {
+            None
+        },
+        initial_accumulators: if options.initial_template.is_none() {
+            let mode = options
+                .initial_mode
+                .as_deref()
+                .map(|name| {
+                    if name == "#unnamed" {
+                        Ok(String::new())
+                    } else {
+                        crate::qname::external(name)
+                    }
+                })
+                .transpose()?
+                .unwrap_or_else(|| sheet.default_mode.clone());
+            sheet
+                .modes
+                .get(&mode)
+                .and_then(|mode| mode.accumulators.clone())
+        } else {
+            None
+        },
+    }));
     if let Item::Node(node) = root.item
         && let Some(uri) = node.document_uri()
     {
@@ -1402,6 +1450,80 @@ fn execute<'a>(
     }
     Ok(result)
 }
+pub(crate) fn execute_function<'a>(
+    name: &str,
+    arity: usize,
+    env: &Variables<'a>,
+    budget: &mut Budget,
+    depth: usize,
+) -> Result<Value<'a>, Diagnostic> {
+    let runtime = env.runtime.clone().ok_or_else(|| {
+        Diagnostic::new(
+            "RUST_XSLT_UNSUPPORTED",
+            "stylesheet function constructor requires a transformation context",
+            "run",
+        )
+    })?;
+    let sheet: &'a Stylesheet = runtime.sheet;
+    let function = sheet
+        .functions
+        .get(&(name.to_owned(), arity))
+        .ok_or_else(|| {
+            Diagnostic::new(
+                "XPST0017",
+                "stylesheet function is unavailable in this transformation",
+                "run",
+            )
+        })?;
+    let xpath::UserFunctionBody::Constructor(body) = &function.body else {
+        return Err(Diagnostic::new(
+            "RUST_XSLT_UNSUPPORTED",
+            "stylesheet function constructor is unavailable",
+            "run",
+        ));
+    };
+    let mut globals: Variables<'a> = env
+        .iter()
+        .filter_map(|(name, value)| {
+            name.strip_prefix(xpath::GLOBAL_PREFIX).map(|plain| {
+                [
+                    (plain.to_owned(), value.clone()),
+                    (name.clone(), value.clone()),
+                ]
+            })
+        })
+        .flatten()
+        .collect();
+    globals.runtime = Some(runtime.clone());
+    let run = Run {
+        sheet: runtime.sheet,
+        options: &runtime.options,
+        trees: &runtime.trees,
+        globals: Rc::new(globals),
+    };
+    let frame = Frame {
+        focus: Focus {
+            item: Item::Absent,
+            position: 0,
+            size: 0,
+        },
+        env: Rc::new(env.clone()),
+        depth,
+        mode: String::new(),
+        tunnel: Rc::new(Variables::new()),
+        rule: None,
+    };
+    let mut captured = Vec::new();
+    run_tasks(
+        &run,
+        budget,
+        vec![Task::Body(body, 0, frame)],
+        Output::document(runtime.options.limits.max_output_bytes),
+        Some(&mut captured),
+    )?;
+    Ok(captured)
+}
+
 fn run_tasks<'a>(
     run: &Run<'a, '_>,
     budget: &mut Budget,
@@ -1672,7 +1794,7 @@ fn run_tasks_with_conditionals<'a>(
                 if depth > limits.max_depth {
                     return Err(limit());
                 }
-                let definition = sheet.modes.get(&mode).copied().unwrap_or_default();
+                let definition = sheet.modes.get(&mode).cloned().unwrap_or_default();
                 if matches!(
                     definition.typed,
                     Some(crate::mode::Typed::Required | crate::mode::Typed::Lax)
@@ -3160,7 +3282,7 @@ fn run_tasks_with_conditionals<'a>(
                                     sheet.backwards,
                                 )?);
                             }
-                            output.attribute(name.clone(), value)?;
+                            output.attribute(alias_literal_name(name, sheet), value)?;
                         }
                     }
                     Instruction::ForEachGroup(e, grouping, sorts, body) => {
@@ -3352,10 +3474,28 @@ fn run_tasks_with_conditionals<'a>(
                     }
                     Instruction::Element {
                         element,
+                        in_scope_namespaces,
                         attributes,
                         body,
                     } => {
                         let mut element = element.clone();
+                        element.name = alias_literal_name(&element.name, sheet);
+                        element.namespaces.retain(|_, uri| {
+                            !sheet.namespace_aliases.contains_key(uri)
+                                || sheet
+                                    .namespace_aliases
+                                    .values()
+                                    .any(|alias| alias.target == *uri)
+                        });
+                        for (prefix, uri) in in_scope_namespaces {
+                            if sheet
+                                .namespace_aliases
+                                .values()
+                                .any(|alias| alias.target == *uri)
+                            {
+                                element.namespaces.insert(prefix.clone(), uri.clone());
+                            }
+                        }
                         for (name, parts) in attributes {
                             let mut value = String::new();
                             for part in parts {
@@ -3371,7 +3511,9 @@ fn run_tasks_with_conditionals<'a>(
                                     sheet.backwards,
                                 )?);
                             }
-                            element.attributes.push((name.clone(), value));
+                            element
+                                .attributes
+                                .push((alias_literal_name(name, sheet), value));
                         }
                         if raw_active(&captures) {
                             begin_raw_node(&mut output, &mut captures, &mut tasks, depth, false);
@@ -3567,4 +3709,26 @@ fn run_tasks_with_conditionals<'a>(
         }
     }
     Ok(output.value)
+}
+
+fn alias_literal_name(name: &crate::result::Name, sheet: &Stylesheet) -> crate::result::Name {
+    let Some(alias) = sheet
+        .namespace_aliases
+        .get(name.uri.as_deref().unwrap_or(""))
+    else {
+        return name.clone();
+    };
+    crate::result::Name {
+        local: name.local.clone(),
+        qname: if alias.prefix.is_empty() {
+            name.local.clone()
+        } else {
+            format!("{}:{}", alias.prefix, name.local)
+        },
+        uri: if alias.target.is_empty() {
+            None
+        } else {
+            Some(alias.target.clone())
+        },
+    }
 }

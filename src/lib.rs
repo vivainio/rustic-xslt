@@ -179,6 +179,7 @@ pub struct TransformResult {
 #[derive(Debug)]
 pub struct Stylesheet {
     templates: Vec<compile::Template>,
+    namespace_aliases: std::collections::BTreeMap<String, compile::NamespaceAlias>,
     omit_declaration: bool,
     standalone: Option<bool>,
     byte_order_mark: bool,
@@ -200,6 +201,7 @@ pub struct Stylesheet {
     version: u8,
     default_mode: String,
     modes: std::collections::BTreeMap<String, mode::Mode>,
+    accumulators: std::collections::BTreeMap<String, compile::Accumulator>,
     globals: Vec<compile::Binding>,
     functions: xpath::FunctionTable,
     keys: xpath::KeyTable,

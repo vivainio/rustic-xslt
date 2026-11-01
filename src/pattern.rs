@@ -634,10 +634,10 @@ fn into_branch(p: Parts) -> Branch {
     }
 }
 
-pub(crate) fn matches(
+pub(crate) fn matches<'a>(
     branch: &Branch,
-    node: XNode<'_>,
-    vars: &Variables<'_>,
+    node: XNode<'a>,
+    vars: &Variables<'a>,
     budget: &mut Budget,
     backwards: bool,
 ) -> Result<bool, Diagnostic> {

@@ -174,7 +174,7 @@ impl<'a> MapValue<'a> {
 }
 #[derive(Debug, Clone)]
 pub(crate) enum FunctionValue<'a> {
-    Inline(std::sync::Arc<InlineFunction>, Variables<'a>),
+    Inline(std::sync::Arc<InlineFunction>, BTreeMap<String, Value<'a>>),
     Named(String, usize, Option<BTreeMap<String, String>>),
     /// current#0 retains the current item at the point the reference is created.
     Current(Item<'a>),
@@ -213,7 +213,48 @@ pub(crate) enum Item<'a> {
     Array(std::rc::Rc<Vec<Value<'a>>>),
 }
 pub(crate) type Value<'a> = Vec<Item<'a>>;
-pub(crate) type Variables<'a> = BTreeMap<String, Value<'a>>;
+#[derive(Clone)]
+pub(crate) struct Variables<'a> {
+    values: BTreeMap<String, Value<'a>>,
+    pub runtime: Option<std::rc::Rc<crate::runtime::FunctionRuntime<'a>>>,
+}
+impl<'a> Variables<'a> {
+    pub const fn new() -> Self {
+        Self {
+            values: BTreeMap::new(),
+            runtime: None,
+        }
+    }
+}
+impl std::fmt::Debug for Variables<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.values.fmt(f)
+    }
+}
+impl<'a> Default for Variables<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+impl<'a> std::ops::Deref for Variables<'a> {
+    type Target = BTreeMap<String, Value<'a>>;
+    fn deref(&self) -> &Self::Target {
+        &self.values
+    }
+}
+impl<'a> std::ops::DerefMut for Variables<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.values
+    }
+}
+impl<'a> FromIterator<(String, Value<'a>)> for Variables<'a> {
+    fn from_iter<T: IntoIterator<Item = (String, Value<'a>)>>(iter: T) -> Self {
+        Self {
+            values: iter.into_iter().collect(),
+            runtime: None,
+        }
+    }
+}
 pub(crate) fn atomize<'a>(item: &Item<'a>) -> Item<'a> {
     match item {
         Item::Node(n) if n.is_comment() || n.is_pi() => Item::String(n.string()),
@@ -275,9 +316,14 @@ pub(crate) struct Focus<'a> {
 #[derive(Debug)]
 pub(crate) struct UserFunction {
     pub params: Vec<(String, Option<crate::seqtype::SequenceType>)>,
-    pub body: Expr,
+    pub body: UserFunctionBody,
     pub result: Option<crate::seqtype::SequenceType>,
     pub dynamic_visible: bool,
+}
+#[derive(Debug)]
+pub(crate) enum UserFunctionBody {
+    Expression(Expr),
+    Constructor(Vec<crate::compile::Instruction>),
 }
 /// Global variables are also bound under this prefix so function bodies can reach
 /// them even when a caller's local variable shadows the plain name.
@@ -361,6 +407,9 @@ pub(crate) struct Budget {
     pub resolver: Option<crate::ResourceResolver>,
     remaining: u64,
     pub max_depth: usize,
+    function_depth: usize,
+    constructor_depth: usize,
+    active_accumulators: Vec<(String, usize, u32, bool)>,
     pub now: crate::temporal::Temporal,
 }
 impl Budget {
@@ -381,6 +430,9 @@ impl Budget {
             resolver: None,
             remaining: limits.max_steps,
             max_depth: limits.max_depth,
+            function_depth: 0,
+            constructor_depth: 0,
+            active_accumulators: Vec::new(),
             now: crate::temporal::Temporal::now(),
         }
     }
@@ -965,6 +1017,13 @@ impl Parser {
             {
                 *key_name = crate::qname::resolve(key_name.trim(), &self.namespaces, "FOCA0002")?;
             }
+            if matches!(local.as_str(), "accumulator-before" | "accumulator-after") {
+                args[0] = Expr::StaticName(
+                    Box::new(args[0].clone()),
+                    self.namespaces.clone(),
+                    "XTDE3340",
+                );
+            }
             if local == "element-available" {
                 args[0] = Expr::StaticName(
                     Box::new(args[0].clone()),
@@ -1364,6 +1423,8 @@ impl Parser {
                                     | "type-available"
                                     | "function-available"
                                     | "function-lookup"
+                                    | "accumulator-before"
+                                    | "accumulator-after"
                                     | "static-base-uri"
                                     | "resolve-uri"
                                     | "unparsed-text"
@@ -1429,6 +1490,8 @@ impl Parser {
                                     | "type-available"
                                     | "function-available"
                                     | "function-lookup"
+                                    | "accumulator-before"
+                                    | "accumulator-after"
                                     | "static-base-uri"
                                     | "resolve-uri"
                                     | "unparsed-text"
@@ -1742,6 +1805,8 @@ fn xslt_function(name: &str) -> bool {
     matches!(
         name,
         "current"
+            | "accumulator-before"
+            | "accumulator-after"
             | "current-group"
             | "current-grouping-key"
             | "key"
@@ -1837,6 +1902,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "function-arity" | "function-name" => (1, 1),
         "function-lookup" | "apply" => (2, 2),
         name if crate::maps::arity(name).is_some() => crate::maps::arity(name).unwrap(),
+        "accumulator-before" | "accumulator-after" => (1, 1),
         "key" => (2, 3),
         "current" | "current-group" | "current-grouping-key" => (0, 0),
         "regex-group" => (1, 1),
@@ -2054,6 +2120,7 @@ fn evaluate_dynamic<'a>(
         .filter(|(k, _)| k.starts_with(GLOBAL_PREFIX))
         .map(|(k, v)| (k.clone(), v.clone()))
         .collect();
+    scope.runtime = vars.runtime.clone();
     if let Some(uri) = dynamic_base {
         scope.insert(STATIC_BASE_URI.into(), vec![Item::AnyUri(uri)]);
     }
@@ -2224,7 +2291,13 @@ pub(crate) fn eval<'a>(
         }
         Expr::StaticName(value, namespaces, code) => {
             let value = eval(value, focus, vars, budget, depth + 1, backwards)?;
-            static_name(&value, namespaces, backwards, *code != "XTDE1390", code)?
+            static_name(
+                &value,
+                namespaces,
+                backwards,
+                !matches!(*code, "XTDE1390" | "XTDE3340"),
+                code,
+            )?
         }
         Expr::QNameCast(value, namespaces, optional, castable) => {
             let value = eval(value, focus, vars, budget, depth + 1, backwards)?;
@@ -2761,7 +2834,7 @@ pub(crate) fn eval<'a>(
             let captured = without_grouping_context(vars);
             vec![Item::Function(std::rc::Rc::new(FunctionValue::Inline(
                 def.clone(),
-                captured,
+                captured.values,
             )))]
         }
         Expr::FunctionRef(name, arity, namespaces) => {
@@ -2973,6 +3046,15 @@ fn call_named<'a>(
             Some(group) => vec![group.clone()],
             None => vec![Item::String(String::new())],
         }
+    } else if matches!(name, "accumulator-before" | "accumulator-after") {
+        call_accumulator(
+            &args[0],
+            focus,
+            vars,
+            budget,
+            name == "accumulator-after",
+            backwards,
+        )?
     } else if name == "key" {
         call_key(args, focus, vars, budget)?
     } else if name.starts_with("Q{") {
@@ -3223,6 +3305,8 @@ fn attach_lookup_context<'a>(value: Value<'a>, namespaces: &BTreeMap<String, Str
                             | "system-property"
                             | "type-available"
                             | "function-available"
+                            | "accumulator-before"
+                            | "accumulator-after"
                             | "function-lookup"
                             | "static-base-uri"
                             | "resolve-uri"
@@ -3267,10 +3351,13 @@ fn named_function<'a>(
 }
 
 fn without_grouping_context<'a>(vars: &Variables<'a>) -> Variables<'a> {
-    vars.iter()
+    let mut result: Variables<'a> = vars
+        .iter()
         .filter(|(name, _)| !matches!(name.as_str(), CURRENT_GROUP | CURRENT_KEY))
         .map(|(name, value)| (name.clone(), value.clone()))
-        .collect()
+        .collect();
+    result.runtime = vars.runtime.clone();
+    result
 }
 
 fn with_dynamic_lookup<T>(budget: &mut Budget, f: impl FnOnce(&mut Budget) -> T) -> T {
@@ -3320,14 +3407,21 @@ fn call_function_item<'a>(
                         | "system-property"
                         | "type-available"
                         | "function-available"
+                        | "accumulator-before"
+                        | "accumulator-after"
                 )
             }) {
                 args[0] = static_name(
                     &args[0],
                     namespaces,
                     backwards,
-                    name != "system-property",
-                    if name == "element-available" {
+                    !matches!(
+                        name.as_str(),
+                        "system-property" | "accumulator-before" | "accumulator-after"
+                    ),
+                    if matches!(name.as_str(), "accumulator-before" | "accumulator-after") {
+                        "XTDE3340"
+                    } else if name == "element-available" {
                         "XTDE1440"
                     } else if name == "type-available" {
                         "XTDE1428"
@@ -3386,7 +3480,10 @@ fn call_function_item<'a>(
         }
         FunctionValue::Array(array) => crate::maps::array_member(array, &args[0]).cloned(),
         FunctionValue::Inline(def, captured) => {
-            let mut scope = captured.clone();
+            let mut scope = Variables {
+                values: captured.clone(),
+                runtime: vars.runtime.clone(),
+            };
             for ((param, ty), value) in def.params.iter().zip(args) {
                 let value = match ty {
                     Some(ty) => ty.convert(value, "XPTY0004")?,
@@ -3719,6 +3816,147 @@ fn owned_key_value(item: Item<'_>, budget: &mut Budget) -> Result<Item<'static>,
     })
 }
 
+fn call_accumulator<'a>(
+    name: &[Item<'a>],
+    focus: &Focus<'a>,
+    vars: &Variables<'a>,
+    budget: &mut Budget,
+    after: bool,
+    backwards: bool,
+) -> Result<Value<'a>, Diagnostic> {
+    let name = crate::string_functions::string(name, false, backwards)?;
+    let runtime = vars
+        .runtime
+        .clone()
+        .ok_or_else(|| err("XTDE3340", "no accumulator environment"))?;
+    let accumulator = runtime
+        .sheet
+        .accumulators
+        .get(&name)
+        .ok_or_else(|| err("XTDE3340", format!("unknown accumulator: {name}")))?;
+    let node = match focus.item {
+        Item::Absent => return Err(err("XTDE3350", "accumulator requires a context item")),
+        Item::Node(node) if !node.is_attribute() => node,
+        _ => {
+            return Err(err(
+                "XTTE3360",
+                "accumulator context must be a non-attribute node",
+            ));
+        }
+    };
+    let root = node.root();
+    let order = root.order();
+    if runtime.initial_root == Some((order.0, order.1)) {
+        let applies = match &runtime.initial_accumulators {
+            Some(crate::mode::AccumulatorUse::All) => true,
+            Some(crate::mode::AccumulatorUse::Names(names)) => names.contains(&name),
+            None => false,
+        };
+        if !applies {
+            return Err(err(
+                "XTDE3362",
+                "accumulator is not applicable to the initial tree",
+            ));
+        }
+    }
+    let identity = node.order();
+    let key = (name.clone(), identity.0, identity.1, after);
+    if budget.active_accumulators.contains(&key) {
+        return Err(err("XTDE3400", "circular accumulator dependency"));
+    }
+    if budget.active_accumulators.len() >= 4 {
+        return Err(err("XPDY0130", "accumulator dependency limit exceeded"));
+    }
+    budget.active_accumulators.push(key);
+    let result = evaluate_accumulator(accumulator, root, node, vars, budget, after, backwards);
+    budget.active_accumulators.pop();
+    result
+}
+
+fn evaluate_accumulator<'a>(
+    accumulator: &crate::compile::Accumulator,
+    root: XNode<'a>,
+    target: XNode<'a>,
+    vars: &Variables<'a>,
+    budget: &mut Budget,
+    after: bool,
+    backwards: bool,
+) -> Result<Value<'a>, Diagnostic> {
+    let mut scope: Variables<'a> = vars
+        .iter()
+        .filter_map(|(name, value)| {
+            name.strip_prefix(GLOBAL_PREFIX).map(|plain| {
+                [
+                    (plain.to_owned(), value.clone()),
+                    (name.clone(), value.clone()),
+                ]
+            })
+        })
+        .flatten()
+        .collect();
+    scope.runtime = vars.runtime.clone();
+    let root_focus = Focus {
+        item: Item::Node(root),
+        position: 1,
+        size: 1,
+    };
+    let mut value = eval(
+        &accumulator.initial,
+        &root_focus,
+        &scope,
+        budget,
+        0,
+        backwards,
+    )?;
+    if let Some(ty) = &accumulator.ty {
+        value = ty.convert(value, "XPTY0004")?;
+    }
+    let mut events = vec![(root, false)];
+    while let Some((node, end)) = events.pop() {
+        budget.tick()?;
+        let mut selected = None;
+        for rule in &accumulator.rules {
+            if rule.end != end {
+                continue;
+            }
+            for branch in &rule.branches {
+                budget.tick()?;
+                if crate::pattern::matches(branch, node, &scope, budget, backwards)? {
+                    selected = Some(rule);
+                    break;
+                }
+            }
+        }
+        if let Some(rule) = selected {
+            let mut local = scope.clone();
+            local.insert("value".into(), value);
+            let focus = Focus {
+                item: Item::Node(node),
+                position: 1,
+                size: 1,
+            };
+            value = eval(&rule.select, &focus, &local, budget, 0, backwards)?;
+            if let Some(ty) = &accumulator.ty {
+                value = ty.convert(value, "XPTY0004")?;
+            }
+        }
+        if node == target && end == after {
+            return Ok(value);
+        }
+        if !end {
+            events.push((node, true));
+            for child in node.children().rev() {
+                budget.tick()?;
+                events.push((child, false));
+            }
+        }
+    }
+    Err(err(
+        "RUST_XSLT_UNSUPPORTED",
+        "accumulator context is not in its root tree",
+    ))
+}
+
 fn call_key<'a>(
     args: Vec<Value<'a>>,
     focus: &Focus<'a>,
@@ -3748,7 +3986,7 @@ fn call_key<'a>(
         ));
     }
     // Key declarations use their global lexical scope, regardless of caller locals.
-    let scope: Variables<'a> = vars
+    let mut scope: Variables<'a> = vars
         .iter()
         .filter_map(|(k, v)| {
             let plain = k.strip_prefix(GLOBAL_PREFIX)?;
@@ -3756,6 +3994,7 @@ fn call_key<'a>(
         })
         .flatten()
         .collect();
+    scope.runtime = vars.runtime.clone();
     let compatibility = definitions.iter().any(|definition| definition.backwards);
     let wanted = key_values(args[1].clone(), compatibility, budget)?;
     let composite = definitions[0].composite;
@@ -3927,6 +4166,7 @@ fn call_user_function<'a>(
         })
         .flatten()
         .collect();
+    scope.runtime = vars.runtime.clone();
     for ((param, ty), value) in function.params.iter().zip(args) {
         let value = match ty {
             Some(ty) => ty.convert(value, "XPTY0004")?,
@@ -3939,14 +4179,40 @@ fn call_user_function<'a>(
         position: 0,
         size: 0,
     };
-    let result = eval(
-        &function.body,
-        &absent,
-        &scope,
-        budget,
-        depth + 1,
-        backwards,
-    )?;
+    if budget.function_depth >= budget.max_depth.min(128) {
+        return Err(err("XPDY0130", "stylesheet function depth limit exceeded"));
+    }
+    budget.function_depth += 1;
+    let result = match &function.body {
+        UserFunctionBody::Expression(body) => {
+            eval(body, &absent, &scope, budget, depth + 1, backwards)
+        }
+        UserFunctionBody::Constructor(_) => {
+            // Constructor execution enters the instruction interpreter recursively.
+            // Bound native stack use until XPath and instruction frames share a trampoline.
+            if budget.constructor_depth >= 2
+                || budget.constructor_depth + crate::runtime::nested_instruction_runs() >= 3
+            {
+                Err(err(
+                    "XPDY0130",
+                    "stylesheet function constructor nesting limit exceeded",
+                ))
+            } else {
+                budget.constructor_depth += 1;
+                let result = crate::runtime::execute_function(
+                    name,
+                    function.params.len(),
+                    &scope,
+                    budget,
+                    depth + 1,
+                );
+                budget.constructor_depth -= 1;
+                result
+            }
+        }
+    };
+    budget.function_depth -= 1;
+    let result = result?;
     match &function.result {
         Some(ty) => ty.convert(result, "XTTE0780"),
         None => Ok(result),

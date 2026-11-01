@@ -6,13 +6,14 @@ use crate::{
     seqtype::SequenceType,
     xpath::{Item, Value},
 };
-use std::cell::Cell;
+use std::{cell::Cell, rc::Rc};
 use typed_arena::Arena;
+#[derive(Clone)]
 pub(crate) struct Trees<'a> {
     pub sources: &'a Arena<String>,
     pub documents: &'a Arena<roxmltree::Document<'a>>,
     max: usize,
-    used: Cell<usize>,
+    used: Rc<Cell<usize>>,
 }
 impl<'a> Trees<'a> {
     pub fn load_document(
@@ -45,7 +46,7 @@ impl<'a> Trees<'a> {
             sources,
             documents,
             max,
-            used: Cell::new(0),
+            used: Rc::new(Cell::new(0)),
         }
     }
     pub fn construct(
