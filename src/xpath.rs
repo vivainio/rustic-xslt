@@ -1817,6 +1817,7 @@ fn function_arity(name: &str) -> Option<(usize, usize)> {
         "parse-json" => (1, 2),
         "format-integer" => (2, 3),
         "id" | "element-with-id" => (1, 2),
+        "unparsed-entity-uri" | "unparsed-entity-public-id" => (1, 2),
         "doc" | "doc-available" => (1, 1),
         "document" => (1, 2),
         "system-property" | "element-available" | "type-available" => (1, 1),
@@ -2876,6 +2877,35 @@ fn call_named<'a>(
         vars.get(CURRENT_KEY)
             .cloned()
             .ok_or_else(|| err("XTDE1071", "there is no current grouping key"))?
+    } else if matches!(name, "unparsed-entity-uri" | "unparsed-entity-public-id") {
+        crate::string_functions::string(&args[0], false, backwards)?;
+        let node = match args.get(1).map(Vec::as_slice) {
+            Some([Item::Node(node)]) => *node,
+            Some(_) => return Err(err("XPTY0004", "entity lookup requires a single node")),
+            None => match &focus.item {
+                Item::Node(node) => *node,
+                Item::Absent => {
+                    return Err(err("XPDY0002", "entity lookup requires a context item"));
+                }
+                _ => return Err(err("XPTY0004", "entity lookup requires a node")),
+            },
+        };
+        if !node.root().is_document() {
+            return Err(err(
+                if name == "unparsed-entity-uri" {
+                    "XTDE1370"
+                } else {
+                    "XTDE1380"
+                },
+                "entity lookup requires a document-rooted tree",
+            ));
+        }
+        // The parser rejects DTDs, so accepted documents contain no entity declarations.
+        if name == "unparsed-entity-uri" {
+            vec![Item::AnyUri(String::new())]
+        } else {
+            vec![Item::String(String::new())]
+        }
     } else if matches!(name, "id" | "element-with-id") {
         // Only xml:id attributes carry the ID type without a DTD or schema.
         let start = match args.get(1).map(Vec::as_slice) {

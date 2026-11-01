@@ -212,3 +212,49 @@ fn id_finds_elements_by_xml_id_in_document_order() {
         assert_eq!(got, expected, "{expression}");
     }
 }
+
+#[test]
+fn unparsed_entity_lookup_for_documents_without_dtds() {
+    for (expr, expected) in [
+        (
+            "unparsed-entity-uri('missing') instance of xs:anyURI",
+            "true",
+        ),
+        (
+            "unparsed-entity-public-id('missing') instance of xs:string",
+            "true",
+        ),
+        ("string(unparsed-entity-uri('missing', /))", ""),
+        ("unparsed-entity-public-id('missing', r)", ""),
+        ("function-available('unparsed-entity-uri', 2)", "true"),
+    ] {
+        assert_eq!(sheet(expr).transform("<r/>").unwrap(), expected, "{expr}");
+    }
+    assert_eq!(
+        sheet("unparsed-entity-uri('missing', 1)")
+            .transform("<r/>")
+            .unwrap_err()
+            .code,
+        "XPTY0004"
+    );
+}
+
+#[test]
+fn unparsed_entity_lookup_requires_document_rooted_nodes() {
+    for (name, code) in [
+        ("unparsed-entity-uri", "XTDE1370"),
+        ("unparsed-entity-public-id", "XTDE1380"),
+    ] {
+        let stylesheet = format!(
+            r#"<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="3.0"><xsl:template match="/"><xsl:variable name="node" as="element()"><a/></xsl:variable><xsl:sequence select="{name}('missing', $node)"/></xsl:template></xsl:stylesheet>"#
+        );
+        assert_eq!(
+            Stylesheet::compile(&stylesheet)
+                .unwrap()
+                .transform("<r/>")
+                .unwrap_err()
+                .code,
+            code
+        );
+    }
+}
