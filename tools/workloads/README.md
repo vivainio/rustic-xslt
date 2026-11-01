@@ -28,6 +28,24 @@ against an upstream Schematron fixture. The runner exits nonzero on blockers,
 failures, or unverified output, so it is a progress probe rather than a passing
 CI gate. The driver currently limits each transformation to one million steps.
 
+DocBook also ships a Schematron schema for glossary references, backed by its
+unmodified `standalone-functions.xsl`. The following separate probe places the
+unmodified schema and its relative XSLT include in a temporary directory and
+checks missing, single, and duplicate glossary entries against SaxonC:
+
+```sh
+PYTHONPATH=/tmp/rust-xslt-saxonche python3 tools/workloads/docbook_schematron.py \
+  --docbook /tmp/xslt-workloads/docbook --schxslt2 /tmp/xslt-workloads/schxslt2 --release
+```
+
+With DocBook 2.8.4 revision `5210c58dcc982934b51101eb0527d32bda85a865`, both Rust and
+Saxon compile the schema and Saxon validates all three examples as expected.
+Rust currently reports `XPDY0130` for each example: the library's nested
+stylesheet function and constructor calls reach conservative native-stack
+guards. The probe exits nonzero while Rust validation is blocked. Increasing
+`--max-depth` does not remove these separate safety bounds; broader function
+execution support is needed for this schema.
+
 Unparsed-entity lookup currently only supports documents without DTDs: the XML
 parser rejects DTDs, and thus declared unparsed entities cannot yet be resolved.
 
