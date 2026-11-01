@@ -2756,6 +2756,11 @@ fn declarations(
             continue;
         }
         if n.tag_name().namespace() != Some(XSL) {
+            // Namespaced top-level data is metadata for stylesheet tools and
+            // is not an instruction to execute.
+            if n.tag_name().namespace().is_some() {
+                continue;
+            }
             return Err(error(n, "unsupported top-level element"));
         }
         if use_when_excludes(n)? {

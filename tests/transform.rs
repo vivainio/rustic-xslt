@@ -114,3 +114,10 @@ fn text_comments_are_not_output_and_pattern_whitespace_is_ignored() {
         sheet(r#"<xsl:template match=" / "><xsl:text>a<!--comment-->b</xsl:text></xsl:template>"#);
     assert_eq!(transform(&s, "<r/>").unwrap(), "ab");
 }
+
+#[test]
+fn namespaced_top_level_metadata_does_not_block_stylesheets() {
+    let body = r#"<meta:description xmlns:meta="urn:metadata"><meta:detail>ignored</meta:detail></meta:description><xsl:template match="/"><out/></xsl:template>"#;
+    assert_eq!(transform(&sheet(body), "<doc/>").unwrap(), "<out></out>");
+    assert!(Stylesheet::compile(&sheet("<description/>")).is_err());
+}
