@@ -56,8 +56,9 @@ cargo run --example schematron -- \
   tools/workloads/schematron/typical-invalid.xml
 ```
 
-Use `--phase NAME` after the schema to choose a phase, and `--max-steps N`
-to set the per-transformation work limit for larger schemas. Each SVRL document is
+Use `--phase NAME` after the schema to choose a phase, `--max-steps N` to set
+the per-transformation work limit, and `--max-depth N` to set its execution
+depth limit. Each SVRL document is
 written to stdout; counts of failed assertions and successful reports are
 written to stderr. Invalid input is reported in SVRL and does not itself set a
 nonzero exit status; compile and runtime errors do. With multiple inputs,
@@ -219,8 +220,10 @@ from the compiler's directory before compiling the schema. The include stage
 uses the schema document URI as the base for relative references; the pinned
 ISO stylesheet does not honor an inherited element `xml:base` for those
 references. The pinned NEMSIS schemas are already expanded and do not need
-preprocessing; the include stage currently exceeds the engine's execution-depth
-limit on the demographic schema and the upstream `svrl.sch` schema.
+preprocessing. If preprocessing them, use `--max-depth 2048`; the patient-care
+schema also needs `--max-steps 100000000` for its include stage. The pinned ISO
+abstract-pattern processor does not correctly expand the upstream `svrl.sch`
+schema even with a higher depth limit; the same issue occurs with SaxonC.
 
 Pass `--dataset ems` to run the same comparison on the larger NEMSIS
 patient-care schema and its 198 upstream sample documents and expected reports.

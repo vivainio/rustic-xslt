@@ -72,10 +72,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut arguments = std::env::args_os().skip(1);
     let transpiler_path = arguments
         .next()
-        .ok_or("usage: schematron TRANSPILER.xsl SCHEMA.sch [--iso] [--iso-preprocess] [--phase NAME] [--max-steps N] DOCUMENT.xml [DOCUMENT.xml ...]")?;
+        .ok_or("usage: schematron TRANSPILER.xsl SCHEMA.sch [--iso] [--iso-preprocess] [--phase NAME] [--max-steps N] [--max-depth N] DOCUMENT.xml [DOCUMENT.xml ...]")?;
     let schema_path = arguments.next().ok_or("missing Schematron schema")?;
     let mut phase = None;
     let mut max_steps = None;
+    let mut max_depth = None;
     let mut iso = false;
     let mut iso_preprocess = false;
     let mut documents = Vec::new();
@@ -100,6 +101,18 @@ fn main() -> Result<(), Box<dyn Error>> {
                     .ok_or("--phase requires a value")?
                     .into_string()
                     .map_err(|_| "phase must be UTF-8")?,
+            );
+        } else if argument == "--max-depth" {
+            if max_depth.is_some() {
+                return Err("--max-depth may be supplied only once".into());
+            }
+            max_depth = Some(
+                arguments
+                    .next()
+                    .ok_or("--max-depth requires a value")?
+                    .into_string()
+                    .map_err(|_| "max depth must be UTF-8")?
+                    .parse::<usize>()?,
             );
         } else if argument == "--max-steps" {
             if max_steps.is_some() {
@@ -151,6 +164,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     if let Some(max_steps) = max_steps {
         schema_options.limits.max_steps = max_steps;
     }
+    if let Some(max_depth) = max_depth {
+        schema_options.limits.max_depth = max_depth;
+    }
     if iso {
         schema_options
             .parameters
@@ -190,6 +206,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         };
         if let Some(max_steps) = max_steps {
             options.limits.max_steps = max_steps;
+        }
+        if let Some(max_depth) = max_depth {
+            options.limits.max_depth = max_depth;
         }
         let report = validator.transform_with_options(&fs::read_to_string(path)?, &options)?;
         let document = roxmltree::Document::parse(&report)?;

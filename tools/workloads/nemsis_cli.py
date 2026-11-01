@@ -5,10 +5,20 @@ import re
 import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
+from collections import Counter
 from pathlib import Path
 from run import ROOT, revision
 
 SVRL = '{http://purl.oclc.org/dsdl/svrl}'
+
+
+def signature(root):
+    fired = Counter(node.get('context') for node in root.findall('.//' + SVRL + 'fired-rule'))
+    def assertions(tag):
+        return Counter((node.get('id'), node.get('test'), node.get('location'),
+                        ' '.join(''.join(node.itertext()).split()))
+                       for node in root.findall('.//' + SVRL + tag))
+    return fired, assertions('failed-assert'), assertions('successful-report')
 
 
 def main():
@@ -29,19 +39,25 @@ def main():
         suite = nemsis / f'SampleData/Schematron/{dataset}'
         names = [f'{dataset}DataSet--Base.xml', f'{dataset}DataSet-{failure}_A.xml']
         inputs = [suite / 'xml' / name for name in names]
-        process = subprocess.run([str(cli), str(compiler), str(schema), '--iso', *map(str, inputs)],
-                                 text=True, capture_output=True, check=True, timeout=120)
-        reports = [chunk for chunk in re.split(r'(?=<\?xml\s)', process.stdout) if chunk.strip()]
-        if len(reports) != len(inputs):
-            raise AssertionError(f'expected {len(inputs)} SVRL reports; got {len(reports)}')
-        for name, report in zip(names, reports):
-            root = ET.fromstring(report)
-            expected = ET.parse(suite / 'svrl' / name).getroot()
-            actual_ids = [node.get('id') for node in root.findall('.//' + SVRL + 'failed-assert')]
-            expected_ids = [node.get('id') for node in expected.findall('.//' + SVRL + 'failed-assert')]
-            if root.tag != SVRL + 'schematron-output' or not root.findall('.//' + SVRL + 'fired-rule') or actual_ids != expected_ids:
-                raise AssertionError(f'{name}: actual failure IDs {actual_ids}, expected {expected_ids}')
-            print('PASS', dataset, name, 'failure IDs:', actual_ids, flush=True)
+        baseline = {}
+        for label, extra in [('direct', []), ('preprocessed', ['--iso-preprocess', '--max-depth', '2048', '--max-steps', '100000000'])]:
+            process = subprocess.run([str(cli), str(compiler), str(schema), '--iso', *extra, *map(str, inputs)],
+                                     text=True, capture_output=True, check=True, timeout=120)
+            reports = [chunk for chunk in re.split(r'(?=<\?xml\s)', process.stdout) if chunk.strip()]
+            if len(reports) != len(inputs):
+                raise AssertionError(f'expected {len(inputs)} SVRL reports; got {len(reports)}')
+            for name, report in zip(names, reports):
+                root = ET.fromstring(report)
+                expected = ET.parse(suite / 'svrl' / name).getroot()
+                actual_ids = [node.get('id') for node in root.findall('.//' + SVRL + 'failed-assert')]
+                expected_ids = [node.get('id') for node in expected.findall('.//' + SVRL + 'failed-assert')]
+                if root.tag != SVRL + 'schematron-output' or not root.findall('.//' + SVRL + 'fired-rule') or actual_ids != expected_ids:
+                    raise AssertionError(f'{name}: actual failure IDs {actual_ids}, expected {expected_ids}')
+                result = signature(root)
+                if name in baseline and result != baseline[name]:
+                    raise AssertionError(f'{name}: preprocessed validator differs from direct validator')
+                baseline[name] = result
+                print('PASS', dataset, label, name, 'failure IDs:', actual_ids, flush=True)
 
     fixture = ROOT / 'tools/workloads/schematron'
     with tempfile.TemporaryDirectory(prefix='nemsis-cli-') as tmp:
