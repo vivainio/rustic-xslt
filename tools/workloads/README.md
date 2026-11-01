@@ -131,3 +131,27 @@ PYTHONPATH=/tmp/rust-xslt-saxonche python3 tools/workloads/reference_peppol.py \
 The comparison cross-runs both generated validators through both processors,
 checking fired-rule contexts and assertion IDs, tests, locations, and text.
 It covers these two inputs, not every Peppol rule.
+
+The independent [Schematron/schema](https://github.com/Schematron/schema)
+repository contains real schemas for SVRL reports and additional Schematron
+constraints. The following optional reference probe uses the pinned revision,
+the SaxonC installation above, and the pinned SchXslt2 checkout:
+
+```sh
+git clone https://github.com/Schematron/schema.git /tmp/xslt-workloads/schematron-schema
+git -C /tmp/xslt-workloads/schematron-schema checkout 3a94cbe9ee6a9481d38888654cd7411bb450f895
+PYTHONPATH=/tmp/rust-xslt-saxonche python3 tools/workloads/reference_svrl.py \
+  --schxslt2 /tmp/xslt-workloads/schxslt2 \
+  --schema /tmp/xslt-workloads/schematron-schema --release
+```
+
+The SVRL schema checks an actual report generated from the inventory fixture
+and a version with a missing location and an illegal child. These exercise
+nested abstract-rule extensions and parameterized abstract patterns. The
+Schematron constraints schema checks the upstream SVRL schema and a version
+with a broken abstract-rule reference, exercising `current()` and document-wide
+search. Both Rust- and Saxon-generated validators run on both processors;
+the probe compares fired-rule contexts and assertion details for all four
+inputs. All stages fit within the default 20-million-step limit for the pinned
+inputs. This is feature coverage for those cases, not a complete assessment of
+all Schematron implementations or schemas.
