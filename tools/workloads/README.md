@@ -197,3 +197,13 @@ processors can use different local time zones. The probe uses the default
 schema's multi-node `subject` expressions, so its generated validator does not
 compile. The NEMSIS ISO compiler provides a working Rust-only pipeline for these
 cases.
+
+Pass `--dataset ems` to run the same comparison on the larger NEMSIS
+patient-care schema and its 198 upstream sample documents and expected reports.
+This requires the checkout to include `Schematron/rules/EMSDataSet.sch` and the
+`SampleData/Schematron/EMS/xml` and `svrl` directories. The comparison also
+normalizes the current local time in the EMS time-stamp diagnostic. All 792
+compiler/validator combinations agree and match the expected failure IDs with
+the default step limit. SchXslt2 exceeds that limit while transpiling this
+schema; with a 100-million-step limit, transpilation completes but its generated
+validator still has invalid `path()` calls for multi-node subjects.

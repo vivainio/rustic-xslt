@@ -13,12 +13,12 @@ from run import ROOT, invoke, resources, revision
 
 def comparable_signature(output):
     fired, failures, reports = signature(output)
-    # The d004 diagnostic includes the processor's current local time and zone.
+    # These diagnostics include the processor's current local time and zone.
     # Compare all other text and fields while allowing those to differ.
     def normalize(items):
         return Counter({(ident, test, location,
                          re.sub(r'(current time according to this system is )[^)]*', r'\1<time>', text)
-                         if ident == 'nemSch_d004' else text): count
+                         if ident in ('nemSch_d004', 'nemSch_e056') else text): count
                         for (ident, test, location, text), count in items.items()})
     return fired, normalize(failures), normalize(reports)
 
@@ -27,6 +27,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--nemsis', type=Path, required=True)
     parser.add_argument('--schxslt2', type=Path, required=True)
+    parser.add_argument('--dataset', choices=('dem', 'ems'), default='dem')
     parser.add_argument('--release', action='store_true')
     parser.add_argument('--max-steps', type=int, default=20_000_000)
     args = parser.parse_args()
@@ -38,14 +39,16 @@ def main():
         build.append('--release')
     subprocess.run(build, cwd=ROOT, check=True)
     driver = ROOT / 'target' / ('release' if args.release else 'debug') / 'examples/reference_driver'
-    schema = nemsis / 'Schematron/rules/DEMDataSet.sch'
-    suite = nemsis / 'SampleData/Schematron/DEM'
+    dataset = args.dataset.upper()
+    schema = nemsis / f'Schematron/rules/{dataset}DataSet.sch'
+    suite = nemsis / f'SampleData/Schematron/{dataset}'
     compiler_dir = nemsis / 'Schematron/DevelopmentKit/Schematron/utilities/iso-schematron-xslt2'
     compiler = compiler_dir / 'iso_svrl_for_xslt2.xsl'
     modern = schxslt / 'src/main/resources/content/transpile.xsl'
-    cases = sorted((suite / 'xml').glob('DEMDataSet*.xml'))
-    if len(cases) != 20:
-        raise ValueError(f'expected 20 pinned NEMSIS sample documents, found {len(cases)}')
+    cases = sorted((suite / 'xml').glob(f'{dataset}DataSet*.xml'))
+    expected_count = 20 if dataset == 'DEM' else 198
+    if len(cases) != expected_count:
+        raise ValueError(f'expected {expected_count} pinned NEMSIS sample documents, found {len(cases)}')
 
     def invoke_checked(style, source, uri=None, available=None, params=None):
         result = invoke(driver, style, source, available or {}, uri, params, max_steps=args.max_steps)
@@ -88,14 +91,17 @@ def main():
                     print('PASS', producer, 'compiler /', executor, 'validator:', name,
                           'fired:', sum(result[0].values()), 'failures:', dict(ids(result)), flush=True)
 
-        modern_output = invoke_checked(modern, schema.read_text(), schema.as_uri(), resources(schxslt))
-        modern_validator = Path(tmp) / 'nemsis-schxslt2-validator.xsl'
-        modern_validator.write_text(modern_output)
-        modern_result = invoke(driver, modern_validator, (suite / 'xml/DEMDataSet--Base.xml').read_text(), {}, max_steps=args.max_steps)
+        modern_result = invoke(driver, modern, schema.read_text(), resources(schxslt), schema.as_uri(), max_steps=args.max_steps)
         if modern_result['diagnostics']:
-            print('LIMITATION SchXslt2 generated validator:', modern_result['diagnostics'][0], flush=True)
+            print('LIMITATION SchXslt2 transpilation:', modern_result['diagnostics'][0], flush=True)
         else:
-            print('PASS SchXslt2 generated validator ran', flush=True)
+            modern_validator = Path(tmp) / 'nemsis-schxslt2-validator.xsl'
+            modern_validator.write_text(modern_result['output'])
+            modern_result = invoke(driver, modern_validator, (suite / 'xml' / f'{dataset}DataSet--Base.xml').read_text(), {}, max_steps=args.max_steps)
+            if modern_result['diagnostics']:
+                print('LIMITATION SchXslt2 generated validator:', modern_result['diagnostics'][0], flush=True)
+            else:
+                print('PASS SchXslt2 generated validator ran', flush=True)
 
 
 if __name__ == '__main__':
