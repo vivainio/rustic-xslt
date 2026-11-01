@@ -179,8 +179,8 @@ cases fit within the default 20-million-step limit on the pinned inputs.
 
 The NEMSIS national demographic schema provides a larger healthcare workload
 with upstream valid and invalid samples and expected SVRL reports. The optional
-probe compiles the original schema with NEMSIS's ISO Schematron compiler using
-SaxonC, then runs the resulting validator in both processors:
+probe compiles the original schema with NEMSIS's ISO Schematron compiler in
+both Rust and SaxonC, then runs both generated validators in both processors:
 
 ```sh
 git clone --filter=blob:none --no-checkout https://git.nemsis.org/scm/nep/nemsis_public.git /tmp/xslt-workloads/nemsis
@@ -189,10 +189,11 @@ PYTHONPATH=/tmp/rust-xslt-saxonche python3 tools/workloads/reference_nemsis.py \
   --nemsis /tmp/xslt-workloads/nemsis --schxslt2 /tmp/xslt-workloads/schxslt2 --release
 ```
 
-The base case and `nemSch_d001` case agree on fired rules and assertion details
-between processors and match the upstream expected failure IDs. The probe uses
-the default 20-million-step limit. Rust cannot yet run the ISO compiler itself:
-it rejects `extension-element-prefixes`. SchXslt2 generates an invalid call to
-`path()` for this schema's multi-node `subject` expressions, so its output does
-not compile. The successful path therefore requires SaxonC to generate the
-validator; it does not yet provide a Rust-only NEMSIS pipeline.
+All 20 demographic sample documents agree on fired rules and assertion details
+between processors and match the upstream expected failure IDs. The comparison
+normalizes the current local time and time zone in one diagnostic, since the
+processors can use different local time zones. The probe uses the default
+20-million-step limit. SchXslt2 generates an invalid call to `path()` for this
+schema's multi-node `subject` expressions, so its generated validator does not
+compile. The NEMSIS ISO compiler provides a working Rust-only pipeline for these
+cases.

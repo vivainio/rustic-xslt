@@ -151,6 +151,20 @@ fn timezone_text(m: &Marker, tz: Option<i32>) -> String {
                 .to_string()
         };
     }
+    // Time-zone names are implementation-dependent. Use a numeric offset when
+    // no local name is available, and the standard UTC designator at zero.
+    if matches!(m.presentation.as_str(), "N" | "n" | "Nn") {
+        if offset == 0 {
+            return if m.presentation == "n" {
+                "z".into()
+            } else {
+                "Z".into()
+            };
+        }
+        let sign = if offset < 0 { '-' } else { '+' };
+        let magnitude = offset.unsigned_abs();
+        return format!("{sign}{:02}:{:02}", magnitude / 60, magnitude % 60);
+    }
     let mut presentation = if military || m.presentation.is_empty() {
         "01:01".to_owned()
     } else {

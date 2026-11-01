@@ -272,3 +272,15 @@ fn type_available_includes_builtin_schema_base_types() {
         "false"
     );
 }
+
+#[test]
+fn excluded_choose_branches_are_removed_before_compilation() {
+    let source = r#"<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="3.0"><xsl:output method="text"/><xsl:template match="/"><xsl:choose><xsl:when use-when="false()" test="namespace::*">bad</xsl:when><xsl:when test="true()">good</xsl:when><xsl:otherwise use-when="false()"><xsl:value-of select="namespace::*"/></xsl:otherwise></xsl:choose></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(
+        rust_xslt::Stylesheet::compile(source)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap(),
+        "good"
+    );
+}

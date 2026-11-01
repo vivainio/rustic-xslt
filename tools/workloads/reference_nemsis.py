@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Run NEMSIS's unmodified healthcare schema and samples against SaxonC."""
 import argparse
+import re
 from collections import Counter
 import subprocess
 import tempfile
@@ -8,6 +9,18 @@ from pathlib import Path
 from saxonche import PySaxonProcessor
 from reference_peppol import signature
 from run import ROOT, invoke, resources, revision
+
+
+def comparable_signature(output):
+    fired, failures, reports = signature(output)
+    # The d004 diagnostic includes the processor's current local time and zone.
+    # Compare all other text and fields while allowing those to differ.
+    def normalize(items):
+        return Counter({(ident, test, location,
+                         re.sub(r'(current time according to this system is )[^)]*', r'\1<time>', text)
+                         if ident == 'nemSch_d004' else text): count
+                        for (ident, test, location, text), count in items.items()})
+    return fired, normalize(failures), normalize(reports)
 
 
 def main():
@@ -30,6 +43,9 @@ def main():
     compiler_dir = nemsis / 'Schematron/DevelopmentKit/Schematron/utilities/iso-schematron-xslt2'
     compiler = compiler_dir / 'iso_svrl_for_xslt2.xsl'
     modern = schxslt / 'src/main/resources/content/transpile.xsl'
+    cases = sorted((suite / 'xml').glob('DEMDataSet*.xml'))
+    if len(cases) != 20:
+        raise ValueError(f'expected 20 pinned NEMSIS sample documents, found {len(cases)}')
 
     def invoke_checked(style, source, uri=None, available=None, params=None):
         result = invoke(driver, style, source, available or {}, uri, params, max_steps=args.max_steps)
@@ -42,26 +58,36 @@ def main():
         xslt = processor.new_xslt30_processor()
         iso_compiler = xslt.compile_stylesheet(stylesheet_file=str(compiler))
         iso_compiler.set_parameter('allow-foreign', processor.make_string_value('true'))
-        validator = Path(tmp) / 'nemsis-iso-validator.xsl'
-        validator.write_text(iso_compiler.transform_to_string(source_file=str(schema)))
-        saxon_validator = xslt.compile_stylesheet(stylesheet_file=str(validator))
-        for name in ('DEMDataSet--Base.xml', 'DEMDataSet-nemSch_d001_A.xml'):
-            source, expected = suite / 'xml' / name, suite / 'svrl' / name
-            rust = signature(invoke_checked(validator, source.read_text(), source.as_uri()))
-            saxon = signature(saxon_validator.transform_to_string(source_file=str(source)))
-            official = signature(expected.read_text())
-            def ids(result):
-                return sum((Counter({item[0]: count}) for item, count in result[1].items()), Counter())
-            if not rust[0] or rust != saxon or ids(rust) != ids(official):
-                raise AssertionError(f'{name}: Rust {rust}, Saxon {saxon}, expected IDs {ids(official)}')
-            print('PASS', name, 'fired:', sum(rust[0].values()), 'failures:', dict(ids(rust)), flush=True)
+        validators = {
+            'saxon': iso_compiler.transform_to_string(source_file=str(schema)),
+            'rust': invoke_checked(compiler, schema.read_text(), schema.as_uri(), resources(compiler_dir),
+                                   {'allow-foreign': 'true'}),
+        }
+        baseline = {}
+        for producer, generated in validators.items():
+            validator = Path(tmp) / (producer + '-iso-validator.xsl')
+            validator.write_text(generated)
+            saxon_validator = xslt.compile_stylesheet(stylesheet_file=str(validator))
+            for source in cases:
+                name = source.name
+                expected = suite / 'svrl' / name
+                if not expected.is_file():
+                    raise FileNotFoundError(f'missing upstream expected report: {expected}')
+                outputs = {
+                    'rust': invoke_checked(validator, source.read_text(), source.as_uri()),
+                    'saxon': saxon_validator.transform_to_string(source_file=str(source)),
+                }
+                official = signature(expected.read_text())
+                def ids(result):
+                    return sum((Counter({item[0]: count}) for item, count in result[1].items()), Counter())
+                for executor, output in outputs.items():
+                    result = comparable_signature(output)
+                    if not result[0] or ids(result) != ids(official) or (name in baseline and result != baseline[name]):
+                        raise AssertionError(f'{producer}/{executor} {name}: {result}, expected IDs {ids(official)}, baseline {baseline.get(name)}')
+                    baseline[name] = result
+                    print('PASS', producer, 'compiler /', executor, 'validator:', name,
+                          'fired:', sum(result[0].values()), 'failures:', dict(ids(result)), flush=True)
 
-        iso_result = invoke(driver, compiler, schema.read_text(), resources(compiler_dir), schema.as_uri(),
-                            {'allow-foreign': 'true'}, max_steps=args.max_steps)
-        if iso_result['diagnostics']:
-            print('LIMITATION Rust cannot compile NEMSIS ISO compiler:', iso_result['diagnostics'][0], flush=True)
-        else:
-            print('PASS Rust compiled the NEMSIS ISO compiler', flush=True)
         modern_output = invoke_checked(modern, schema.read_text(), schema.as_uri(), resources(schxslt))
         modern_validator = Path(tmp) / 'nemsis-schxslt2-validator.xsl'
         modern_validator.write_text(modern_output)

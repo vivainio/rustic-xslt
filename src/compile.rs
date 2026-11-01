@@ -322,7 +322,7 @@ fn choose_branches<'a>(n: Node<'a, 'a>) -> Result<Vec<(Option<Expr>, Node<'a, 'a
         if c.is_text() && !xml_space(c.text().unwrap_or_default()) {
             return Err(static_error(c, "XTSE0010", "unexpected text in xsl:choose"));
         }
-        if !c.is_element() {
+        if !c.is_element() || use_when_excludes(c)? {
             continue;
         }
         if otherwise || c.tag_name().namespace() != Some(XSL) {
@@ -463,7 +463,9 @@ fn attrs(n: Node<'_, '_>, allowed: &[&str]) -> Result<(), Diagnostic> {
         if a.namespace().is_none()
             && matches!(
                 a.name(),
-                "exclude-result-prefixes" | "xpath-default-namespace"
+                "exclude-result-prefixes"
+                    | "extension-element-prefixes"
+                    | "xpath-default-namespace"
             )
         {
             continue;
@@ -1089,8 +1091,35 @@ fn sorts(n: Node<'_, '_>) -> Result<Vec<Sort>, Diagnostic> {
     }
     Ok(keys)
 }
-fn excluded_uris(n: Node<'_, '_>) -> Result<BTreeSet<String>, Diagnostic> {
+fn extension_uris(n: Node<'_, '_>) -> Result<BTreeSet<String>, Diagnostic> {
     let mut uris = BTreeSet::new();
+    for ancestor in n.ancestors().filter(|node| node.is_element()) {
+        let value = if ancestor.tag_name().namespace() == Some(XSL) {
+            ancestor.attribute("extension-element-prefixes")
+        } else {
+            ancestor.attribute((XSL, "extension-element-prefixes"))
+        };
+        for prefix in value.unwrap_or("").split_whitespace() {
+            let prefix = if prefix == "#default" {
+                None
+            } else {
+                Some(prefix)
+            };
+            let uri = ancestor.lookup_namespace_uri(prefix).ok_or_else(|| {
+                static_error(
+                    ancestor,
+                    "XTSE1430",
+                    "undeclared extension-element-prefixes prefix",
+                )
+            })?;
+            uris.insert(uri.to_owned());
+        }
+    }
+    Ok(uris)
+}
+
+fn excluded_uris(n: Node<'_, '_>) -> Result<BTreeSet<String>, Diagnostic> {
+    let mut uris = extension_uris(n)?;
     for ancestor in n.ancestors().filter(|n| n.is_element()) {
         let value = if ancestor.tag_name().namespace() == Some(XSL) {
             ancestor.attribute("exclude-result-prefixes")
@@ -2161,6 +2190,13 @@ fn body(
                     }
                 }
             } else {
+                let extensions = extension_uris(n)?;
+                if n.tag_name()
+                    .namespace()
+                    .is_some_and(|uri| extensions.contains(uri))
+                {
+                    return Err(error(n, "extension instructions are not supported"));
+                }
                 if n.attribute((XSL, "default-mode")).is_some() {
                     default_mode(n)?;
                 }
@@ -2170,6 +2206,7 @@ fn body(
                         if [
                             "version",
                             "exclude-result-prefixes",
+                            "extension-element-prefixes",
                             "xpath-default-namespace",
                             "inherit-namespaces",
                             "default-mode",

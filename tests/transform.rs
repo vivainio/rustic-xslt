@@ -121,3 +121,28 @@ fn namespaced_top_level_metadata_does_not_block_stylesheets() {
     assert_eq!(transform(&sheet(body), "<doc/>").unwrap(), "<out></out>");
     assert!(Stylesheet::compile(&sheet("<description/>")).is_err());
 }
+
+#[test]
+fn unused_extension_namespace_declarations_are_excluded_from_results() {
+    let source = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:ext="urn:extension" extension-element-prefixes="ext"><xsl:output omit-xml-declaration="yes"/><xsl:template match="/"><out/></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(transform(source, "<r/>").unwrap(), "<out></out>");
+    let unbound = source.replace(
+        "extension-element-prefixes=\"ext\"",
+        "extension-element-prefixes=\"missing\"",
+    );
+    assert_eq!(Stylesheet::compile(&unbound).unwrap_err().code, "XTSE1430");
+    let extension = source.replace("<out/>", "<ext:operation/>");
+    assert_eq!(
+        Stylesheet::compile(&extension).unwrap_err().code,
+        "RUST_XSLT_UNSUPPORTED"
+    );
+}
+
+#[test]
+fn literal_result_extension_declarations_apply_only_in_their_scope() {
+    let source = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:ext="urn:extension"><xsl:output omit-xml-declaration="yes"/><xsl:template match="/"><out xsl:extension-element-prefixes="ext"><child/></out></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(
+        transform(source, "<r/>").unwrap(),
+        "<out><child></child></out>"
+    );
+}

@@ -426,6 +426,14 @@ fn date_time_formatting_pictures_cover_components_names_and_zones() {
             "Z",
         ),
         (
+            "format-dateTime(xs:dateTime('2024-03-05T13:05:09Z'), '[ZN] [Zn]')",
+            "Z z",
+        ),
+        (
+            "format-dateTime(xs:dateTime('2024-03-05T13:05:09+05:30'), '[ZN]')",
+            "+05:30",
+        ),
+        (
             "format-dateTime(xs:dateTime('2024-03-05T13:05:09+01:00'), '[ZZ]')",
             "A",
         ),
