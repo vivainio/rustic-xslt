@@ -73,6 +73,43 @@ fn compatible_mode_declarations_merge_and_conflicts_fail() {
         "RUST_XSLT_UNSUPPORTED"
     );
 }
+
+#[test]
+fn mode_properties_resolve_independently_by_import_precedence() {
+    let imported = source(
+        r#"<xsl:mode name="m" on-no-match="deep-skip" on-multiple-match="fail"/><xsl:mode name="m" on-no-match="shallow-skip"/>"#,
+    );
+    let resolver = |_: &str| Ok(imported.clone());
+    let main = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:import href="lib.xsl"/><xsl:mode name="m" on-no-match="deep-copy"/><xsl:template match="/"><xsl:apply-templates select="r" mode="m"/></xsl:template></xsl:stylesheet>"#;
+    let sheet = Stylesheet::compile_with_resolver(main, &resolver).unwrap();
+    assert_eq!(sheet.transform("<r><a/></r>").unwrap(), "<r><a></a></r>");
+    let ambiguous = main.replace(
+        "</xsl:stylesheet>",
+        r#"<xsl:template match="r" mode="m"/><xsl:template match="r" mode="m"/></xsl:stylesheet>"#,
+    );
+    assert_eq!(
+        Stylesheet::compile_with_resolver(&ambiguous, &resolver)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap_err()
+            .code,
+        "XTDE0540"
+    );
+    let unresolved = main.replace(r#"on-no-match="deep-copy""#, r#"visibility="private""#);
+    assert_eq!(
+        Stylesheet::compile_with_resolver(&unresolved, &resolver)
+            .unwrap_err()
+            .code,
+        "XTSE0545"
+    );
+    let include = main.replace("xsl:import", "xsl:include");
+    assert_eq!(
+        Stylesheet::compile_with_resolver(&include, &resolver)
+            .unwrap_err()
+            .code,
+        "XTSE0545"
+    );
+}
 #[test]
 fn grounded_record_dispatch_obeys_mode_policy() {
     let s = Stylesheet::compile(&source(r#"<xsl:mode name="m" on-no-match="shallow-copy"/><xsl:template name="record"><xsl:apply-templates select="." mode="m"/></xsl:template><xsl:template match="n" mode="m"><changed/></xsl:template>"#)).unwrap();
@@ -104,5 +141,90 @@ fn warning_on_multiple_match_is_validated_as_a_mode_boolean() {
             .unwrap_err()
             .code,
         "XTSE0020"
+    );
+}
+
+#[test]
+fn typed_modes_check_elements_and_attributes_but_allow_other_items() {
+    for value in ["yes", "true", "1", "lax"] {
+        let body = format!(
+            r#"<xsl:mode name="m" typed="{value}"/><xsl:template match="/"><xsl:apply-templates select="r" mode="m"/></xsl:template>"#
+        );
+        assert_eq!(
+            Stylesheet::compile(&source(&body))
+                .unwrap()
+                .transform("<r/>")
+                .unwrap_err()
+                .code,
+            "XTTE3100"
+        );
+        let body = format!(
+            r#"<xsl:mode name="m" typed="{value}"/><xsl:template match="/"><xsl:apply-templates select="r/@*" mode="m"/></xsl:template>"#
+        );
+        assert_eq!(
+            Stylesheet::compile(&source(&body))
+                .unwrap()
+                .transform("<r a='1'/>")
+                .unwrap_err()
+                .code,
+            "XTTE3100"
+        );
+        let body = format!(
+            r#"<xsl:mode name="m" typed="{value}"/><xsl:template match="/"><xsl:apply-templates select="(1, r/text())" mode="m"/></xsl:template>"#
+        );
+        assert_eq!(
+            Stylesheet::compile(&source(&body))
+                .unwrap()
+                .transform("<r>x</r>")
+                .unwrap(),
+            "1x"
+        );
+    }
+    for value in ["no", "false", "0", "unspecified"] {
+        let body =
+            format!(r#"<xsl:mode typed="{value}"/><xsl:template match="r">ok</xsl:template>"#);
+        assert_eq!(
+            Stylesheet::compile(&source(&body))
+                .unwrap()
+                .transform("<r/>")
+                .unwrap(),
+            "ok"
+        );
+    }
+    assert_eq!(
+        Stylesheet::compile(&source(r#"<xsl:mode typed="No"/>"#))
+            .unwrap_err()
+            .code,
+        "XTSE0020"
+    );
+    assert_eq!(
+        Stylesheet::compile(&source(r#"<xsl:mode typed="strict"/>"#))
+            .unwrap_err()
+            .code,
+        "RUST_XSLT_UNSUPPORTED"
+    );
+}
+
+#[test]
+fn mode_warning_settings_are_validated_and_merged() {
+    assert!(
+        Stylesheet::compile(&source(
+            r#"<xsl:mode warning-on-no-match="yes"/><xsl:mode warning-on-no-match="true"/>"#
+        ))
+        .is_ok()
+    );
+    assert_eq!(
+        Stylesheet::compile(&source(r#"<xsl:mode warning-on-no-match="Yes"/>"#))
+            .unwrap_err()
+            .code,
+        "XTSE0020"
+    );
+    assert_eq!(
+        Stylesheet::compile(&source(
+            r#"<xsl:mode warning-on-no-match="yes"/><xsl:mode warning-on-no-match="no"/>"#
+        ))
+        .unwrap_err()
+        .code,
+        "XTSE0545"
     );
 }

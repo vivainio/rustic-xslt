@@ -174,6 +174,25 @@ fn wrap_map(map: MapValue<'_>) -> Value<'_> {
     vec![Item::Map(Rc::new(map))]
 }
 
+/// Merge the result of an xsl:map sequence constructor using XSLT errors.
+pub(crate) fn xslt_map<'a>(items: Value<'a>, budget: &mut Budget) -> Result<Value<'a>, Diagnostic> {
+    let mut merged = MapValue::default();
+    for item in items {
+        budget.tick()?;
+        let Item::Map(map) = item else {
+            return Err(err("XTTE3375", "xsl:map content must contain maps"));
+        };
+        for (key, value) in map.iter() {
+            budget.tick()?;
+            if merged.get(key).is_some() {
+                return Err(err("XTDE3365", "duplicate map key"));
+            }
+            merged.insert(key.clone(), value.clone());
+        }
+    }
+    Ok(wrap_map(merged))
+}
+
 fn wrap_array(array: Vec<Value<'_>>) -> Value<'_> {
     vec![Item::Array(Rc::new(array))]
 }
@@ -384,4 +403,24 @@ pub(crate) fn entries<'a>(value: &[Item<'a>]) -> Result<Rc<MapValue<'a>>, Diagno
 
 pub(crate) fn new_array(members: Vec<Value<'_>>) -> Value<'_> {
     wrap_array(members)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn xslt_map_charges_for_each_empty_input_map() {
+        let empty = Item::Map(Rc::new(MapValue::default()));
+        let mut budget = Budget::new(crate::Limits {
+            max_steps: 2,
+            ..Default::default()
+        });
+        assert_eq!(
+            xslt_map(vec![empty.clone(), empty.clone(), empty], &mut budget)
+                .unwrap_err()
+                .code,
+            "XPDY0130"
+        );
+    }
 }

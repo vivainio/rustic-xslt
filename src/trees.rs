@@ -1,7 +1,7 @@
 //! Per-transformation arenas own temporary XML strings and parsed documents.
 //! Documents are dropped before their source strings; no leaks or unsafe code.
 use crate::{
-    Diagnostic,
+    Diagnostic, Stylesheet,
     node::XNode,
     seqtype::SequenceType,
     xpath::{Item, Value},
@@ -19,6 +19,7 @@ impl<'a> Trees<'a> {
         &self,
         xml: String,
         uri: Option<&'a str>,
+        sheet: &Stylesheet,
     ) -> Result<Value<'a>, Diagnostic> {
         if xml.len() > self.max.saturating_sub(self.used.get()) {
             return Err(Diagnostic::new(
@@ -28,6 +29,7 @@ impl<'a> Trees<'a> {
             ));
         }
         self.used.set(self.used.get() + xml.len());
+        let xml = crate::whitespace::prepare(sheet, &xml, false)?.unwrap_or(xml);
         let text: &'a str = self.sources.alloc(xml).as_str();
         let doc: &'a roxmltree::Document<'a> = self.documents.alloc(crate::parse(text, "run")?);
         Ok(vec![Item::Node(

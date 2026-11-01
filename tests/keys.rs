@@ -22,6 +22,34 @@ fn key_returns_matching_nodes_in_document_order() {
         assert_eq!(run(KEYS, select).unwrap(), expected, "{select}");
     }
 }
+
+#[test]
+fn key_sequence_constructors_preserve_focus_variables_and_multiple_values() {
+    let declarations = r#"<xsl:variable name="offset" select="10"/><xsl:key name="k" match="item"><xsl:variable name="id" select="string(@id)"/><xsl:for-each select="(number(.) + $offset, string-length($id))"><xsl:sort select="."/><xsl:sequence select="."/></xsl:for-each></xsl:key>"#;
+    assert_eq!(
+        run(declarations, "string-join(key('k', (12, 14))/@id, ',')").unwrap(),
+        "b,d"
+    );
+    assert_eq!(run(declarations, "count(key('k', 1))").unwrap(), "4");
+    let composite = r#"<xsl:key name="k" match="item" composite="yes"><xsl:sequence select="string(@g)"/><xsl:sequence select="number(.)"/></xsl:key>"#;
+    assert_eq!(
+        run(composite, "string(key('k', ('x', 3))/@id)").unwrap(),
+        "c"
+    );
+}
+
+#[test]
+fn key_requires_exactly_one_value_specifier() {
+    for declaration in [
+        r#"<xsl:key name="k" match="item"/>"#,
+        r#"<xsl:key name="k" match="item" use="@id"><xsl:sequence select="1"/></xsl:key>"#,
+        r#"<xsl:key name="k" match="item" use="@id" xml:space="preserve"> </xsl:key>"#,
+    ] {
+        assert_eq!(run(declaration, "1").unwrap_err().code, "XTSE1205");
+    }
+    let invalid = r#"<xsl:key name="k" match="item" use="@id"><xsl:template match="/"/></xsl:key>"#;
+    assert_eq!(run(invalid, "1").unwrap_err().code, "XTSE0010");
+}
 #[test]
 fn key_names_may_be_qualified_and_errors_are_reported() {
     let qualified = r#"<xsl:key name="k:ids" match="item" use="@id"/>"#;

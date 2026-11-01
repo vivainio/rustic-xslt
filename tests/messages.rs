@@ -52,3 +52,19 @@ fn assertions_fail_with_their_message_and_pass_silently() {
     );
     assert!(run("<xsl:assert/>").is_err());
 }
+
+#[test]
+fn messages_and_assertions_work_during_raw_sequence_collection() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:where-populated><xsl:message>from <xsl:value-of select="r"/></xsl:message><xsl:sequence select="'kept'"/></xsl:where-populated><xsl:sequence><xsl:message select="'next'"/><xsl:on-empty select="'fallback'"/></xsl:sequence></xsl:template></xsl:stylesheet>"#).unwrap();
+    let result = sheet
+        .transform_with_documents("<r>v</r>", &Default::default())
+        .unwrap();
+    assert_eq!(result.principal, "kept fallback");
+    assert_eq!(result.messages, ["from v", "next"]);
+    let failure = run(r#"<xsl:where-populated><xsl:assert test="false()">failure <xsl:value-of select="r"/></xsl:assert><xsl:sequence select="'ignored'"/></xsl:where-populated>"#).unwrap_err();
+    assert_eq!(failure.code, "XTMM9001");
+    assert_eq!(failure.message, "failure v");
+    let failure = run(r#"<xsl:where-populated><xsl:message terminate="yes">stop <xsl:value-of select="r"/></xsl:message></xsl:where-populated>"#).unwrap_err();
+    assert_eq!(failure.code, "XTMM9000");
+    assert_eq!(failure.message, "stop v");
+}

@@ -308,6 +308,10 @@
     ],
     [
       "choose",
+      "choose-0106"
+    ],
+    [
+      "choose",
       "choose-0201"
     ],
     [
@@ -460,6 +464,22 @@
     ],
     [
       "choose",
+      "choose-1801"
+    ],
+    [
+      "choose",
+      "choose-1802"
+    ],
+    [
+      "choose",
+      "choose-1803"
+    ],
+    [
+      "choose",
+      "choose-1804"
+    ],
+    [
+      "choose",
       "choose-1901"
     ],
     [
@@ -560,6 +580,10 @@
     ],
     [
       "copy",
+      "copy-1203"
+    ],
+    [
+      "copy",
       "copy-1204"
     ],
     [
@@ -584,6 +608,14 @@
     ],
     [
       "copy",
+      "copy-1210"
+    ],
+    [
+      "copy",
+      "copy-1212"
+    ],
+    [
+      "copy",
       "copy-1213"
     ],
     [
@@ -592,7 +624,19 @@
     ],
     [
       "copy",
+      "copy-1216"
+    ],
+    [
+      "copy",
       "copy-1217"
+    ],
+    [
+      "copy",
+      "copy-1218"
+    ],
+    [
+      "copy",
+      "copy-1219"
     ],
     [
       "copy",
@@ -816,6 +860,10 @@
     ],
     [
       "document",
+      "document-0302"
+    ],
+    [
+      "document",
       "document-0303"
     ],
     [
@@ -836,6 +884,10 @@
     ],
     [
       "document",
+      "document-0308"
+    ],
+    [
+      "document",
       "document-0309"
     ],
     [
@@ -853,6 +905,10 @@
     [
       "document",
       "document-1501"
+    ],
+    [
+      "document",
+      "document-1502"
     ],
     [
       "document",
@@ -1656,6 +1712,10 @@
     ],
     [
       "key",
+      "key-011"
+    ],
+    [
+      "key",
       "key-012"
     ],
     [
@@ -1860,6 +1920,14 @@
     ],
     [
       "key",
+      "key-073"
+    ],
+    [
+      "key",
+      "key-074"
+    ],
+    [
+      "key",
       "key-075"
     ],
     [
@@ -1905,6 +1973,10 @@
     [
       "key",
       "key-091"
+    ],
+    [
+      "key",
+      "key-092"
     ],
     [
       "key",
@@ -2188,11 +2260,23 @@
     ],
     [
       "match",
+      "match-076"
+    ],
+    [
+      "match",
       "match-077"
     ],
     [
       "match",
       "match-078"
+    ],
+    [
+      "match",
+      "match-079"
+    ],
+    [
+      "match",
+      "match-081a"
     ],
     [
       "match",
@@ -2432,6 +2516,10 @@
     ],
     [
       "match",
+      "match-239"
+    ],
+    [
+      "match",
       "match-240a"
     ],
     [
@@ -2445,6 +2533,10 @@
     [
       "match",
       "match-241"
+    ],
+    [
+      "match",
+      "match-242"
     ],
     [
       "match",
@@ -2481,6 +2573,10 @@
     [
       "match",
       "match-252"
+    ],
+    [
+      "match",
+      "match-253"
     ],
     [
       "match",
@@ -2552,11 +2648,19 @@
     ],
     [
       "match",
+      "match-275"
+    ],
+    [
+      "match",
       "match-276"
     ],
     [
       "match",
       "match-277"
+    ],
+    [
+      "match",
+      "match-278"
     ],
     [
       "match",
@@ -2597,6 +2701,10 @@
     [
       "mode",
       "mode-0007"
+    ],
+    [
+      "mode",
+      "mode-0011"
     ],
     [
       "mode",
@@ -2732,6 +2840,10 @@
     ],
     [
       "mode",
+      "mode-1411"
+    ],
+    [
+      "mode",
       "mode-1413"
     ],
     [
@@ -2773,6 +2885,26 @@
     [
       "mode",
       "mode-1435"
+    ],
+    [
+      "mode",
+      "mode-1439"
+    ],
+    [
+      "mode",
+      "mode-1444"
+    ],
+    [
+      "mode",
+      "mode-1445"
+    ],
+    [
+      "mode",
+      "mode-1446"
+    ],
+    [
+      "mode",
+      "mode-1447"
     ],
     [
       "mode",
@@ -2868,7 +3000,19 @@
     ],
     [
       "mode",
+      "mode-1901"
+    ],
+    [
+      "mode",
+      "mode-1902"
+    ],
+    [
+      "mode",
       "mode-1904"
+    ],
+    [
+      "mode",
+      "mode-1905"
     ],
     [
       "next-match",
@@ -3948,11 +4092,23 @@
     ],
     [
       "output",
+      "output-0184"
+    ],
+    [
+      "output",
+      "output-0185"
+    ],
+    [
+      "output",
       "output-0186"
     ],
     [
       "output",
       "output-0188"
+    ],
+    [
+      "output",
+      "output-0196"
     ],
     [
       "output",
@@ -4029,6 +4185,10 @@
     [
       "output",
       "output-0228"
+    ],
+    [
+      "output",
+      "output-0230"
     ],
     [
       "output",
@@ -4152,6 +4312,14 @@
     ],
     [
       "param",
+      "param-0114"
+    ],
+    [
+      "param",
+      "param-0115"
+    ],
+    [
+      "param",
       "param-0116"
     ],
     [
@@ -4169,6 +4337,10 @@
     [
       "param",
       "param-0201"
+    ],
+    [
+      "param",
+      "param-0301"
     ],
     [
       "param",
@@ -4196,7 +4368,15 @@
     ],
     [
       "param",
+      "param-0701"
+    ],
+    [
+      "param",
       "param-0702"
+    ],
+    [
+      "param",
+      "param-0703"
     ],
     [
       "result-document",
@@ -5349,6 +5529,10 @@
     [
       "xpath-default-namespace",
       "xpath-default-namespace-1201"
+    ],
+    [
+      "xpath-default-namespace",
+      "xpath-default-namespace-1202"
     ]
   ]
 }

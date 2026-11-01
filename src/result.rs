@@ -106,7 +106,7 @@ impl Encoding {
         }
     }
     /// Re-express `text` within the encoding; `Err` when a character cannot be written.
-    pub fn apply(self, text: &str, references: bool) -> Result<String, Diagnostic> {
+    pub fn apply(self, text: &str, references: bool, markup: Markup) -> Result<String, Diagnostic> {
         if self == Self::Utf8 {
             return Ok(text.to_owned());
         }
@@ -142,7 +142,7 @@ impl Encoding {
                     let opening = if rest.starts_with("<!--") {
                         Some(("<!--", "-->"))
                     } else if rest.starts_with("<?") {
-                        Some(("<?", "?>"))
+                        Some(("<?", if markup == Markup::Html { ">" } else { "?>" }))
                     } else {
                         None
                     };
@@ -217,6 +217,7 @@ pub(crate) struct Serialization {
     pub text_output: bool,
     pub markup: Markup,
     pub encoding: Encoding,
+    pub unsupported_encoding: Option<String>,
     pub omit_declaration: bool,
     pub omit_specified: bool,
     pub standalone: Option<bool>,
@@ -422,27 +423,23 @@ impl Output {
         value.document = true;
         value
     }
-    /// Append already serialized content (the result of a nested transformation).
-    pub fn splice(&mut self, s: &str) -> Result<(), Diagnostic> {
-        if s.is_empty() {
-            return Ok(());
-        }
-        if self.simple.is_some() {
-            return Err(Diagnostic::new(
-                "RUST_XSLT_UNSUPPORTED",
-                "xsl:try inside simple content constructors is not implemented",
-                "run",
-            ));
-        }
-        self.adjacent_atomic = false;
-        self.flush_start()?;
-        self.push(s)
+    pub fn document_content(&self) -> bool {
+        self.document && self.stack.is_empty()
+    }
+    pub fn with_document_content(mut self, document: bool) -> Self {
+        self.document = document;
+        self
     }
     /// Add a namespace binding to the pending start tag (`xsl:namespace`).
     pub fn namespace(&mut self, prefix: &str, uri: &str) -> Result<(), Diagnostic> {
+        let code = if self.stack.is_empty() && self.document {
+            "XTDE0420"
+        } else {
+            "XTDE0410"
+        };
         let Some(open) = self.stack.last_mut().filter(|o| o.pending) else {
             return Err(Diagnostic::new(
-                "XTDE0410",
+                code,
                 "namespace created without an open result start tag",
                 "run",
             ));
@@ -911,13 +908,24 @@ impl Output {
         }
         self.flush_start()?;
         if !self.text {
+            if self.markup == Markup::Html && s.contains('>') {
+                return Err(Diagnostic::new(
+                    "SERE0015",
+                    "HTML processing instructions cannot contain >",
+                    "run",
+                ));
+            }
             self.push("<?")?;
             self.push(target)?;
             if !s.is_empty() {
                 self.push(" ")?;
                 self.push(s)?;
             }
-            self.push("?>")?;
+            self.push(if self.markup == Markup::Html {
+                ">"
+            } else {
+                "?>"
+            })?;
         }
         Ok(())
     }

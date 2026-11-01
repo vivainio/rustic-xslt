@@ -36,8 +36,50 @@ fn copy_select_requires_at_most_one_item_and_implicit_copy_requires_focus() {
         )
         .unwrap_err()
         .code,
+        "XTTE0945"
+    );
+    let explicit = Stylesheet::compile(&sheet(
+        r##"<xsl:template name="main"><xsl:copy select="."/></xsl:template>"##,
+    ))
+    .unwrap();
+    assert_eq!(
+        explicit
+            .transform_with_options(
+                "",
+                &TransformOptions {
+                    initial_template: Some("main".into()),
+                    ..Default::default()
+                }
+            )
+            .unwrap_err()
+            .code,
         "XPDY0002"
     );
+}
+
+#[test]
+fn copy_of_validates_empty_content_and_attributes() {
+    for instruction in [
+        r#"<xsl:copy-of select="/r"><child/></xsl:copy-of>"#,
+        r#"<xsl:copy-of select="/r">text</xsl:copy-of>"#,
+        r#"<xsl:copy-of select="/r" xml:space="preserve"> </xsl:copy-of>"#,
+    ] {
+        let s = sheet(&format!(
+            r#"<xsl:template match="/">{instruction}</xsl:template>"#
+        ));
+        assert_eq!(Stylesheet::compile(&s).unwrap_err().code, "XTSE0260");
+    }
+    let invalid =
+        sheet(r#"<xsl:template match="/"><xsl:copy-of select="/r" match="r"/></xsl:template>"#);
+    assert_eq!(Stylesheet::compile(&invalid).unwrap_err().code, "XTSE0090");
+    let valid = sheet(
+        r#"<xsl:template match="/"><xsl:copy-of select="/r"> <!-- comment --> <?p data?> <child xsl:use-when="false()"/></xsl:copy-of></xsl:template>"#,
+    );
+    assert_eq!(transform(&valid, "<r/>").unwrap(), "<r></r>");
+    let extension = sheet(
+        r#"<xsl:template match="/"><xsl:copy-of xmlns:e="urn:e" select="/r" e:match="ignored"/></xsl:template>"#,
+    );
+    assert_eq!(transform(&extension, "<r/>").unwrap(), "<r></r>");
 }
 #[test]
 fn namespace_copy_no_prunes_unused_bindings_but_retains_names() {
@@ -83,6 +125,55 @@ fn nested_document_content_flattens_and_document_attributes_are_errors() {
         r##"<xsl:template match="/"><out><xsl:document><xsl:attribute name="bad">value</xsl:attribute></xsl:document></out></xsl:template>"##,
     );
     assert_eq!(transform(&s, "<r/>").unwrap_err().code, "XTDE0420");
+}
+
+#[test]
+fn document_namespace_nodes_and_late_element_namespaces_report_distinct_errors() {
+    let document = sheet(
+        r##"<xsl:template match="/"><out><xsl:document><xsl:namespace name="p">urn:p</xsl:namespace></xsl:document></out></xsl:template>"##,
+    );
+    assert_eq!(transform(&document, "<r/>").unwrap_err().code, "XTDE0420");
+    let variable = sheet(
+        r##"<xsl:template match="/"><xsl:variable name="v"><xsl:namespace name="p">urn:p</xsl:namespace></xsl:variable><xsl:sequence select="$v"/></xsl:template>"##,
+    );
+    assert_eq!(transform(&variable, "<r/>").unwrap_err().code, "XTDE0420");
+    let late = sheet(
+        r##"<xsl:template match="/"><out>text<xsl:namespace name="p">urn:p</xsl:namespace></out></xsl:template>"##,
+    );
+    assert_eq!(transform(&late, "<r/>").unwrap_err().code, "XTDE0410");
+    let valid = sheet(
+        r##"<xsl:template match="/"><out><xsl:document><inner><xsl:namespace name="p">urn:p</xsl:namespace></inner></xsl:document></out></xsl:template>"##,
+    );
+    assert!(
+        transform(&valid, "<r/>")
+            .unwrap()
+            .contains("xmlns:p=\"urn:p\"")
+    );
+}
+
+#[test]
+fn copying_a_document_constructs_document_content_before_insertion() {
+    for content in [
+        r#"<xsl:namespace name="p">urn:p</xsl:namespace>"#,
+        r#"<xsl:attribute name="a">value</xsl:attribute>"#,
+        r#"<xsl:namespace name="p">urn:p</xsl:namespace><xsl:on-empty><unused/></xsl:on-empty>"#,
+    ] {
+        let source = sheet(&format!(
+            r#"<xsl:template match="/"><out><xsl:copy>{content}</xsl:copy></out></xsl:template>"#
+        ));
+        assert_eq!(transform(&source, "<r/>").unwrap_err().code, "XTDE0420");
+    }
+    let source = sheet(
+        r#"<xsl:template match="/"><out><xsl:copy><child/><xsl:on-empty><unused/></xsl:on-empty></xsl:copy></out></xsl:template>"#,
+    );
+    assert_eq!(
+        transform(&source, "<r/>").unwrap(),
+        "<out><child></child></out>"
+    );
+    let source = sheet(
+        r#"<xsl:template match="/"><xsl:variable name="v" as="document-node()"><xsl:copy><child/></xsl:copy></xsl:variable><out><xsl:value-of select="count($v/child)"/></out></xsl:template>"#,
+    );
+    assert_eq!(transform(&source, "<r/>").unwrap(), "<out>1</out>");
 }
 #[test]
 fn namespace_boolean_controls_are_checked_and_stream_copy_selection_cannot_escape() {

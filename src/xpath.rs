@@ -52,7 +52,7 @@ pub(crate) enum Expr {
     Number(Number),
     Variable(String),
     For(String, Box<Expr>, Box<Expr>),
-    Let(String, Box<Expr>, Box<Expr>),
+    Let(String, Box<Expr>, Box<Expr>, bool),
     Quantified(bool, String, Box<Expr>, Box<Expr>),
     Context,
     Root,
@@ -874,7 +874,13 @@ impl Parser {
                     _ => Expr::Sequence(vec![left, right]),
                 }
             } else {
-                Expr::Binary(op, Box::new(left), Box::new(right))
+                let comparison = ["=", "!=", "<", ">", "<=", ">="].contains(&op.as_str());
+                let expression = Expr::Binary(op, Box::new(left), Box::new(right));
+                if comparison {
+                    Expr::LookupContext(Box::new(expression), self.namespaces.clone())
+                } else {
+                    expression
+                }
             };
         }
         Ok(left)
@@ -1564,7 +1570,7 @@ impl Parser {
         for (name, select) in bindings.into_iter().rev() {
             body = match keyword {
                 "for" => Expr::For(name, Box::new(select), Box::new(body)),
-                "let" => Expr::Let(name, Box::new(select), Box::new(body)),
+                "let" => Expr::Let(name, Box::new(select), Box::new(body), false),
                 _ => Expr::Quantified(keyword == "every", name, Box::new(select), Box::new(body)),
             };
         }
@@ -2182,7 +2188,10 @@ pub(crate) fn eval<'a>(
             }
             vec![Item::Boolean(result)]
         }
-        Expr::Let(name, select, body) => {
+        Expr::Let(name, select, body, unused) => {
+            if *unused {
+                return eval(body, focus, vars, budget, depth + 1, backwards);
+            }
             let selected = eval(select, focus, vars, budget, depth + 1, backwards)?;
             let mut scope = vars.clone();
             scope.insert(name.clone(), selected);
@@ -2682,24 +2691,9 @@ pub(crate) fn eval<'a>(
                     )?)]
                 }
                 "=" | "!=" | "<" | ">" | "<=" | ">=" => {
-                    if backwards
-                        && ["=", "!="].contains(&op.as_str())
-                        && (a.iter().any(|i| matches!(i, Item::Boolean(_)))
-                            || b.iter().any(|i| matches!(i, Item::Boolean(_))))
-                    {
-                        let equal = boolean(&a)? == boolean(&b)?;
-                        return Ok(vec![Item::Boolean(if op == "=" { equal } else { !equal })]);
-                    }
-                    let mut yes = false;
-                    for x in &a {
-                        for y in &b {
-                            budget.tick()?;
-                            if compare(x, y, op, backwards)? {
-                                yes = true;
-                            }
-                        }
-                    }
-                    vec![Item::Boolean(yes)]
+                    vec![Item::Boolean(general_comparison(
+                        &a, &b, op, backwards, None, budget,
+                    )?)]
                 }
                 _ => {
                     if !backwards && (a.is_empty() || b.is_empty()) {
@@ -2722,7 +2716,11 @@ pub(crate) fn eval<'a>(
                 .iter()
                 .map(|e| eval(e, focus, vars, budget, depth + 1, backwards))
                 .collect::<Result<Vec<_>, _>>()?;
-            call_named(name, args, focus, vars, budget, depth, backwards)?
+            if name == "\0xslt-map" {
+                crate::maps::xslt_map(args.into_iter().next().unwrap(), budget)?
+            } else {
+                call_named(name, args, focus, vars, budget, depth, backwards)?
+            }
         }
         Expr::MapConstructor(entries) => {
             let mut map = MapValue::default();
@@ -3099,7 +3097,20 @@ fn eval_lookup_context<'a>(
     depth: usize,
     backwards: bool,
 ) -> Result<Value<'a>, Diagnostic> {
-    let result = if let Expr::Call(name, args) = value
+    let result = if let Expr::Binary(op, left, right) = value
+        && ["=", "!=", "<", ">", "<=", ">="].contains(&op.as_str())
+    {
+        let left = flatten_arrays(eval(left, focus, vars, budget, depth + 1, backwards)?)?;
+        let right = flatten_arrays(eval(right, focus, vars, budget, depth + 1, backwards)?)?;
+        vec![Item::Boolean(general_comparison(
+            &left,
+            &right,
+            op,
+            backwards,
+            Some(namespaces),
+            budget,
+        )?)]
+    } else if let Expr::Call(name, args) = value
         && (base_sensitive(name)
             || name == "function-lookup" && namespaces.contains_key(DYNAMIC_LOOKUP_CONTEXT))
     {
@@ -3123,6 +3134,44 @@ fn eval_lookup_context<'a>(
         eval(value, focus, vars, budget, depth + 1, backwards)?
     };
     Ok(attach_lookup_context(result, namespaces))
+}
+
+fn general_comparison(
+    left: &[Item<'_>],
+    right: &[Item<'_>],
+    op: &str,
+    backwards: bool,
+    namespaces: Option<&BTreeMap<String, String>>,
+    budget: &mut Budget,
+) -> Result<bool, Diagnostic> {
+    if backwards
+        && ["=", "!="].contains(&op)
+        && (left.iter().any(|item| matches!(item, Item::Boolean(_)))
+            || right.iter().any(|item| matches!(item, Item::Boolean(_))))
+    {
+        let equal = boolean(left)? == boolean(right)?;
+        return Ok(if op == "=" { equal } else { !equal });
+    }
+    let mut yes = false;
+    for x in left {
+        for y in right {
+            budget.tick()?;
+            let (mut x, mut y) = (atomize(x), atomize(y));
+            if let Some(namespaces) = namespaces {
+                if let (Item::Untyped(value), Item::QName(_)) = (&x, &y) {
+                    budget.charge(value.len())?;
+                    x = Item::QName(crate::qname::AtomicQName::cast(value, namespaces)?);
+                } else if let (Item::QName(_), Item::Untyped(value)) = (&x, &y) {
+                    budget.charge(value.len())?;
+                    y = Item::QName(crate::qname::AtomicQName::cast(value, namespaces)?);
+                }
+            }
+            if compare(&x, &y, op, backwards)? {
+                yes = true;
+            }
+        }
+    }
+    Ok(yes)
 }
 
 fn unwrap_lookup_call(expr: Expr) -> Expr {

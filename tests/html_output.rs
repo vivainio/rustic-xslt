@@ -1,4 +1,24 @@
 use rust_xslt::Stylesheet;
+
+#[test]
+fn html_version_requires_an_xs_decimal_value() {
+    for value in ["five", "", ".", "+", "5e0", "1.2.3", "NaN"] {
+        let source = format!(
+            r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output html-version="{value}"/></xsl:stylesheet>"#
+        );
+        assert_eq!(
+            Stylesheet::compile(&source).err().unwrap().code,
+            "XTSE0020",
+            "{value}"
+        );
+    }
+    for value in ["5", "5.0", ".5", "5.", "+5", "-0.5"] {
+        let source = format!(
+            r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output html-version="{value}"/></xsl:stylesheet>"#
+        );
+        assert!(Stylesheet::compile(&source).is_ok(), "{value}");
+    }
+}
 fn run(output: &str, body: &str) -> String {
     Stylesheet::compile(&format!(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output {output}/><xsl:template match="/">{body}</xsl:template></xsl:stylesheet>"#))
         .unwrap()
@@ -13,6 +33,30 @@ fn html_method_omits_void_end_tags_and_declaration() {
             "<html><body><br/><p>a<br/>b</p><img src='x.png'/><div/></body></html>"
         ),
         "<html><body><br><p>a<br>b</p><img src=\"x.png\"><div></div></body></html>"
+    );
+}
+
+#[test]
+fn html_processing_instructions_use_html_syntax_and_reject_greater_than() {
+    let pi = r#"<doc><xsl:processing-instruction name="p">data</xsl:processing-instruction><xsl:processing-instruction name="empty"/></doc>"#;
+    assert_eq!(run(r#"method="html""#, pi), "<doc><?p data><?empty></doc>");
+    assert_eq!(
+        run(r#"method="xml" omit-xml-declaration="yes""#, pi),
+        "<doc><?p data?><?empty?></doc>"
+    );
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="html"/><xsl:template match="/"><xsl:copy-of select="/r/processing-instruction()"/></xsl:template></xsl:stylesheet>"#).unwrap();
+    assert_eq!(
+        sheet.transform("<r><?p a > b?></r>").unwrap_err().code,
+        "SERE0015"
+    );
+    let constructed = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="html"/><xsl:template match="/"><xsl:processing-instruction name="p">&gt;</xsl:processing-instruction></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(
+        Stylesheet::compile(constructed)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap_err()
+            .code,
+        "SERE0015"
     );
 }
 #[test]

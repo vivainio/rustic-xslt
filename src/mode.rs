@@ -14,11 +14,20 @@ pub(crate) enum Visibility {
     Private,
     Final,
 }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Typed {
+    Unspecified,
+    Untyped,
+    Required,
+    Lax,
+    Strict,
+}
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct Mode {
     pub on_no_match: Option<OnNoMatch>,
     pub fail_on_multiple: Option<bool>,
     pub visibility: Option<Visibility>,
+    pub typed: Option<Typed>,
 }
 impl Mode {
     pub fn policy(self) -> OnNoMatch {

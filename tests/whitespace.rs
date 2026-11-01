@@ -92,7 +92,14 @@ fn output_utf8_and_explicit_no_indent_are_supported() {
         transform(s, "<r/>").unwrap(),
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?><out>é</out>"
     );
-    assert!(Stylesheet::compile(&s.replace("utf-8", "UTF-16")).is_err());
+    assert_eq!(
+        Stylesheet::compile(&s.replace("utf-8", "UTF-16"))
+            .unwrap()
+            .transform("<r/>")
+            .unwrap_err()
+            .code,
+        "SESU0007"
+    );
     assert!(Stylesheet::compile(&s.replace("indent=\"no\"", "indent=\"maybe\"")).is_err());
 }
 #[test]

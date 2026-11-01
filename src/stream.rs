@@ -117,7 +117,7 @@ fn safe_expression(e: &Expr, global: bool) -> Result<(), Diagnostic> {
             | Expr::StaticName(e, _, _)
             | Expr::LookupContext(e, _) => pending.push(e),
             Expr::For(_, select, body)
-            | Expr::Let(_, select, body)
+            | Expr::Let(_, select, body, _)
             | Expr::Quantified(_, _, select, body) => {
                 pending.push(select);
                 pending.push(body);
@@ -252,6 +252,11 @@ fn safe_global_body(body: &[Instruction]) -> Result<(), Diagnostic> {
                 }
             }
             Instruction::Sequence(e) | Instruction::CopyOf(e, _) => safe_expression(e, true)?,
+            Instruction::MapEntry { key, body } => {
+                safe_expression(key, true)?;
+                safe_global_body(body)?;
+            }
+            Instruction::Map(body) => safe_global_body(body)?,
             Instruction::Bind(b) => safe_binding(&b.value, true, &mut vec![])?,
             Instruction::Element {
                 attributes, body, ..
@@ -312,7 +317,8 @@ fn safe_global_body(body: &[Instruction]) -> Result<(), Diagnostic> {
                 name(n)?;
                 content(c)?;
             }
-            Instruction::Comment(c)
+            Instruction::ValueBody(c)
+            | Instruction::Comment(c)
             | Instruction::Message(c, _)
             | Instruction::AssertFailure(c) => content(c)?,
             Instruction::Pi(es, c) => {
@@ -341,10 +347,12 @@ fn safe_global_body(body: &[Instruction]) -> Result<(), Diagnostic> {
             Instruction::Document(body) => safe_global_body(body)?,
             Instruction::Copy {
                 select: Some(e),
+                sets,
                 body,
                 ..
             } => {
                 safe_expression(e, true)?;
+                safe_global_body(sets)?;
                 safe_global_body(body)?;
             }
             Instruction::Apply(..)
@@ -425,7 +433,8 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                         safe_name(n)?;
                         safe_content(c, &mut bodies)?;
                     }
-                    Instruction::Comment(c)
+                    Instruction::ValueBody(c)
+                    | Instruction::Comment(c)
                     | Instruction::Message(c, _)
                     | Instruction::AssertFailure(c) => safe_content(c, &mut bodies)?,
                     Instruction::Pi(parts, c) => {
@@ -443,10 +452,18 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                     Instruction::Value(e, _)
                     | Instruction::CopyOf(e, _)
                     | Instruction::Sequence(e) => safe_expression(e, false)?,
-                    Instruction::Copy { select, body, .. } => {
+                    Instruction::MapEntry { key, body } => {
+                        safe_expression(key, false)?;
+                        bodies.push(body);
+                    }
+                    Instruction::Map(body) => bodies.push(body),
+                    Instruction::Copy {
+                        select, sets, body, ..
+                    } => {
                         if let Some(e) = select {
                             safe_expression(e, false)?;
                         }
+                        bodies.push(sets);
                         bodies.push(body);
                     }
                     Instruction::Document(body) => bodies.push(body),

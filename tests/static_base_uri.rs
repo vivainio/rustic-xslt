@@ -1,6 +1,24 @@
 use rust_xslt::{ResourceResolver, Stylesheet, TransformOptions};
 
 #[test]
+fn stylesheet_modules_are_available_as_documents_without_a_runtime_resolver() {
+    let main = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:f="urn:f"><xsl:import href="lib.xsl"/><xsl:output method="text"/><xsl:template match="/"><xsl:sequence select="doc-available(''), doc('') is document(''), count(doc('')/*/xsl:template), f:module-count()"/></xsl:template></xsl:stylesheet>"#;
+    let module = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:f="urn:f"><xsl:function name="f:module-count"><xsl:sequence select="count(doc('')/*/xsl:function)"/></xsl:function></xsl:stylesheet>"#;
+    let resolver = |uri: &str| {
+        assert_eq!(uri, "https://example.test/lib.xsl");
+        Ok(module.to_owned())
+    };
+    let sheet = Stylesheet::compile_with_base_uri_and_resolver(
+        main,
+        "https://example.test/main.xsl",
+        &resolver,
+    )
+    .unwrap();
+    assert_eq!(sheet.transform("<r/>").unwrap(), "true true 1 1");
+    assert_eq!(sheet.transform("<r/>").unwrap(), "true true 1 1");
+}
+
+#[test]
 fn stylesheet_calls_and_function_items_capture_lexical_base() {
     let sheet = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:f="urn:f" xml:base="sub/"><xsl:output method="text"/><xsl:function name="f:base" xml:base="function/"><xsl:sequence select="static-base-uri()"/></xsl:function><xsl:template match="/"><xsl:variable name="get" select="static-base-uri#0"/><xsl:variable name="resolve" select="resolve-uri#1"/><xsl:for-each select="."><xsl:sequence xml:base="nested/" select="static-base-uri(), resolve-uri('item'), $get(), $resolve('item'), f:base()"/></xsl:for-each></xsl:template></xsl:stylesheet>"#;
     let compiled =

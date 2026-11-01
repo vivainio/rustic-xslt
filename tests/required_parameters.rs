@@ -4,6 +4,33 @@ fn sheet(version: &str, body: &str) -> String {
         r#"<xsl:stylesheet version="{version}" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:p="urn:p" xmlns:q="urn:p"><xsl:output method="text"/>{body}</xsl:stylesheet>"#
     )
 }
+
+#[test]
+fn binding_attribute_errors_distinguish_invalid_and_unsupported_features() {
+    for body in [
+        r#"<xsl:variable name="v" department="x"/>"#,
+        r#"<xsl:variable name="v" xsl:department="x"/>"#,
+        r#"<xsl:param name="v" visibility="private"/>"#,
+        r#"<xsl:template match="/"><xsl:variable name="v" visibility="private"/></xsl:template>"#,
+    ] {
+        assert_eq!(
+            Stylesheet::compile(&sheet("3.0", body)).unwrap_err().code,
+            "XTSE0090"
+        );
+    }
+    for body in [
+        r#"<xsl:variable name="v" visibility="public"/>"#,
+        r#"<xsl:param name="v" default-collation="urn:test"/>"#,
+    ] {
+        assert_eq!(
+            Stylesheet::compile(&sheet("3.0", body)).unwrap_err().code,
+            "RUST_XSLT_UNSUPPORTED"
+        );
+    }
+    assert!(
+        Stylesheet::compile(&sheet("3.0", r#"<xsl:param name="v" p:extension="ok"/>"#)).is_ok()
+    );
+}
 #[test]
 fn global_required_parameter_and_external_expanded_name() {
     let s = Stylesheet::compile(&sheet("3.0", r#"<xsl:param name="p:v" required="yes"/><xsl:template match="/"><xsl:value-of select="$q:v"/></xsl:template>"#)).unwrap();

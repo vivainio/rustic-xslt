@@ -9,6 +9,46 @@ fn run(expr: &str) -> Result<String, rust_xslt::Diagnostic> {
     <xsl:template match="/"><xsl:sequence select="{expr}"/></xsl:template></xsl:stylesheet>"#))?
     .transform("<r><n>3</n><n>1</n><n>2</n></r>")
 }
+
+#[test]
+fn unused_stylesheet_function_bindings_do_not_force_values() {
+    let source = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:f="urn:f"><xsl:output method="text"/><xsl:variable name="x" select="f:calculate()"/><xsl:function name="f:calculate"><xsl:variable name="unused" select="$x"/><xsl:sequence select="42"/></xsl:function><xsl:template match="/"><xsl:value-of select="$x"/></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(
+        Stylesheet::compile(source)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap(),
+        "42"
+    );
+    let unknown = source.replace(
+        "select=\"$x\"/><xsl:sequence",
+        "select=\"$missing\"/><xsl:sequence",
+    );
+    assert_eq!(Stylesheet::compile(&unknown).unwrap_err().code, "XPST0008");
+    let used = source.replace(
+        "<xsl:sequence select=\"42\"/>",
+        "<xsl:sequence select=\"$unused\"/>",
+    );
+    assert_eq!(
+        Stylesheet::compile(&used)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap_err()
+            .code,
+        "XTDE0640"
+    );
+    let closure = source.replace(
+        "select=\"$x\"/><xsl:sequence select=\"42\"",
+        "select=\"7\"/><xsl:sequence select=\"function(){ $unused }()\"",
+    );
+    assert_eq!(
+        Stylesheet::compile(&closure)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap(),
+        "7"
+    );
+}
 #[test]
 fn inline_functions_close_over_variables_and_can_be_called_dynamically() {
     for (expr, expected) in [

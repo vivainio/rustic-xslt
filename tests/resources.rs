@@ -209,6 +209,37 @@ fn global_bindings_load_documents_before_evaluation() {
 }
 
 #[test]
+fn loaded_documents_apply_whitespace_rules_once_and_keep_identity() {
+    let source = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:strip-space elements="*"/><xsl:preserve-space elements="keep"/><xsl:template match="/"><xsl:sequence select="doc('data.xml') is document('data.xml'), count(doc('data.xml')/r/text()), count(doc('data.xml')/r/keep/text()), count(doc('data.xml')/r/group/text()), count(doc('data.xml')/r/group/child/text()), count(doc('data.xml')/r/group/reset/text())"/></xsl:template></xsl:stylesheet>"#;
+    let sheet = Stylesheet::compile_with_base_uri(source, "https://example.test/main.xsl").unwrap();
+    let options = TransformOptions {
+        resolver: Some(ResourceResolver::new(|uri| {
+            assert_eq!(uri, "https://example.test/data.xml");
+            Ok("<r> <keep> </keep><group xml:space='preserve'> <child> </child><reset xml:space='default'> </reset></group> </r>".into())
+        })),
+        ..Default::default()
+    };
+    assert_eq!(
+        sheet.transform_with_options("<input/>", &options).unwrap(),
+        "true 0 1 1 1 0"
+    );
+    let small = TransformOptions {
+        limits: rust_xslt::Limits {
+            max_temporary_bytes: 16,
+            ..Default::default()
+        },
+        ..options
+    };
+    assert_eq!(
+        sheet
+            .transform_with_options("<input/>", &small)
+            .unwrap_err()
+            .code,
+        "XPDY0130"
+    );
+}
+
+#[test]
 fn loaded_documents_use_xml_document_parsing_and_limits() {
     let options = TransformOptions {
         resolver: Some(ResourceResolver::new(|uri| {

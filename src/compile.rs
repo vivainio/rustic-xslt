@@ -13,16 +13,23 @@ pub(crate) enum Instruction {
     /// Text with `{expression}` value templates (expand-text).
     TextValue(Vec<Expr>),
     Value(Expr, Option<Vec<Expr>>),
+    ValueBody(Content),
     Apply(Expr, String, Vec<Sort>, Vec<Binding>),
     Copy {
         select: Option<Expr>,
         namespaces: bool,
         inherit: bool,
+        sets: Vec<Instruction>,
         body: Vec<Instruction>,
     },
     CopyOf(Expr, bool),
     Document(Vec<Instruction>),
     Sequence(Expr),
+    MapEntry {
+        key: Expr,
+        body: Vec<Instruction>,
+    },
+    Map(Vec<Instruction>),
     ComputedElement(ComputedName, bool, Vec<Instruction>),
     Attribute(ComputedName, Content),
     Comment(Content),
@@ -57,14 +64,13 @@ pub(crate) enum Instruction {
         catches: Vec<Catch>,
     },
     WherePopulated(Vec<Instruction>),
-    /// `xsl:on-empty` / `xsl:on-non-empty` markers, consumed when the body is assembled.
+    /// `xsl:on-empty` / `xsl:on-non-empty` markers in a conditional constructor.
     OnEmpty(Vec<Instruction>),
     OnNonEmpty(Vec<Instruction>),
-    /// A sequence constructor with conditional fallbacks: the main part runs first.
+    /// A sequence constructor containing conditional content.
     Populated {
         main: Vec<Instruction>,
-        on_empty: Vec<Instruction>,
-        on_non_empty: Vec<Instruction>,
+        has_on_empty: bool,
     },
     ResultDocument(Box<ResultDocumentSpec>),
     Namespace(Vec<Expr>, Content),
@@ -297,9 +303,58 @@ fn check_component_namespace(
     }
     Ok(())
 }
+fn unqualified_attribute<'a>(n: Node<'a, '_>, name: &str) -> Option<&'a str> {
+    n.attributes()
+        .find(|attribute| attribute.namespace().is_none() && attribute.name() == name)
+        .map(|attribute| attribute.value())
+}
 fn required<'a>(n: Node<'a, '_>, a: &str) -> Result<&'a str, Diagnostic> {
-    n.attribute(a)
-        .ok_or_else(|| error(n, format!("missing required attribute: {a}")))
+    unqualified_attribute(n, a)
+        .ok_or_else(|| static_error(n, "XTSE0010", format!("missing required attribute: {a}")))
+}
+
+fn choose_branches<'a>(n: Node<'a, 'a>) -> Result<Vec<(Option<Expr>, Node<'a, 'a>)>, Diagnostic> {
+    attrs(n, &[])?;
+    let mut branches = vec![];
+    let mut otherwise = false;
+    for c in n.children() {
+        if c.is_text() && !xml_space(c.text().unwrap_or_default()) {
+            return Err(static_error(c, "XTSE0010", "unexpected text in xsl:choose"));
+        }
+        if !c.is_element() {
+            continue;
+        }
+        if otherwise || c.tag_name().namespace() != Some(XSL) {
+            return Err(static_error(c, "XTSE0010", "invalid xsl:choose branch"));
+        }
+        let test = match c.tag_name().name() {
+            "when" => {
+                attrs(c, &["test"])?;
+                Some(expr(c, required(c, "test")?)?)
+            }
+            "otherwise" if !branches.is_empty() => {
+                attrs(c, &[])?;
+                otherwise = true;
+                None
+            }
+            _ => {
+                return Err(static_error(
+                    c,
+                    "XTSE0010",
+                    "xsl:choose requires xsl:when followed by optional xsl:otherwise",
+                ));
+            }
+        };
+        branches.push((test, c));
+    }
+    if branches.is_empty() {
+        return Err(static_error(
+            n,
+            "XTSE0010",
+            "xsl:choose requires at least one xsl:when",
+        ));
+    }
+    Ok(branches)
 }
 thread_local! {
     static MODULE_BASE_URI: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
@@ -423,6 +478,37 @@ fn attrs(n: Node<'_, '_>, allowed: &[&str]) -> Result<(), Diagnostic> {
             continue;
         }
         if a.namespace().is_some() || !allowed.contains(&a.name()) {
+            if n.tag_name().namespace() == Some(XSL)
+                && matches!(n.tag_name().name(), "variable" | "param" | "with-param")
+            {
+                // Visibility is a valid (but not yet implemented) property of
+                // global variables; parameters and local variables cannot use it.
+                let global_variable_visibility = a.namespace().is_none()
+                    && a.name() == "visibility"
+                    && n.tag_name().name() == "variable"
+                    && n.parent_element().is_some_and(|parent| {
+                        parent.tag_name().namespace() == Some(XSL)
+                            && matches!(
+                                parent.tag_name().name(),
+                                "stylesheet" | "transform" | "package"
+                            )
+                    });
+                let unsupported_standard = a.namespace().is_none()
+                    && matches!(
+                        a.name(),
+                        "default-collation"
+                            | "default-validation"
+                            | "extension-element-prefixes"
+                            | "version"
+                    );
+                if !global_variable_visibility && !unsupported_standard {
+                    return Err(static_error(
+                        n,
+                        "XTSE0090",
+                        format!("invalid attribute: {}", a.name()),
+                    ));
+                }
+            }
             return Err(error(n, format!("unsupported attribute: {}", a.name())));
         }
     }
@@ -433,6 +519,46 @@ fn empty(n: Node<'_, '_>) -> Result<(), Diagnostic> {
         .any(|c| c.is_element() || c.is_text() && !xml_space(c.text().unwrap_or_default()))
     {
         return Err(error(n, "instruction content is unsupported"));
+    }
+    Ok(())
+}
+fn required_empty(n: Node<'_, '_>) -> Result<(), Diagnostic> {
+    let preserve_whitespace = n
+        .ancestors()
+        .filter_map(|ancestor| {
+            ancestor.attribute(("http://www.w3.org/XML/1998/namespace", "space"))
+        })
+        .next()
+        == Some("preserve");
+    for child in n.children() {
+        if child.is_element() && !use_when_excludes(child)?
+            || child.is_text()
+                && (preserve_whitespace || !xml_space(child.text().unwrap_or_default()))
+        {
+            return Err(static_error(n, "XTSE0260", "instruction must be empty"));
+        }
+    }
+    Ok(())
+}
+fn sequence_select_content(n: Node<'_, '_>) -> Result<(), Diagnostic> {
+    let preserve_whitespace = n
+        .ancestors()
+        .filter_map(|ancestor| {
+            ancestor.attribute(("http://www.w3.org/XML/1998/namespace", "space"))
+        })
+        .next()
+        == Some("preserve");
+    if n.children().any(|child| {
+        child.is_text() && (preserve_whitespace || !xml_space(child.text().unwrap_or_default()))
+            || child.is_element()
+                && !(child.tag_name().namespace() == Some(XSL)
+                    && child.tag_name().name() == "fallback")
+    }) {
+        return Err(static_error(
+            n,
+            "XTSE3185",
+            "select cannot be combined with sequence constructor content",
+        ));
     }
     Ok(())
 }
@@ -586,6 +712,8 @@ fn binding(n: Node<'_, '_>, parameter: bool, depth: usize) -> Result<Binding, Di
 fn top_sequence(body: &[Instruction]) -> bool {
     body.iter().any(|i| match i {
         Instruction::Sequence(_)
+        | Instruction::MapEntry { .. }
+        | Instruction::Map(_)
         | Instruction::Call(_, _)
         | Instruction::NextMatch(_)
         | Instruction::ApplyImports(_)
@@ -602,6 +730,8 @@ fn top_sequence(body: &[Instruction]) -> bool {
 pub(crate) fn raw_result_body(body: &[Instruction]) -> bool {
     body.iter().all(|i| match i {
         Instruction::Sequence(_)
+        | Instruction::MapEntry { .. }
+        | Instruction::Map(_)
         | Instruction::CopyOf(..)
         | Instruction::Copy { .. }
         | Instruction::Apply(..)
@@ -615,6 +745,7 @@ pub(crate) fn raw_result_body(body: &[Instruction]) -> bool {
         | Instruction::Text(_)
         | Instruction::TextValue(_)
         | Instruction::Value(..)
+        | Instruction::ValueBody(_)
         | Instruction::Comment(_)
         | Instruction::Message(..)
         | Instruction::AssertFailure(_)
@@ -811,19 +942,20 @@ fn computed_name(n: Node<'_, '_>) -> Result<ComputedName, Diagnostic> {
     })
 }
 fn content(n: Node<'_, '_>, depth: usize) -> Result<Content, Diagnostic> {
-    let separator = avt(n, n.attribute("separator").unwrap_or(" "))?;
-    if let Some(s) = n.attribute("select") {
+    let separator = avt(n, unqualified_attribute(n, "separator").unwrap_or(" "))?;
+    if let Some(s) = unqualified_attribute(n, "select") {
         empty(n)?;
         Ok(Content::Select(expr(n, s)?, separator))
     } else {
         let separator = avt(
             n,
-            n.attribute("separator")
-                .unwrap_or(if n.tag_name().name() == "attribute" {
+            unqualified_attribute(n, "separator").unwrap_or(
+                if matches!(n.tag_name().name(), "attribute" | "value-of") {
                     ""
                 } else {
                     " "
-                }),
+                },
+            ),
         )?;
         Ok(Content::Body(body(n, depth, false)?, separator))
     }
@@ -1054,6 +1186,16 @@ fn body(
             if use_when_excludes(n)? {
                 continue;
             }
+            if n.tag_name().namespace() == Some(XSL)
+                && n.tag_name().name() == "fallback"
+                && parent.tag_name().namespace() == Some(XSL)
+                && matches!(
+                    parent.tag_name().name(),
+                    "sequence" | "on-empty" | "on-non-empty" | "map-entry" | "map" | "value-of"
+                )
+            {
+                continue;
+            }
             if n.tag_name().namespace() == Some(XSL) {
                 match n.tag_name().name() {
                     "param" if skip_params => continue,
@@ -1076,41 +1218,41 @@ fn body(
                             .collect();
                         out.push(text_instruction(n, &text)?);
                     }
-                    "value-of" | "apply-templates" => {
-                        attrs(
-                            n,
-                            if n.tag_name().name() == "apply-templates" {
-                                &["select", "mode"]
-                            } else {
-                                &["select", "separator"]
-                            },
-                        )?;
-                        let sorts = if n.tag_name().name() == "apply-templates" {
-                            sorts(n)?
+                    "value-of" => {
+                        attrs(n, &["select", "separator"])?;
+                        if let Some(select) = unqualified_attribute(n, "select") {
+                            sequence_select_content(n).map_err(|mut error| {
+                                error.code = "XTSE0870".into();
+                                error
+                            })?;
+                            out.push(Instruction::Value(
+                                expr(n, select)?,
+                                unqualified_attribute(n, "separator")
+                                    .map(|s| avt(n, s))
+                                    .transpose()?,
+                            ));
                         } else {
-                            empty(n)?;
-                            vec![]
-                        };
-                        let value = if let Some(s) = n.attribute("select") {
+                            out.push(Instruction::ValueBody(content(n, depth + 1)?));
+                        }
+                    }
+                    "apply-templates" => {
+                        attrs(n, &["select", "mode"])?;
+                        let sorts = sorts(n)?;
+                        let value = if let Some(s) = unqualified_attribute(n, "select") {
                             expr(n, s)?
-                        } else if n.tag_name().name() == "apply-templates" {
+                        } else {
                             expr(n, "node()")?
-                        } else {
-                            return Err(error(n, "value-of requires select"));
                         };
-                        out.push(if n.tag_name().name() == "value-of" {
-                            Instruction::Value(
-                                value,
-                                n.attribute("separator").map(|s| avt(n, s)).transpose()?,
-                            )
-                        } else {
-                            Instruction::Apply(
-                                value,
-                                mode(n, n.attribute("mode").unwrap_or("#default"), true)?,
-                                sorts,
-                                with_params(n, depth, true)?,
-                            )
-                        });
+                        out.push(Instruction::Apply(
+                            value,
+                            mode(
+                                n,
+                                unqualified_attribute(n, "mode").unwrap_or("#default"),
+                                true,
+                            )?,
+                            sorts,
+                            with_params(n, depth, true)?,
+                        ));
                     }
                     "param" | "on-completion"
                         if parent.tag_name().namespace() == Some(XSL)
@@ -1165,29 +1307,33 @@ fn body(
                         out.push(Instruction::Comment(content(n, depth + 1)?));
                     }
                     "map" => {
-                        attrs(n, &["on-duplicates", "use-attribute-sets"])?;
-                        if n.attribute("on-duplicates").is_some() {
-                            return Err(error(n, "map on-duplicates is not implemented"));
+                        for name in ["on-duplicates", "use-attribute-sets"] {
+                            if n.attributes()
+                                .any(|a| a.namespace().is_none() && a.name() == name)
+                            {
+                                return Err(static_error(
+                                    n,
+                                    "XTSE0090",
+                                    format!("invalid attribute on xsl:map: {name}"),
+                                ));
+                            }
                         }
-                        let parts = map_parts(n, depth)?;
-                        out.push(Instruction::Sequence(Expr::Call(
-                            "map:merge".into(),
-                            vec![
-                                Expr::Sequence(parts),
-                                Expr::MapConstructor(vec![(
-                                    Expr::String("duplicates".into()),
-                                    Expr::String("reject".into()),
-                                )]),
-                            ],
-                        )));
+                        attrs(n, &[])?;
+                        out.push(Instruction::Map(body(n, depth + 1, false)?));
                     }
-                    "map-entry" => {
-                        return Err(static_error(
-                            n,
-                            "XTSE0010",
-                            "xsl:map-entry is only allowed inside xsl:map",
-                        ));
-                    }
+                    "map-entry" => match map_entry_expr(n, depth) {
+                        Ok(expression) => out.push(Instruction::Sequence(expression)),
+                        Err(error)
+                            if error.code == "RUST_XSLT_UNSUPPORTED"
+                                && unqualified_attribute(n, "select").is_none() =>
+                        {
+                            out.push(Instruction::MapEntry {
+                                key: expr(n, required(n, "key")?)?,
+                                body: body(n, depth + 1, false)?,
+                            });
+                        }
+                        Err(error) => return Err(error),
+                    },
                     "evaluate" => {
                         attrs(
                             n,
@@ -1472,18 +1618,7 @@ fn body(
                         )?;
                         let encoding = n
                             .attribute("encoding")
-                            .map(|value| {
-                                if !value.contains('{')
-                                    && !value.contains('}')
-                                    && crate::result::Encoding::parse(value).is_none()
-                                {
-                                    return Err(error(
-                                        n,
-                                        "only UTF-8, ISO-8859-1 and US-ASCII results are supported",
-                                    ));
-                                }
-                                avt(n, value)
-                            })
+                            .map(|value| avt(n, value))
                             .transpose()?;
                         let method = n.attribute("method");
                         if method.is_some_and(|method| {
@@ -1573,7 +1708,7 @@ fn body(
                         attrs(n, &["select"])?;
                         let content = match n.attribute("select") {
                             Some(s) => {
-                                empty(n)?;
+                                sequence_select_content(n)?;
                                 vec![Instruction::Sequence(expr(n, s)?)]
                             }
                             None => body(n, depth + 1, false)?,
@@ -1830,21 +1965,70 @@ fn body(
                     }
                     "sequence" => {
                         attrs(n, &["select"])?;
-                        empty(n)?;
-                        out.push(Instruction::Sequence(expr(n, required(n, "select")?)?));
+                        if let Some(select) = n.attribute("select") {
+                            sequence_select_content(n)?;
+                            out.push(Instruction::Sequence(expr(n, select)?));
+                        } else {
+                            out.push(Instruction::If(
+                                Expr::Call("true".into(), vec![]),
+                                body(n, depth + 1, false)?,
+                            ));
+                        }
                     }
                     "copy" => {
-                        attrs(n, &["select", "copy-namespaces", "inherit-namespaces"])?;
+                        attrs(
+                            n,
+                            &[
+                                "select",
+                                "copy-namespaces",
+                                "inherit-namespaces",
+                                "use-attribute-sets",
+                            ],
+                        )?;
                         out.push(Instruction::Copy {
                             select: n.attribute("select").map(|s| expr(n, s)).transpose()?,
                             namespaces: boolean_attribute(n, "copy-namespaces", true)?,
                             inherit: boolean_attribute(n, "inherit-namespaces", true)?,
+                            sets: n
+                                .attribute("use-attribute-sets")
+                                .map(|names| set_names(n, names).map(Instruction::UseSets))
+                                .transpose()?
+                                .into_iter()
+                                .collect(),
                             body: body(n, depth + 1, false)?,
                         });
                     }
                     "copy-of" => {
+                        for attribute in n
+                            .attributes()
+                            .filter(|attribute| attribute.namespace().is_none())
+                        {
+                            if !matches!(
+                                attribute.name(),
+                                "select"
+                                    | "copy-namespaces"
+                                    | "copy-accumulators"
+                                    | "type"
+                                    | "validation"
+                                    | "default-collation"
+                                    | "default-mode"
+                                    | "default-validation"
+                                    | "exclude-result-prefixes"
+                                    | "expand-text"
+                                    | "extension-element-prefixes"
+                                    | "use-when"
+                                    | "version"
+                                    | "xpath-default-namespace"
+                            ) {
+                                return Err(static_error(
+                                    n,
+                                    "XTSE0090",
+                                    format!("invalid xsl:copy-of attribute: {}", attribute.name()),
+                                ));
+                            }
+                        }
                         attrs(n, &["select", "copy-namespaces"])?;
-                        empty(n)?;
+                        required_empty(n)?;
                         out.push(Instruction::CopyOf(
                             expr(n, required(n, "select")?)?,
                             boolean_attribute(n, "copy-namespaces", true)?,
@@ -1951,40 +2135,9 @@ fn body(
                         ));
                     }
                     "choose" => {
-                        attrs(n, &[])?;
                         let mut branches = vec![];
-                        let mut otherwise = false;
-                        for c in n.children() {
-                            if c.is_text() && !xml_space(c.text().unwrap_or_default()) {
-                                return Err(error(c, "unexpected text in choose"));
-                            }
-                            if !c.is_element() {
-                                continue;
-                            }
-                            if otherwise || c.tag_name().namespace() != Some(XSL) {
-                                return Err(error(c, "invalid choose branch"));
-                            }
-                            let test = match c.tag_name().name() {
-                                "when" => {
-                                    attrs(c, &["test"])?;
-                                    Some(expr(c, required(c, "test")?)?)
-                                }
-                                "otherwise" if !branches.is_empty() => {
-                                    attrs(c, &[])?;
-                                    otherwise = true;
-                                    None
-                                }
-                                _ => {
-                                    return Err(error(
-                                        c,
-                                        "choose requires when branches followed by optional otherwise",
-                                    ));
-                                }
-                            };
+                        for (test, c) in choose_branches(n)? {
                             branches.push((test, body(c, depth + 1, false)?));
-                        }
-                        if branches.is_empty() {
-                            return Err(error(n, "choose requires at least one when"));
                         }
                         out.push(Instruction::Choose(branches));
                     }
@@ -2060,140 +2213,36 @@ fn body(
         .iter()
         .any(|i| matches!(i, Instruction::OnEmpty(_) | Instruction::OnNonEmpty(_)))
     {
-        let (mut main, mut on_empty, mut on_non_empty) = (vec![], vec![], vec![]);
-        for instruction in out {
-            match instruction {
-                Instruction::OnEmpty(body) => on_empty.extend(body),
-                Instruction::OnNonEmpty(body) => on_non_empty.extend(body),
-                other => main.push(other),
-            }
+        let on_empty = out
+            .iter()
+            .position(|i| matches!(i, Instruction::OnEmpty(_)));
+        if on_empty.is_some_and(|index| index + 1 != out.len()) {
+            return Err(static_error(
+                parent,
+                "XTSE0010",
+                "xsl:on-empty must be the final instruction in its sequence constructor",
+            ));
         }
         return Ok(vec![Instruction::Populated {
-            main,
-            on_empty,
-            on_non_empty,
+            main: out,
+            has_on_empty: on_empty.is_some(),
         }]);
     }
     Ok(out)
 }
-/// Translate the children of `xsl:map` into XPath expressions that yield maps.
-fn map_parts(parent: Node<'_, '_>, depth: usize) -> Result<Vec<Expr>, Diagnostic> {
-    let children: Vec<Node<'_, '_>> = parent
-        .children()
-        .filter(|c| c.is_element() || c.is_text() && !xml_space(c.text().unwrap_or_default()))
-        .collect();
-    map_nodes(&children, depth)
-}
-fn map_nodes(children: &[Node<'_, '_>], depth: usize) -> Result<Vec<Expr>, Diagnostic> {
-    if depth > 128 {
-        return Err(Diagnostic::new(
-            "RUST_XSLT_UNSUPPORTED",
-            "stylesheet nesting limit exceeded",
-            "compile",
-        ));
-    }
-    let mut parts: Vec<Expr> = vec![];
-    for (index, c) in children.iter().enumerate() {
-        if c.is_text() || c.tag_name().namespace() != Some(XSL) {
-            return Err(static_error(
-                *c,
-                "XTSE0010",
-                "xsl:map may only contain instructions that produce maps",
-            ));
-        }
-        match c.tag_name().name() {
-            "map-entry" => {
-                attrs(*c, &["key", "select"])?;
-                let key = expr(*c, required(*c, "key")?)?;
-                let value = match c.attribute("select") {
-                    Some(s) => {
-                        empty(*c)?;
-                        expr(*c, s)?
-                    }
-                    None => {
-                        let content = body(*c, depth + 1, false)?;
-                        match <[Instruction; 1]>::try_from(content) {
-                            Ok([Instruction::Sequence(e)]) => e,
-                            Err(content) if content.is_empty() => Expr::Sequence(vec![]),
-                            _ => {
-                                return Err(error(
-                                    *c,
-                                    "xsl:map-entry bodies are limited to one xsl:sequence",
-                                ));
-                            }
-                        }
-                    }
-                };
-                parts.push(Expr::Call("map:entry".into(), vec![key, value]));
-            }
-            "sequence" => {
-                attrs(*c, &["select"])?;
-                empty(*c)?;
-                parts.push(expr(*c, required(*c, "select")?)?);
-            }
-            "if" => {
-                attrs(*c, &["test"])?;
-                parts.push(Expr::If(
-                    Box::new(expr(*c, required(*c, "test")?)?),
-                    Box::new(Expr::Sequence(map_parts(*c, depth + 1)?)),
-                    Box::new(Expr::Sequence(vec![])),
-                ));
-            }
-            "choose" => {
-                attrs(*c, &[])?;
-                let mut chain = Expr::Sequence(vec![]);
-                let branches: Vec<Node<'_, '_>> = c.children().filter(|b| b.is_element()).collect();
-                for branch in branches.iter().rev() {
-                    match branch.tag_name().name() {
-                        "when" => {
-                            attrs(*branch, &["test"])?;
-                            chain = Expr::If(
-                                Box::new(expr(*branch, required(*branch, "test")?)?),
-                                Box::new(Expr::Sequence(map_parts(*branch, depth + 1)?)),
-                                Box::new(chain),
-                            );
-                        }
-                        "otherwise" => {
-                            attrs(*branch, &[])?;
-                            chain = Expr::Sequence(map_parts(*branch, depth + 1)?);
-                        }
-                        _ => return Err(error(*branch, "invalid choose branch")),
-                    }
-                }
-                parts.push(chain);
-            }
-            "for-each" => {
-                attrs(*c, &["select"])?;
-                if !sorts(*c)?.is_empty() {
-                    return Err(error(*c, "sorting inside xsl:map is not implemented"));
-                }
-                parts.push(Expr::PathMap(
-                    Box::new(expr(*c, required(*c, "select")?)?),
-                    Box::new(Expr::Sequence(map_parts(*c, depth + 1)?)),
-                ));
-            }
-            "variable" => {
-                attrs(*c, &["name", "select", "as"])?;
-                let name = component_name(*c, required(*c, "name")?)?;
-                let value = expr(*c, required(*c, "select")?)?;
-                // The variable scopes over the remaining siblings.
-                let rest = map_nodes(&children[index + 1..], depth + 1)?;
-                parts.push(Expr::Let(
-                    name,
-                    Box::new(value),
-                    Box::new(Expr::Sequence(rest)),
-                ));
-                return Ok(parts);
-            }
-            other => {
-                return Err(error(
-                    *c,
-                    format!("xsl:{other} is not supported inside xsl:map"),
-                ));
-            }
-        }
-    }
-    Ok(parts)
+fn map_entry_expr(n: Node<'_, '_>, depth: usize) -> Result<Expr, Diagnostic> {
+    attrs(n, &["key", "select"])?;
+    let key = expr(n, required(n, "key")?)?;
+    let value = if let Some(select) = unqualified_attribute(n, "select") {
+        sequence_select_content(n).map_err(|mut error| {
+            error.code = "XTSE3280".into();
+            error
+        })?;
+        expr(n, select)?
+    } else {
+        function_expression(n, body(n, depth + 1, false)?)?
+    };
+    Ok(Expr::Call("map:entry".into(), vec![key, value]))
 }
 fn error_test(
     n: Node<'_, '_>,
@@ -2352,6 +2401,9 @@ fn apply_output_properties(
     sheet.encoding = get("encoding")
         .and_then(crate::result::Encoding::parse)
         .unwrap_or_default();
+    sheet.unsupported_encoding = get("encoding")
+        .filter(|value| crate::result::Encoding::parse(value).is_none())
+        .map(str::to_owned);
     sheet.indent = get("indent") == Some("yes");
     sheet.escape_uri_attributes = get("escape-uri-attributes") != Some("no");
     sheet.undeclare_prefixes = get("undeclare-prefixes") == Some("yes");
@@ -2374,9 +2426,51 @@ fn apply_output_properties(
     Ok(())
 }
 
+struct ModeProperty<T> {
+    value: Option<(u32, T, bool)>,
+}
+impl<T> Default for ModeProperty<T> {
+    fn default() -> Self {
+        Self { value: None }
+    }
+}
+impl<T: Copy + PartialEq> ModeProperty<T> {
+    fn add(&mut self, precedence: u32, value: Option<T>) {
+        let Some(value) = value else { return };
+        match &mut self.value {
+            Some((rank, old, conflict)) if *rank == precedence => *conflict |= *old != value,
+            Some((rank, _, _)) if *rank > precedence => {}
+            slot => *slot = Some((precedence, value, false)),
+        }
+    }
+    fn resolved(&self) -> Result<Option<T>, Diagnostic> {
+        match self.value {
+            Some((_, _, true)) => Err(Diagnostic::new(
+                "XTSE0545",
+                "conflicting mode declarations",
+                "compile",
+            )),
+            Some((_, value, false)) => Ok(Some(value)),
+            None => Ok(None),
+        }
+    }
+}
+
+#[derive(Default)]
+struct ModeDeclarations {
+    policy: ModeProperty<crate::mode::OnNoMatch>,
+    multiple: ModeProperty<bool>,
+    visibility: ModeProperty<crate::mode::Visibility>,
+    warning: ModeProperty<bool>,
+    warning_no_match: ModeProperty<bool>,
+    streamable: ModeProperty<bool>,
+    typed: ModeProperty<crate::mode::Typed>,
+}
+
 struct Declarations<'a> {
     sheet: &'a mut Stylesheet,
     output_properties: &'a mut BTreeMap<String, OutputGroup>,
+    mode_declarations: &'a mut BTreeMap<String, ModeDeclarations>,
     functions: &'a mut BTreeMap<(String, usize), xpath::UserFunction>,
     keys: &'a mut BTreeMap<String, Vec<xpath::KeyDefinition>>,
     attribute_sets: &'a mut BTreeMap<String, AttributeSet>,
@@ -2411,6 +2505,7 @@ fn declarations(
     let Declarations {
         sheet,
         output_properties,
+        mode_declarations,
         functions,
         keys,
         attribute_sets,
@@ -2448,6 +2543,11 @@ fn declarations(
         let imported = resolver(module_uri.as_deref().unwrap_or(href))?;
         let doc = crate::parse(&imported, "compile")?;
         let imported_root = doc.root_element();
+        if let Some(uri) = &module_uri {
+            sheet
+                .stylesheet_sources
+                .insert(uri.clone(), imported.clone());
+        }
 
         with_module_base(module_uri, || {
             declarations(
@@ -2455,6 +2555,7 @@ fn declarations(
                 &mut Declarations {
                     sheet,
                     output_properties,
+                    mode_declarations,
                     functions,
                     keys,
                     attribute_sets,
@@ -2510,9 +2611,11 @@ fn declarations(
                         "on-no-match",
                         "on-multiple-match",
                         "warning-on-multiple-match",
+                        "warning-on-no-match",
                         "streamable",
                         "use-accumulators",
                         "visibility",
+                        "typed",
                     ],
                 )?;
                 empty(n)?;
@@ -2562,8 +2665,25 @@ fn declarations(
                         )),
                     })
                     .transpose()?;
-                let _warning_on_multiple_match =
-                    boolean_attribute(n, "warning-on-multiple-match", true)?;
+                let warning = n
+                    .attribute("warning-on-multiple-match")
+                    .map(|_| boolean_attribute(n, "warning-on-multiple-match", true))
+                    .transpose()?;
+                let warning_no_match = n
+                    .attribute("warning-on-no-match")
+                    .map(|_| boolean_attribute(n, "warning-on-no-match", false))
+                    .transpose()?;
+                let typed = n
+                    .attribute("typed")
+                    .map(|value| match value.trim() {
+                        "yes" | "true" | "1" => Ok(crate::mode::Typed::Required),
+                        "no" | "false" | "0" => Ok(crate::mode::Typed::Untyped),
+                        "unspecified" => Ok(crate::mode::Typed::Unspecified),
+                        "lax" => Ok(crate::mode::Typed::Lax),
+                        "strict" => Ok(crate::mode::Typed::Strict),
+                        _ => Err(static_error(n, "XTSE0020", "invalid typed mode setting")),
+                    })
+                    .transpose()?;
                 let visibility = n
                     .attribute("visibility")
                     .map(|s| match s.trim() {
@@ -2583,20 +2703,16 @@ fn declarations(
                         "the unnamed mode must be private",
                     ));
                 }
-                let entry = sheet.modes.entry(name).or_default();
-                if policy.zip(entry.on_no_match).is_some_and(|(a, b)| a != b)
-                    || multiple
-                        .zip(entry.fail_on_multiple)
-                        .is_some_and(|(a, b)| a != b)
-                    || visibility
-                        .zip(entry.visibility)
-                        .is_some_and(|(a, b)| a != b)
-                {
-                    return Err(static_error(n, "XTSE0545", "conflicting mode declarations"));
-                }
-                entry.on_no_match = policy.or(entry.on_no_match);
-                entry.fail_on_multiple = multiple.or(entry.fail_on_multiple);
-                entry.visibility = visibility.or(entry.visibility);
+                let entry = mode_declarations.entry(name).or_default();
+                entry.policy.add(precedence, policy);
+                entry.multiple.add(precedence, multiple);
+                entry.visibility.add(precedence, visibility);
+                entry.warning.add(precedence, warning);
+                entry.warning_no_match.add(precedence, warning_no_match);
+                entry.typed.add(precedence, typed);
+                entry
+                    .streamable
+                    .add(precedence, n.attribute("streamable").map(|_| false));
             }
             "strip-space" | "preserve-space" => {
                 let rules = space_rules(n, n.tag_name().name() == "strip-space")?;
@@ -2851,14 +2967,25 @@ fn declarations(
                         }
                         .into(),
                         "encoding" => crate::result::Encoding::parse(attribute.value().trim())
-                            .ok_or_else(|| {
-                                error(
-                                    n,
-                                    "only UTF-8, ISO-8859-1 and US-ASCII output are supported",
-                                )
-                            })?
-                            .name()
-                            .into(),
+                            .map_or_else(
+                                || attribute.value().trim().to_ascii_lowercase(),
+                                |encoding| encoding.name().to_owned(),
+                            ),
+                        "html-version" => {
+                            let value = attribute.value().trim();
+                            let unsigned = value.strip_prefix(['+', '-']).unwrap_or(value);
+                            let mut parts = unsigned.split('.');
+                            let integer = parts.next().unwrap_or_default();
+                            let fraction = parts.next();
+                            if parts.next().is_some()
+                                || (integer.is_empty() && fraction.is_none_or(str::is_empty))
+                                || !integer.bytes().all(|b| b.is_ascii_digit())
+                                || fraction.is_some_and(|s| !s.bytes().all(|b| b.is_ascii_digit()))
+                            {
+                                return Err(static_error(n, "XTSE0020", "invalid html-version"));
+                            }
+                            value.to_owned()
+                        }
                         _ => attribute.value().trim().to_owned(),
                     };
                     match group.properties.get_mut(name) {
@@ -2904,6 +3031,11 @@ fn declarations(
                 let included = resolver(module_uri.as_deref().unwrap_or(href))?;
                 let doc = crate::parse(&included, "compile")?;
                 let included_root = doc.root_element();
+                if let Some(uri) = &module_uri {
+                    sheet
+                        .stylesheet_sources
+                        .insert(uri.clone(), included.clone());
+                }
 
                 with_module_base(module_uri, || {
                     declarations(
@@ -2911,6 +3043,7 @@ fn declarations(
                         &mut Declarations {
                             sheet,
                             output_properties,
+                            mode_declarations,
                             functions,
                             keys,
                             attribute_sets,
@@ -3126,13 +3259,49 @@ fn declarations(
                     .attribute("match")
                     .ok_or_else(|| static_error(n, "XTSE0010", "key requires a match pattern"))?;
                 let branches = crate::pattern::parse(pattern, namespaces(n), xslt_version(n))?;
-                let Some(select) = n.attribute("use") else {
-                    return Err(error(n, "xsl:key requires the use attribute here"));
+                let preserve_space = n
+                    .ancestors()
+                    .filter_map(|ancestor| {
+                        ancestor.attribute(("http://www.w3.org/XML/1998/namespace", "space"))
+                    })
+                    .next()
+                    == Some("preserve");
+                let mut has_content = false;
+                for child in n.children() {
+                    if child.is_element() {
+                        if use_when_excludes(child)? {
+                            continue;
+                        }
+                        if child.tag_name().namespace() == Some(XSL)
+                            && child.tag_name().name() == "template"
+                        {
+                            return Err(static_error(
+                                child,
+                                "XTSE0010",
+                                "xsl:template must be a top-level declaration",
+                            ));
+                        }
+                        has_content = true;
+                    } else if child.is_text()
+                        && (preserve_space || !xml_space(child.text().unwrap_or_default()))
+                    {
+                        has_content = true;
+                    }
+                }
+                let value = match (n.attribute("use"), has_content) {
+                    (Some(select), false) => expr(n, select)?,
+                    (None, true) => function_expression(n, body(n, 1, false)?)?,
+                    _ => {
+                        return Err(static_error(
+                            n,
+                            "XTSE1205",
+                            "xsl:key requires either a use attribute or a sequence constructor",
+                        ));
+                    }
                 };
-                empty(n)?;
                 keys.entry(id).or_default().push(xpath::KeyDefinition {
                     branches,
-                    value: expr(n, select)?,
+                    value,
                     composite,
                     collation,
                     collation_uri,
@@ -3299,6 +3468,71 @@ fn declarations(
     }
     Ok(())
 }
+// Conservatively detect references, including inside closures and predicates.
+// Dynamic evaluation is treated as a possible reference without inspecting
+// the expression it will compile at run time.
+fn may_reference_variable(expression: &Expr, name: &str) -> bool {
+    let mut pending = vec![expression];
+    while let Some(expression) = pending.pop() {
+        match expression {
+            Expr::Variable(found) if found == name => return true,
+            Expr::Variable(_)
+            | Expr::String(_)
+            | Expr::Number(_)
+            | Expr::Context
+            | Expr::Root
+            | Expr::FunctionRef(..) => {}
+            Expr::For(_, a, b)
+            | Expr::Let(_, a, b, _)
+            | Expr::Quantified(_, _, a, b)
+            | Expr::Binary(_, a, b)
+            | Expr::PathMap(a, b) => pending.extend([a.as_ref(), b.as_ref()]),
+            Expr::Path(base, steps) => {
+                pending.push(base);
+                pending.extend(steps.iter().flat_map(|step| &step.predicates));
+            }
+            Expr::Filter(base, expressions) | Expr::DynamicCall(base, expressions) => {
+                pending.push(base);
+                pending.extend(expressions);
+            }
+            Expr::Unary(_, inner)
+            | Expr::TypeOp(_, inner, _)
+            | Expr::QNameCast(inner, _, _, _)
+            | Expr::StaticName(inner, _, _)
+            | Expr::LookupContext(inner, _)
+            | Expr::ArrayCurly(inner) => pending.push(inner),
+            Expr::Call(_, args) | Expr::Sequence(args) | Expr::ArraySquare(args) => {
+                pending.extend(args)
+            }
+            Expr::If(condition, yes, no) => {
+                pending.extend([condition.as_ref(), yes.as_ref(), no.as_ref()])
+            }
+            Expr::InlineFunction(function) => pending.push(&function.body),
+            Expr::Partial(callee, args) => {
+                pending.push(callee);
+                pending.extend(args.iter().flatten());
+            }
+            Expr::MapConstructor(entries) => {
+                for (key, value) in entries {
+                    pending.extend([key, value]);
+                }
+            }
+            Expr::Lookup(base, key) => {
+                pending.push(base);
+                pending.extend(key.iter().map(|key| key.as_ref()));
+            }
+            Expr::Sorted(base, keys) => {
+                pending.push(base);
+                for key in keys {
+                    pending.extend(key.expressions());
+                }
+            }
+            Expr::Evaluate { .. } => return true,
+        }
+    }
+    false
+}
+
 // Lower pure sequence constructors into XPath expressions. Branch-local
 // bindings remain scoped to their branch, and bindings affect only what follows.
 fn function_expression(n: Node<'_, '_>, body: Vec<Instruction>) -> Result<Expr, Diagnostic> {
@@ -3322,9 +3556,14 @@ fn function_expression(n: Node<'_, '_>, body: Vec<Instruction>) -> Result<Expr, 
                     Some(ty) => Expr::TypeOp("variable".into(), Box::new(select), ty),
                     None => select,
                 };
-                Expr::Let(name, Box::new(select), Box::new(tail))
+                let unused = !may_reference_variable(&tail, &name);
+                Expr::Let(name, Box::new(select), Box::new(tail), unused)
             }
             Instruction::Sequence(expression) => append(expression, tail),
+            Instruction::Map(body) => {
+                let maps = function_expression(n, body)?;
+                append(Expr::Call("\0xslt-map".into(), vec![maps]), tail)
+            }
             Instruction::ForEach(select, sorts, body) => {
                 let select = if sorts.is_empty() {
                     select
@@ -3359,7 +3598,7 @@ fn function_expression(n: Node<'_, '_>, body: Vec<Instruction>) -> Result<Expr, 
             _ => {
                 return Err(error(
                     n,
-                    "unsupported instruction in stylesheet function body",
+                    "unsupported instruction in expression-based sequence constructor",
                 ));
             }
         };
@@ -3442,6 +3681,7 @@ fn compile_inner(source: &str, resolver: Option<Resolver<'_>>) -> Result<Stylesh
         attribute_sets: BTreeMap::new(),
         decimal_formats: Default::default(),
         document_uris: vec![],
+        stylesheet_sources: BTreeMap::new(),
         outputs: BTreeMap::new(),
         space_rules: vec![],
         default_mode: if simplified {
@@ -3460,6 +3700,7 @@ fn compile_inner(source: &str, resolver: Option<Resolver<'_>>) -> Result<Stylesh
         include_content_type: true,
         media_type: None,
         encoding: Default::default(),
+        unsupported_encoding: None,
         cdata_elements: Default::default(),
         character_maps: Default::default(),
         char_map: Default::default(),
@@ -3472,7 +3713,15 @@ fn compile_inner(source: &str, resolver: Option<Resolver<'_>>) -> Result<Stylesh
             _ => 3,
         },
     };
+    MODULE_BASE_URI.with(|base| {
+        if let Some(uri) = base.borrow().as_ref() {
+            sheet
+                .stylesheet_sources
+                .insert(uri.clone(), source.to_owned());
+        }
+    });
     let mut output_properties = BTreeMap::new();
+    let mut mode_declarations = BTreeMap::new();
     let mut functions: BTreeMap<(String, usize), xpath::UserFunction> = BTreeMap::new();
     let mut keys: BTreeMap<String, Vec<xpath::KeyDefinition>> = BTreeMap::new();
     let mut attribute_sets: BTreeMap<String, AttributeSet> = BTreeMap::new();
@@ -3489,6 +3738,7 @@ fn compile_inner(source: &str, resolver: Option<Resolver<'_>>) -> Result<Stylesh
             &mut Declarations {
                 sheet: &mut sheet,
                 output_properties: &mut output_properties,
+                mode_declarations: &mut mode_declarations,
                 functions: &mut functions,
                 keys: &mut keys,
                 attribute_sets: &mut attribute_sets,
@@ -3502,6 +3752,28 @@ fn compile_inner(source: &str, resolver: Option<Resolver<'_>>) -> Result<Stylesh
             0,
             None,
         )?;
+    }
+    for (name, declarations) in mode_declarations {
+        let _ = declarations.warning.resolved()?;
+        let _ = declarations.warning_no_match.resolved()?;
+        let _ = declarations.streamable.resolved()?;
+        let typed = declarations.typed.resolved()?;
+        if typed == Some(crate::mode::Typed::Strict) {
+            return Err(Diagnostic::new(
+                "RUST_XSLT_UNSUPPORTED",
+                "strict typed modes require schema support",
+                "compile",
+            ));
+        }
+        sheet.modes.insert(
+            name,
+            crate::mode::Mode {
+                on_no_match: declarations.policy.resolved()?,
+                fail_on_multiple: declarations.multiple.resolved()?,
+                visibility: declarations.visibility.resolved()?,
+                typed,
+            },
+        );
     }
     for name in character_maps.keys() {
         sheet.character_maps.insert(
@@ -3528,6 +3800,7 @@ fn compile_inner(source: &str, resolver: Option<Resolver<'_>>) -> Result<Stylesh
     sheet.include_content_type = primary.include_content_type;
     sheet.media_type = primary.media_type.clone();
     sheet.encoding = primary.encoding;
+    sheet.unsupported_encoding = primary.unsupported_encoding.clone();
     sheet.omit_declaration = primary.omit_declaration;
     sheet.standalone = primary.standalone;
     sheet.byte_order_mark = primary.byte_order_mark;
@@ -3575,7 +3848,7 @@ fn validate_expression_inner(
                 ));
             }
             Expr::For(name, select, body)
-            | Expr::Let(name, select, body)
+            | Expr::Let(name, select, body, _)
             | Expr::Quantified(_, name, select, body) => {
                 validate_expression_inner(select, scope, functions, dynamic_only)?;
                 let mut inner = scope.clone();
@@ -3834,14 +4107,8 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 | Instruction::OnNonEmpty(body) => {
                     instructions(body, scope.clone(), templates)?;
                 }
-                Instruction::Populated {
-                    main,
-                    on_empty,
-                    on_non_empty,
-                } => {
+                Instruction::Populated { main, .. } => {
                     instructions(main, scope.clone(), templates)?;
-                    instructions(on_empty, scope.clone(), templates)?;
-                    instructions(on_non_empty, scope.clone(), templates)?;
                 }
                 Instruction::ResultDocument(spec) => {
                     for name in &spec.character_maps {
@@ -3920,7 +4187,8 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                         parts(value, &scope, templates)?;
                     }
                 }
-                Instruction::Comment(c)
+                Instruction::ValueBody(c)
+                | Instruction::Comment(c)
                 | Instruction::Message(c, _)
                 | Instruction::AssertFailure(c) => value(c, &scope, templates)?,
                 Instruction::Pi(n, c) => {
@@ -3956,10 +4224,18 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                     instructions(body, scope.clone(), templates)?;
                 }
                 Instruction::Document(body) => instructions(body, scope.clone(), templates)?,
-                Instruction::Copy { select, body, .. } => {
+                Instruction::Map(body) => instructions(body, scope.clone(), templates)?,
+                Instruction::MapEntry { key, body } => {
+                    validate_expression(key, &scope, templates.functions)?;
+                    instructions(body, scope.clone(), templates)?;
+                }
+                Instruction::Copy {
+                    select, sets, body, ..
+                } => {
                     if let Some(e) = select {
                         validate_expression(e, &scope, templates.functions)?;
                     }
+                    instructions(sets, scope.clone(), templates)?;
                     instructions(body, scope.clone(), templates)?;
                 }
                 Instruction::ForEach(e, _, body) | Instruction::If(e, body) => {
@@ -4078,6 +4354,9 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
         backwards: sheet.backwards,
         functions: &sheet.functions,
     };
+    for set in sheet.attribute_sets.values() {
+        instructions(&set.body, globals.clone(), &templates)?;
+    }
     for b in &sheet.globals {
         match &b.value {
             BindingValue::Select(e) => validate_expression(e, &globals, templates.functions)?,

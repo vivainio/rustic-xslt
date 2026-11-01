@@ -3200,3 +3200,366 @@ conformance claims. Smaller tested increments are committed independently.
   357 harness errors and 243 exclusions across 2,203 selected cases. The full
   all-feature Rust suite, all-target/all-feature Clippy, and the 18,793-case
   QT3 baseline gate pass.
+
+## Increment 287: parenthesized predicate patterns
+
+- Reject parenthesized predicate patterns with XTSE0340, while continuing to
+  accept filtered parenthesized node patterns.
+- The focused predicate tests, all-target/all-feature Clippy and the XSLT gate
+  pass. The gate now contains 1,331 passes, 272 failures, 357 harness errors
+  and 243 exclusions across 2,203 selected cases.
+
+## Increment 288: filtered node patterns
+
+- Evaluate a filter on a node pattern against the sequence selected in each
+  context, preserving positional predicate semantics. Predicate patterns on
+  atomic items retain their singleton focus.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate contains 1,332 passes, 271 failures, 357 harness
+  errors and 243 exclusions across 2,203 selected cases.
+
+## Increment 289: set operations in node patterns
+
+- Evaluate both operands of `intersect` and `except` in the same context node,
+  so nested matches from different contexts are not combined incorrectly.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate has 1,334 passes, 269 failures, 357 harness errors
+  and 243 exclusions across 2,203 selected cases.
+
+## Increment 290: errors during pattern matching
+
+- Treat dynamic and type errors in pattern evaluation as non-matches across
+  template dispatch, grouping, keys and numbering. Execution limits, internal
+  unsupported-operation errors and detected circular key dependencies remain
+  visible to callers.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate has 1,335 passes, 268 failures, 357 harness errors
+  and 243 exclusions across 2,203 selected cases.
+
+## Increment 291: pattern function arguments
+
+- Validate function calls in pattern structure: arguments must be literals or
+  variable references, and `root()` takes no arguments. XPath expressions in
+  predicates retain their usual grammar.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate has 1,336 passes, 267 failures, 357 harness errors
+  and 243 exclusions across 2,203 selected cases.
+
+## Increment 292: descendant paths with parenthesized steps
+
+- Support parenthesized pattern steps following `//`, including function and
+  root anchors, and retain any subsequent path steps.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate has 1,337 passes, 266 failures, 357 harness errors
+  and 243 exclusions across 2,203 selected cases.
+
+## Increment 293: local stylesheet module discovery in the runner
+
+- Supply recursively imported and included local suite modules to the engine,
+  respecting URI and `xml:base` resolution, explicit catalog mappings and the
+  suite boundary; do not fetch network resources.
+- All 48 runner tests pass. The expanded XSLT gate has 1,340 passes, 263
+  failures, 357 harness errors and 243 exclusions across 2,203 selected cases.
+
+## Increment 294: mode declaration import precedence
+
+- Resolve each mode property at its highest import precedence, allowing a
+  higher-precedence property to settle lower-precedence conflicts. Conflicts at
+  the winning precedence remain static errors, including warning settings.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate has 1,342 passes, 261 failures, 357 harness errors
+  and 243 exclusions across 2,203 selected cases.
+
+## Increment 295: non-schema-aware typed modes
+
+- Validate and merge mode `typed` and `warning-on-no-match` settings. Typed
+  modes reject untyped elements and attributes with XTTE3100; non-node items
+  and other node kinds remain eligible. Strict typed modes remain unsupported
+  pending schema support.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate has 1,348 passes, 255 failures, 357 harness errors
+  and 243 exclusions across 2,203 selected cases.
+
+## Increment 296: conditional instruction structure
+
+- Report XTSE0010 for missing required attributes and malformed `xsl:choose`
+  branches. Apply the same ordering, namespace and content validation to
+  conditional map constructors.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate has 1,352 passes, 251 failures, 357 harness errors
+  and 243 exclusions across 2,203 selected cases.
+
+## Increment 297: invalid binding attributes
+
+- Report XTSE0090 for invalid XSLT and unprefixed attributes on variable and
+  parameter bindings, while retaining explicit unsupported diagnostics for
+  valid features that are not implemented and accepting extension attributes.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate has 1,356 passes, 247 failures, 357 harness errors
+  and 243 exclusions across 2,203 selected cases.
+
+## Increment 298: expression-based key constructors
+
+- Support key sequence constructors that can be represented as XPath, including
+  local bindings, conditionals, iteration and sorting. Check the exclusive
+  `use`/content requirement and invalid nested template declarations.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate has 1,359 passes, 244 failures, 357 harness errors
+  and 243 exclusions across 2,203 selected cases. Constructors requiring
+  general XSLT instructions remain unsupported.
+
+## Increment 299: unused stylesheet function bindings
+
+- Skip evaluation of provably unused expression-based local bindings, while
+  retaining static validation and conservatively accounting for closures,
+  predicates and dynamic evaluation. Used bindings still detect circularity.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate has 1,360 passes, 243 failures, 357 harness errors
+  and 243 exclusions across 2,203 selected cases.
+
+## Increment 300: QName general comparisons
+
+- Cast untyped atomic values to QName using the comparison's lexical namespace
+  context, retaining value-comparison type rules and charging conversion work
+  to the execution budget.
+- The full all-feature Rust suite, all-target/all-feature Clippy, expanded XSLT
+  gate and 18,793-case QT3 baseline pass. The XSLT gate has 1,361 passes,
+  242 failures, 357 harness errors and 243 exclusions across 2,203 cases.
+
+## Increment 301: stylesheet modules as documents
+
+- Retain the source of URI-identified stylesheet modules and make those sources
+  available to literal `doc()` and `document()` calls, including empty URI
+  references, without requiring a transformation-time resolver.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate has 1,364 passes, 239 failures, 357 harness errors
+  and 243 exclusions across 2,203 cases. Dynamically discovered XML URIs remain
+  unsupported.
+
+## Increment 302: whitespace stripping in loaded documents
+
+- Apply stylesheet strip/preserve-space rules when XML resources enter the
+  document cache, preserving `xml:space`, document identity and the limit on
+  original input bytes.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate has 1,366 passes, 237 failures, 357 harness errors
+  and 243 exclusions across 2,203 selected cases.
+
+## Increment 303: non-positional pattern predicates
+
+- Evaluate provably focus-independent boolean step predicates on the candidate
+  instead of rescanning all its siblings. Positional and more complex predicates
+  retain their existing evaluation path.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate has 1,367 passes, 236 failures, 357 harness errors
+  and 243 exclusions across 2,203 selected cases.
+
+## Increment 304: unsupported output encodings
+
+- Defer unsupported encoding errors until the relevant output is serialized,
+  and report SESU0007. Named outputs can remain unused or be overridden by an
+  explicit result-document encoding.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate has 1,369 passes, 234 failures, 357 harness errors
+  and 243 exclusions across 2,203 selected cases.
+
+## Increment 305: HTML processing instructions
+
+- Serialize HTML processing instructions with the HTML terminator, and report
+  SERE0015 when their content contains `>`. XML serialization remains unchanged.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate has 1,370 passes, 233 failures, 357 harness errors
+  and 243 exclusions across 2,203 selected cases.
+
+## Increment 306: HTML version validation
+
+- Validate the lexical form of `html-version` on output declarations as an
+  XML Schema decimal, reporting XTSE0020 for invalid values.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate has 1,371 passes, 232 failures, 357 harness errors
+  and 243 exclusions across 2,203 selected cases.
+
+## Increment 307: HTML processing instruction encoding
+
+- Treat `>` as the end of an HTML processing instruction during encoding,
+  preserving error checks inside it while allowing character references in
+  following text and attributes, for principal and secondary outputs.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate remains at 1,371 passes, 232 failures, 357 harness
+  errors and 243 exclusions across 2,203 selected cases.
+
+## Increment 308: namespace nodes in document constructors
+
+- Report XTDE0420 for a namespace node directly in a constructed document,
+  while retaining XTDE0410 for namespaces created after element content.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate remains at 1,371 passes, 232 failures, 357 harness
+  errors and 243 exclusions across 2,203 selected cases. Document copying with
+  conditional content still needs separate construction-context handling.
+
+## Increment 309: document copy construction
+
+- Construct document copies in a document context before inserting their
+  children, and preserve that context when evaluating conditional content.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate has 1,372 passes, 231 failures, 357 harness errors
+  and 243 exclusions across 2,203 selected cases.
+
+## Increment 310: populated item filtering
+
+- Evaluate `xsl:where-populated` as a sequence and filter each item according
+  to its XDM content, including empty nodes, maps and recursively empty arrays.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate has 1,374 passes, 229 failures, 357 harness errors
+  and 243 exclusions across 2,203 selected cases.
+
+## Increment 311: conditional content vacuity
+
+- Evaluate conditional content as XDM items, preserving attributes and applying
+  the distinct vacuity rules for `xsl:on-empty`; retain vacuous values when
+  no `xsl:on-empty` is present. Ordering of earlier `xsl:on-non-empty`
+  instructions remains to be addressed.
+- The full all-feature Rust suite, all-target/all-feature Clippy and expanded
+  XSLT gate pass. The gate has 1,376 passes, 227 failures, 357 harness errors
+  and 243 exclusions across 2,203 selected cases.
+
+## Increment 312: conditional content ordering
+
+- Preserve the positions and local variable scopes of `xsl:on-non-empty` and
+  `xsl:on-empty` instructions when conditional content is evaluated.
+- The full all-feature Rust suite and all-target/all-feature Clippy pass. The
+  external XSLT gate could not be rerun because its temporary checkout lost
+  files and the environment could not resolve GitHub to restore it. The last
+  completed gate was increment 311's 1,376 passes over 2,203 selected cases.
+
+## Increment 313: sequence constructors
+
+- Support contained sequence constructors for `xsl:sequence`, including map
+  entries, and validate select/content conflicts as XTSE3185 while allowing
+  ignored fallbacks and respecting preserved whitespace.
+- The full all-feature Rust suite passed before the final whitespace check;
+  focused tests and all-target/all-feature Clippy passed after it. The external
+  XSLT gate remains unavailable because its temporary checkout is incomplete.
+
+## Increment 314: on-empty placement validation
+
+- Reject duplicate `xsl:on-empty` instructions and following instructions or
+  significant text in the same sequence constructor with XTSE0010, after
+  stylesheet whitespace stripping and `use-when` exclusions.
+- The full all-feature Rust suite and all-target/all-feature Clippy pass. The
+  external XSLT gate remains unavailable because its checkout is incomplete.
+
+## Increment 315: messages in raw constructors
+
+- Permit messages and assertions during raw sequence collection, temporarily
+  suspending collection while their content is evaluated so it cannot leak
+  into the result sequence.
+- The full all-feature Rust suite and all-target/all-feature Clippy pass. The
+  external XSLT gate remains unavailable because its checkout is incomplete.
+
+## Increment 316: try/catch in raw constructors
+
+- Collect successful `xsl:try` results as XDM items in raw constructors and
+  discard partial items before evaluating a matching catch.
+- The full all-feature Rust suite and all-target/all-feature Clippy pass. The
+  external XSLT gate remains unavailable because its checkout is incomplete.
+
+## Increment 317: XDM results from try/catch
+
+- Preserve XDM items from `xsl:try` in ordinary result construction, allowing
+  attributes and atomic sequences to be inserted into their surrounding
+  context and removing the serialized-fragment splice path.
+- The full all-feature Rust suite and all-target/all-feature Clippy pass. The
+  external XSLT gate remains unavailable because its checkout is incomplete.
+
+## Increment 318: current rule in nested constructors
+
+- Preserve the current template rule through conditional constructors,
+  try/catch, result documents and attribute sets, so `xsl:next-match` can
+  dispatch correctly when the focus is unchanged.
+- The full all-feature Rust suite and all-target/all-feature Clippy pass. The
+  external XSLT gate remains unavailable because its checkout is incomplete.
+
+## Increment 319: attribute sets on xsl:copy
+
+- Support `use-attribute-sets` on `xsl:copy`, applying sets with the selected
+  element as focus before the instruction's body and validating references.
+  Document and atomic copies do not evaluate the sets.
+- The full all-feature Rust suite and all-target/all-feature Clippy pass. The
+  external XSLT gate remains unavailable because its checkout is incomplete.
+
+## Increment 320: attribute set variable scope
+
+- Validate attribute set bodies against global lexical scope and evaluate
+  them without caller-local variables, while retaining the caller's focus,
+  current template rule, grouping context and regex groups.
+- The full all-feature Rust suite and all-target/all-feature Clippy pass. The
+  external XSLT gate remains unavailable because its checkout is incomplete.
+
+## Increment 321: standalone map entries
+
+- Permit `xsl:map-entry` as an independent map-producing instruction, support
+  expression-lowerable multi-instruction value constructors, and report
+  XTSE3280 for select/content conflicts. Node-building value constructors
+  still require a general raw-XDM implementation.
+- The full all-feature Rust suite and all-target/all-feature Clippy pass. The
+  external XSLT gate remains unavailable because its checkout is incomplete.
+
+## Increment 322: constructed map values
+
+- Collect non-expression-lowerable standalone map-entry values as raw XDM
+  sequences, and use a raw map constructor when expression lowering cannot
+  represent its content. This supports constructed nodes and sorted iteration;
+  broader map-constructor and stylesheet-function support remains incomplete.
+- The full all-feature Rust suite and all-target/all-feature Clippy pass. The
+  external XSLT gate remains unavailable because its checkout is incomplete.
+
+## Increment 323: general map constructors
+
+- Evaluate ordinary `xsl:map` bodies as raw XDM sequences, allowing template
+  calls and other instructions to contribute maps. Report XTTE3375 for
+  non-map items and XTDE3365 for duplicate keys; retain expression lowering
+  for stylesheet functions where it is supported.
+- The full all-feature Rust suite and all-target/all-feature Clippy pass. The
+  external XSLT gate remains unavailable because its checkout is incomplete.
+
+## Increment 324: stylesheet-function map errors
+
+- Share XSLT map merging between raw constructors and expression-lowered
+  stylesheet functions, ensuring both report XTDE3365 for duplicate keys and
+  XTTE3375 for non-map content without changing XPath `map:merge` errors.
+- The full all-feature Rust suite and all-target/all-feature Clippy pass. The
+  external XSLT gate remains unavailable because its checkout is incomplete.
+
+## Increment 325: map validation and budget accounting
+
+- Reject unqualified `on-duplicates` and `use-attribute-sets` on `xsl:map`
+  with XTSE0090 while allowing namespaced extension attributes.
+- Charge the execution budget for each input map, including empty maps, when
+  merging an XSLT map constructor.
+- The full all-feature Rust suite and all-target/all-feature Clippy pass. The
+  external XSLT gate remains unavailable because its checkout is incomplete.
+
+## Increment 326: namespaced attribute lookup
+
+- Restrict required XSLT attribute lookup to unqualified attributes, and do
+  the same for `xsl:map-entry/@select`, so extension attributes with matching
+  local names cannot stand in for or override XSLT attributes.
+- The full all-feature Rust suite and all-target/all-feature Clippy pass. The
+  external XSLT gate remains unavailable because its checkout is incomplete.
+
+## Increment 327: value-of sequence constructors
+
+- Support contained sequence constructors in `xsl:value-of`, including the
+  default empty separator, explicit separators and zero-length text nodes in
+  raw sequences. Report XTSE0870 for select/content conflicts.
+- The full all-feature Rust suite and all-target/all-feature Clippy pass. The
+  external XSLT gate remains unavailable because its checkout is incomplete.
+
+## Increment 328: copy instruction errors
+
+- Report XTSE0260 for nonempty `xsl:copy-of` content, including preserved
+  whitespace, and XTSE0090 for invalid attributes. Report XTTE0945 when
+  `xsl:copy` has no select and no context item.
+- The full all-feature Rust suite and all-target/all-feature Clippy pass. The
+  external XSLT gate remains unavailable because its checkout is incomplete.

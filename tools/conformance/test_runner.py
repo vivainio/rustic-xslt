@@ -232,6 +232,39 @@ class Assertions(unittest.TestCase):
                 environment(binary, {id(binary): (binary, base)})
 
 
+class StylesheetModules(unittest.TestCase):
+    def test_local_modules_respect_base_nested_imports_and_suite_boundary(self):
+        import tempfile
+        from run import stylesheet_modules
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / 'suite'
+            root.mkdir()
+            (root / 'nested').mkdir()
+            (root / 'nested' / 'first.xsl').write_text(
+                '<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">'
+                '<xsl:include href="../second.xsl"/></xsl:stylesheet>')
+            (root / 'second.xsl').write_text('<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"/>')
+            (Path(tmp) / 'outside.xsl').write_text('<outside/>')
+            sheet = ('<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xml:base="nested/">'
+                     '<xsl:import href="first.xsl"/><xsl:include href="../../outside.xsl"/>'
+                     '<xsl:include href="https://example.test/remote.xsl"/></xsl:stylesheet>')
+            resources = {}
+            stylesheet_modules(sheet, (root / 'main.xsl').as_uri(), root, resources)
+            self.assertEqual(set(resources), {(root / 'nested' / 'first.xsl').as_uri(), (root / 'second.xsl').as_uri()})
+
+    def test_catalog_mapping_is_preserved_and_missing_modules_are_not_fetched(self):
+        import tempfile
+        from run import stylesheet_modules
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            uri = (root / 'main.xsl').as_uri()
+            target = (root / 'mapped.xsl').as_uri()
+            resources = {target: '<mapped/>'}
+            sheet = ('<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">'
+                     '<xsl:include href="mapped.xsl"/><xsl:include href="missing.xsl"/></xsl:stylesheet>')
+            stylesheet_modules(sheet, uri, root, resources)
+            self.assertEqual(resources, {target: '<mapped/>'})
+
 class XPathAssertions(unittest.TestCase):
     def test_assertion_namespace_scope_is_preserved(self):
         import tempfile

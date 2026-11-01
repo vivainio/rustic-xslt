@@ -56,7 +56,7 @@ fn evaluate_runs_dynamic_xpath_with_context_and_parameters() {
 fn where_populated_drops_empty_results() {
     assert_eq!(
         run("<out><xsl:where-populated><b/></xsl:where-populated></out>").unwrap(),
-        "<out><b></b></out>"
+        "<out></out>"
     );
     assert_eq!(
         run("<out><xsl:where-populated><xsl:value-of select=\"()\"/></xsl:where-populated></out>")
@@ -68,6 +68,14 @@ fn where_populated_drops_empty_results() {
         run("<out><xsl:where-populated>text</xsl:where-populated></out>").unwrap(),
         "<out>text</out>"
     );
+    assert_eq!(run(r#"<out><xsl:where-populated><empty attr="x"/><nonempty><child/></nonempty><xsl:comment/><xsl:comment>yes</xsl:comment><xsl:processing-instruction name="p"/><xsl:processing-instruction name="p">yes</xsl:processing-instruction></xsl:where-populated></out>"#).unwrap(), "<out><nonempty><child></child></nonempty><!--yes--><?p yes?></out>");
+    assert_eq!(run(r#"<out><xsl:where-populated><xsl:sequence select="('', 'ok', (), 'more')"/></xsl:where-populated></out>"#).unwrap(), "<out>ok more</out>");
+}
+
+#[test]
+fn where_populated_filters_empty_maps_and_recursively_empty_arrays() {
+    let body = r#"<xsl:variable name="v" as="item()*"><xsl:where-populated><xsl:sequence select="(map{}, map{'a':1}, [], [(), '', []], [(), 0])"/></xsl:where-populated></xsl:variable><out><xsl:value-of select="count($v)"/></out>"#;
+    assert_eq!(run(body).unwrap(), "<out>2</out>");
 }
 #[test]
 fn namespace_instruction_declares_namespaces_on_the_current_element() {

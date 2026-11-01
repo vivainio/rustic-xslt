@@ -28,14 +28,15 @@ python3 -m unittest discover -s tools/conformance -p 'test_*.py'
 
 The gate fails for missing or regressed baseline cases. Other failures and
 harness errors are still named and counted, never reclassified as passes.
-The current gate contains 1,330 passing cases out of 2,203 selected cases: 273 engine
+The current gate contains 1,376 passing cases out of 2,203 selected cases: 227 engine
 failures, 357 harness errors, 243 processor-profile exclusions. Do not present the
-1,330 cases as an applicable-suite pass rate. The runner evaluates spec
+1,376 cases as an applicable-suite pass rate. The runner evaluates spec
 dependencies against an XSLT 3.0 processor; three XSLT 2.0-only pattern
 cases formerly in the gate remain covered by the Rust pattern syntax test.
 
 Supported setup: local stylesheet/source files or inline content, URI-mapped local
-resources and stylesheet module URIs, local/global
+resources and stylesheet module URIs, recursive local stylesheet imports and
+includes confined to the suite checkout, local/global
 named environments, string/boolean/numeric/empty parameter literals, ordinary/tunnel
 initial template/mode parameters and selection,
 and serialization selection. Supported assertions: exact W3C error codes

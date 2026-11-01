@@ -26,6 +26,35 @@ fn latin1_and_ascii_escape_unrepresentable_characters() {
         "<a>é€</a>"
     );
 }
+
+#[test]
+fn html_processing_instruction_encoding_ends_at_the_html_terminator() {
+    let body = "<doc><xsl:processing-instruction name='p'>data</xsl:processing-instruction><a title='é'>é</a></doc>";
+    assert_eq!(
+        run(r#"method="html" encoding="US-ASCII""#, body).unwrap(),
+        "<doc><?p data><a title=\"&#xE9;\">&#xE9;</a></doc>"
+    );
+    assert_eq!(
+        run(
+            r#"method="html" encoding="US-ASCII""#,
+            "<xsl:processing-instruction name='p'>é</xsl:processing-instruction>"
+        )
+        .unwrap_err()
+        .code,
+        "SERE0008"
+    );
+    let source = format!(
+        r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><xsl:result-document href="out.html" method="html" encoding="US-ASCII">{body}</xsl:result-document></xsl:template></xsl:stylesheet>"#
+    );
+    let result = Stylesheet::compile(&source)
+        .unwrap()
+        .transform_with_documents("<r/>", &Default::default())
+        .unwrap();
+    assert_eq!(
+        result.documents[0].content,
+        "<doc><?p data><a title=\"&#xE9;\">&#xE9;</a></doc>"
+    );
+}
 #[test]
 fn text_output_cannot_represent_missing_characters_and_other_encodings_are_rejected() {
     assert_eq!(
@@ -38,7 +67,30 @@ fn text_output_cannot_represent_missing_characters_and_other_encodings_are_rejec
             .code,
         "SERE0008"
     );
-    assert!(Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output encoding="EBCDIC"/></xsl:stylesheet>"#).is_err());
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output encoding="EBCDIC"/></xsl:stylesheet>"#).unwrap();
+    assert_eq!(sheet.transform("<r/>").unwrap_err().code, "SESU0007");
+}
+
+#[test]
+fn unsupported_encodings_are_reported_only_when_the_output_is_used() {
+    let source = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output omit-xml-declaration="yes"/><xsl:output name="unused" encoding="EBCDIC"/><xsl:template match="/"><out/></xsl:template></xsl:stylesheet>"#;
+    let sheet = Stylesheet::compile(source).unwrap();
+    assert_eq!(sheet.transform("<r/>").unwrap(), "<out></out>");
+    let overridden = source.replace("<out/>", r#"<xsl:result-document href="out.xml" format="unused" encoding="UTF-8"><out/></xsl:result-document>"#);
+    let results = Stylesheet::compile(&overridden)
+        .unwrap()
+        .transform_with_documents("<r/>", &Default::default())
+        .unwrap();
+    assert!(results.documents[0].content.contains("<out></out>"));
+    let selected = overridden.replace(r#" encoding="UTF-8""#, "");
+    assert_eq!(
+        Stylesheet::compile(&selected)
+            .unwrap()
+            .transform_with_documents("<r/>", &Default::default())
+            .unwrap_err()
+            .code,
+        "SESU0007"
+    );
 }
 #[test]
 fn cdata_section_elements_wrap_text_content() {

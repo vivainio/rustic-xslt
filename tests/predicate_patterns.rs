@@ -1,4 +1,23 @@
 use rust_xslt::{Stylesheet, TransformOptions};
+
+#[test]
+fn predicate_patterns_cannot_be_parenthesized() {
+    let invalid = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="(.[. instance of xs:integer])" xmlns:xs="http://www.w3.org/2001/XMLSchema"/></xsl:stylesheet>"#;
+    assert_eq!(Stylesheet::compile(invalid).unwrap_err().code, "XTSE0340");
+    let valid = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="(a | b)[1]"/></xsl:stylesheet>"#;
+    assert!(Stylesheet::compile(valid).is_ok());
+}
+
+#[test]
+fn pattern_dynamic_errors_are_non_matches_for_templates_and_groups() {
+    let templates = r#"<xsl:template match=".">F</xsl:template><xsl:template match=".[. eq 'x']">X</xsl:template><xsl:template match=".[error()]">wrong</xsl:template>"#;
+    assert_eq!(
+        run("", templates, r#"<xsl:apply-templates select="(1, 'x')"/>"#).unwrap(),
+        "FX"
+    );
+    let body = r#"<xsl:for-each-group select="1 to 3" group-starting-with=".[if (. eq 2) then error() else . eq 3]"><xsl:value-of select="count(current-group())"/></xsl:for-each-group>"#;
+    assert_eq!(run("", "", body).unwrap(), "21");
+}
 fn run(declarations: &str, templates: &str, body: &str) -> Result<String, rust_xslt::Diagnostic> {
     Stylesheet::compile(&format!(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:xs="http://www.w3.org/2001/XMLSchema"><xsl:output method="text"/>{declarations}<xsl:template name="entry">{body}</xsl:template>{templates}</xsl:stylesheet>"#))?
         .transform_with_options("<r/>", &TransformOptions { initial_template: Some("entry".into()), ..Default::default() })

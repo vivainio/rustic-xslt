@@ -51,6 +51,55 @@ fn is_descendant_separator(step: &Step) -> bool {
         && step.predicates.is_empty()
 }
 
+// These expressions cannot observe the surrounding predicate position or
+// size. Restrict the fast path to boolean-valued expressions so numeric
+// predicates keep their positional meaning.
+fn singleton_boolean_predicate(expression: &Expr) -> bool {
+    fn independent(expression: &Expr) -> bool {
+        match expression {
+            Expr::String(_) | Expr::Number(_) | Expr::Variable(_) | Expr::Context | Expr::Root => {
+                true
+            }
+            Expr::LookupContext(inner, _) | Expr::Unary(_, inner) => independent(inner),
+            Expr::Binary(op, left, right) if op != "!" && op != "instruction-map" => {
+                independent(left) && independent(right)
+            }
+            Expr::Path(base, steps) => {
+                independent(base) && steps.iter().all(|step| step.predicates.is_empty())
+            }
+            Expr::Sequence(items) => items.iter().all(independent),
+            _ => false,
+        }
+    }
+    match expression {
+        Expr::LookupContext(inner, _) => singleton_boolean_predicate(inner),
+        Expr::Binary(op, left, right)
+            if matches!(
+                op.as_str(),
+                "=" | "!="
+                    | "<"
+                    | ">"
+                    | "<="
+                    | ">="
+                    | "eq"
+                    | "ne"
+                    | "lt"
+                    | "gt"
+                    | "le"
+                    | "ge"
+                    | "is"
+                    | "<<"
+                    | ">>"
+                    | "and"
+                    | "or"
+            ) =>
+        {
+            independent(left) && independent(right)
+        }
+        _ => false,
+    }
+}
+
 fn append(parts: &mut Parts, steps: Vec<Step>) -> Result<(), Diagnostic> {
     let mut gap = false;
     for step in steps {
@@ -86,6 +135,29 @@ fn append(parts: &mut Parts, steps: Vec<Step>) -> Result<(), Diagnostic> {
     Ok(())
 }
 
+// Evaluate a node pattern at each possible context in the candidate's tree.
+fn contextual_selection(expression: Expr) -> Parts {
+    let contexts = Expr::Path(
+        Box::new(Expr::Call("root".into(), vec![])),
+        vec![Step {
+            axis: Axis::DescendantOrSelf,
+            explicit_axis: true,
+            test: Test::Node,
+            predicates: vec![],
+        }],
+    );
+    Parts {
+        absolute: false,
+        steps: vec![],
+        gaps: vec![],
+        selected: Some(Expr::PathMap(Box::new(contexts), Box::new(expression))),
+        predicate: None,
+        required: vec![],
+        excluded: vec![],
+        path_map: None,
+    }
+}
+
 fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
     match e {
         Expr::Binary(op, a, b) if op == "|" || op == "union" => {
@@ -103,11 +175,19 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
         }
         Expr::Binary(op, a, b) if op == "intersect" || op == "except" => {
             let mut left = vec![];
-            collect(*a, &mut left)?;
+            collect(*a.clone(), &mut left)?;
             let mut right = vec![];
-            collect(*b, &mut right)?;
+            collect(*b.clone(), &mut right)?;
             if left.is_empty() || right.is_empty() {
                 return Err(unsupported());
+            }
+            if left
+                .iter()
+                .chain(&right)
+                .all(|part| part.predicate.is_none())
+            {
+                out.push(contextual_selection(Expr::Binary(op, a, b)));
+                return Ok(());
             }
             for mut part in left {
                 if op == "intersect" {
@@ -148,9 +228,16 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
         }
         Expr::Filter(base, predicates) => {
             let mut parts = vec![];
-            collect(*base, &mut parts)?;
+            collect(*base.clone(), &mut parts)?;
             if parts.is_empty() {
                 return Err(unsupported());
+            }
+            if parts.iter().all(|part| part.predicate.is_none()) {
+                // A filter on a node pattern applies to the sequence selected by
+                // that pattern for each possible context node, not to the
+                // singleton candidate being tested.
+                out.push(contextual_selection(Expr::Filter(base, predicates)));
+                return Ok(());
             }
             for part in &mut parts {
                 part.predicate
@@ -238,16 +325,37 @@ fn collect(e: Expr, out: &mut Vec<Parts>) -> Result<(), Diagnostic> {
                 if parts.predicate.is_some() {
                     return Err(unsupported());
                 }
+                if let Some((prefix, expression)) = parts.path_map.take() {
+                    parts.path_map =
+                        Some((prefix, Expr::Path(Box::new(expression), steps.clone())));
+                    out.push(parts);
+                    continue;
+                }
                 append(&mut parts, steps.clone())?;
                 out.push(parts);
             }
             Ok(())
         }
         Expr::PathMap(left, right) => {
+            let (left, right) = match *left {
+                Expr::Path(base, mut steps)
+                    if steps.last().is_some_and(is_descendant_separator) =>
+                {
+                    let separator = steps.pop().unwrap();
+                    let prefix = if steps.is_empty() {
+                        *base
+                    } else {
+                        Expr::Path(base, steps)
+                    };
+                    let descendants = Expr::Path(Box::new(Expr::Context), vec![separator]);
+                    (prefix, Expr::PathMap(Box::new(descendants), right))
+                }
+                left => (left, *right),
+            };
             let mut lefts = vec![];
-            collect(*left, &mut lefts)?;
+            collect(left, &mut lefts)?;
             for mut left in lefts {
-                left.path_map = Some((Box::new(left.clone()), *right.clone()));
+                left.path_map = Some((Box::new(left.clone()), right.clone()));
                 out.push(left);
             }
             Ok(())
@@ -272,6 +380,13 @@ pub(crate) fn parse(
         return Err(invalid_pattern("parenthesized patterns require XSLT 3.0"));
     }
     let e = xpath::parse(source, namespaces)?;
+    if trimmed.starts_with('(')
+        && matches!(&e, Expr::Filter(base, _) if matches!(base.as_ref(), Expr::Context))
+    {
+        return Err(invalid_pattern(
+            "predicate patterns cannot be parenthesized",
+        ));
+    }
     validate_grouping_functions(&e)?;
     validate_version(&e, source, version)?;
     let mut parts = vec![];
@@ -300,7 +415,7 @@ fn validate_grouping_functions(expression: &Expr) -> Result<(), Diagnostic> {
         }
         match e {
             Expr::For(_, a, b)
-            | Expr::Let(_, a, b)
+            | Expr::Let(_, a, b, _)
             | Expr::Quantified(_, _, a, b)
             | Expr::Binary(_, a, b)
             | Expr::PathMap(a, b) => {
@@ -408,6 +523,7 @@ fn without_leading_comments(mut source: &str) -> &str {
 }
 
 fn validate_version(expression: &Expr, source: &str, version: u8) -> Result<(), Diagnostic> {
+    validate_pattern_calls(expression)?;
     match expression {
         Expr::Filter(_, _) if version < 3 => {
             return Err(invalid_pattern("filtered patterns require XSLT 3.0"));
@@ -430,6 +546,33 @@ fn validate_version(expression: &Expr, source: &str, version: u8) -> Result<(), 
         _ => {}
     }
     Ok(())
+}
+
+// Predicates use ordinary XPath grammar; inspect only pattern operands.
+fn validate_pattern_calls(expression: &Expr) -> Result<(), Diagnostic> {
+    match expression {
+        Expr::Binary(_, left, right) | Expr::PathMap(left, right) => {
+            validate_pattern_calls(left)?;
+            validate_pattern_calls(right)
+        }
+        Expr::Path(base, _) | Expr::Filter(base, _) | Expr::LookupContext(base, _) => {
+            validate_pattern_calls(base)
+        }
+        Expr::Call(name, args) => {
+            if name == "root" && !args.is_empty()
+                || args.iter().any(|arg| {
+                    !matches!(arg, Expr::String(_) | Expr::Number(_) | Expr::Variable(_))
+                })
+            {
+                Err(invalid_pattern(
+                    "pattern function arguments must be literals or variables",
+                ))
+            } else {
+                Ok(())
+            }
+        }
+        _ => Ok(()),
+    }
 }
 
 fn into_branch(p: Parts) -> Branch {
@@ -509,6 +652,25 @@ pub(crate) fn matches_item<'a>(
     budget: &mut Budget,
     backwards: bool,
 ) -> Result<bool, Diagnostic> {
+    match matches_item_raw(branch, item, vars, budget, backwards) {
+        Err(error)
+            if error.phase == "run"
+                && !matches!(error.code.as_str(), "XPDY0130" | "XTDE0640")
+                && !error.code.starts_with("RUST_XSLT_") =>
+        {
+            Ok(false)
+        }
+        result => result,
+    }
+}
+
+fn matches_item_raw<'a>(
+    branch: &Branch,
+    item: &Item<'a>,
+    vars: &Variables<'a>,
+    budget: &mut Budget,
+    backwards: bool,
+) -> Result<bool, Diagnostic> {
     budget.tick()?;
     let base_matches = match item {
         Item::Node(node) if branch.path_map.is_some() => {
@@ -548,7 +710,7 @@ pub(crate) fn matches_item<'a>(
     for group in &branch.required {
         let mut found = false;
         for candidate in group {
-            if matches_item(candidate, item, vars, budget, backwards)? {
+            if matches_item_raw(candidate, item, vars, budget, backwards)? {
                 found = true;
                 break;
             }
@@ -559,7 +721,7 @@ pub(crate) fn matches_item<'a>(
     }
     for group in &branch.excluded {
         for candidate in group {
-            if matches_item(candidate, item, vars, budget, backwards)? {
+            if matches_item_raw(candidate, item, vars, budget, backwards)? {
                 return Ok(false);
             }
         }
@@ -599,7 +761,7 @@ fn path_map_contains<'a>(
     let mut context = Some(candidate);
     while let Some(node) = context {
         budget.tick()?;
-        if matches_item(prefix, &Item::Node(node), vars, budget, backwards)? {
+        if matches_item_raw(prefix, &Item::Node(node), vars, budget, backwards)? {
             let focus = Focus {
                 item: Item::Node(node),
                 position: 1,
@@ -725,37 +887,52 @@ fn step_matches<'a>(
     }
     let parent = node.parent();
     if !step.predicates.is_empty() {
-        match if matches!(step.axis, Axis::SelfNode) {
-            Some(node)
-        } else {
-            parent
-        } {
-            Some(parent) => {
-                let e = Expr::Path(Box::new(Expr::Context), vec![step.clone()]);
-                let focus = Focus {
-                    item: Item::Node(parent),
-                    position: 1,
-                    size: 1,
-                };
-                if !xpath::eval(&e, &focus, vars, budget, 1, backwards)?
-                    .iter()
-                    .any(|v| matches!(v, Item::Node(n) if *n == node))
-                {
-                    return Ok(false);
-                }
+        if step.predicates.len() == 1 && singleton_boolean_predicate(&step.predicates[0]) {
+            if xpath::filter(
+                vec![Item::Node(node)],
+                &step.predicates,
+                vars,
+                budget,
+                0,
+                backwards,
+            )?
+            .is_empty()
+            {
+                return Ok(false);
             }
-            None => {
-                if xpath::filter(
-                    vec![Item::Node(node)],
-                    &step.predicates,
-                    vars,
-                    budget,
-                    0,
-                    backwards,
-                )?
-                .is_empty()
-                {
-                    return Ok(false);
+        } else {
+            match if matches!(step.axis, Axis::SelfNode) {
+                Some(node)
+            } else {
+                parent
+            } {
+                Some(parent) => {
+                    let e = Expr::Path(Box::new(Expr::Context), vec![step.clone()]);
+                    let focus = Focus {
+                        item: Item::Node(parent),
+                        position: 1,
+                        size: 1,
+                    };
+                    if !xpath::eval(&e, &focus, vars, budget, 1, backwards)?
+                        .iter()
+                        .any(|v| matches!(v, Item::Node(n) if *n == node))
+                    {
+                        return Ok(false);
+                    }
+                }
+                None => {
+                    if xpath::filter(
+                        vec![Item::Node(node)],
+                        &step.predicates,
+                        vars,
+                        budget,
+                        0,
+                        backwards,
+                    )?
+                    .is_empty()
+                    {
+                        return Ok(false);
+                    }
                 }
             }
         }

@@ -15,7 +15,7 @@ import sys
 import xml.etree.ElementTree as ET
 from xml.dom import Node, minidom
 from xml.parsers.expat import ExpatError
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit, unquote
 from xml.sax.saxutils import quoteattr
 
 NS = "{http://www.w3.org/2012/10/xslt-test-catalog}"
@@ -100,6 +100,44 @@ def resource_uri(node, base):
     if node.get("file"):
         return (base / node.get("file")).resolve().as_uri()
     return None
+
+def stylesheet_modules(stylesheet, uri, suite_root, resources):
+    """Map local xsl:include/import files without fetching network resources."""
+    root = suite_root.resolve()
+    pending = [(stylesheet, uri)]
+    seen = set()
+    while pending:
+        content, module_uri = pending.pop()
+        if not module_uri or module_uri in seen:
+            continue
+        seen.add(module_uri)
+        if len(seen) > 256:
+            raise HarnessError("stylesheet module discovery limit exceeded")
+        try:
+            document = ET.fromstring(content)
+        except ET.ParseError:
+            continue  # Leave malformed modules to the engine's parser.
+        document_base = urljoin(module_uri, document.get("{http://www.w3.org/XML/1998/namespace}base", ""))
+        for declaration in document:
+            if declaration.tag not in {XSL + "include", XSL + "import"} or declaration.get("href") is None:
+                continue
+            base = urljoin(document_base, declaration.get("{http://www.w3.org/XML/1998/namespace}base", ""))
+            target = urljoin(base, declaration.get("href"))
+            if target in resources:
+                pending.append((resources[target], target))
+                continue
+            parts = urlsplit(target)
+            if parts.scheme != "file" or parts.netloc not in {"", "localhost"} or parts.query or parts.fragment:
+                continue
+            path = Path(unquote(parts.path)).resolve()
+            if not path.is_relative_to(root) or not path.is_file():
+                continue
+            try:
+                module = path.read_text(encoding="utf-8-sig")
+            except UnicodeError as error:
+                raise HarnessError(f"unsupported non-UTF-8 stylesheet module: {path}") from error
+            resources[target] = module
+            pending.append((module, target))
 
 def component_name(node):
     """Resolve catalog QName attributes in their own namespace scope."""
@@ -429,7 +467,7 @@ class Driver:
         if self.process.wait() != 0:
             raise HarnessError("engine driver failed")
 
-def run_case(case, base, registry, driver):
+def run_case(case, base, registry, driver, suite_root=None):
     dependencies(case)
     result = child(case, "result")
     if result is None or not len(result):
@@ -470,6 +508,8 @@ def run_case(case, base, registry, driver):
             raise HarnessError(f"unsupported test entry component: {kind}")
     if "stylesheet" not in request:
         raise HarnessError("no stylesheet")
+    stylesheet_modules(request["stylesheet"], request.get("stylesheetURI"), suite_root or base,
+                       request.setdefault("resources", {}))
     infer_initial_template(request)
     response = driver.call(request)
     answers = [assertion(a, response, base, driver) for a in result]
@@ -539,7 +579,7 @@ def main():
                     continue
                 try:
                     dependencies(test_set)
-                    status, reason = run_case(case, path.parent, local, driver)
+                    status, reason = run_case(case, path.parent, local, driver, args.suite)
                 except ProfileExcluded as e:
                     status, reason = "profile_excluded", str(e)
                 except (HarnessError, OSError, ET.ParseError) as e:

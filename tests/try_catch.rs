@@ -45,3 +45,48 @@ fn nested_tries_and_errors_inside_catch_blocks() {
     assert!(run("<xsl:try>x</xsl:try>").is_err());
     assert!(run("<xsl:try><xsl:catch/>text</xsl:try>").is_err());
 }
+
+#[test]
+fn try_catch_preserves_raw_items_and_discards_partial_results() {
+    let success = r#"<xsl:variable name="v" as="item()*"><xsl:try><xsl:sequence select="(1, 2)"/><xsl:catch select="0"/></xsl:try></xsl:variable><xsl:value-of select="sum($v)"/>"#;
+    assert_eq!(run(success).unwrap(), "3");
+    let caught = r#"<xsl:variable name="v" as="item()*"><xsl:try><xsl:sequence select="(1, 2)"/><xsl:sequence select="error()"/><xsl:catch select="(3, 4)"/></xsl:try></xsl:variable><xsl:value-of select="sum($v)"/>"#;
+    assert_eq!(run(caught).unwrap(), "7");
+    let filtered = r#"<xsl:where-populated><xsl:try><xsl:sequence select="('', 'keep')"/><xsl:catch select="'bad'"/></xsl:try></xsl:where-populated>"#;
+    assert_eq!(run(filtered).unwrap(), "keep");
+    let conditional = r#"<xsl:sequence><xsl:try><xsl:sequence select="error()"/><xsl:catch select="()"/></xsl:try><xsl:on-empty select="'empty'"/></xsl:sequence>"#;
+    assert_eq!(run(conditional).unwrap(), "empty");
+    let structured = r#"<xsl:variable name="v" as="item()*"><xsl:try><node>text</node><xsl:sequence select="map{'k': 3}"/><xsl:catch select="()"/></xsl:try></xsl:variable><xsl:value-of select="concat($v[1], ':', $v[2]?k)"/>"#;
+    assert_eq!(run(structured).unwrap(), "text:3");
+}
+
+#[test]
+fn try_results_can_supply_attributes_and_atomic_items_to_an_element() {
+    let source = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output omit-xml-declaration="yes"/><xsl:template match="/"><out><xsl:try><xsl:attribute name="a">value</xsl:attribute><xsl:sequence select="(1, 2)"/><xsl:catch><xsl:attribute name="bad">bad</xsl:attribute></xsl:catch></xsl:try></out></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(
+        Stylesheet::compile(source)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap(),
+        "<out a=\"value\">1 2</out>"
+    );
+    let caught = source.replace(
+        r#"<xsl:sequence select="(1, 2)"/>"#,
+        r#"<xsl:sequence select="error()"/>"#,
+    );
+    assert_eq!(
+        Stylesheet::compile(&caught)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap(),
+        "<out bad=\"bad\"></out>"
+    );
+    let simple = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output omit-xml-declaration="yes"/><xsl:template match="/"><out><xsl:attribute name="a"><xsl:try><xsl:sequence select="(1, 2)"/><xsl:catch select="'bad'"/></xsl:try></xsl:attribute></out></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(
+        Stylesheet::compile(simple)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap(),
+        "<out a=\"12\"></out>"
+    );
+}

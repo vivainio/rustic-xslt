@@ -10,6 +10,51 @@ fn evaluate(expression: &str) -> String {
         .transform("<r/>")
         .unwrap()
 }
+
+#[test]
+fn general_comparison_casts_untyped_qnames_in_the_lexical_context() {
+    let style = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:xs="http://www.w3.org/2001/XMLSchema"><xsl:output method="text"/><xsl:variable name="q" select="QName('urn:two', 'n')"/><xsl:template match="/"><xsl:if xmlns:p="urn:one" test="xs:untypedAtomic('p:n') = $q">wrong</xsl:if><xsl:if xmlns:p="urn:two" test="$q = xs:untypedAtomic('p:n')">yes</xsl:if><xsl:if xmlns:p="urn:two" test="r/@v = $q">attribute</xsl:if></xsl:template></xsl:stylesheet>"#;
+    assert_eq!(
+        Stylesheet::compile(style)
+            .unwrap()
+            .transform("<r v='p:n'/>")
+            .unwrap(),
+        "yesattribute"
+    );
+    for (expression, code) in [
+        (
+            "xs:untypedAtomic('missing:n') = QName('urn:p','n')",
+            "FONS0004",
+        ),
+        (
+            "xs:untypedAtomic('bad:name:again') = QName('urn:p','n')",
+            "FORG0001",
+        ),
+        ("xs:untypedAtomic('p:n') eq QName('urn:p','n')", "XPTY0004"),
+    ] {
+        assert_eq!(
+            Stylesheet::compile(&source(expression))
+                .unwrap()
+                .transform("<r/>")
+                .unwrap_err()
+                .code,
+            code
+        );
+    }
+    assert_eq!(
+        evaluate("[xs:untypedAtomic('p:n')] = QName('urn:p','n')"),
+        "true"
+    );
+    assert_eq!(evaluate("[3, [4, 5]] = 4"), "true");
+    assert_eq!(
+        Stylesheet::compile(&source("map{} = 1"))
+            .unwrap()
+            .transform("<r/>")
+            .unwrap_err()
+            .code,
+        "FOTY0013"
+    );
+}
 #[test]
 fn qname_constructor_preserves_prefix_expanded_identity_and_atomic_type() {
     for (expr, expected) in [

@@ -10,6 +10,36 @@ fn next_match_follows_priority_then_reverse_declaration_order() {
     );
     assert_eq!(s.transform("<r/>").unwrap(), "high:second:first");
 }
+
+#[test]
+fn nested_constructors_preserve_the_current_template_rule() {
+    for body in [
+        r#"<xsl:where-populated><xsl:next-match/></xsl:where-populated>"#,
+        r#"<xsl:sequence><xsl:next-match/><xsl:on-empty select="'empty'"/></xsl:sequence>"#,
+        r#"<xsl:sequence><xsl:on-non-empty><xsl:next-match/></xsl:on-non-empty><xsl:text>!</xsl:text></xsl:sequence>"#,
+        r#"<xsl:try><xsl:next-match/><xsl:catch select="'caught'"/></xsl:try>"#,
+        r#"<xsl:try><xsl:sequence select="error()"/><xsl:catch><xsl:next-match/></xsl:catch></xsl:try>"#,
+    ] {
+        let s = sheet(&format!(
+            r#"<xsl:template match="r" priority="0">lower</xsl:template><xsl:template match="r" priority="1">{body}</xsl:template>"#
+        ));
+        let expected = if body.contains("on-non-empty") {
+            "lower!"
+        } else {
+            "lower"
+        };
+        assert_eq!(s.transform("<r/>").unwrap(), expected, "{body}");
+    }
+    let s = sheet(
+        r#"<xsl:template match="r" priority="0">lower</xsl:template><xsl:template match="r" priority="1"><xsl:result-document href="out.txt" method="text"><xsl:next-match/></xsl:result-document></xsl:template>"#,
+    );
+    let result = s
+        .transform_with_documents("<r/>", &Default::default())
+        .unwrap();
+    assert_eq!(result.documents[0].content, "lower");
+    let s = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output omit-xml-declaration="yes"/><xsl:attribute-set name="a"><xsl:attribute name="x"><xsl:call-template name="get"/></xsl:attribute></xsl:attribute-set><xsl:template name="get"><xsl:next-match/></xsl:template><xsl:template match="r" priority="0">lower</xsl:template><xsl:template match="r" priority="1"><out xsl:use-attribute-sets="a"/></xsl:template></xsl:stylesheet>"#).unwrap();
+    assert_eq!(s.transform("<r/>").unwrap(), "<out x=\"lower\"></out>");
+}
 #[test]
 fn union_branches_are_separate_rules_unless_priority_is_explicit() {
     for (priority, expected) in [("", "branch:branch:end"), (" priority='1'", "branch:end")] {

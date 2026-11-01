@@ -14,6 +14,29 @@ fn comment_body_atomizes_direct_nodes_and_joins_with_spaces() {
         "<out><!--A B C D--></out>"
     );
 }
+
+#[test]
+fn value_of_constructs_simple_content_and_preserves_empty_text_items() {
+    let s = sheet(
+        r##"<xsl:template match="/"><out><xsl:value-of>left<xsl:sequence select="(1, 2)"/></xsl:value-of>|<xsl:value-of separator="|">left<xsl:sequence select="(1, 2)"/></xsl:value-of></out></xsl:template>"##,
+    );
+    assert_eq!(transform(&s, "<r/>").unwrap(), "<out>left12|left|1|2</out>");
+    let s = sheet(
+        r##"<xsl:template match="/"><xsl:variable name="v" as="node()*"><xsl:value-of/></xsl:variable><out count="{count($v)}" empty="{string-length($v)}"><xsl:where-populated><xsl:value-of/></xsl:where-populated></out></xsl:template>"##,
+    );
+    assert_eq!(
+        transform(&s, "<r/>").unwrap(),
+        r#"<out count="1" empty="0"></out>"#
+    );
+    let s = sheet(
+        r##"<xsl:template match="/"><out><xsl:value-of xmlns:e="urn:e" e:select="'wrong'">right</xsl:value-of></out></xsl:template>"##,
+    );
+    assert_eq!(transform(&s, "<r/>").unwrap(), "<out>right</out>");
+    let invalid = sheet(
+        r##"<xsl:template match="/"><xsl:value-of select="1">bad</xsl:value-of></xsl:template>"##,
+    );
+    assert_eq!(Stylesheet::compile(&invalid).unwrap_err().code, "XTSE0870");
+}
 #[test]
 fn text_nodes_merge_but_element_boundaries_are_preserved() {
     let s = sheet(

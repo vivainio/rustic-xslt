@@ -15,6 +15,33 @@ fn descendant_separators_match_any_depth() {
 }
 
 #[test]
+fn simple_boolean_pattern_predicates_do_not_scan_all_siblings() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:apply-templates select="r/*"/></xsl:template><xsl:template match="*"/><xsl:template match="*[. = 'hit']">X</xsl:template></xsl:stylesheet>"#).unwrap();
+    let mut document = String::from("<r>");
+    for i in 0..200 {
+        document.push_str(if i == 123 {
+            "<n>hit</n>"
+        } else {
+            "<n>miss</n>"
+        });
+    }
+    document.push_str("</r>");
+    let options = rust_xslt::TransformOptions {
+        limits: rust_xslt::Limits {
+            max_steps: 30_000,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(
+        sheet.transform_with_options(&document, &options).unwrap(),
+        "X"
+    );
+    let positional = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:apply-templates select="r/*"/></xsl:template><xsl:template match="*"/><xsl:template match="*[position() = last()]">L</xsl:template></xsl:stylesheet>"#).unwrap();
+    assert_eq!(positional.transform("<r><n/><n/><n/></r>").unwrap(), "L");
+}
+
+#[test]
 fn explicit_descendant_axes_match_any_depth_in_patterns() {
     let sheet = Stylesheet::compile(
         r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="doc"><xsl:apply-templates/></xsl:template><xsl:template match="doc/descendant::foo">D</xsl:template><xsl:template match="doc/descendant-or-self::bar">S</xsl:template></xsl:stylesheet>"#,
@@ -24,6 +51,19 @@ fn explicit_descendant_axes_match_any_depth_in_patterns() {
             .transform("<doc><foo/><x><foo/><bar/></x></doc>")
             .unwrap(),
         "DDS"
+    );
+}
+
+#[test]
+fn parenthesized_node_pattern_filters_use_the_selected_sequence() {
+    let sheet = Stylesheet::compile(
+        r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:apply-templates select="//*"/></xsl:template><xsl:template match="*"/><xsl:template match="(doc/descendant::foo)[2]"><xsl:value-of select="@id"/></xsl:template></xsl:stylesheet>"#,
+    ).unwrap();
+    assert_eq!(
+        sheet
+            .transform("<doc><foo id='a'/><x><foo id='b'/></x><foo id='c'/></doc>")
+            .unwrap(),
+        "b"
     );
 }
 
@@ -64,6 +104,19 @@ fn intersect_and_except_patterns_constrain_candidate_nodes() {
     assert_eq!(
         sheet.transform("<doc><foo/><x><foo/></x></doc>").unwrap(),
         "IE"
+    );
+}
+
+#[test]
+fn set_pattern_operands_share_the_same_context_node() {
+    let sheet = Stylesheet::compile(
+        r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:apply-templates select="//leaf"/></xsl:template><xsl:template match="leaf">N</xsl:template><xsl:template match="div[@id='a']//* intersect div[@id='b']//*" priority="2">I</xsl:template><xsl:template match="div[@id='a']//* except div[@id='b']//*" priority="1">E</xsl:template></xsl:stylesheet>"#,
+    ).unwrap();
+    assert_eq!(
+        sheet
+            .transform("<div id='a'><div id='b'><leaf/></div></div>")
+            .unwrap(),
+        "E"
     );
 }
 
@@ -116,6 +169,29 @@ fn match_pattern_syntax_respects_versioned_extensions() {
     let v3 = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="(a|b)"/></xsl:stylesheet>"#;
     assert!(Stylesheet::compile(v3).is_ok());
 }
+
+#[test]
+fn pattern_function_arguments_are_literals_or_variables() {
+    let stylesheet = |pattern: &str| {
+        format!(
+            r#"<xsl:stylesheet version="2.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:variable name="v" select="42"/><xsl:key name="k" match="*" use="42"/><xsl:template match="{pattern}"/></xsl:stylesheet>"#
+        )
+    };
+    for pattern in ["key('k', 40+2)//a", "id(concat('a', 'b'))", "root(.)"] {
+        assert_eq!(
+            Stylesheet::compile(&stylesheet(pattern)).unwrap_err().code,
+            "XTSE0340",
+            "{pattern}"
+        );
+    }
+    for pattern in ["key('k', $v)//a", "id($v)/a", "a[key('k', 40+2)]", "$v"] {
+        assert!(
+            Stylesheet::compile(&stylesheet(pattern)).is_ok(),
+            "{pattern}"
+        );
+    }
+}
+
 #[test]
 fn parenthesized_unions_expand_into_alternatives() {
     let templates = r#"<xsl:template match="/"><xsl:apply-templates select="//*"/></xsl:template><xsl:template match="chap/(p|q)">X</xsl:template><xsl:template match="(sec|doc)/p">Y</xsl:template>"#;
@@ -152,6 +228,16 @@ fn selection_anchors_survive_parenthesized_path_unions() {
       <xsl:template match="key('k', 'c1')/(p | sec/p)">X</xsl:template>
       <xsl:template match="(key('k', 'c1') | key('k', 'c2'))/q">Q</xsl:template>"#;
     assert_eq!(run(templates).unwrap(), "XXXQ");
+}
+
+#[test]
+fn descendant_paths_accept_parenthesized_pattern_steps() {
+    let templates = r#"<xsl:template match="/"><xsl:apply-templates select="//p | //q"/></xsl:template><xsl:template match="key('k', 'c1')//(p | q)">X</xsl:template><xsl:template match="key('k', 'c2')//(p | q)">Y</xsl:template>"#;
+    assert_eq!(run(templates).unwrap(), "XXXYY");
+    let rooted = r#"<xsl:template match="/"><xsl:apply-templates select="//p | //q"/></xsl:template><xsl:template match="//(p | q)">Z</xsl:template>"#;
+    assert_eq!(run(rooted).unwrap(), "ZZZZZ");
+    let chained = r#"<xsl:template match="/"><xsl:apply-templates select="//p"/></xsl:template><xsl:template match="key('k', 'c1')//(sec | p)/p">S</xsl:template><xsl:template match="p">N</xsl:template>"#;
+    assert_eq!(run(chained).unwrap(), "NSSN");
 }
 
 #[test]

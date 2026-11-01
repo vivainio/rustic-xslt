@@ -108,10 +108,12 @@ enum Task<'a> {
     FinishTemplate(&'a crate::seqtype::SequenceType, Output, usize, bool, bool),
     FinishRawTemplate(&'a crate::seqtype::SequenceType, Output, usize),
     FinishRawNode(Output, usize, bool),
+    FinishRawText(Output, usize),
     FinishRawAttribute(Output, usize),
     Value(Item<'a>, usize, bool),
     Close,
     FinishCapture(Capture, Output),
+    RestoreRaw(bool),
     Parameters(&'a Template, usize, Variables<'a>, Frame<'a>),
     Arguments(&'a Template, &'a [Binding], usize, Supplied<'a>, Frame<'a>),
     EvaluateBinding(&'a Binding, Frame<'a>, BindNext<'a>),
@@ -207,9 +209,39 @@ fn emit_value<'a>(value: Value<'a>, tasks: &mut Vec<Task<'a>>, depth: usize, nam
 struct RawCapture<'a> {
     items: Value<'a>,
     active: bool,
+    conditional: Vec<ConditionalMarker<'a>>,
+}
+struct ConditionalMarker<'a> {
+    position: usize,
+    body: &'a [Instruction],
+    frame: Frame<'a>,
+    on_empty: bool,
 }
 fn raw_active(captures: &[RawCapture<'_>]) -> bool {
     captures.last().is_some_and(|c| c.active)
+}
+fn deemed_empty(item: &Item<'_>) -> bool {
+    match item {
+        Item::Absent => true,
+        Item::Node(node) if node.is_document() || node.is_element() => {
+            node.children().next().is_none()
+        }
+        Item::Node(node) => node.string().is_empty(),
+        Item::Map(map) => map.len() == 0,
+        Item::Array(members) => members.iter().flatten().all(deemed_empty),
+        Item::Function(_) => false,
+        item => item.string().is_empty(),
+    }
+}
+fn vacuous(item: &Item<'_>) -> bool {
+    match item {
+        Item::Absent => true,
+        Item::Node(node) if node.is_document() => node.children().next().is_none(),
+        Item::Node(node) if node.is_text() => node.string().is_empty(),
+        Item::Node(_) | Item::Map(_) | Item::Function(_) => false,
+        Item::Array(members) => members.iter().flatten().all(vacuous),
+        item => item.string().is_empty(),
+    }
 }
 fn suspend_raw(captures: &mut [RawCapture<'_>]) -> bool {
     let active = raw_active(captures);
@@ -288,6 +320,7 @@ enum Capture {
     Namespace(String),
     Attribute(result::Name),
     Comment,
+    Text,
     Message(bool),
     Assertion,
     Pi(String),
@@ -396,6 +429,7 @@ fn finish_capture(
     match kind {
         Capture::Attribute(name) => output.attribute(name, value),
         Capture::Namespace(prefix) => output.namespace(&prefix, &value),
+        Capture::Text => output.text(&value),
         Capture::Comment => {
             let mut value = value.replace("--", "- -");
             while value.contains("--") {
@@ -1070,19 +1104,25 @@ fn execute<'a>(
         globals.insert(key, document);
     }
     // Documents named by literal URIs in the stylesheet are loaded up front.
-    if let Some(resolver) = &options.resolver {
+    {
         for uri in &sheet.document_uris {
             budget.tick()?;
             if globals.contains_key(&xpath::document_key(uri)) {
                 continue;
             }
-            let Ok(text) = (resolver.0)(uri) else {
+            let text = sheet.stylesheet_sources.get(uri).cloned().or_else(|| {
+                options
+                    .resolver
+                    .as_ref()
+                    .and_then(|resolver| (resolver.0)(uri).ok())
+            });
+            let Some(text) = text else {
                 continue;
             };
             let absolute_uri = crate::uri_resolution::resolve(uri, None)
                 .ok()
                 .map(|_| uri.as_str());
-            let document = match trees.load_document(text, absolute_uri) {
+            let document = match trees.load_document(text, absolute_uri, sheet) {
                 Ok(document) => document,
                 Err(error) if error.code == "XPDY0130" => return Err(error),
                 Err(_) => continue,
@@ -1303,6 +1343,13 @@ fn execute<'a>(
     if budget.principal_output_claimed {
         return Ok(std::mem::take(&mut budget.principal_output));
     }
+    if let Some(name) = &sheet.unsupported_encoding {
+        return Err(Diagnostic::new(
+            "SESU0007",
+            format!("unsupported output encoding: {name}"),
+            "run",
+        ));
+    }
     if sheet.undeclare_prefixes && !sheet.text_output && sheet.markup != crate::result::Markup::Html
     {
         return Err(Diagnostic::new(
@@ -1343,7 +1390,9 @@ fn execute<'a>(
     } else {
         result
     };
-    let result = sheet.encoding.apply(&result, !sheet.text_output)?;
+    let result = sheet
+        .encoding
+        .apply(&result, !sheet.text_output, sheet.markup)?;
     if result.len() > limits.max_output_bytes {
         return Err(Diagnostic::new(
             "XPDY0130",
@@ -1356,9 +1405,19 @@ fn execute<'a>(
 fn run_tasks<'a>(
     run: &Run<'a, '_>,
     budget: &mut Budget,
+    tasks: Vec<Task<'a>>,
+    output: Output,
+    raw_result: Option<&mut Value<'a>>,
+) -> Result<String, Diagnostic> {
+    run_tasks_with_conditionals(run, budget, tasks, output, raw_result, None)
+}
+fn run_tasks_with_conditionals<'a>(
+    run: &Run<'a, '_>,
+    budget: &mut Budget,
     mut tasks: Vec<Task<'a>>,
     mut output: Output,
     raw_result: Option<&mut Value<'a>>,
+    markers: Option<&mut Vec<ConditionalMarker<'a>>>,
 ) -> Result<String, Diagnostic> {
     let sheet = run.sheet;
     let limits = run.options.limits;
@@ -1368,6 +1427,7 @@ fn run_tasks<'a>(
         vec![RawCapture {
             items: vec![],
             active: true,
+            conditional: vec![],
         }]
     } else {
         vec![]
@@ -1448,6 +1508,7 @@ fn run_tasks<'a>(
                         captures.push(RawCapture {
                             items: vec![],
                             active: true,
+                            conditional: vec![],
                         });
                         tasks.push(Task::FinishRawTemplate(ty, saved, frame.depth));
                         tasks.push(Task::Body(&t.body, 0, frame));
@@ -1498,6 +1559,11 @@ fn run_tasks<'a>(
                     trees.construct(xml, if document { None } else { Some(&nodes) }, "XTTE0570")?;
                 restore_raw(&mut captures, true);
                 emit_value(value, &mut tasks, depth, true);
+            }
+            Task::FinishRawText(saved, depth) => {
+                let text = std::mem::replace(&mut output, saved).value;
+                restore_raw(&mut captures, true);
+                emit_value(raw_text(&text, trees, output.max)?, &mut tasks, depth, true);
             }
             Task::FinishRawTemplate(ty, saved, depth) => {
                 output = saved;
@@ -1566,6 +1632,7 @@ fn run_tasks<'a>(
                     captures.push(RawCapture {
                         items: vec![],
                         active: true,
+                        conditional: vec![],
                     });
                     let mut constructor = frame.clone();
                     constructor.depth += 1;
@@ -1606,6 +1673,17 @@ fn run_tasks<'a>(
                     return Err(limit());
                 }
                 let definition = sheet.modes.get(&mode).copied().unwrap_or_default();
+                if matches!(
+                    definition.typed,
+                    Some(crate::mode::Typed::Required | crate::mode::Typed::Lax)
+                ) && matches!(&focus.item, Item::Node(node) if node.is_element() || node.is_attribute())
+                {
+                    return Err(Diagnostic::new(
+                        "XTTE3100",
+                        "typed mode cannot process an untyped element or attribute",
+                        "run",
+                    ));
+                }
                 let mut best: Option<Rule> = None;
                 let mut ambiguous = false;
                 for (ti, t) in sheet.templates.iter().enumerate() {
@@ -1805,6 +1883,8 @@ fn run_tasks<'a>(
                     && !matches!(
                         instruction,
                         Instruction::Sequence(_)
+                            | Instruction::MapEntry { .. }
+                            | Instruction::Map(_)
                             | Instruction::CopyOf(..)
                             | Instruction::Copy { .. }
                             | Instruction::Apply(..)
@@ -1824,6 +1904,9 @@ fn run_tasks<'a>(
                             | Instruction::Populated { .. }
                             | Instruction::Namespace(..)
                             | Instruction::ResultDocument(_)
+                            | Instruction::Message(..)
+                            | Instruction::AssertFailure(_)
+                            | Instruction::Try { .. }
                             | Instruction::If(..)
                             | Instruction::Choose(_)
                             | Instruction::Element { .. }
@@ -1832,6 +1915,7 @@ fn run_tasks<'a>(
                             | Instruction::Text(_)
                             | Instruction::TextValue(_)
                             | Instruction::Value(..)
+                            | Instruction::ValueBody(_)
                             | Instruction::Comment(_)
                             | Instruction::Pi(..)
                             | Instruction::Attribute(..)
@@ -1853,6 +1937,86 @@ fn run_tasks<'a>(
                     rule,
                 } = frame;
                 match instruction {
+                    Instruction::ValueBody(content) => {
+                        let frame = Frame {
+                            focus,
+                            env,
+                            depth: depth + 1,
+                            mode,
+                            tunnel,
+                            rule,
+                        };
+                        if raw_active(&captures) {
+                            let max = output.max;
+                            let saved = std::mem::replace(&mut output, Output::new(max, true));
+                            suspend_raw(&mut captures);
+                            tasks.push(Task::FinishRawText(saved, depth));
+                        }
+                        capture(
+                            content,
+                            Capture::Text,
+                            frame,
+                            sheet,
+                            budget,
+                            &mut output,
+                            &mut tasks,
+                        )?;
+                    }
+                    Instruction::Map(body) => {
+                        if TRY_DEPTH.with(|depth| depth.get()) >= 32 {
+                            return Err(limit());
+                        }
+                        let inner = Frame {
+                            focus,
+                            env,
+                            depth: depth + 1,
+                            mode,
+                            tunnel,
+                            rule,
+                        };
+                        let mut values = Vec::new();
+                        TRY_DEPTH.with(|depth| depth.set(depth.get() + 1));
+                        let result = run_tasks(
+                            run,
+                            budget,
+                            vec![Task::Body(body, 0, inner)],
+                            Output::document(limits.max_output_bytes),
+                            Some(&mut values),
+                        );
+                        TRY_DEPTH.with(|depth| depth.set(depth.get() - 1));
+                        result?;
+                        let merged = crate::maps::xslt_map(values, budget)?;
+                        emit_value(merged, &mut tasks, depth, true);
+                    }
+                    Instruction::MapEntry { key, body } => {
+                        let keys = xpath::eval(key, &focus, &env, budget, 0, sheet.backwards)?;
+                        let key = crate::maps::key(&keys)?;
+                        if TRY_DEPTH.with(|depth| depth.get()) >= 32 {
+                            return Err(limit());
+                        }
+                        let inner = Frame {
+                            focus,
+                            env,
+                            depth: depth + 1,
+                            mode,
+                            tunnel,
+                            rule,
+                        };
+                        let mut values = Vec::new();
+                        TRY_DEPTH.with(|depth| depth.set(depth.get() + 1));
+                        let result = run_tasks(
+                            run,
+                            budget,
+                            vec![Task::Body(body, 0, inner)],
+                            Output::document(limits.max_output_bytes),
+                            Some(&mut values),
+                        );
+                        TRY_DEPTH.with(|depth| depth.set(depth.get() - 1));
+                        result?;
+                        let mut map = xpath::MapValue::default();
+                        map.insert(key, values);
+                        emit_value(vec![Item::Map(Rc::new(map))], &mut tasks, depth, true);
+                    }
                     Instruction::ComputedElement(n, inherit, body) => {
                         let frame = Frame {
                             focus,
@@ -1920,6 +2084,8 @@ fn run_tasks<'a>(
                         )?;
                     }
                     Instruction::AssertFailure(content) => {
+                        let was_raw = suspend_raw(&mut captures);
+                        tasks.push(Task::RestoreRaw(was_raw));
                         capture(
                             content,
                             Capture::Assertion,
@@ -1938,6 +2104,8 @@ fn run_tasks<'a>(
                         )?;
                     }
                     Instruction::Message(content, terminate) => {
+                        let was_raw = suspend_raw(&mut captures);
+                        tasks.push(Task::RestoreRaw(was_raw));
                         capture(
                             content,
                             Capture::Message(*terminate),
@@ -2082,6 +2250,7 @@ fn run_tasks<'a>(
                         select,
                         namespaces,
                         inherit,
+                        sets,
                         body,
                     } => {
                         let mut focus = focus;
@@ -2104,7 +2273,8 @@ fn run_tasks<'a>(
                             };
                         }
                         let rule = if select.is_some() { None } else { rule };
-                        if raw_active(&captures) {
+                        let raw_copy = raw_active(&captures);
+                        if raw_copy {
                             match &focus.item {
                                 Item::Node(n) if n.is_element() || n.is_document() => {
                                     begin_raw_node(
@@ -2131,6 +2301,25 @@ fn run_tasks<'a>(
                                 element.inherit_namespaces = *inherit;
                                 output.start(element)?;
                                 tasks.push(Task::Close);
+                                let frame = Frame {
+                                    focus,
+                                    env,
+                                    depth: depth + 1,
+                                    mode,
+                                    tunnel: tunnel.clone(),
+                                    rule,
+                                };
+                                tasks.push(Task::Body(body, 0, frame.clone()));
+                                tasks.push(Task::Body(sets, 0, frame));
+                            }
+                            Item::Node(n) if n.is_document() => {
+                                if !raw_copy {
+                                    let saved = std::mem::replace(
+                                        &mut output,
+                                        Output::document(limits.max_output_bytes),
+                                    );
+                                    tasks.push(Task::FinishDocument(saved, depth));
+                                }
                                 tasks.push(Task::Body(
                                     body,
                                     0,
@@ -2144,22 +2333,10 @@ fn run_tasks<'a>(
                                     },
                                 ));
                             }
-                            Item::Node(n) if n.is_document() => tasks.push(Task::Body(
-                                body,
-                                0,
-                                Frame {
-                                    focus,
-                                    env,
-                                    depth: depth + 1,
-                                    mode,
-                                    tunnel: tunnel.clone(),
-                                    rule,
-                                },
-                            )),
                             Item::Node(n) => copied_leaf(n, &mut output)?,
                             Item::Absent => {
                                 return Err(Diagnostic::new(
-                                    "XPDY0002",
+                                    "XTTE0945",
                                     "copy requires a context item",
                                     "run",
                                 ));
@@ -2437,21 +2614,30 @@ fn run_tasks<'a>(
                                 }
                             })
                             .transpose()?;
-                        let encoding = spec
+                        let encoding_override = spec
                             .encoding
                             .as_ref()
                             .map(|value| {
                                 let value = parts(value, &focus, &env, budget, sheet.backwards)?;
                                 crate::result::Encoding::parse(value.trim()).ok_or_else(|| {
                                     Diagnostic::new(
-                                        "RUST_XSLT_UNSUPPORTED",
-                                        "only UTF-8, ISO-8859-1 and US-ASCII results are supported",
+                                        "SESU0007",
+                                        format!("unsupported output encoding: {value}"),
                                         "run",
                                     )
                                 })
                             })
-                            .transpose()?
-                            .unwrap_or(settings.encoding);
+                            .transpose()?;
+                        if encoding_override.is_none()
+                            && let Some(name) = &settings.unsupported_encoding
+                        {
+                            return Err(Diagnostic::new(
+                                "SESU0007",
+                                format!("unsupported output encoding: {name}"),
+                                "run",
+                            ));
+                        }
+                        let encoding = encoding_override.unwrap_or(settings.encoding);
                         let indent = indent_override.unwrap_or(settings.indent);
                         let mut doctype = settings.doctype.clone();
                         if spec.doctype_public.is_some() || spec.doctype_system.is_some() {
@@ -2503,7 +2689,7 @@ fn run_tasks<'a>(
                             depth: depth + 1,
                             mode,
                             tunnel: tunnel.clone(),
-                            rule: None,
+                            rule,
                         };
                         TRY_DEPTH.with(|d| d.set(d.get() + 1));
                         let result = run_tasks(
@@ -2534,7 +2720,7 @@ fn run_tasks<'a>(
                                 content = content.replacen("?><", "?>\n<", 1);
                             }
                         }
-                        content = encoding.apply(&content, !text_method)?;
+                        content = encoding.apply(&content, !text_method, markup)?;
                         if bom_override.unwrap_or(settings.byte_order_mark)
                             && encoding == crate::result::Encoding::Utf8
                         {
@@ -2553,18 +2739,30 @@ fn run_tasks<'a>(
                             budget.secondary.push((href, content));
                         }
                     }
-                    Instruction::OnEmpty(_) | Instruction::OnNonEmpty(_) => {
-                        return Err(Diagnostic::new(
-                            "XTSE3185",
-                            "xsl:on-empty and xsl:on-non-empty must be siblings in a sequence constructor",
-                            "run",
-                        ));
+                    Instruction::OnEmpty(body) | Instruction::OnNonEmpty(body) => {
+                        let Some(capture) = captures.last_mut().filter(|capture| capture.active)
+                        else {
+                            return Err(Diagnostic::new(
+                                "XTSE3185",
+                                "conditional content requires a sequence constructor",
+                                "run",
+                            ));
+                        };
+                        capture.conditional.push(ConditionalMarker {
+                            position: capture.items.len(),
+                            body,
+                            frame: Frame {
+                                focus,
+                                env,
+                                depth,
+                                mode,
+                                tunnel,
+                                rule,
+                            },
+                            on_empty: matches!(instruction, Instruction::OnEmpty(_)),
+                        });
                     }
-                    Instruction::Populated {
-                        main,
-                        on_empty,
-                        on_non_empty,
-                    } => {
+                    Instruction::Populated { main, has_on_empty } => {
                         if TRY_DEPTH.with(|d| d.get()) >= 32 {
                             return Err(limit());
                         }
@@ -2572,6 +2770,7 @@ fn run_tasks<'a>(
                             output.max.saturating_sub(output.value.len()),
                             sheet.text_output,
                         )
+                        .with_document_content(output.document_content())
                         .with_serialization(output.serialization().0, None)
                         .with_uri_escaping(output.uri_escaping())
                         .with_metadata(output.metadata())
@@ -2584,32 +2783,44 @@ fn run_tasks<'a>(
                             depth: depth + 1,
                             mode: mode.clone(),
                             tunnel: tunnel.clone(),
-                            rule: None,
+                            rule,
                         };
                         TRY_DEPTH.with(|d| d.set(d.get() + 1));
-                        let result =
-                            run_tasks(run, budget, vec![Task::Body(main, 0, inner)], nested, None);
+                        let mut items = Vec::new();
+                        let mut markers = Vec::new();
+                        let result = run_tasks_with_conditionals(
+                            run,
+                            budget,
+                            vec![Task::Body(main, 0, inner)],
+                            nested,
+                            Some(&mut items),
+                            Some(&mut markers),
+                        );
                         TRY_DEPTH.with(|d| d.set(d.get() - 1));
-                        let text = result?;
-                        let fallback = if text.is_empty() {
-                            on_empty
+                        result?;
+                        let empty = items.iter().all(vacuous);
+                        if empty && *has_on_empty {
+                            for marker in markers.into_iter().rev().filter(|marker| marker.on_empty)
+                            {
+                                tasks.push(Task::Body(marker.body, 0, marker.frame));
+                            }
+                        } else if empty {
+                            emit_value(items, &mut tasks, depth, true);
                         } else {
-                            output.splice(&text)?;
-                            on_non_empty
-                        };
-                        if !fallback.is_empty() {
-                            tasks.push(Task::Body(
-                                fallback,
-                                0,
-                                Frame {
-                                    focus,
-                                    env,
-                                    depth: depth + 1,
-                                    mode,
-                                    tunnel: tunnel.clone(),
-                                    rule,
-                                },
-                            ));
+                            let mut end = items.len();
+                            for marker in
+                                markers.into_iter().rev().filter(|marker| !marker.on_empty)
+                            {
+                                emit_value(
+                                    items[marker.position..end].to_vec(),
+                                    &mut tasks,
+                                    depth,
+                                    true,
+                                );
+                                tasks.push(Task::Body(marker.body, 0, marker.frame));
+                                end = marker.position;
+                            }
+                            emit_value(items[..end].to_vec(), &mut tasks, depth, true);
                         }
                     }
                     Instruction::WherePopulated(content) => {
@@ -2632,22 +2843,21 @@ fn run_tasks<'a>(
                             depth: depth + 1,
                             mode,
                             tunnel: tunnel.clone(),
-                            rule: None,
+                            rule,
                         };
                         TRY_DEPTH.with(|d| d.set(d.get() + 1));
+                        let mut items = Vec::new();
                         let result = run_tasks(
                             run,
                             budget,
                             vec![Task::Body(content, 0, inner)],
                             nested,
-                            None,
+                            Some(&mut items),
                         );
                         TRY_DEPTH.with(|d| d.set(d.get() - 1));
-                        let text = result?;
-                        // Only content that produced something survives.
-                        if !text.is_empty() {
-                            output.splice(&text)?;
-                        }
+                        result?;
+                        items.retain(|item| !deemed_empty(item));
+                        emit_value(items, &mut tasks, depth, true);
                     }
                     Instruction::Number(spec) => {
                         let text = number_text(spec, &focus, &env, budget, sheet.backwards)?;
@@ -2684,19 +2894,20 @@ fn run_tasks<'a>(
                             depth: depth + 1,
                             mode: mode.clone(),
                             tunnel: tunnel.clone(),
-                            rule: None,
+                            rule,
                         };
+                        let mut items = Vec::new();
                         TRY_DEPTH.with(|d| d.set(d.get() + 1));
                         let result = run_tasks(
                             run,
                             budget,
                             vec![Task::Body(try_body, 0, try_frame)],
                             nested,
-                            None,
+                            Some(&mut items),
                         );
                         TRY_DEPTH.with(|d| d.set(d.get() - 1));
                         match result {
-                            Ok(text) => output.splice(&text)?,
+                            Ok(_) => emit_value(items, &mut tasks, depth, true),
                             Err(error) => {
                                 // Resource limits are not recoverable errors.
                                 let Some(catch) = catches
@@ -2906,17 +3117,29 @@ fn run_tasks<'a>(
                         for name in names {
                             expand(sheet, name, &mut bodies);
                         }
+                        let mut set_env = (*globals).clone();
+                        for name in [
+                            xpath::CURRENT_ITEM,
+                            xpath::CURRENT_GROUP,
+                            xpath::CURRENT_KEY,
+                            xpath::REGEX_GROUPS,
+                        ] {
+                            if let Some(value) = env.get(name) {
+                                set_env.insert(name.into(), value.clone());
+                            }
+                        }
+                        let set_env = Rc::new(set_env);
                         for set_body in bodies.into_iter().rev() {
                             tasks.push(Task::Body(
                                 set_body,
                                 0,
                                 Frame {
                                     focus: focus.clone(),
-                                    env: env.clone(),
+                                    env: set_env.clone(),
                                     depth: depth + 1,
                                     mode: mode.clone(),
                                     tunnel: tunnel.clone(),
-                                    rule: None,
+                                    rule,
                                 },
                             ));
                         }
@@ -3259,6 +3482,7 @@ fn run_tasks<'a>(
                 let value = std::mem::replace(&mut output, saved).finish_simple()?;
                 finish_capture(kind, value, &mut output, budget)?;
             }
+            Task::RestoreRaw(was_raw) => restore_raw(&mut captures, was_raw),
             Task::Close => output.end()?,
             Task::Iterate(instruction, items, index, params, frame) => {
                 let Instruction::Iterate {
@@ -3336,7 +3560,11 @@ fn run_tasks<'a>(
         }
     }
     if let Some(result) = raw_result {
-        *result = captures.pop().unwrap().items;
+        let capture = captures.pop().unwrap();
+        *result = capture.items;
+        if let Some(markers) = markers {
+            *markers = capture.conditional;
+        }
     }
     Ok(output.value)
 }
