@@ -4496,6 +4496,27 @@ fn call_user_function<'a>(
     depth: usize,
     backwards: bool,
 ) -> Result<Value<'a>, Diagnostic> {
+    #[cfg(all(unix, any(target_arch = "x86_64", target_arch = "aarch64")))]
+    {
+        stacker::maybe_grow(512 * 1024, 4 * 1024 * 1024, || {
+            call_user_function_inner(name, args, vars, budget, depth, backwards, true)
+        })
+    }
+    #[cfg(not(all(unix, any(target_arch = "x86_64", target_arch = "aarch64"))))]
+    {
+        call_user_function_inner(name, args, vars, budget, depth, backwards, false)
+    }
+}
+
+fn call_user_function_inner<'a>(
+    name: &str,
+    args: Vec<Value<'a>>,
+    vars: &Variables<'a>,
+    budget: &mut Budget,
+    depth: usize,
+    backwards: bool,
+    stack_growth: bool,
+) -> Result<Value<'a>, Diagnostic> {
     let functions = budget.functions.clone();
     let function = functions
         .get(&(name.to_owned(), args.len()))
@@ -4526,10 +4547,15 @@ fn call_user_function<'a>(
         position: 0,
         size: 0,
     };
-    // XPath and instruction evaluation still use native recursion for function
-    // calls. Keep a conservative bound until they share an execution trampoline.
+    // XPath and instruction evaluation still use native recursion. On
+    // supported targets stack segments grow at function boundaries; elsewhere
+    // retain the original conservative limits.
     let surrounding = budget.constructor_depth + crate::runtime::nested_instruction_runs();
-    let stack_limit = 13usize.saturating_sub(surrounding.saturating_mul(3)).max(1);
+    let stack_limit = if surrounding > 0 && stack_growth {
+        24
+    } else {
+        13usize.saturating_sub(surrounding.saturating_mul(3)).max(1)
+    };
     if budget.function_depth >= budget.max_depth.min(stack_limit) {
         return Err(err("XPDY0130", "stylesheet function depth limit exceeded"));
     }
@@ -4541,9 +4567,13 @@ fn call_user_function<'a>(
         UserFunctionBody::Constructor(_) => {
             // Constructor execution enters the instruction interpreter recursively.
             // Bound native stack use until XPath and instruction frames share a trampoline.
-            if budget.constructor_depth >= 2
-                || budget.constructor_depth + crate::runtime::nested_instruction_runs() >= 3
-            {
+            let nested = crate::runtime::nested_instruction_runs();
+            let exceeds = if stack_growth {
+                budget.constructor_depth >= 8 || nested >= 3
+            } else {
+                budget.constructor_depth >= 2 || budget.constructor_depth + nested >= 3
+            };
+            if exceeds {
                 Err(err(
                     "XPDY0130",
                     "stylesheet function constructor nesting limit exceeded",

@@ -182,13 +182,15 @@ locations and full W3C error-code fidelity remain ahead. Execution defaults to
 128 levels; XPath nesting is capped at 128 even when execution depth is raised.
 Template execution, result-content capture and binding constructors use an
 explicit task stack. Stylesheet functions with node constructors use that same
-runtime and temporary-tree arena, but are limited to two nested constructor
-function calls (or fewer inside other nested instruction runtimes) until XPath
-and instruction execution share a trampoline. Exceeding this limit reports
-`XPDY0130`. String-typed functions with a single `xsl:value-of` per branch
-are lowered to expressions and can recurse without that constructor nesting limit.
-All stylesheet functions have a conservative native-recursion cap of 13 calls,
-reduced when other instruction runtimes are nested. Per-run arenas own temporary documents and source strings;
+runtime and temporary-tree arena. On Unix x86-64 and AArch64, guarded stack
+growth permits up to eight nested constructor functions, subject to a cap of
+24 stylesheet function calls and the configured execution depth. Other targets
+retain a limit of two nested constructor functions, reduced inside nested
+instruction runtimes. Pure expression functions retain a conservative cap of 13
+calls when no constructor or nested instruction runtime is active. Exceeding
+these limits reports `XPDY0130`. String-typed functions with a single
+`xsl:value-of` per branch are lowered to expressions and can recurse without
+the constructor nesting limit. Per-run arenas own temporary documents and source strings;
 node handles preserve parent/root navigation and identity across documents.
 Typed constructed nodes are parentless, and their backing parser wrapper/siblings
 are hidden. `root()` returns the actual root; absolute paths require a document

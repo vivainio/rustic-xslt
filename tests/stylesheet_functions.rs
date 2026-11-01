@@ -298,6 +298,14 @@ fn constructor_functions_obey_temporary_tree_and_recursion_limits() {
             .code,
         "XPDY0130"
     );
+    assert_eq!(
+        Stylesheet::compile(&source)
+            .unwrap()
+            .transform("<r/>")
+            .unwrap_err()
+            .code,
+        "XPDY0130"
+    );
 }
 
 #[test]
@@ -308,6 +316,28 @@ fn constructor_functions_inside_nested_instruction_runtimes_are_bounded() {
         .transform("<r/>")
         .unwrap_err();
     assert!(matches!(error.code.as_str(), "XPDY0130" | "FOER0000"));
+}
+
+#[cfg(all(unix, any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[test]
+fn nested_function_constructors_work_on_a_bounded_thread_stack() {
+    let result = std::thread::Builder::new()
+        .stack_size(2 * 1024 * 1024)
+        .spawn(|| {
+            let source = r#"<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:f="urn:f" exclude-result-prefixes="f" version="3.0">
+              <xsl:output omit-xml-declaration="yes"/>
+              <xsl:function name="f:a"><a><xsl:sequence select="f:b()"/></a></xsl:function>
+              <xsl:function name="f:b"><b><xsl:sequence select="f:c()"/></b></xsl:function>
+              <xsl:function name="f:c"><c><xsl:sequence select="f:d()"/></c></xsl:function>
+              <xsl:function name="f:d"><d>ok</d></xsl:function>
+              <xsl:template match="/"><xsl:try><xsl:sequence select="f:a()"/><xsl:catch><bad/></xsl:catch></xsl:try></xsl:template>
+            </xsl:stylesheet>"#;
+            Stylesheet::compile(source).unwrap().transform("<r/>").unwrap()
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+    assert_eq!(result, "<a><b><c><d>ok</d></c></b></a>");
 }
 
 #[test]

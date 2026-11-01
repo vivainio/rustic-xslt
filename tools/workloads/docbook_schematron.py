@@ -6,6 +6,7 @@ import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from saxonche import PySaxonProcessor
+from reference_peppol import signature
 from run import ROOT, invoke, resources, revision
 
 SVRL = '{http://purl.oclc.org/dsdl/svrl}'
@@ -52,16 +53,20 @@ def main():
         if rust['diagnostics']:
             raise RuntimeError(rust['diagnostics'][0])
         validators = {'rust': rust['output'], 'saxon': saxon_compiler.transform_to_string(source_file=str(bundled_schema))}
+        baseline = {}
         for producer, generated in validators.items():
             validator = directory / (producer + '.xsl')
             validator.write_text(generated)
             saxon_validator = xslt.compile_stylesheet(stylesheet_file=str(validator))
             for label, xml, expected_roles in cases:
-                saxon_report = ET.fromstring(saxon_validator.transform_to_string(xdm_node=processor.parse_xml(xml_text=xml)))
+                saxon_output = saxon_validator.transform_to_string(xdm_node=processor.parse_xml(xml_text=xml))
+                saxon_report = ET.fromstring(saxon_output)
                 reports = saxon_report.findall('.//' + SVRL + 'successful-report')
                 roles = [node.get('role') for node in reports]
-                if not saxon_report.findall('.//' + SVRL + 'fired-rule') or roles != expected_roles:
+                saxon_signature = signature(saxon_output)
+                if not saxon_report.findall('.//' + SVRL + 'fired-rule') or roles != expected_roles or (label in baseline and baseline[label] != saxon_signature):
                     raise AssertionError(f'{producer}/{label}: expected roles {expected_roles}, got {roles}')
+                baseline[label] = saxon_signature
                 print('PASS', producer, 'compiler / Saxon validator:', label, 'roles:', roles, flush=True)
                 result = invoke(driver, validator, xml, {bundled_helper.resolve().as_uri(): bundled_helper.read_text()},
                                 max_steps=20_000_000)
@@ -71,7 +76,7 @@ def main():
                 else:
                     rust_report = ET.fromstring(result['output'])
                     rust_roles = [node.get('role') for node in rust_report.findall('.//' + SVRL + 'successful-report')]
-                    if not rust_report.findall('.//' + SVRL + 'fired-rule') or rust_roles != expected_roles:
+                    if not rust_report.findall('.//' + SVRL + 'fired-rule') or rust_roles != expected_roles or signature(result['output']) != saxon_signature:
                         raise AssertionError(f'{producer}/{label}: Rust roles {rust_roles}, expected {expected_roles}')
                     print('PASS', producer, 'compiler / Rust validator:', label, 'roles:', rust_roles, flush=True)
     return int(blocked)
