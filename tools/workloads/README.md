@@ -68,6 +68,15 @@ relative includes and fragment identifiers within that tree are supported. The
 resolver canonicalizes paths, rejects escapes and does not fetch network URLs.
 The compiler's XSLT imports and includes are resolved separately within the
 compiler's directory and its descendants.
+Messages from preprocessing and schema compilation are printed to stderr and
+stop the command by default, since they can indicate a partially compiled
+schema. Use `--allow-compiler-messages` to continue after reviewing them.
+Messages from the validator are also printed. The example rejects output that
+is not an SVRL report and warns if no rules fire; an empty result can be valid
+for a document with no matching contexts, so that warning does not change the
+exit status. For example, the ISO include stage emits a nonterminating message
+when an include fragment is missing; the default behavior prevents that case
+from silently producing a report with no validation rules.
 The probe also checks a default phase,
 variables, diagnostic references, dynamic message text, an upstream root-rule
 fixture, and an upstream fixture containing an XSLT accumulator.

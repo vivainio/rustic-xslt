@@ -91,6 +91,29 @@ def main():
                 raise AssertionError(f'{filename}: incorrect assertion results: {failures}')
             print('PASS ISO preprocessing', filename, flush=True)
 
+        schema.write_text(source.replace('#included', '#missing'))
+        command = [str(cli), str(compiler), str(schema), '--iso', '--iso-preprocess', str(fixture / 'invalid.xml')]
+        process = subprocess.run(command, text=True, capture_output=True, timeout=120)
+        if process.returncode == 0 or process.stdout.strip() or 'Unable to locate id attribute' not in process.stderr:
+            raise AssertionError('missing include fragment did not fail with its compiler message')
+        process = subprocess.run(command[:-1] + ['--allow-compiler-messages', command[-1]],
+                                 text=True, capture_output=True, check=True, timeout=120)
+        if 'Unable to locate id attribute' not in process.stderr or 'no Schematron rules fired' not in process.stderr:
+            raise AssertionError('allowed compiler message or empty validation warning was lost')
+        print('PASS missing include fragment fails unless compiler messages are explicitly allowed', flush=True)
+
+        fake = Path(tmp) / 'fake-compiler.xsl'
+        fake.write_text('''<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+          xmlns:out="urn:generated" exclude-result-prefixes="out">
+          <xsl:namespace-alias stylesheet-prefix="out" result-prefix="xsl"/>
+          <xsl:template match="/"><out:stylesheet version="3.0"><out:template match="/"><not-svrl/></out:template></out:stylesheet></xsl:template>
+          </xsl:stylesheet>''')
+        process = subprocess.run([str(cli), str(fake), str(schema), str(fixture / 'valid.xml')],
+                                 text=True, capture_output=True, timeout=120)
+        if process.returncode == 0 or process.stdout.strip() or 'did not produce an SVRL report' not in process.stderr:
+            raise AssertionError('non-SVRL validator output did not fail')
+        print('PASS non-SVRL validator output is rejected', flush=True)
+
 
 if __name__ == '__main__':
     main()

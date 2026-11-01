@@ -68,20 +68,45 @@ fn local_resolver(root: PathBuf) -> ResourceResolver {
     })
 }
 
+fn transform_stage(
+    sheet: &Stylesheet,
+    source: &str,
+    options: &TransformOptions,
+    label: &str,
+    reject_messages: bool,
+) -> Result<String, Box<dyn Error>> {
+    let result = sheet.transform_with_documents(source, options)?;
+    for message in &result.messages {
+        eprintln!("{label}: {message}");
+    }
+    if reject_messages && !result.messages.is_empty() {
+        return Err(
+            format!("{label} emitted messages; use --allow-compiler-messages to continue").into(),
+        );
+    }
+    Ok(result.principal)
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let mut arguments = std::env::args_os().skip(1);
     let transpiler_path = arguments
         .next()
-        .ok_or("usage: schematron TRANSPILER.xsl SCHEMA.sch [--iso] [--iso-preprocess] [--phase NAME] [--max-steps N] [--max-depth N] DOCUMENT.xml [DOCUMENT.xml ...]")?;
+        .ok_or("usage: schematron TRANSPILER.xsl SCHEMA.sch [--iso] [--iso-preprocess] [--allow-compiler-messages] [--phase NAME] [--max-steps N] [--max-depth N] DOCUMENT.xml [DOCUMENT.xml ...]")?;
     let schema_path = arguments.next().ok_or("missing Schematron schema")?;
     let mut phase = None;
     let mut max_steps = None;
     let mut max_depth = None;
     let mut iso = false;
     let mut iso_preprocess = false;
+    let mut allow_compiler_messages = false;
     let mut documents = Vec::new();
     while let Some(argument) = arguments.next() {
-        if argument == "--iso-preprocess" {
+        if argument == "--allow-compiler-messages" {
+            if allow_compiler_messages {
+                return Err("--allow-compiler-messages may be supplied only once".into());
+            }
+            allow_compiler_messages = true;
+        } else if argument == "--iso-preprocess" {
             if iso_preprocess {
                 return Err("--iso-preprocess may be supplied only once".into());
             }
@@ -191,10 +216,22 @@ fn main() -> Result<(), Box<dyn Error>> {
                 &file_uri(&path)?,
                 &*compiler_resolver.0,
             )?;
-            schema = stage.transform_with_options(&schema, &preprocess_options)?;
+            schema = transform_stage(
+                &stage,
+                &schema,
+                &preprocess_options,
+                name,
+                !allow_compiler_messages,
+            )?;
         }
     }
-    let generated = transpiler.transform_with_options(&schema, &schema_options)?;
+    let generated = transform_stage(
+        &transpiler,
+        &schema,
+        &schema_options,
+        "Schematron compiler",
+        !allow_compiler_messages,
+    )?;
     let validator =
         Stylesheet::compile_with_base_uri_and_resolver(&generated, &schema_uri, &*resolver.0)?;
     for path in documents {
@@ -210,9 +247,31 @@ fn main() -> Result<(), Box<dyn Error>> {
         if let Some(max_depth) = max_depth {
             options.limits.max_depth = max_depth;
         }
-        let report = validator.transform_with_options(&fs::read_to_string(path)?, &options)?;
+        let report = transform_stage(
+            &validator,
+            &fs::read_to_string(path)?,
+            &options,
+            &path.display().to_string(),
+            false,
+        )?;
         let document = roxmltree::Document::parse(&report)?;
         let svrl = "http://purl.oclc.org/dsdl/svrl";
+        if !document
+            .root_element()
+            .has_tag_name((svrl, "schematron-output"))
+        {
+            return Err(format!(
+                "{}: validator did not produce an SVRL report",
+                path.display()
+            )
+            .into());
+        }
+        if !document
+            .descendants()
+            .any(|n| n.has_tag_name((svrl, "fired-rule")))
+        {
+            eprintln!("{}: warning: no Schematron rules fired", path.display());
+        }
         let failures = document
             .descendants()
             .filter(|n| n.has_tag_name((svrl, "failed-assert")))
