@@ -309,3 +309,19 @@ fn constructor_functions_inside_nested_instruction_runtimes_are_bounded() {
         .unwrap_err();
     assert!(matches!(error.code.as_str(), "XPDY0130" | "FOER0000"));
 }
+
+#[test]
+fn string_typed_value_of_functions_support_recursive_calls_without_changing_node_results() {
+    let declaration = r#"<xsl:function name="f:text" as="xs:string?"><xsl:param name="n" as="xs:integer"/><xsl:choose><xsl:when test="$n = 0"><xsl:value-of select="('a', 'b')"/></xsl:when><xsl:otherwise><xsl:value-of select="f:text($n - 1)"/></xsl:otherwise></xsl:choose></xsl:function>"#;
+    assert_eq!(run(declaration, "f:text(12)").unwrap(), "a b");
+    assert_eq!(run(declaration, "f:text(20)").unwrap_err().code, "XPDY0130");
+    assert_eq!(
+        run(declaration, "f:text(0) instance of xs:string").unwrap(),
+        "true"
+    );
+    let node =
+        r#"<xsl:function name="f:node" as="item()"><xsl:value-of select="'x'"/></xsl:function>"#;
+    assert_eq!(run(node, "f:node() instance of text()").unwrap(), "true");
+    let invalid = r#"<xsl:function name="f:two" as="xs:string"><xsl:value-of select="'a'"/><xsl:value-of select="'b'"/></xsl:function>"#;
+    assert_eq!(run(invalid, "f:two()").unwrap_err().code, "XTTE0780");
+}

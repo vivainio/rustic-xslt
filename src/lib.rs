@@ -122,7 +122,7 @@ impl From<i64> for ParameterValue {
     }
 }
 
-/// Loads a resource (a text file, for `unparsed-text()` and `json-doc()`) by URI.
+/// Loads an XML document or text resource by URI under caller-defined policy.
 type LoadResource = dyn Fn(&str) -> Result<String, Diagnostic> + Send + Sync;
 #[derive(Clone)]
 pub struct ResourceResolver(pub std::sync::Arc<LoadResource>);
@@ -157,7 +157,8 @@ pub struct TransformOptions {
     /// Absolute URI identifying the principal source document, when known.
     pub source_uri: Option<String>,
     pub limits: Limits,
-    /// Resource loader for `unparsed-text()`, `unparsed-text-lines()` and `json-doc()`.
+    /// Resource loader for `doc()`, `document()`, `unparsed-text()`,
+    /// `unparsed-text-lines()` and `json-doc()`. It receives resolved URIs.
     pub resolver: Option<ResourceResolver>,
 }
 

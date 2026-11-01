@@ -291,3 +291,98 @@ fn loaded_documents_use_xml_document_parsing_and_limits() {
         "XPDY0130"
     );
 }
+
+#[test]
+fn computed_document_uris_load_lazily_share_identity_and_respect_node_base() {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+    let calls = Arc::new(AtomicUsize::new(0));
+    let seen = calls.clone();
+    let resolver = ResourceResolver::new(move |uri| {
+        seen.fetch_add(1, Ordering::SeqCst);
+        assert_eq!(uri, "https://example.test/data/included.xml");
+        Ok("<root><item xml:id='one'>ok</item></root>".into())
+    });
+    let source = r#"<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="3.0"><xsl:output method="text"/><xsl:template match="/"><xsl:variable name="path" select="string(/r/@href)"/><xsl:sequence select="document($path, /r) is doc(resolve-uri($path, base-uri(/r))), document-uri(document($path, /r)), string(document(concat($path, '#one'), /r)), doc-available(resolve-uri($path, base-uri(/r)))"/></xsl:template></xsl:stylesheet>"#;
+    let sheet =
+        Stylesheet::compile_with_base_uri(source, "https://example.test/style/main.xsl").unwrap();
+    let options = TransformOptions {
+        source_uri: Some("https://example.test/data/input.xml".into()),
+        resolver: Some(resolver),
+        ..Default::default()
+    };
+    assert_eq!(
+        sheet
+            .transform_with_options("<r href='included.xml'/>", &options)
+            .unwrap(),
+        "true https://example.test/data/included.xml ok true"
+    );
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        sheet
+            .transform_with_options("<r href='included.xml'/>", &options)
+            .unwrap(),
+        "true https://example.test/data/included.xml ok true"
+    );
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+}
+
+#[test]
+fn computed_documents_obey_resource_policy_and_temporary_limits() {
+    use rust_xslt::Limits;
+    let source = r#"<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="3.0"><xsl:output method="text"/><xsl:template match="/"><xsl:variable name="uri" select="string(/r/@href)"/><xsl:sequence select="doc-available($uri)"/></xsl:template></xsl:stylesheet>"#;
+    let sheet = Stylesheet::compile_with_base_uri(source, "https://example.test/main.xsl").unwrap();
+    assert_eq!(sheet.transform("<r href='missing.xml'/>").unwrap(), "false");
+    let options = TransformOptions {
+        resolver: Some(ResourceResolver::new(|_| Ok("<long-document/>".into()))),
+        limits: Limits {
+            max_temporary_bytes: 10,
+            ..Limits::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(
+        sheet
+            .transform_with_options("<r href='x.xml'/>", &options)
+            .unwrap_err()
+            .code,
+        "XPDY0130"
+    );
+}
+
+#[test]
+fn computed_documents_reject_invalid_uris_without_calling_the_resolver() {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+    let calls = Arc::new(AtomicUsize::new(0));
+    let observed = calls.clone();
+    let options = TransformOptions {
+        resolver: Some(ResourceResolver::new(move |_| {
+            observed.fetch_add(1, Ordering::SeqCst);
+            Ok("<r/>".into())
+        })),
+        ..Default::default()
+    };
+    assert_eq!(
+        run(
+            "let $u := 'https://example.test/x#fragment' return doc-available($u)",
+            &options
+        )
+        .unwrap(),
+        "false"
+    );
+    assert_eq!(
+        run(
+            "let $u := 'https://example.test/x#fragment' return doc($u)",
+            &options
+        )
+        .unwrap_err()
+        .code,
+        "FODC0005"
+    );
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+}

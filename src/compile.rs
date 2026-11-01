@@ -2243,7 +2243,7 @@ fn map_entry_expr(n: Node<'_, '_>, depth: usize) -> Result<Expr, Diagnostic> {
         })?;
         expr(n, select)?
     } else {
-        function_expression(n, body(n, depth + 1, false)?)?
+        function_expression(n, body(n, depth + 1, false)?, false)?
     };
     Ok(Expr::Call("map:entry".into(), vec![key, value]))
 }
@@ -3478,7 +3478,7 @@ fn declarations(
                 }
                 let value = match (n.attribute("use"), has_content) {
                     (Some(select), false) => expr(n, select)?,
-                    (None, true) => function_expression(n, body(n, 1, false)?)?,
+                    (None, true) => function_expression(n, body(n, 1, false)?, false)?,
                     _ => {
                         return Err(static_error(
                             n,
@@ -3632,10 +3632,14 @@ fn declarations(
                     }
                 }
                 let function_instructions = body(n, 1, true)?;
-                let function_body = if can_lower_function(&function_instructions) {
+                let text_result = result.as_ref().is_some_and(|ty| {
+                    matches!(ty.kind, crate::seqtype::Kind::String) && ty.max == 1
+                }) && can_lower_text_function(&function_instructions);
+                let function_body = if can_lower_function(&function_instructions) || text_result {
                     xpath::UserFunctionBody::Expression(function_expression(
                         n,
                         function_instructions,
+                        text_result,
                     )?)
                 } else {
                     xpath::UserFunctionBody::Constructor(function_instructions)
@@ -3748,9 +3752,46 @@ fn can_lower_function(body: &[Instruction]) -> bool {
     })
 }
 
+// A single value-of per execution path may be atomized directly only when
+// the function's declared result is an optional/single xs:string. No caller can
+// observe the intermediate text-node identity in that case.
+fn can_lower_text_function(body: &[Instruction]) -> bool {
+    let mut results = 0;
+    for instruction in body {
+        match instruction {
+            Instruction::Bind(Binding {
+                value: BindingValue::Select(_),
+                ..
+            }) => {}
+            Instruction::Bind(Binding {
+                value: BindingValue::Raw(body),
+                ..
+            }) if can_lower_function(body) => {}
+            Instruction::Value(_, None) => results += 1,
+            Instruction::If(_, body) if can_lower_text_function(body) => results += 1,
+            Instruction::Choose(branches)
+                if branches
+                    .iter()
+                    .all(|(_, body)| can_lower_text_function(body)) =>
+            {
+                results += 1
+            }
+            _ => return false,
+        }
+        if results > 1 {
+            return false;
+        }
+    }
+    true
+}
+
 // Lower pure sequence constructors into XPath expressions. Branch-local
 // bindings remain scoped to their branch, and bindings affect only what follows.
-fn function_expression(n: Node<'_, '_>, body: Vec<Instruction>) -> Result<Expr, Diagnostic> {
+fn function_expression(
+    n: Node<'_, '_>,
+    body: Vec<Instruction>,
+    text_result: bool,
+) -> Result<Expr, Diagnostic> {
     fn append(head: Expr, tail: Expr) -> Expr {
         if matches!(&tail, Expr::Sequence(items) if items.is_empty()) {
             head
@@ -3781,9 +3822,8 @@ fn function_expression(n: Node<'_, '_>, body: Vec<Instruction>) -> Result<Expr, 
                 ..
             }) => {
                 // Lower only constructors that preserve their original XDM items.
-                // Node-creating instructions remain unsupported here until the
-                // function evaluator can use the transformation's tree arena.
-                let select = function_expression(n, body)?;
+                // Node-creating instructions use the constructor runtime instead.
+                let select = function_expression(n, body, false)?;
                 let select = match ty {
                     Some(ty) => Expr::TypeOp("variable".into(), Box::new(select), ty),
                     None => select,
@@ -3792,8 +3832,11 @@ fn function_expression(n: Node<'_, '_>, body: Vec<Instruction>) -> Result<Expr, 
                 Expr::Let(name, Box::new(select), Box::new(tail), unused)
             }
             Instruction::Sequence(expression) => append(expression, tail),
+            Instruction::Value(expression, None) if text_result => {
+                append(Expr::Call("\0xslt-value-of".into(), vec![expression]), tail)
+            }
             Instruction::Map(body) => {
-                let maps = function_expression(n, body)?;
+                let maps = function_expression(n, body, false)?;
                 append(Expr::Call("\0xslt-map".into(), vec![maps]), tail)
             }
             Instruction::ForEach(select, sorts, body) => {
@@ -3802,7 +3845,7 @@ fn function_expression(n: Node<'_, '_>, body: Vec<Instruction>) -> Result<Expr, 
                 } else {
                     Expr::Sorted(Box::new(select), sorts)
                 };
-                let body = function_expression(n, body)?;
+                let body = function_expression(n, body, false)?;
                 append(
                     Expr::Binary("instruction-map".into(), Box::new(select), Box::new(body)),
                     tail,
@@ -3811,7 +3854,7 @@ fn function_expression(n: Node<'_, '_>, body: Vec<Instruction>) -> Result<Expr, 
             Instruction::If(test, body) => append(
                 Expr::If(
                     Box::new(test),
-                    Box::new(function_expression(n, body)?),
+                    Box::new(function_expression(n, body, text_result)?),
                     Box::new(Expr::Sequence(vec![])),
                 ),
                 tail,
@@ -3819,7 +3862,7 @@ fn function_expression(n: Node<'_, '_>, body: Vec<Instruction>) -> Result<Expr, 
             Instruction::Choose(branches) => {
                 let mut choice = Expr::Sequence(vec![]);
                 for (test, branch) in branches.into_iter().rev() {
-                    let result = function_expression(n, branch)?;
+                    let result = function_expression(n, branch, text_result)?;
                     choice = match test {
                         Some(test) => Expr::If(Box::new(test), Box::new(result), Box::new(choice)),
                         None => result,

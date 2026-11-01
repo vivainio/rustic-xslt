@@ -12,14 +12,18 @@ The pinned SchXslt2 revision is `bd196454305641f67443816fe83bbc120f30ebe1`.
 At that revision the unmodified transpiler and generated validator run end to
 end for the inventory and typical fixtures, explicit phase selection, and two
 upstream SchXslt2 fixtures, including one using an accumulator, as well as a
-500-item document with 50 expected failures. The probe checks SVRL assertions,
+500-item document with 50 expected failures, relative/fragment includes and a
+two-parameter abstract pattern. A separate Peppol BIS invoice probe exercises
+a 94 KB XSLT 2.0-binding schema against the upstream invoice and a mutated
+invoice, with a raised work limit. The probes check SVRL assertions,
 reports, locations, diagnostics and selected phases. A separate message case
 currently fails: a whitespace-only separator between `sch:name` and
 `sch:value-of` is stripped when the generated validator is compiled. The probe
 also verifies that `xml:space="preserve"` on the assertion retains the space.
 This is not yet broad coverage of external schemas. Constructor-based stylesheet
-functions have a conservative nesting limit of two; deeply recursive schemas
-need a shared trampoline. Select-based accumulator rules run on unstreamed
+functions have a conservative nesting limit of two; stylesheet function calls
+also have a native-recursion cap of at most 13. Deeply recursive schemas need
+a shared trampoline. Select-based accumulator rules run on unstreamed
 trees; sequence-constructor rules and record-streamed accumulators remain
 unsupported, and repeated queries traverse the tree again.
 The stylesheet contains accumulator declarations, functions with instruction-based
@@ -99,9 +103,10 @@ base URIs and namespaces through both compilation stages.
 
 ## Next coverage, after the first milestone
 
-Add include/external-schema resolution, abstract patterns and rule extension,
-and richer diagnostics using upstream examples and explicit resolver/base-URI
-checks. Then assess common real schemas that use XSLT 2.0 binding, embedded
+Expand coverage of external-schema resolution, abstract patterns and rule
+extension, and richer diagnostics using upstream examples and explicit
+resolver/base-URI checks. Relative includes, fragments, and two-parameter
+abstract patterns now have end-to-end probes. Then assess common real schemas that use XSLT 2.0 binding, embedded
 XSLT functions, and larger documents. Add features in the order these
 workloads require; support for streamable validation, schema-aware XSLT,
 2025-only Schematron features, and DTD-backed entities is not a prerequisite

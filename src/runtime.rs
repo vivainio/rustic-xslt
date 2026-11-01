@@ -320,6 +320,7 @@ pub(crate) struct FunctionRuntime<'a> {
     pub trees: crate::trees::Trees<'a>,
     pub initial_root: Option<(usize, u32)>,
     pub initial_accumulators: Option<crate::mode::AccumulatorUse>,
+    pub documents: std::cell::RefCell<std::collections::BTreeMap<String, Value<'a>>>,
 }
 
 struct Run<'a, 'r> {
@@ -1111,6 +1112,7 @@ fn execute<'a>(
         sheet,
         options: options.clone(),
         trees: trees.clone(),
+        documents: std::cell::RefCell::new(std::collections::BTreeMap::new()),
         initial_root: if options.initial_template.is_none() {
             match root.item {
                 Item::Node(node) => {

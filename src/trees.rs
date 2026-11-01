@@ -37,6 +37,28 @@ impl<'a> Trees<'a> {
             XNode::tree(doc.root()).with_document_uri(uri),
         )])
     }
+    pub fn load_resolved_document(
+        &self,
+        xml: String,
+        uri: String,
+        sheet: &Stylesheet,
+    ) -> Result<Value<'a>, Diagnostic> {
+        let absolute = crate::uri_resolution::resolve(&uri, None).is_ok();
+        let uri = if absolute {
+            if uri.len() > self.max.saturating_sub(self.used.get()) {
+                return Err(Diagnostic::new(
+                    "XPDY0130",
+                    "temporary-tree source-byte limit exceeded",
+                    "run",
+                ));
+            }
+            self.used.set(self.used.get() + uri.len());
+            Some(self.sources.alloc(uri).as_str() as &'a str)
+        } else {
+            None
+        };
+        self.load_document(xml, uri, sheet)
+    }
     pub fn new(
         sources: &'a Arena<String>,
         documents: &'a Arena<roxmltree::Document<'a>>,

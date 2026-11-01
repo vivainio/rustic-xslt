@@ -2427,138 +2427,9 @@ pub(crate) fn eval<'a>(
             backwards,
         )?,
         Expr::PathMap(base, step) => {
-            let input = eval(base, focus, vars, budget, depth + 1, backwards)?;
-            let size = input.len();
-            let mut result = vec![];
-            let mut has_nodes = false;
-            let mut has_atomics = false;
-            for (index, item) in input.into_iter().enumerate() {
-                budget.tick()?;
-                if !matches!(item, Item::Node(_)) {
-                    return Err(err("XPTY0019", "path operand must contain nodes"));
-                }
-                let focus = Focus {
-                    item,
-                    position: index + 1,
-                    size,
-                };
-                for item in eval(step, &focus, vars, budget, depth + 1, backwards)? {
-                    budget.tick()?;
-                    has_nodes |= matches!(item, Item::Node(_));
-                    has_atomics |= !matches!(item, Item::Node(_));
-                    if has_nodes && has_atomics {
-                        return Err(err("XPTY0018", "path result mixes nodes and atomic values"));
-                    }
-                    result.push(item);
-                }
-            }
-            if has_nodes {
-                ordered(
-                    result
-                        .into_iter()
-                        .map(|item| {
-                            let Item::Node(node) = item else {
-                                unreachable!()
-                            };
-                            node
-                        })
-                        .collect(),
-                )
-            } else {
-                result
-            }
+            eval_path_map(base, step, focus, vars, budget, depth, backwards)?
         }
-        Expr::Path(base, steps) => {
-            let mut value = eval(base, focus, vars, budget, depth + 1, backwards)?;
-            for step in steps {
-                let mut nodes = vec![];
-                for item in value {
-                    budget.tick()?;
-                    let Item::Node(n) = item else {
-                        return Err(err("XPTY0019", "path operand must contain nodes"));
-                    };
-                    let candidates: Vec<_> = match step.axis {
-                        Axis::SelfNode => vec![n],
-                        Axis::Parent => n.parent().into_iter().collect(),
-                        Axis::Child => n.children().collect(),
-                        Axis::Attribute => n.attributes(),
-                        Axis::Ancestor | Axis::AncestorOrSelf => {
-                            let mut out = vec![];
-                            let mut current = if matches!(step.axis, Axis::AncestorOrSelf) {
-                                Some(n)
-                            } else {
-                                n.parent()
-                            };
-                            while let Some(node) = current {
-                                budget.tick()?;
-                                out.push(node);
-                                current = node.parent();
-                            }
-                            out
-                        }
-                        Axis::FollowingSibling | Axis::PrecedingSibling => {
-                            if n.is_attribute() || n.parent().is_none() {
-                                vec![]
-                            } else if matches!(step.axis, Axis::FollowingSibling) {
-                                n.raw
-                                    .next_siblings()
-                                    .skip(1)
-                                    .map(|raw| n.relative(raw))
-                                    .collect()
-                            } else {
-                                n.raw
-                                    .prev_siblings()
-                                    .skip(1)
-                                    .map(|raw| n.relative(raw))
-                                    .collect()
-                            }
-                        }
-                        Axis::Following | Axis::Preceding => {
-                            let mut out = vec![];
-                            for candidate in n.root().descendants() {
-                                budget.tick()?;
-                                let keep = if matches!(step.axis, Axis::Following) {
-                                    candidate.raw.id().get() > n.raw.id().get()
-                                        && (n.is_attribute()
-                                            || !candidate.raw.ancestors().any(|a| a == n.raw))
-                                } else {
-                                    candidate.raw.id().get() < n.raw.id().get()
-                                        && !n.raw.ancestors().any(|a| a == candidate.raw)
-                                };
-                                if keep {
-                                    out.push(candidate);
-                                }
-                            }
-                            if matches!(step.axis, Axis::Preceding) {
-                                out.reverse();
-                            }
-                            out
-                        }
-                        Axis::Descendant | Axis::DescendantOrSelf => n
-                            .descendants()
-                            .into_iter()
-                            .skip(usize::from(matches!(step.axis, Axis::Descendant)))
-                            .collect(),
-                    };
-                    let mut selected = vec![];
-                    for n in candidates {
-                        budget.tick()?;
-                        if test_node(&step.test, n, step.axis) {
-                            selected.push(Item::Node(n));
-                        }
-                    }
-                    let selected =
-                        filter(selected, &step.predicates, vars, budget, depth, backwards)?;
-                    nodes.extend(
-                        selected
-                            .into_iter()
-                            .filter_map(|i| if let Item::Node(n) = i { Some(n) } else { None }),
-                    );
-                }
-                value = ordered(nodes);
-            }
-            value
-        }
+        Expr::Path(base, steps) => eval_path(base, steps, focus, vars, budget, depth, backwards)?,
         Expr::Unary(plus, e) => {
             let value = eval(e, focus, vars, budget, depth + 1, backwards)?;
             if value.is_empty() && !backwards {
@@ -2567,234 +2438,13 @@ pub(crate) fn eval<'a>(
             let n = numeric(&value, backwards)?;
             vec![Item::Number(if *plus { n } else { n.negate() })]
         }
-        Expr::Binary(op, a, b) => {
-            let a = eval(a, focus, vars, budget, depth + 1, backwards)?;
-            if op == "!" || op == "instruction-map" {
-                let size = a.len();
-                let mut result = vec![];
-                for (index, item) in a.into_iter().enumerate() {
-                    budget.tick()?;
-                    let scope;
-                    let vars = if op == "instruction-map" {
-                        scope = {
-                            let mut scope = vars.clone();
-                            scope.insert(CURRENT_ITEM.into(), vec![item.clone()]);
-                            scope
-                        };
-                        &scope
-                    } else {
-                        vars
-                    };
-                    let mapped = eval(
-                        b,
-                        &Focus {
-                            item,
-                            position: index + 1,
-                            size,
-                        },
-                        vars,
-                        budget,
-                        depth + 1,
-                        backwards,
-                    )?;
-                    for item in mapped {
-                        budget.tick()?;
-                        result.push(item);
-                    }
-                }
-                return Ok(result);
-            }
-            if op == "and" && !boolean(&a)? {
-                return Ok(vec![Item::Boolean(false)]);
-            }
-            if op == "or" && boolean(&a)? {
-                return Ok(vec![Item::Boolean(true)]);
-            }
-            let b = eval(b, focus, vars, budget, depth + 1, backwards)?;
-            let (a, b) = if matches!(
-                op.as_str(),
-                "=" | "!="
-                    | "<"
-                    | ">"
-                    | "<="
-                    | ">="
-                    | "eq"
-                    | "ne"
-                    | "lt"
-                    | "le"
-                    | "gt"
-                    | "ge"
-                    | "+"
-                    | "-"
-                    | "*"
-                    | "div"
-                    | "idiv"
-                    | "mod"
-            ) {
-                (flatten_arrays(a)?, flatten_arrays(b)?)
-            } else {
-                (a, b)
-            };
-            match op.as_str() {
-                "and" | "or" => vec![Item::Boolean(boolean(&b)?)],
-                "||" => {
-                    if a.len() > 1 || b.len() > 1 {
-                        return Err(err(
-                            "XPTY0004",
-                            "string concatenation requires optional singletons",
-                        ));
-                    }
-                    let mut left = a.first().map_or_else(String::new, Item::string);
-                    let right = b.first().map_or_else(String::new, Item::string);
-                    for _ in left.bytes().chain(right.bytes()) {
-                        budget.tick()?;
-                    }
-                    left.push_str(&right);
-                    vec![Item::String(left)]
-                }
-                "to" => {
-                    fn bound(value: &[Item<'_>]) -> Result<Option<num_bigint::BigInt>, Diagnostic> {
-                        match value {
-                            [] => Ok(None),
-                            [item] => match atomize(item) {
-                                Item::Number(Number::Integer(n) | Number::DerivedInteger(_, n)) => {
-                                    Ok(Some(n))
-                                }
-                                Item::Untyped(s) => {
-                                    let Number::Integer(n) = Number::cast("integer", &s)? else {
-                                        unreachable!()
-                                    };
-                                    Ok(Some(n))
-                                }
-                                _ => Err(err("XPTY0004", "range bounds must be optional integers")),
-                            },
-                            _ => Err(err("XPTY0004", "range bounds must be optional integers")),
-                        }
-                    }
-                    let (Some(mut start), Some(end)) = (bound(&a)?, bound(&b)?) else {
-                        return Ok(vec![]);
-                    };
-                    if start > end {
-                        return Ok(vec![]);
-                    }
-                    let length = &end - &start + num_bigint::BigInt::from(1u8);
-                    if length > num_bigint::BigInt::from(budget.remaining) {
-                        return Err(err(
-                            "XPDY0130",
-                            "range exceeds the remaining execution budget",
-                        ));
-                    }
-                    let mut items = vec![];
-                    while start <= end {
-                        budget.tick()?;
-                        items.push(Item::Number(Number::Integer(start.clone())));
-                        start += 1;
-                    }
-                    items
-                }
-                "|" | "union" | "intersect" | "except" => {
-                    let mut nodes = vec![];
-                    let mut right = std::collections::HashSet::new();
-                    for item in b {
-                        budget.tick()?;
-                        let Item::Node(node) = item else {
-                            return Err(err("XPTY0004", "set operators require node operands"));
-                        };
-                        if matches!(op.as_str(), "|" | "union") {
-                            nodes.push(node);
-                        } else {
-                            right.insert(node);
-                        }
-                    }
-                    for item in a {
-                        budget.tick()?;
-                        let Item::Node(node) = item else {
-                            return Err(err("XPTY0004", "set operators require node operands"));
-                        };
-                        if match op.as_str() {
-                            "intersect" => right.contains(&node),
-                            "except" => !right.contains(&node),
-                            _ => true,
-                        } {
-                            nodes.push(node);
-                        }
-                    }
-                    ordered(nodes)
-                }
-                "is" | "<<" | ">>" => {
-                    if a.is_empty() || b.is_empty() {
-                        return Ok(vec![]);
-                    }
-                    let ([Item::Node(a)], [Item::Node(b)]) = (a.as_slice(), b.as_slice()) else {
-                        return Err(err("XPTY0004", "node comparison requires singleton nodes"));
-                    };
-                    vec![Item::Boolean(match op.as_str() {
-                        "is" => a == b,
-                        "<<" => a.order() < b.order(),
-                        _ => a.order() > b.order(),
-                    })]
-                }
-                "eq" | "ne" | "lt" | "gt" | "le" | "ge" => {
-                    if a.is_empty() || b.is_empty() {
-                        return Ok(vec![]);
-                    }
-                    if a.len() != 1 || b.len() != 1 {
-                        return Err(err(
-                            "XPTY0004",
-                            "value comparison requires singleton operands",
-                        ));
-                    }
-                    let op = match op.as_str() {
-                        "eq" => "=",
-                        "ne" => "!=",
-                        "lt" => "<",
-                        "gt" => ">",
-                        "le" => "<=",
-                        _ => ">=",
-                    };
-                    let atom = |i: &Item<'a>| match i {
-                        Item::Node(n) => Item::String(n.string()),
-                        Item::Untyped(s) => Item::String(s.clone()),
-                        _ => i.clone(),
-                    };
-                    vec![Item::Boolean(compare(
-                        &atom(&a[0]),
-                        &atom(&b[0]),
-                        op,
-                        false,
-                    )?)]
-                }
-                "=" | "!=" | "<" | ">" | "<=" | ">=" => {
-                    vec![Item::Boolean(general_comparison(
-                        &a, &b, op, backwards, None, budget,
-                    )?)]
-                }
-                _ => {
-                    if !backwards && (a.is_empty() || b.is_empty()) {
-                        return Ok(vec![]);
-                    }
-                    if !backwards && let ([left], [right]) = (a.as_slice(), b.as_slice()) {
-                        let (left, right) = (atomize(left), atomize(right));
-                        if matches!(left, Item::Temporal(_)) || matches!(right, Item::Temporal(_)) {
-                            return Ok(vec![temporal_arithmetic(op, &left, &right)?]);
-                        }
-                    }
-                    let x = numeric(&a, backwards)?;
-                    let y = numeric(&b, backwards)?;
-                    vec![Item::Number(x.arithmetic(&y, op)?)]
-                }
-            }
-        }
+        Expr::Binary(op, a, b) => eval_binary(op, a, b, focus, vars, budget, depth, backwards)?,
         Expr::Call(name, args) => {
             let args = args
                 .iter()
                 .map(|e| eval(e, focus, vars, budget, depth + 1, backwards))
                 .collect::<Result<Vec<_>, _>>()?;
-            if name == "\0xslt-map" {
-                crate::maps::xslt_map(args.into_iter().next().unwrap(), budget)?
-            } else {
-                call_named(name, args, focus, vars, budget, depth, backwards)?
-            }
+            call_evaluated(name, args, focus, vars, budget, depth, backwards)?
         }
         Expr::MapConstructor(entries) => {
             let mut map = MapValue::default();
@@ -2881,6 +2531,417 @@ pub(crate) fn eval<'a>(
         }
     };
     Ok(result)
+}
+#[allow(clippy::too_many_arguments)]
+fn eval_binary<'a>(
+    op: &str,
+    a: &Expr,
+    b: &Expr,
+    focus: &Focus<'a>,
+    vars: &Variables<'a>,
+    budget: &mut Budget,
+    depth: usize,
+    backwards: bool,
+) -> Result<Value<'a>, Diagnostic> {
+    Ok({
+        let a = eval(a, focus, vars, budget, depth + 1, backwards)?;
+        if op == "!" || op == "instruction-map" {
+            let size = a.len();
+            let mut result = vec![];
+            for (index, item) in a.into_iter().enumerate() {
+                budget.tick()?;
+                let scope;
+                let vars = if op == "instruction-map" {
+                    scope = {
+                        let mut scope = vars.clone();
+                        scope.insert(CURRENT_ITEM.into(), vec![item.clone()]);
+                        scope
+                    };
+                    &scope
+                } else {
+                    vars
+                };
+                let mapped = eval(
+                    b,
+                    &Focus {
+                        item,
+                        position: index + 1,
+                        size,
+                    },
+                    vars,
+                    budget,
+                    depth + 1,
+                    backwards,
+                )?;
+                for item in mapped {
+                    budget.tick()?;
+                    result.push(item);
+                }
+            }
+            return Ok(result);
+        }
+        if op == "and" && !boolean(&a)? {
+            return Ok(vec![Item::Boolean(false)]);
+        }
+        if op == "or" && boolean(&a)? {
+            return Ok(vec![Item::Boolean(true)]);
+        }
+        let b = eval(b, focus, vars, budget, depth + 1, backwards)?;
+        let (a, b) = if matches!(
+            op,
+            "=" | "!="
+                | "<"
+                | ">"
+                | "<="
+                | ">="
+                | "eq"
+                | "ne"
+                | "lt"
+                | "le"
+                | "gt"
+                | "ge"
+                | "+"
+                | "-"
+                | "*"
+                | "div"
+                | "idiv"
+                | "mod"
+        ) {
+            (flatten_arrays(a)?, flatten_arrays(b)?)
+        } else {
+            (a, b)
+        };
+        match op {
+            "and" | "or" => vec![Item::Boolean(boolean(&b)?)],
+            "||" => {
+                if a.len() > 1 || b.len() > 1 {
+                    return Err(err(
+                        "XPTY0004",
+                        "string concatenation requires optional singletons",
+                    ));
+                }
+                let mut left = a.first().map_or_else(String::new, Item::string);
+                let right = b.first().map_or_else(String::new, Item::string);
+                for _ in left.bytes().chain(right.bytes()) {
+                    budget.tick()?;
+                }
+                left.push_str(&right);
+                vec![Item::String(left)]
+            }
+            "to" => {
+                fn bound(value: &[Item<'_>]) -> Result<Option<num_bigint::BigInt>, Diagnostic> {
+                    match value {
+                        [] => Ok(None),
+                        [item] => match atomize(item) {
+                            Item::Number(Number::Integer(n) | Number::DerivedInteger(_, n)) => {
+                                Ok(Some(n))
+                            }
+                            Item::Untyped(s) => {
+                                let Number::Integer(n) = Number::cast("integer", &s)? else {
+                                    unreachable!()
+                                };
+                                Ok(Some(n))
+                            }
+                            _ => Err(err("XPTY0004", "range bounds must be optional integers")),
+                        },
+                        _ => Err(err("XPTY0004", "range bounds must be optional integers")),
+                    }
+                }
+                let (Some(mut start), Some(end)) = (bound(&a)?, bound(&b)?) else {
+                    return Ok(vec![]);
+                };
+                if start > end {
+                    return Ok(vec![]);
+                }
+                let length = &end - &start + num_bigint::BigInt::from(1u8);
+                if length > num_bigint::BigInt::from(budget.remaining) {
+                    return Err(err(
+                        "XPDY0130",
+                        "range exceeds the remaining execution budget",
+                    ));
+                }
+                let mut items = vec![];
+                while start <= end {
+                    budget.tick()?;
+                    items.push(Item::Number(Number::Integer(start.clone())));
+                    start += 1;
+                }
+                items
+            }
+            "|" | "union" | "intersect" | "except" => {
+                let mut nodes = vec![];
+                let mut right = std::collections::HashSet::new();
+                for item in b {
+                    budget.tick()?;
+                    let Item::Node(node) = item else {
+                        return Err(err("XPTY0004", "set operators require node operands"));
+                    };
+                    if matches!(op, "|" | "union") {
+                        nodes.push(node);
+                    } else {
+                        right.insert(node);
+                    }
+                }
+                for item in a {
+                    budget.tick()?;
+                    let Item::Node(node) = item else {
+                        return Err(err("XPTY0004", "set operators require node operands"));
+                    };
+                    if match op {
+                        "intersect" => right.contains(&node),
+                        "except" => !right.contains(&node),
+                        _ => true,
+                    } {
+                        nodes.push(node);
+                    }
+                }
+                ordered(nodes)
+            }
+            "is" | "<<" | ">>" => {
+                if a.is_empty() || b.is_empty() {
+                    return Ok(vec![]);
+                }
+                let ([Item::Node(a)], [Item::Node(b)]) = (a.as_slice(), b.as_slice()) else {
+                    return Err(err("XPTY0004", "node comparison requires singleton nodes"));
+                };
+                vec![Item::Boolean(match op {
+                    "is" => a == b,
+                    "<<" => a.order() < b.order(),
+                    _ => a.order() > b.order(),
+                })]
+            }
+            "eq" | "ne" | "lt" | "gt" | "le" | "ge" => {
+                if a.is_empty() || b.is_empty() {
+                    return Ok(vec![]);
+                }
+                if a.len() != 1 || b.len() != 1 {
+                    return Err(err(
+                        "XPTY0004",
+                        "value comparison requires singleton operands",
+                    ));
+                }
+                let op = match op {
+                    "eq" => "=",
+                    "ne" => "!=",
+                    "lt" => "<",
+                    "gt" => ">",
+                    "le" => "<=",
+                    _ => ">=",
+                };
+                let atom = |i: &Item<'a>| match i {
+                    Item::Node(n) => Item::String(n.string()),
+                    Item::Untyped(s) => Item::String(s.clone()),
+                    _ => i.clone(),
+                };
+                vec![Item::Boolean(compare(
+                    &atom(&a[0]),
+                    &atom(&b[0]),
+                    op,
+                    false,
+                )?)]
+            }
+            "=" | "!=" | "<" | ">" | "<=" | ">=" => {
+                vec![Item::Boolean(general_comparison(
+                    &a, &b, op, backwards, None, budget,
+                )?)]
+            }
+            _ => {
+                if !backwards && (a.is_empty() || b.is_empty()) {
+                    return Ok(vec![]);
+                }
+                if !backwards && let ([left], [right]) = (a.as_slice(), b.as_slice()) {
+                    let (left, right) = (atomize(left), atomize(right));
+                    if matches!(left, Item::Temporal(_)) || matches!(right, Item::Temporal(_)) {
+                        return Ok(vec![temporal_arithmetic(op, &left, &right)?]);
+                    }
+                }
+                let x = numeric(&a, backwards)?;
+                let y = numeric(&b, backwards)?;
+                vec![Item::Number(x.arithmetic(&y, op)?)]
+            }
+        }
+    })
+}
+fn eval_path_map<'a>(
+    base: &Expr,
+    step: &Expr,
+    focus: &Focus<'a>,
+    vars: &Variables<'a>,
+    budget: &mut Budget,
+    depth: usize,
+    backwards: bool,
+) -> Result<Value<'a>, Diagnostic> {
+    Ok({
+        let input = eval(base, focus, vars, budget, depth + 1, backwards)?;
+        let size = input.len();
+        let mut result = vec![];
+        let mut has_nodes = false;
+        let mut has_atomics = false;
+        for (index, item) in input.into_iter().enumerate() {
+            budget.tick()?;
+            if !matches!(item, Item::Node(_)) {
+                return Err(err("XPTY0019", "path operand must contain nodes"));
+            }
+            let focus = Focus {
+                item,
+                position: index + 1,
+                size,
+            };
+            for item in eval(step, &focus, vars, budget, depth + 1, backwards)? {
+                budget.tick()?;
+                has_nodes |= matches!(item, Item::Node(_));
+                has_atomics |= !matches!(item, Item::Node(_));
+                if has_nodes && has_atomics {
+                    return Err(err("XPTY0018", "path result mixes nodes and atomic values"));
+                }
+                result.push(item);
+            }
+        }
+        if has_nodes {
+            ordered(
+                result
+                    .into_iter()
+                    .map(|item| {
+                        let Item::Node(node) = item else {
+                            unreachable!()
+                        };
+                        node
+                    })
+                    .collect(),
+            )
+        } else {
+            result
+        }
+    })
+}
+fn eval_path<'a>(
+    base: &Expr,
+    steps: &[Step],
+    focus: &Focus<'a>,
+    vars: &Variables<'a>,
+    budget: &mut Budget,
+    depth: usize,
+    backwards: bool,
+) -> Result<Value<'a>, Diagnostic> {
+    Ok({
+        let mut value = eval(base, focus, vars, budget, depth + 1, backwards)?;
+        for step in steps {
+            let mut nodes = vec![];
+            for item in value {
+                budget.tick()?;
+                let Item::Node(n) = item else {
+                    return Err(err("XPTY0019", "path operand must contain nodes"));
+                };
+                let candidates: Vec<_> = match step.axis {
+                    Axis::SelfNode => vec![n],
+                    Axis::Parent => n.parent().into_iter().collect(),
+                    Axis::Child => n.children().collect(),
+                    Axis::Attribute => n.attributes(),
+                    Axis::Ancestor | Axis::AncestorOrSelf => {
+                        let mut out = vec![];
+                        let mut current = if matches!(step.axis, Axis::AncestorOrSelf) {
+                            Some(n)
+                        } else {
+                            n.parent()
+                        };
+                        while let Some(node) = current {
+                            budget.tick()?;
+                            out.push(node);
+                            current = node.parent();
+                        }
+                        out
+                    }
+                    Axis::FollowingSibling | Axis::PrecedingSibling => {
+                        if n.is_attribute() || n.parent().is_none() {
+                            vec![]
+                        } else if matches!(step.axis, Axis::FollowingSibling) {
+                            n.raw
+                                .next_siblings()
+                                .skip(1)
+                                .map(|raw| n.relative(raw))
+                                .collect()
+                        } else {
+                            n.raw
+                                .prev_siblings()
+                                .skip(1)
+                                .map(|raw| n.relative(raw))
+                                .collect()
+                        }
+                    }
+                    Axis::Following | Axis::Preceding => {
+                        let mut out = vec![];
+                        for candidate in n.root().descendants() {
+                            budget.tick()?;
+                            let keep = if matches!(step.axis, Axis::Following) {
+                                candidate.raw.id().get() > n.raw.id().get()
+                                    && (n.is_attribute()
+                                        || !candidate.raw.ancestors().any(|a| a == n.raw))
+                            } else {
+                                candidate.raw.id().get() < n.raw.id().get()
+                                    && !n.raw.ancestors().any(|a| a == candidate.raw)
+                            };
+                            if keep {
+                                out.push(candidate);
+                            }
+                        }
+                        if matches!(step.axis, Axis::Preceding) {
+                            out.reverse();
+                        }
+                        out
+                    }
+                    Axis::Descendant | Axis::DescendantOrSelf => n
+                        .descendants()
+                        .into_iter()
+                        .skip(usize::from(matches!(step.axis, Axis::Descendant)))
+                        .collect(),
+                };
+                let mut selected = vec![];
+                for n in candidates {
+                    budget.tick()?;
+                    if test_node(&step.test, n, step.axis) {
+                        selected.push(Item::Node(n));
+                    }
+                }
+                let selected = filter(selected, &step.predicates, vars, budget, depth, backwards)?;
+                nodes.extend(
+                    selected
+                        .into_iter()
+                        .filter_map(|i| if let Item::Node(n) = i { Some(n) } else { None }),
+                );
+            }
+            value = ordered(nodes);
+        }
+        value
+    })
+}
+fn call_evaluated<'a>(
+    name: &str,
+    args: Vec<Value<'a>>,
+    focus: &Focus<'a>,
+    vars: &Variables<'a>,
+    budget: &mut Budget,
+    depth: usize,
+    backwards: bool,
+) -> Result<Value<'a>, Diagnostic> {
+    if name.starts_with("Q{") {
+        call_user_function(name, args, vars, budget, depth, backwards)
+    } else if name == "\0xslt-map" {
+        crate::maps::xslt_map(args.into_iter().next().unwrap(), budget)
+    } else if name == "\0xslt-value-of" {
+        let mut value = args.into_iter().next().unwrap();
+        if backwards {
+            value.truncate(1);
+        }
+        budget.charge(value.len())?;
+        let max = vars.runtime.as_ref().map_or(usize::MAX, |runtime| {
+            runtime.options.limits.max_output_bytes
+        });
+        Ok(vec![Item::Untyped(simple_string(
+            &value, " ", max, backwards,
+        )?)])
+    } else {
+        call_named(name, args, focus, vars, budget, depth, backwards)
+    }
 }
 fn call_named<'a>(
     name: &str,
@@ -3026,13 +3087,27 @@ fn call_named<'a>(
         }
         let uri = crate::string_functions::string(&args[0], false, backwards)?;
         let uri = uri.trim_matches([' ', '\t', '\r', '\n']);
-        let document = vars.get(&document_key(uri));
+        if crate::uri_resolution::resolve(uri, None).is_err_and(|error| error.code != "FONS0005") {
+            if name == "doc-available" {
+                return Ok(vec![Item::Boolean(false)]);
+            }
+            return Err(err("FODC0005", "invalid document URI"));
+        }
+        if uri.contains('#') {
+            if name == "doc-available" {
+                return Ok(vec![Item::Boolean(false)]);
+            }
+            return Err(err("FODC0005", "doc URI must not contain a fragment"));
+        }
+        let document = load_document(uri, vars, budget);
         if name == "doc-available" {
-            vec![Item::Boolean(document.is_some())]
+            match document {
+                Ok(_) => vec![Item::Boolean(true)],
+                Err(error) if error.code == "XPDY0130" => return Err(error),
+                Err(_) => vec![Item::Boolean(false)],
+            }
         } else {
-            document
-                .cloned()
-                .ok_or_else(|| err("FODC0002", "the document could not be loaded"))?
+            document?
         }
     } else if name == "document" {
         evaluate_document(&args, vars, budget, backwards)?
@@ -3079,6 +3154,56 @@ fn call_named<'a>(
     })
 }
 #[inline(never)]
+fn load_document<'a>(
+    uri: &str,
+    vars: &Variables<'a>,
+    budget: &mut Budget,
+) -> Result<Value<'a>, Diagnostic> {
+    if let Some(document) = vars.get(&document_key(uri)) {
+        return Ok(document.clone());
+    }
+    let runtime = vars
+        .runtime
+        .clone()
+        .ok_or_else(|| err("FODC0002", "the document could not be loaded"))?;
+    if let Some(document) = runtime.documents.borrow().get(uri) {
+        return Ok(document.clone());
+    }
+    let text = match runtime.sheet.stylesheet_sources.get(uri) {
+        Some(text) => text.clone(),
+        None => {
+            let resolver = runtime
+                .options
+                .resolver
+                .as_ref()
+                .ok_or_else(|| err("FODC0002", "the document could not be loaded"))?;
+            (resolver.0)(uri).map_err(|error| {
+                if error.code == "XPDY0130" {
+                    error
+                } else {
+                    err("FODC0002", "the document could not be loaded")
+                }
+            })?
+        }
+    };
+    budget.charge(text.len())?;
+    let document = runtime
+        .trees
+        .load_resolved_document(text, uri.to_owned(), runtime.sheet)
+        .map_err(|error| {
+            if error.code == "XPDY0130" {
+                error
+            } else {
+                err("FODC0002", "the document could not be loaded")
+            }
+        })?;
+    runtime
+        .documents
+        .borrow_mut()
+        .insert(uri.to_owned(), document.clone());
+    Ok(document)
+}
+
 fn evaluate_document<'a>(
     args: &[Value<'a>],
     vars: &Variables<'a>,
@@ -3124,15 +3249,13 @@ fn evaluate_document<'a>(
             .map_or((resolved.as_str(), None), |(uri, fragment)| {
                 (uri, Some(fragment))
             });
-        let document = vars
-            .get(&document_key(document_uri))
-            .ok_or_else(|| err("FODC0002", "the document could not be loaded"))?;
+        let document = load_document(document_uri, vars, budget)?;
         for item in document {
             if let Item::Node(node) = item {
                 nodes.push(if let Some(fragment) = fragment {
-                    crate::xpointer::select(*node, fragment, budget)?
+                    crate::xpointer::select(node, fragment, budget)?
                 } else {
-                    *node
+                    node
                 });
             }
         }
@@ -3232,7 +3355,7 @@ fn eval_lookup_context<'a>(
             .collect::<Result<Vec<_>, _>>()?;
         if name == "function-lookup" {
             with_dynamic_lookup(budget, |budget| {
-                call_named(name, args, focus, vars, budget, depth + 1, backwards)
+                call_evaluated(name, args, focus, vars, budget, depth + 1, backwards)
             })?
         } else {
             let mut scope = vars.clone();
@@ -3240,7 +3363,7 @@ fn eval_lookup_context<'a>(
             if let Some(uri) = namespaces.get(STATIC_BASE_URI) {
                 scope.insert(STATIC_BASE_URI.into(), vec![Item::AnyUri(uri.clone())]);
             }
-            call_named(name, args, focus, &scope, budget, depth + 1, backwards)?
+            call_evaluated(name, args, focus, &scope, budget, depth + 1, backwards)?
         }
     } else {
         eval(value, focus, vars, budget, depth + 1, backwards)?
@@ -3446,10 +3569,10 @@ fn call_function_item<'a>(
                     .is_some_and(|ns| ns.contains_key(DYNAMIC_LOOKUP_CONTEXT));
             let result = if dynamic {
                 with_dynamic_lookup(budget, |budget| {
-                    call_named(name, args, focus, &scope, budget, depth + 1, backwards)
+                    call_evaluated(name, args, focus, &scope, budget, depth + 1, backwards)
                 })?
             } else {
-                call_named(name, args, focus, &scope, budget, depth + 1, backwards)?
+                call_evaluated(name, args, focus, &scope, budget, depth + 1, backwards)?
             };
             Ok(match namespaces {
                 Some(context) if name == "function-lookup" => {
@@ -4179,7 +4302,11 @@ fn call_user_function<'a>(
         position: 0,
         size: 0,
     };
-    if budget.function_depth >= budget.max_depth.min(128) {
+    // XPath and instruction evaluation still use native recursion for function
+    // calls. Keep a conservative bound until they share an execution trampoline.
+    let surrounding = budget.constructor_depth + crate::runtime::nested_instruction_runs();
+    let stack_limit = 13usize.saturating_sub(surrounding.saturating_mul(3)).max(1);
+    if budget.function_depth >= budget.max_depth.min(stack_limit) {
         return Err(err("XPDY0130", "stylesheet function depth limit exceeded"));
     }
     budget.function_depth += 1;

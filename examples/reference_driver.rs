@@ -123,7 +123,10 @@ fn run(req: Value) -> Value {
             .and_then(Value::as_str)
             .map(str::to_owned),
         limits: rust_xslt::Limits {
-            max_steps: 1_000_000,
+            max_steps: req
+                .get("maxSteps")
+                .and_then(Value::as_u64)
+                .unwrap_or(1_000_000),
             ..Default::default()
         },
         ..Default::default()

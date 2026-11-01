@@ -30,7 +30,7 @@ def check_report(output, case, invalid):
         assert not any(p.get('id') == 'inactive' for p in root.findall('.//' + SVRL + 'active-pattern')), 'inactive pattern ran'
     if failures:
         failure = failures[0]
-        expected = {'inventory': '@id', 'typical': '$quantity ge $minimum', 'whitespace': '$quantity ge $minimum', 'whitespace-preserved': '$quantity ge $minimum', 'upstream-root': 'false()', 'selected-phase': 'false()'}
+        expected = {'inventory': '@id', 'typical': '$quantity ge $minimum', 'whitespace': '$quantity ge $minimum', 'whitespace-preserved': '$quantity ge $minimum', 'upstream-root': 'false()', 'selected-phase': 'false()', 'include': '@id', 'include-fragment': '@id', 'abstract': '@id', 'extended-rule': '@id'}
         location = '/Q{}root[1]' if case == 'upstream-root' else '/Q{urn:inventory}inventory[1]/Q{urn:inventory}item[1]'
         assert failure.get('test') == expected[case] and failure.get('location') == location, 'incorrect failure test or location'
         text = ''.join(failure.itertext())
@@ -38,6 +38,12 @@ def check_report(output, case, invalid):
             assert 'An item needs an id.' in text, 'missing failure message'
             assert reports[0].get('test') == "@discontinued = 'yes'" and reports[0].get('location') == location, 'incorrect report test or location'
             assert 'Discontinued item.' in ''.join(reports[0].itertext()), 'missing report message'
+        elif case == 'extended-rule':
+            assert 'Extended rule requires an id.' in text, 'missing extended rule message'
+        elif case == 'abstract':
+            assert 'Abstract rule requires an id.' in text, 'missing abstract pattern message'
+        elif case in ('include', 'include-fragment'):
+            assert 'Included rule requires an id.' in text, 'missing included rule message'
         elif case in ('typical', 'whitespace', 'whitespace-preserved'):
             message = 'Quantity for item bad must be at least two.' if case in ('whitespace', 'whitespace-preserved') else 'Quantity for item named bad must be at least two.'
             assert message in text, 'message whitespace or dynamic content is incorrect'
@@ -57,6 +63,8 @@ def main():
     driver = ROOT / 'target/debug/examples/reference_driver'
     transpiler = sch / 'src/main/resources/content/transpile.xsl'
     modules = resources(sch)
+    included = FIXTURES / 'includes/nested/rules.sch'
+    modules[included.resolve().as_uri()] = included.read_text()
     upstream = sch / 'src/test/bugs/rule-context-root.xml'
     fixture = upstream.read_text()
     upstream_schema = re.search(r'<sch:schema\b.*?</sch:schema>', fixture, re.DOTALL).group()
@@ -71,6 +79,14 @@ def main():
          [('invalid', FIXTURES / 'typical-invalid.xml', True)]),
         ('whitespace-preserved', (FIXTURES / 'typical.sch').read_text().replace('<name/> named <value-of', '<name/> <value-of').replace('<assert test="$quantity ge $minimum"', '<assert xml:space="preserve" test="$quantity ge $minimum"'), FIXTURES / 'typical.sch',
          [('invalid', FIXTURES / 'typical-invalid.xml', True)]),
+        ('extended-rule', (FIXTURES / 'extended-rule.sch').read_text(), FIXTURES / 'extended-rule.sch',
+         [('valid', FIXTURES / 'valid.xml', False), ('invalid', FIXTURES / 'invalid.xml', True)]),
+        ('abstract', (FIXTURES / 'abstract.sch').read_text(), FIXTURES / 'abstract.sch',
+         [('valid', FIXTURES / 'valid.xml', False), ('invalid', FIXTURES / 'invalid.xml', True)]),
+        ('include', (FIXTURES / 'includes/main.sch').read_text(), FIXTURES / 'includes/main.sch',
+         [('valid', FIXTURES / 'valid.xml', False), ('invalid', FIXTURES / 'invalid.xml', True)]),
+        ('include-fragment', (FIXTURES / 'includes/main-fragment.sch').read_text(), FIXTURES / 'includes/main-fragment.sch',
+         [('valid', FIXTURES / 'valid.xml', False), ('invalid', FIXTURES / 'invalid.xml', True)]),
         ('selected-phase', (FIXTURES / 'typical.sch').read_text(), FIXTURES / 'typical.sch',
          [('invalid', FIXTURES / 'typical-valid.xml', True)]),
         ('upstream-root', upstream_schema, upstream, [('invalid', None, True)]),

@@ -56,13 +56,16 @@ cargo run --example schematron -- \
   tools/workloads/schematron/typical-invalid.xml
 ```
 
-Use `--phase NAME` after the schema to choose a phase. Each SVRL document is
+Use `--phase NAME` after the schema to choose a phase, and `--max-steps N`
+to set the per-transformation work limit for larger schemas. Each SVRL document is
 written to stdout; counts of failed assertions and successful reports are
 written to stderr. Invalid input is reported in SVRL and does not itself set a
 nonzero exit status; compile and runtime errors do. With multiple inputs,
 stdout contains consecutive XML documents separated by newlines. The example uses local
-files and no resource resolver, so schemas needing external includes are not
-yet supported by this example. The probe also checks a default phase,
+files and a resolver limited to the schema directory and its descendants;
+relative includes and fragment identifiers within that tree are supported. The
+resolver canonicalizes paths, rejects escapes and does not fetch network URLs.
+The probe also checks a default phase,
 variables, diagnostic references, dynamic message text, an upstream root-rule
 fixture, and an upstream fixture containing an XSLT accumulator.
 
@@ -71,3 +74,34 @@ Known message limitation: a whitespace-only separator between adjacent
 but is stripped when that stylesheet is compiled. The probe reports this as a
 failure and therefore exits nonzero. Setting `xml:space="preserve"` on the
 assertion retains the separator; the probe also checks that workaround.
+
+The probe also exercises a two-parameter abstract pattern and external includes
+with an inherited `xml:base`, including an ID fragment. For example:
+
+```sh
+cargo run --example schematron -- \
+  /tmp/xslt-workloads/schxslt2/src/main/resources/content/transpile.xsl \
+  tools/workloads/schematron/includes/main-fragment.sch \
+  tools/workloads/schematron/invalid.xml
+```
+
+A larger, real XSLT 2.0-binding workload is Peppol BIS Billing. To obtain the
+pinned rules and example invoice and run the probe:
+
+```sh
+git clone --depth 1 --filter=blob:none --sparse https://github.com/OpenPEPPOL/peppol-bis-invoice-3.git /tmp/xslt-workloads/peppol
+git -C /tmp/xslt-workloads/peppol fetch --depth 1 origin 5df0eff7c8efafd7c79c0dacce55082d175db759
+git -C /tmp/xslt-workloads/peppol checkout --detach FETCH_HEAD
+git -C /tmp/xslt-workloads/peppol sparse-checkout set rules/sch rules/examples
+python3 tools/workloads/peppol.py \
+  --schxslt2 /tmp/xslt-workloads/schxslt2 \
+  --peppol /tmp/xslt-workloads/peppol \
+  --generated /tmp/xslt-workloads/peppol-validator.xsl
+```
+
+The probe checks that rules fire, the upstream example has no failed
+assertions, and removing its `cbc:ProfileID` triggers `PEPPOL-EN16931-R001`.
+It uses a 500-million-step limit per transformation by default; override it
+with `--max-steps`. The normal 20-million-step library limit was insufficient
+for this stylesheet. This is a focused behavior check, not independent
+verification of every Peppol rule.

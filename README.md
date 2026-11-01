@@ -89,8 +89,7 @@ XPath 3.1 and XSLT 3.0 additions beyond the core above:
   variables and `expand-text`.
 
 Not yet implemented: schema awareness, packages, full accumulator support, `xsl:merge`,
-`xsl:fork`, `xsl:source-document`, other encodings than UTF-8/ISO-8859-1/US-ASCII, dynamic
-`doc()` URIs, and the XSLT `streamable` feature.
+`xsl:fork`, `xsl:source-document`, other encodings than UTF-8/ISO-8859-1/US-ASCII, and the XSLT `streamable` feature.
 
 Select-based, non-streamed accumulators support start/end rules, accumulator
 functions and initial-mode applicability. Rule sequence constructors, record
@@ -162,12 +161,13 @@ rules; ordinary and tunnel values remain separate. Initial tunnel values use
 `initial_tunnel_parameters`.
 No schema awareness or cancellation yet; `xsl:import` and `xsl:include` load modules through
 `Stylesheet::compile_with_resolver`, and `TransformOptions::resolver` backs
-`unparsed-text()`, `json-doc()` and literal-URI `doc()`. Set `TransformOptions::source_uri`
+`unparsed-text()`, `json-doc()`, `doc()` and `document()`, including computed
+URIs. The caller controls which resources may be loaded. Set `TransformOptions::source_uri`
 to an absolute URI when the source document's origin is known; it supplies
 `document-uri()` and the initial base URI. `Stylesheet::compile_with_base_uri`
 and `compile_with_base_uri_and_resolver` provide module URIs for includes,
-imports, `xsl:evaluate`, and supported XPath resource functions. Dynamic XML
-document loading remains limited. Relative `document()` references require a
+imports, `xsl:evaluate`, and supported XPath resource functions. Relative
+`document()` references require a
 known static or node base URI. XML fragments support shorthand `xml:id` and
 XPointer `element()` selection; other pointer schemes are not implemented.
 Record streaming is described below. Empty result elements use
@@ -185,7 +185,10 @@ explicit task stack. Stylesheet functions with node constructors use that same
 runtime and temporary-tree arena, but are limited to two nested constructor
 function calls (or fewer inside other nested instruction runtimes) until XPath
 and instruction execution share a trampoline. Exceeding this limit reports
-`XPDY0130`. Per-run arenas own temporary documents and source strings;
+`XPDY0130`. String-typed functions with a single `xsl:value-of` per branch
+are lowered to expressions and can recurse without that constructor nesting limit.
+All stylesheet functions have a conservative native-recursion cap of 13 calls,
+reduced when other instruction runtimes are nested. Per-run arenas own temporary documents and source strings;
 node handles preserve parent/root navigation and identity across documents.
 Typed constructed nodes are parentless, and their backing parser wrapper/siblings
 are hidden. `root()` returns the actual root; absolute paths require a document

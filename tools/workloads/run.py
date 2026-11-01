@@ -22,16 +22,18 @@ def resources(path):
     return {p.resolve().as_uri(): p.read_text() for p in path.rglob('*.xsl')}
 
 
-def invoke(driver, stylesheet, source, modules, source_uri=None, params=None):
+def invoke(driver, stylesheet, source, modules, source_uri=None, params=None, max_steps=None, timeout=120):
     request = {'stylesheet': stylesheet.read_text(), 'stylesheetURI': stylesheet.resolve().as_uri(),
                'source': source, 'resources': modules}
     if source_uri:
         request['sourceURI'] = source_uri
     if params:
         request['params'] = params
+    if max_steps is not None:
+        request['maxSteps'] = max_steps
     started = time.monotonic()
     run = subprocess.run([str(driver)], input=json.dumps(request) + '\n', text=True,
-                         capture_output=True, check=True, timeout=120)
+                         capture_output=True, check=True, timeout=timeout)
     result = json.loads(run.stdout)
     result['seconds'] = round(time.monotonic() - started, 3)
     return result
