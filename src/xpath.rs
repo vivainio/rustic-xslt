@@ -2762,6 +2762,204 @@ fn eval_binary<'a>(
         }
     })
 }
+// Recognize node selections that are independent of the outer focus except for
+// its document root. Calls, dynamic evaluation, and focus-sensitive expressions
+// deliberately remain on the ordinary per-item path.
+fn root_invariant_predicate(expression: &Expr) -> bool {
+    match expression {
+        Expr::String(_) | Expr::Number(_) | Expr::Variable(_) | Expr::Context | Expr::Root => true,
+        Expr::Unary(_, inner) | Expr::LookupContext(inner, _) => root_invariant_predicate(inner),
+        Expr::Sequence(items) => items.iter().all(root_invariant_predicate),
+        Expr::Path(base, steps) => {
+            root_invariant_predicate(base)
+                && steps
+                    .iter()
+                    .all(|step| step.predicates.iter().all(root_invariant_predicate))
+        }
+        Expr::Filter(base, predicates) => {
+            root_invariant_predicate(base) && predicates.iter().all(root_invariant_predicate)
+        }
+        Expr::Call(name, arguments)
+            if matches!(
+                name.as_str(),
+                "normalize-space"
+                    | "string"
+                    | "upper-case"
+                    | "lower-case"
+                    | "exists"
+                    | "empty"
+                    | "contains"
+                    | "starts-with"
+                    | "ends-with"
+                    | "string-length"
+                    | "number"
+                    | "not"
+                    | "true"
+                    | "false"
+                    | "boolean"
+                    | "position"
+                    | "last"
+                    | "name"
+                    | "local-name"
+                    | "namespace-uri"
+            ) =>
+        {
+            arguments.iter().all(root_invariant_predicate)
+        }
+        Expr::Binary(op, left, right)
+            if matches!(
+                op.as_str(),
+                "and"
+                    | "or"
+                    | "="
+                    | "!="
+                    | "<"
+                    | ">"
+                    | "<="
+                    | ">="
+                    | "eq"
+                    | "ne"
+                    | "lt"
+                    | "gt"
+                    | "le"
+                    | "ge"
+            ) =>
+        {
+            root_invariant_predicate(left) && root_invariant_predicate(right)
+        }
+        Expr::If(test, yes, no) => {
+            root_invariant_predicate(test)
+                && root_invariant_predicate(yes)
+                && root_invariant_predicate(no)
+        }
+        _ => false,
+    }
+}
+
+// A selection generated for parenthesized descendant patterns can be reused
+// only when every part is a pure function of the candidate's document.
+fn cache_pure_predicate(expression: &Expr) -> bool {
+    match expression {
+        Expr::String(_) | Expr::Number(_) | Expr::Context | Expr::Root => true,
+        Expr::Unary(_, inner) | Expr::LookupContext(inner, _) => cache_pure_predicate(inner),
+        Expr::Sequence(items) => items.iter().all(cache_pure_predicate),
+        Expr::Path(base, steps) => {
+            cache_pure_predicate(base)
+                && steps
+                    .iter()
+                    .all(|step| step.predicates.iter().all(cache_pure_predicate))
+        }
+        Expr::Filter(base, predicates) => {
+            cache_pure_predicate(base) && predicates.iter().all(cache_pure_predicate)
+        }
+        Expr::Call(name, arguments)
+            if matches!(
+                name.as_str(),
+                "normalize-space"
+                    | "string"
+                    | "upper-case"
+                    | "lower-case"
+                    | "exists"
+                    | "empty"
+                    | "contains"
+                    | "starts-with"
+                    | "ends-with"
+                    | "string-length"
+                    | "number"
+                    | "not"
+                    | "true"
+                    | "false"
+                    | "boolean"
+                    | "position"
+                    | "last"
+                    | "name"
+                    | "local-name"
+                    | "namespace-uri"
+            ) =>
+        {
+            arguments.iter().all(cache_pure_predicate)
+        }
+        Expr::Binary(op, left, right)
+            if matches!(
+                op.as_str(),
+                "and"
+                    | "or"
+                    | "="
+                    | "!="
+                    | "<"
+                    | ">"
+                    | "<="
+                    | ">="
+                    | "eq"
+                    | "ne"
+                    | "lt"
+                    | "gt"
+                    | "le"
+                    | "ge"
+            ) =>
+        {
+            cache_pure_predicate(left) && cache_pure_predicate(right)
+        }
+        Expr::If(test, yes, no) => {
+            cache_pure_predicate(test) && cache_pure_predicate(yes) && cache_pure_predicate(no)
+        }
+        _ => false,
+    }
+}
+
+fn cache_pure_nodes(expression: &Expr) -> bool {
+    match expression {
+        Expr::Path(base, steps) => {
+            matches!(base.as_ref(), Expr::Context | Expr::Root)
+                && steps
+                    .iter()
+                    .all(|step| step.predicates.iter().all(cache_pure_predicate))
+        }
+        Expr::Binary(op, left, right)
+            if matches!(op.as_str(), "|" | "union" | "intersect" | "except") =>
+        {
+            cache_pure_nodes(left) && cache_pure_nodes(right)
+        }
+        Expr::Filter(base, predicates) => {
+            cache_pure_nodes(base) && predicates.iter().all(cache_pure_predicate)
+        }
+        _ => false,
+    }
+}
+
+pub(crate) fn cacheable_root_selection(expression: &Expr) -> bool {
+    let Expr::PathMap(base, selection) = expression else {
+        return false;
+    };
+    let Expr::Path(root, steps) = base.as_ref() else {
+        return false;
+    };
+    matches!(root.as_ref(), Expr::Call(name, args) if name == "root" && args.is_empty())
+        && matches!(steps.as_slice(), [step] if matches!(step.axis, Axis::DescendantOrSelf)
+            && matches!(step.test, Test::Node) && step.predicates.is_empty())
+        && cache_pure_nodes(selection)
+}
+
+fn root_invariant_nodes(expression: &Expr) -> bool {
+    match expression {
+        Expr::Path(base, steps) => {
+            matches!(base.as_ref(), Expr::Root)
+                && steps
+                    .iter()
+                    .all(|step| step.predicates.iter().all(root_invariant_predicate))
+        }
+        Expr::Binary(op, left, right)
+            if matches!(op.as_str(), "|" | "union" | "intersect" | "except") =>
+        {
+            root_invariant_nodes(left) && root_invariant_nodes(right)
+        }
+        Expr::Filter(base, predicates) => {
+            root_invariant_nodes(base) && predicates.iter().all(root_invariant_predicate)
+        }
+        _ => false,
+    }
+}
+
 fn eval_path_map<'a>(
     base: &Expr,
     step: &Expr,
@@ -2774,6 +2972,32 @@ fn eval_path_map<'a>(
     Ok({
         let input = eval(base, focus, vars, budget, depth + 1, backwards)?;
         let size = input.len();
+        if root_invariant_nodes(step)
+            && let Some(Item::Node(first)) = input.first()
+            && input
+                .iter()
+                .all(|item| matches!(item, Item::Node(node) if node.root() == first.root()))
+        {
+            // Every input has the same root, and the selection is pure and
+            // root-relative. Its node result would be identical on each pass;
+            // the path operator subsequently removes those duplicates.
+            budget.charge(size)?;
+            let first_focus = Focus {
+                item: Item::Node(*first),
+                position: 1,
+                size,
+            };
+            let selected = eval(step, &first_focus, vars, budget, depth + 1, backwards)?;
+            let mut nodes = Vec::with_capacity(selected.len());
+            for item in selected {
+                budget.tick()?;
+                let Item::Node(node) = item else {
+                    return Err(err("XPTY0018", "root-invariant path returned a non-node"));
+                };
+                nodes.push(node);
+            }
+            return Ok(ordered(nodes));
+        }
         let mut result = vec![];
         let mut has_nodes = false;
         let mut has_atomics = false;

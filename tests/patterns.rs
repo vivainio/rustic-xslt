@@ -293,3 +293,84 @@ fn grouping_function_text_in_pattern_literals_and_comments_is_harmless() {
     assert!(run(r#"<xsl:template match="p[true() (: current-grouping-key() :)]"/>"#).is_ok());
     assert_eq!(run(r#"<xsl:template xmlns:fn="http://www.w3.org/2005/xpath-functions" match="p[exists(fn:current-group())]"/>"#).unwrap_err().code, "XTSE1060");
 }
+
+#[test]
+fn root_anchored_union_pattern_avoids_repeating_the_same_document_selection() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:variable name="enabled" select="false()"/><xsl:template match="/"><xsl:apply-templates select="//*"/></xsl:template><xsl:template match="*"/><xsl:template match="(/doc/a | /doc/b)[$enabled]">X</xsl:template></xsl:stylesheet>"#).unwrap();
+    let document = format!("<doc>{}<a/></doc>", "<n/>".repeat(80));
+    let options = rust_xslt::TransformOptions {
+        limits: rust_xslt::Limits {
+            max_steps: 100_000,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(
+        sheet.transform_with_options(&document, &options).unwrap(),
+        ""
+    );
+}
+
+#[test]
+fn root_anchored_union_with_pure_step_predicates_stays_within_work_budget() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:variable name="enabled" select="false()"/><xsl:template match="/"><xsl:apply-templates select="//*"/></xsl:template><xsl:template match="*"/><xsl:template match="(/doc/a[@kind='x'] | /doc/b[normalize-space(@id)='b'])[$enabled]">X</xsl:template></xsl:stylesheet>"#).unwrap();
+    let document = format!("<doc>{}<a kind='x'/></doc>", "<n/>".repeat(80));
+    let options = rust_xslt::TransformOptions {
+        limits: rust_xslt::Limits {
+            max_steps: 100_000,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(
+        sheet.transform_with_options(&document, &options).unwrap(),
+        ""
+    );
+}
+
+#[test]
+fn parenthesized_patterns_do_not_rescan_the_document_for_every_candidate() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:apply-templates select="//*"/></xsl:template><xsl:template match="*"/><xsl:template match="(pattern | group)[@abstract='true']">X</xsl:template></xsl:stylesheet>"#).unwrap();
+    let document = format!(
+        "<doc>{}<pattern abstract='true'/></doc>",
+        "<pattern/>".repeat(200)
+    );
+    let options = rust_xslt::TransformOptions {
+        limits: rust_xslt::Limits {
+            max_steps: 200_000,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(
+        sheet.transform_with_options(&document, &options).unwrap(),
+        "X"
+    );
+}
+
+#[test]
+fn parenthesized_pattern_cache_keeps_documents_distinct() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:apply-templates select="doc('a')//* | doc('b')//*"/></xsl:template><xsl:template match="*"/><xsl:template match="(pattern | group)[@abstract='true']">X</xsl:template></xsl:stylesheet>"#).unwrap();
+    let options = rust_xslt::TransformOptions {
+        resolver: Some(rust_xslt::ResourceResolver::new(|uri| match uri {
+            "a" => Ok("<doc><pattern abstract='true'/></doc>".into()),
+            "b" => Ok("<doc><group abstract='true'/></doc>".into()),
+            _ => panic!("unexpected URI: {uri}"),
+        })),
+        ..Default::default()
+    };
+    assert_eq!(
+        sheet.transform_with_options("<input/>", &options).unwrap(),
+        "XX"
+    );
+}
+
+#[test]
+fn parenthesized_pattern_cache_does_not_skip_effectful_predicates() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:f="urn:f" xmlns:xs="http://www.w3.org/2001/XMLSchema"><xsl:output method="text"/><xsl:function name="f:check" as="xs:boolean"><xsl:message>called</xsl:message><xsl:sequence select="true()"/></xsl:function><xsl:template match="/"><xsl:apply-templates select="//*"/></xsl:template><xsl:template match="*"/><xsl:template match="(pattern | group)[f:check()]">X</xsl:template></xsl:stylesheet>"#).unwrap();
+    let result = sheet
+        .transform_with_documents("<doc><pattern/><group/></doc>", &Default::default())
+        .unwrap();
+    assert_eq!(result.principal, "XX");
+    assert_eq!(result.messages.len(), 8);
+}

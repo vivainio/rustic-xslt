@@ -113,12 +113,11 @@ python3 tools/workloads/peppol.py \
 The probe checks that rules fire, the upstream example has no failed
 assertions, and removing its `cbc:ProfileID` triggers `PEPPOL-EN16931-R001`.
 It uses a 500-million-step limit per transformation by default; override it
-with `--max-steps`. The normal 20-million-step library limit was insufficient for both stages.
-For the pinned inputs, 100 million steps was enough to generate the validator
-but not to validate the invoice; 250 million was enough for both. On one local
-run, a release build took about 1.5 seconds to generate the validator and 6
-seconds to validate each invoice. These are
-measurements, not performance guarantees.
+with `--max-steps`. Both generating the pinned validator and validating the
+example fit within the normal 20-million-step library limit. On one local run,
+a release build took about 0.43 seconds to generate the validator and 2.9–3.0
+seconds to validate each example. These are measurements, not performance
+guarantees.
 
 To compare SaxonC and rust-xslt on the same Peppol inputs, using the optional
 SaxonC installation above:

@@ -819,9 +819,65 @@ fn selection_contains<'a>(
         position: 1,
         size: 1,
     };
-    Ok(xpath::eval(selected, &focus, vars, budget, 1, backwards)?
+    // Bound the structural key while formatting, without accepting truncated keys.
+    struct Key(String);
+    impl std::fmt::Write for Key {
+        fn write_str(&mut self, value: &str) -> std::fmt::Result {
+            if value.len() > 16_384usize.saturating_sub(self.0.len()) {
+                return Err(std::fmt::Error);
+            }
+            self.0.push_str(value);
+            Ok(())
+        }
+    }
+    let cache_key = if xpath::cacheable_root_selection(selected) && vars.runtime.is_some() {
+        use std::fmt::Write;
+        let mut description = Key(String::new());
+        if write!(&mut description, "{selected:?}").is_ok() {
+            budget.charge(description.0.len())?;
+            Some((description.0, node.root(), backwards))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    if let (Some(runtime), Some(key)) = (&vars.runtime, &cache_key)
+        && let Some(nodes) = runtime.pattern_selections.borrow().get(key)
+    {
+        budget.charge(nodes.len())?;
+        return Ok(nodes.contains(&node));
+    }
+    let result = xpath::eval(selected, &focus, vars, budget, 1, backwards)?;
+    let matches = result
         .iter()
-        .any(|item| matches!(item, Item::Node(n) if *n == node)))
+        .any(|item| matches!(item, Item::Node(n) if *n == node));
+    if let (Some(runtime), Some(key)) = (&vars.runtime, cache_key) {
+        let nodes: Vec<_> = result
+            .iter()
+            .filter_map(|item| match item {
+                Item::Node(node) => Some(*node),
+                _ => None,
+            })
+            .collect();
+        let bytes = key
+            .0
+            .len()
+            .saturating_add(nodes.len().saturating_mul(std::mem::size_of::<XNode<'a>>()))
+            .saturating_add(128);
+        let used = runtime.pattern_cache_bytes.get();
+        if bytes
+            <= runtime
+                .options
+                .limits
+                .max_temporary_bytes
+                .saturating_sub(used)
+        {
+            runtime.pattern_selections.borrow_mut().insert(key, nodes);
+            runtime.pattern_cache_bytes.set(used + bytes);
+        }
+    }
+    Ok(matches)
 }
 
 /// Whether `node` matches step `index` and the steps before it match its ancestry.

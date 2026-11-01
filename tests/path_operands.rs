@@ -133,3 +133,43 @@ fn general_path_chains_have_a_static_nesting_bound() {
         "XPST0003"
     );
 }
+
+#[test]
+fn path_mapping_keeps_outer_focus_for_focus_dependent_steps() {
+    let expression =
+        "string-join((/r, /r/*)/(if (position() = 1) then /r/a else /r/b)/name(), ',')";
+    assert_eq!(
+        sheet(expression).transform("<r><a/><b/></r>").unwrap(),
+        "a,b"
+    );
+}
+
+#[test]
+fn root_invariant_selection_does_not_skip_side_effectful_predicates() {
+    let source = r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:f="urn:f" xmlns:xs="http://www.w3.org/2001/XMLSchema"><xsl:output method="text"/><xsl:function name="f:check" as="xs:boolean"><xsl:message>called</xsl:message><xsl:sequence select="true()"/></xsl:function><xsl:template match="/"><xsl:sequence select="count((/r, /r/*)/(/r/n[f:check()]))"/></xsl:template></xsl:stylesheet>"#;
+    let result = Stylesheet::compile(source)
+        .unwrap()
+        .transform_with_documents("<r><n/><n/></r>", &TransformOptions::default())
+        .unwrap();
+    assert_eq!(result.principal, "2");
+    assert_eq!(result.messages.len(), 6);
+}
+
+#[test]
+fn root_invariant_selection_keeps_documents_separate() {
+    let stylesheet = sheet("count((doc('a')/r, doc('b')/r)/(/r/a | /r/b))");
+    let options = TransformOptions {
+        resolver: Some(rust_xslt::ResourceResolver::new(|uri| match uri {
+            "a" => Ok("<r><a/></r>".into()),
+            "b" => Ok("<r><b/></r>".into()),
+            _ => panic!("unexpected URI: {uri}"),
+        })),
+        ..Default::default()
+    };
+    assert_eq!(
+        stylesheet
+            .transform_with_options("<input/>", &options)
+            .unwrap(),
+        "2"
+    );
+}
