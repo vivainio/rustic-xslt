@@ -155,3 +155,24 @@ the probe compares fired-rule contexts and assertion details for all four
 inputs. All stages fit within the default 20-million-step limit for the pinned
 inputs. This is feature coverage for those cases, not a complete assessment of
 all Schematron implementations or schemas.
+
+A second domain workload is the NIEM Schematron-in-XSD rules. Clone the pinned
+rules and run the optional SaxonC comparison:
+
+```sh
+git clone https://github.com/NIEM/Schematron-in-XSD-Spec.git /tmp/xslt-workloads/niem
+git -C /tmp/xslt-workloads/niem checkout 4f71c5cc73e63b91085a6c3c312737bd26b61e1d
+PYTHONPATH=/tmp/rust-xslt-saxonche python3 tools/workloads/reference_niem.py \
+  --schxslt2 /tmp/xslt-workloads/schxslt2 \
+  --niem /tmp/xslt-workloads/niem --release
+```
+
+The unmodified schema compiles and runs in rust-xslt against the upstream XSD.
+Its generated stylesheet refers to `xs:` without declaring that prefix, so
+Saxon rejects it. For the cross-processor comparison the probe adds an `xs`
+`sch:ns` declaration to the schema in memory; it does not modify the checkout.
+It runs Rust- and Saxon-generated validators on both processors against the
+upstream XSD and valid and invalid minimal XSDs. The latter exercise quantified
+expressions, rule variables, node identity and namespace inspection. The probe
+checks expected findings and compares fired rules and assertion details. All
+cases fit within the default 20-million-step limit on the pinned inputs.
