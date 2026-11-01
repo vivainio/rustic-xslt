@@ -65,6 +65,8 @@ stdout contains consecutive XML documents separated by newlines. The example use
 files and a resolver limited to the schema directory and its descendants;
 relative includes and fragment identifiers within that tree are supported. The
 resolver canonicalizes paths, rejects escapes and does not fetch network URLs.
+The compiler's XSLT imports and includes are resolved separately within the
+compiler's directory and its descendants.
 The probe also checks a default phase,
 variables, diagnostic references, dynamic message text, an upstream root-rule
 fixture, and an upstream fixture containing an XSLT accumulator.
@@ -197,6 +199,24 @@ processors can use different local time zones. The probe uses the default
 schema's multi-node `subject` expressions, so its generated validator does not
 compile. The NEMSIS ISO compiler provides a working Rust-only pipeline for these
 cases.
+
+The public example can run the pinned NEMSIS ISO compiler and validate multiple
+documents without SaxonC:
+
+```sh
+cargo run --release --example schematron -- \
+  /tmp/xslt-workloads/nemsis/Schematron/DevelopmentKit/Schematron/utilities/iso-schematron-xslt2/iso_svrl_for_xslt2.xsl \
+  /tmp/xslt-workloads/nemsis/Schematron/rules/DEMDataSet.sch --iso \
+  /tmp/xslt-workloads/nemsis/SampleData/Schematron/DEM/xml/DEMDataSet--Base.xml \
+  /tmp/xslt-workloads/nemsis/SampleData/Schematron/DEM/xml/DEMDataSet-nemSch_d001_A.xml
+python3 tools/workloads/nemsis_cli.py --nemsis /tmp/xslt-workloads/nemsis --release
+```
+
+`--iso` supplies the ISO compiler's `allow-foreign` parameter and uses its
+unqualified `phase` parameter when `--phase` is supplied. This command runs
+the specified compiler directly: schemas requiring separate ISO include or
+abstract-pattern preprocessing need those stages before compilation. The pinned
+NEMSIS schemas used here are already expanded.
 
 Pass `--dataset ems` to run the same comparison on the larger NEMSIS
 patient-care schema and its 198 upstream sample documents and expected reports.

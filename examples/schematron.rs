@@ -1,5 +1,5 @@
-//! Compile a Schematron schema with an external SchXslt2 transpiler and reuse
-//! the generated validator for one or more XML documents.
+//! Compile a Schematron schema with an external XSLT transpiler and reuse the
+//! generated validator for one or more XML documents.
 use rust_xslt::{Diagnostic, ResourceResolver, Stylesheet, TransformOptions};
 use std::{
     error::Error,
@@ -72,13 +72,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut arguments = std::env::args_os().skip(1);
     let transpiler_path = arguments
         .next()
-        .ok_or("usage: schematron TRANSPILER.xsl SCHEMA.sch [--phase NAME] [--max-steps N] DOCUMENT.xml [DOCUMENT.xml ...]")?;
+        .ok_or("usage: schematron TRANSPILER.xsl SCHEMA.sch [--iso] [--phase NAME] [--max-steps N] DOCUMENT.xml [DOCUMENT.xml ...]")?;
     let schema_path = arguments.next().ok_or("missing Schematron schema")?;
     let mut phase = None;
     let mut max_steps = None;
+    let mut iso = false;
     let mut documents = Vec::new();
     while let Some(argument) = arguments.next() {
-        if argument == "--phase" {
+        if argument == "--iso" {
+            if iso {
+                return Err("--iso may be supplied only once".into());
+            }
+            iso = true;
+        } else if argument == "--phase" {
             if phase.is_some() {
                 return Err("--phase may be supplied only once".into());
             }
@@ -117,9 +123,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         .ok_or("schema has no parent directory")?
         .to_path_buf();
     let resolver = local_resolver(schema_root);
-    let transpiler = Stylesheet::compile_with_base_uri(
+    let compiler_root = transpiler_path
+        .canonicalize()?
+        .parent()
+        .ok_or("transpiler has no parent directory")?
+        .to_path_buf();
+    let compiler_resolver = local_resolver(compiler_root);
+    let transpiler = Stylesheet::compile_with_base_uri_and_resolver(
         &fs::read_to_string(transpiler_path)?,
         &file_uri(transpiler_path)?,
+        &*compiler_resolver.0,
     )?;
     let mut schema_options = TransformOptions {
         source_uri: Some(schema_uri.clone()),
@@ -129,14 +142,23 @@ fn main() -> Result<(), Box<dyn Error>> {
     if let Some(max_steps) = max_steps {
         schema_options.limits.max_steps = max_steps;
     }
-    if let Some(phase) = phase {
+    if iso {
         schema_options
             .parameters
-            .insert("Q{http://dmaus.name/ns/2023/schxslt}phase".into(), phase);
+            .insert("allow-foreign".into(), "true".into());
+    }
+    if let Some(phase) = phase {
+        let name = if iso {
+            "phase"
+        } else {
+            "Q{http://dmaus.name/ns/2023/schxslt}phase"
+        };
+        schema_options.parameters.insert(name.into(), phase);
     }
     let generated =
         transpiler.transform_with_options(&fs::read_to_string(schema_path)?, &schema_options)?;
-    let validator = Stylesheet::compile_with_base_uri(&generated, &schema_uri)?;
+    let validator =
+        Stylesheet::compile_with_base_uri_and_resolver(&generated, &schema_uri, &*resolver.0)?;
     for path in documents {
         let path = Path::new(&path);
         let mut options = TransformOptions {
