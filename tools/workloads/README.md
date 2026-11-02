@@ -31,7 +31,9 @@ CI gate. The driver currently limits each transformation to one million steps.
 DocBook also ships a Schematron schema for glossary references, backed by its
 unmodified `standalone-functions.xsl`. The following separate probe places the
 unmodified schema and its relative XSLT include in a temporary directory and
-checks missing, single, and duplicate glossary entries against SaxonC:
+checks missing, single, and duplicate glossary entries against SaxonC, using
+both embedded glossaries and external files selected by a DocBook processing
+instruction:
 
 ```sh
 PYTHONPATH=/tmp/rust-xslt-saxonche python3 tools/workloads/docbook_schematron.py \
@@ -39,9 +41,11 @@ PYTHONPATH=/tmp/rust-xslt-saxonche python3 tools/workloads/docbook_schematron.py
 ```
 
 With DocBook 2.8.4 revision `5210c58dcc982934b51101eb0527d32bda85a865`, both
-Rust and Saxon compile the schema and validate all three examples. The probe
+Rust and Saxon compile the schema and validate all six examples. The probe
 compares fired-rule contexts, assertion tests, locations and message text across
-both generated validators and both processors. Rust's nested function execution
+both generated validators and both processors. It also exercises the public
+example with the schema and source documents in separate directories and checks
+that one input document cannot access another input's resource directory. Rust's nested function execution
 uses guarded stack growth on Unix x86-64 and AArch64; other targets retain the
 previous conservative nesting limits and may still report `XPDY0130` here.
 
@@ -79,10 +83,12 @@ depth limit. Each SVRL document is
 written to stdout; counts of failed assertions and successful reports are
 written to stderr. Invalid input is reported in SVRL and does not itself set a
 nonzero exit status; compile and runtime errors do. With multiple inputs,
-stdout contains consecutive XML documents separated by newlines. The example uses local
-files and a resolver limited to the schema directory and its descendants;
-relative includes and fragment identifiers within that tree are supported. The
-resolver canonicalizes paths, rejects escapes and does not fetch network URLs.
+stdout contains consecutive XML documents separated by newlines. Schema
+compilation uses local files under the schema directory and its descendants;
+relative includes and fragment identifiers within that tree are supported.
+For each input, validation can also read files under that input's directory and
+its descendants. Each input has its own resource roots. The resolver
+canonicalizes paths, rejects escapes and does not fetch network URLs.
 The compiler's XSLT imports and includes are resolved separately within the
 compiler's directory and its descendants.
 Messages from preprocessing and schema compilation are printed to stderr and

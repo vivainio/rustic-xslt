@@ -24,12 +24,17 @@ fn file_uri(path: &Path) -> Result<String, Box<dyn Error>> {
     Ok(uri)
 }
 
-/// Only load local files within the schema's directory, following canonical paths.
+/// Only load local files within the selected directory, following canonical paths.
 fn local_resolver(root: PathBuf) -> ResourceResolver {
+    local_resolver_roots(vec![root])
+}
+
+/// Allow resources under any explicitly selected directory.
+fn local_resolver_roots(roots: Vec<PathBuf>) -> ResourceResolver {
     ResourceResolver::new(move |uri| {
         let unavailable = || Diagnostic {
             code: "FODC0002".into(),
-            message: "resource is unavailable or outside the schema directory".into(),
+            message: "resource is unavailable or outside the allowed directories".into(),
             phase: "run",
             line: 0,
             column: 0,
@@ -61,7 +66,7 @@ fn local_resolver(root: PathBuf) -> ResourceResolver {
         let path = Path::new(&decoded)
             .canonicalize()
             .map_err(|_| unavailable())?;
-        if !path.starts_with(&root) {
+        if !roots.iter().any(|root| path.starts_with(root)) {
             return Err(unavailable());
         }
         fs::read_to_string(path).map_err(|_| unavailable())
@@ -169,7 +174,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .parent()
         .ok_or("schema has no parent directory")?
         .to_path_buf();
-    let resolver = local_resolver(schema_root);
+    let resolver = local_resolver(schema_root.clone());
     let compiler_root = transpiler_path
         .canonicalize()?
         .parent()
@@ -236,9 +241,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         Stylesheet::compile_with_base_uri_and_resolver(&generated, &schema_uri, &*resolver.0)?;
     for path in documents {
         let path = Path::new(&path);
+        let document_root = path
+            .canonicalize()?
+            .parent()
+            .ok_or("document has no parent directory")?
+            .to_path_buf();
         let mut options = TransformOptions {
             source_uri: Some(file_uri(path)?),
-            resolver: Some(resolver.clone()),
+            resolver: Some(local_resolver_roots(vec![
+                schema_root.clone(),
+                document_root,
+            ])),
             ..Default::default()
         };
         if let Some(max_steps) = max_steps {
@@ -292,6 +305,44 @@ fn main() -> Result<(), Box<dyn Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn validation_resolver_reads_only_schema_and_document_trees() {
+        let root =
+            std::env::temp_dir().join(format!("rust-xslt-validation-{}", std::process::id()));
+        let schema = root.join("schema");
+        let document = root.join("document");
+        let outside = root.join("outside");
+        for directory in [&schema, &document, &outside] {
+            fs::create_dir_all(directory).unwrap();
+            fs::write(
+                directory.join("resource.xml"),
+                directory.file_name().unwrap().to_string_lossy().as_bytes(),
+            )
+            .unwrap();
+        }
+        let resolver = local_resolver_roots(vec![
+            schema.canonicalize().unwrap(),
+            document.canonicalize().unwrap(),
+        ]);
+        assert_eq!(
+            (resolver.0)(&file_uri(&schema.join("resource.xml")).unwrap()).unwrap(),
+            "schema"
+        );
+        assert_eq!(
+            (resolver.0)(&file_uri(&document.join("resource.xml")).unwrap()).unwrap(),
+            "document"
+        );
+        assert!((resolver.0)(&file_uri(&outside.join("resource.xml")).unwrap()).is_err());
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(outside.join("resource.xml"), document.join("escape.xml"))
+                .unwrap();
+            let link = format!("{}/escape.xml", file_uri(&document).unwrap());
+            assert!((resolver.0)(&link).is_err());
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     fn resolver_only_reads_canonical_files_in_its_schema_directory() {
         let root = std::env::temp_dir().join(format!("rust-xslt-example-{}", std::process::id()));
