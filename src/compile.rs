@@ -810,7 +810,7 @@ fn text_instruction(n: Node<'_, '_>, text: &str) -> Result<Instruction, Diagnost
 }
 thread_local! {
     static STATIC_VARIABLES: std::cell::RefCell<xpath::Variables<'static>> =
-        const { std::cell::RefCell::new(xpath::Variables::new()) };
+        std::cell::RefCell::new(xpath::Variables::new());
 }
 /// Evaluate a static (compile-time) expression such as a `use-when` condition.
 fn static_value(n: Node<'_, '_>, source: &str) -> Result<xpath::Value<'static>, Diagnostic> {

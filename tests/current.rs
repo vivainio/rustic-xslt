@@ -81,3 +81,12 @@ fn current_function_references_retain_their_creation_item() {
         "aa:current:0;bb:current:0;"
     );
 }
+
+#[test]
+fn closures_and_current_keep_their_own_scopes_across_nested_iterations() {
+    let body = r#"<xsl:for-each select="r/n"><xsl:variable name="saved" select="current#0"/><xsl:variable name="outer" select="string(@id)"/><xsl:variable name="capture" select="function(){concat($outer, $saved()/@id)}"/><xsl:for-each select="../n"><xsl:value-of select="concat($capture(), current()/@id, ';')"/></xsl:for-each></xsl:for-each>"#;
+    assert_eq!(
+        run("", body, "<r><n id='a'/><n id='b'/></r>").unwrap(),
+        "aaa;aab;bba;bbb;"
+    );
+}

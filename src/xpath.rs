@@ -215,15 +215,48 @@ pub(crate) enum Item<'a> {
 pub(crate) type Value<'a> = Vec<Item<'a>>;
 #[derive(Clone)]
 pub(crate) struct Variables<'a> {
-    values: BTreeMap<String, Value<'a>>,
+    values: std::rc::Rc<BTreeMap<String, Value<'a>>>,
+    current_item: Option<Value<'a>>,
     pub runtime: Option<std::rc::Rc<crate::runtime::FunctionRuntime<'a>>>,
 }
 impl<'a> Variables<'a> {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
-            values: BTreeMap::new(),
+            values: std::rc::Rc::new(BTreeMap::new()),
+            current_item: None,
             runtime: None,
         }
+    }
+    pub fn get(&self, key: &str) -> Option<&Value<'a>> {
+        if key == CURRENT_ITEM {
+            self.current_item.as_ref().or_else(|| self.values.get(key))
+        } else {
+            self.values.get(key)
+        }
+    }
+    pub fn insert(&mut self, key: String, value: Value<'a>) -> Option<Value<'a>> {
+        if key == CURRENT_ITEM {
+            let previous = self.current_item.replace(value);
+            previous.or_else(|| self.values.get(CURRENT_ITEM).cloned())
+        } else {
+            std::rc::Rc::make_mut(&mut self.values).insert(key, value)
+        }
+    }
+    pub fn remove(&mut self, key: &str) -> Option<Value<'a>> {
+        if key == CURRENT_ITEM {
+            let current = self.current_item.take();
+            let inherited = std::rc::Rc::make_mut(&mut self.values).remove(key);
+            current.or(inherited)
+        } else {
+            std::rc::Rc::make_mut(&mut self.values).remove(key)
+        }
+    }
+    fn captured_values(&self) -> BTreeMap<String, Value<'a>> {
+        let mut values = (*self.values).clone();
+        if let Some(current) = &self.current_item {
+            values.insert(CURRENT_ITEM.into(), current.clone());
+        }
+        values
     }
 }
 impl std::fmt::Debug for Variables<'_> {
@@ -244,13 +277,14 @@ impl<'a> std::ops::Deref for Variables<'a> {
 }
 impl<'a> std::ops::DerefMut for Variables<'a> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.values
+        std::rc::Rc::make_mut(&mut self.values)
     }
 }
 impl<'a> FromIterator<(String, Value<'a>)> for Variables<'a> {
     fn from_iter<T: IntoIterator<Item = (String, Value<'a>)>>(iter: T) -> Self {
         Self {
-            values: iter.into_iter().collect(),
+            values: std::rc::Rc::new(iter.into_iter().collect()),
+            current_item: None,
             runtime: None,
         }
     }
@@ -2484,7 +2518,7 @@ pub(crate) fn eval<'a>(
             let captured = without_grouping_context(vars);
             vec![Item::Function(std::rc::Rc::new(FunctionValue::Inline(
                 def.clone(),
-                captured.values,
+                captured.captured_values(),
             )))]
         }
         Expr::FunctionRef(name, arity, namespaces) => {
@@ -3757,6 +3791,9 @@ fn without_grouping_context<'a>(vars: &Variables<'a>) -> Variables<'a> {
         .map(|(name, value)| (name.clone(), value.clone()))
         .collect();
     result.runtime = vars.runtime.clone();
+    if let Some(current) = vars.get(CURRENT_ITEM) {
+        result.insert(CURRENT_ITEM.into(), current.clone());
+    }
     result
 }
 
@@ -3881,7 +3918,8 @@ fn call_function_item<'a>(
         FunctionValue::Array(array) => crate::maps::array_member(array, &args[0]).cloned(),
         FunctionValue::Inline(def, captured) => {
             let mut scope = Variables {
-                values: captured.clone(),
+                values: std::rc::Rc::new(captured.clone()),
+                current_item: None,
                 runtime: vars.runtime.clone(),
             };
             for ((param, ty), value) in def.params.iter().zip(args) {
