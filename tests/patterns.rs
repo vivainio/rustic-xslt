@@ -350,11 +350,12 @@ fn parenthesized_patterns_do_not_rescan_the_document_for_every_candidate() {
 
 #[test]
 fn parenthesized_root_patterns_with_boolean_variables_fit_the_work_budget() {
-    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:variable name="enabled" select="false()"/><xsl:template match="/"><xsl:apply-templates select="//*"/></xsl:template><xsl:template match="*"/><xsl:template match="(/doc/a | /doc/b)[$enabled]">X</xsl:template></xsl:stylesheet>"#).unwrap();
+    let predicate = format!("$enabled and {}", vec!["true()"; 30].join(" and "));
+    let sheet = Stylesheet::compile(&format!(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:variable name="enabled" select="false()"/><xsl:template match="/"><xsl:apply-templates select="//*"/></xsl:template><xsl:template match="*"/><xsl:template match="(/doc/a | /doc/b)[{predicate}]">X</xsl:template></xsl:stylesheet>"#)).unwrap();
     let document = format!("<doc>{}<a/></doc>", "<n/>".repeat(400));
     let options = rust_xslt::TransformOptions {
         limits: rust_xslt::Limits {
-            max_steps: 300_000,
+            max_steps: 30_000,
             ..Default::default()
         },
         ..Default::default()

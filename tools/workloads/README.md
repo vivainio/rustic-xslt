@@ -187,8 +187,9 @@ assertion details across Rust and Saxon. All three run within the default
 contain validation failures and do not claim to be balanced business invoices.
 The `--lines` option selects other sizes. With `--lines 100 200 500`, 100
 lines fit within the default limit; 200 and 500 require a higher limit on this
-workload. With `--max-steps 200000000`, all three sizes agree across both
-compilers and processors. These limits are per transformation.
+workload. The 200-line case agrees across both compilers and processors with
+`--max-steps 25000000`; all three agree with `--max-steps 200000000`. These
+limits are per transformation.
 
 The same checkout includes the larger CEN EN 16931 UBL schema. Its reference
 probe checks a valid invoice and variants with a missing specification ID, an

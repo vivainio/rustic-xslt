@@ -35,6 +35,9 @@ pub(crate) struct SelectionKey<'a> {
 #[derive(Debug, Clone)]
 pub(crate) struct Branch {
     selection_id: SelectionId,
+    // The expression is immutable after compilation. Variable values still
+    // have to be checked for each match, but its structure does not.
+    selection_variables: Option<Vec<String>>,
     pub steps: Vec<Step>,
     /// `gaps[i]` is true when step `i` follows a `//` (any number of intermediate levels).
     pub gaps: Vec<bool>,
@@ -640,6 +643,10 @@ fn into_branch(p: Parts) -> Branch {
     };
     Branch {
         selection_id: SelectionId(Arc::new(())),
+        selection_variables: p
+            .selected
+            .as_ref()
+            .and_then(xpath::cacheable_root_selection),
         steps: p.steps,
         gaps: p.gaps,
         absolute: p.absolute,
@@ -711,6 +718,7 @@ fn matches_item_raw<'a>(
             selection_contains(
                 branch.selected.as_ref().unwrap(),
                 &branch.selection_id,
+                &branch.selection_variables,
                 *node,
                 &scope,
                 budget,
@@ -823,6 +831,7 @@ fn matches_inner<'a>(
             selection_contains(
                 selected,
                 &branch.selection_id,
+                &branch.selection_variables,
                 node,
                 vars,
                 budget,
@@ -846,6 +855,7 @@ fn matches_inner<'a>(
 fn selection_contains<'a>(
     selected: &Expr,
     selection_id: &SelectionId,
+    selection_variables: &Option<Vec<String>>,
     node: XNode<'a>,
     vars: &Variables<'a>,
     budget: &mut Budget,
@@ -856,8 +866,21 @@ fn selection_contains<'a>(
         position: 1,
         size: 1,
     };
-    let (values, analysis_cost) = xpath::cacheable_root_selection(selected, vars);
-    budget.charge(analysis_cost)?;
+    let mut values = Vec::new();
+    let mut cacheable = selection_variables.is_some();
+    if let Some(names) = selection_variables {
+        for name in names {
+            budget.charge(name.len().saturating_add(1))?;
+            match vars.get(name).map(Vec::as_slice) {
+                Some([Item::Boolean(value)]) => values.push(*value),
+                _ => {
+                    cacheable = false;
+                    break;
+                }
+            }
+        }
+    }
+    let values = cacheable.then_some(values);
     let cache_key = if let Some(values) = values
         && vars.runtime.is_some()
     {
@@ -1034,6 +1057,7 @@ fn step_matches<'a>(
                 return selection_contains(
                     selected,
                     &branch.selection_id,
+                    &branch.selection_variables,
                     node,
                     vars,
                     budget,
@@ -1068,6 +1092,7 @@ fn step_matches<'a>(
                 if selection_contains(
                     selected,
                     &branch.selection_id,
+                    &branch.selection_variables,
                     candidate,
                     vars,
                     budget,
