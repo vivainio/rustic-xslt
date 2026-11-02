@@ -184,6 +184,24 @@ example with the code-list phase and multiple inputs. All stages fit within the
 default 20-million-step limit on these inputs. This covers these examples and
 phase selections, not every CEN rule.
 
+For the CII binding, fetch the European validation repository's pinned invoice
+examples and run the companion probe:
+
+```sh
+git clone --filter=blob:none --sparse https://github.com/ConnectingEurope/eInvoicing-EN16931.git /tmp/xslt-workloads/cen-examples
+git -C /tmp/xslt-workloads/cen-examples checkout b17b2695e5e3e021945c38658326b78a76f80f84
+git -C /tmp/xslt-workloads/cen-examples sparse-checkout set cii/examples
+PYTHONPATH=/tmp/rust-xslt-saxonche python3 tools/workloads/reference_cii.py \
+  --schxslt2 /tmp/xslt-workloads/schxslt2 \
+  --peppol /tmp/xslt-workloads/peppol \
+  --cen-examples /tmp/xslt-workloads/cen-examples --release
+```
+
+The probe compares both generated validators on both processors for all 15
+upstream examples and three intentionally invalid invoices. It checks model
+and code-list phase selection and the public example as well. These inputs fit
+within the default 20-million-step limit; they do not cover every CII rule.
+
 The independent [Schematron/schema](https://github.com/Schematron/schema)
 repository contains real schemas for SVRL reports and additional Schematron
 constraints. The following optional reference probe uses the pinned revision,
