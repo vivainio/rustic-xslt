@@ -366,6 +366,23 @@ fn parenthesized_root_patterns_with_boolean_variables_fit_the_work_budget() {
 }
 
 #[test]
+fn cached_pattern_with_many_matches_fits_the_work_budget() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:variable name="enabled" select="true()"/><xsl:template match="/"><xsl:apply-templates select="/doc/*"/></xsl:template><xsl:template match="*">N</xsl:template><xsl:template match="(/doc/a | /doc/b)[$enabled]">X</xsl:template></xsl:stylesheet>"#).unwrap();
+    let document = format!("<doc>{}</doc>", "<a/><b/><n/>".repeat(200));
+    let options = rust_xslt::TransformOptions {
+        limits: rust_xslt::Limits {
+            max_steps: 200_000,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(
+        sheet.transform_with_options(&document, &options).unwrap(),
+        "XXN".repeat(200)
+    );
+}
+
+#[test]
 fn parenthesized_pattern_cache_tracks_boolean_variable_values() {
     let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:call-template name="group"><xsl:with-param name="enabled" select="true()"/></xsl:call-template><xsl:call-template name="group"><xsl:with-param name="enabled" select="false()"/></xsl:call-template></xsl:template><xsl:template name="group"><xsl:param name="enabled"/><xsl:for-each-group select="/doc/n" group-starting-with="(/doc/n | /doc/x)[$enabled]"><xsl:text>X</xsl:text></xsl:for-each-group><xsl:text>|</xsl:text></xsl:template></xsl:stylesheet>"#).unwrap();
     assert_eq!(

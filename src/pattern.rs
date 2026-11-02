@@ -873,7 +873,7 @@ fn selection_contains<'a>(
     if let (Some(runtime), Some(key)) = (&vars.runtime, &cache_key)
         && let Some(nodes) = runtime.pattern_selections.borrow().get(key)
     {
-        budget.charge(nodes.len())?;
+        budget.tick()?;
         return Ok(nodes.contains(&node));
     }
     let result = xpath::eval(selected, &focus, vars, budget, 1, backwards)?;
@@ -881,17 +881,16 @@ fn selection_contains<'a>(
         .iter()
         .any(|item| matches!(item, Item::Node(n) if *n == node));
     if let (Some(runtime), Some(key)) = (&vars.runtime, cache_key) {
-        let nodes: Vec<_> = result
-            .iter()
-            .filter_map(|item| match item {
-                Item::Node(node) => Some(*node),
-                _ => None,
-            })
-            .collect();
         let bytes = key
             .variables
             .len()
-            .saturating_add(nodes.len().saturating_mul(std::mem::size_of::<XNode<'a>>()))
+            .saturating_add(
+                result.len().saturating_mul(
+                    std::mem::size_of::<XNode<'a>>()
+                        .saturating_add(1)
+                        .saturating_mul(2),
+                ),
+            )
             .saturating_add(128);
         let used = runtime.pattern_cache_bytes.get();
         if bytes
@@ -901,6 +900,14 @@ fn selection_contains<'a>(
                 .max_temporary_bytes
                 .saturating_sub(used)
         {
+            budget.charge(result.len())?;
+            let nodes = result
+                .iter()
+                .filter_map(|item| match item {
+                    Item::Node(node) => Some(*node),
+                    _ => None,
+                })
+                .collect();
             runtime.pattern_selections.borrow_mut().insert(key, nodes);
             runtime.pattern_cache_bytes.set(used + bytes);
         }

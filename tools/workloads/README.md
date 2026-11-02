@@ -185,6 +185,10 @@ and removing its profile identifier, then compares the resulting fired rules and
 assertion details across Rust and Saxon. All three run within the default
 20-million-step limit on the pinned workload. The generated inputs deliberately
 contain validation failures and do not claim to be balanced business invoices.
+The `--lines` option selects other sizes. With `--lines 100 200 500`, 100
+lines fit within the default limit; 200 and 500 require a higher limit on this
+workload. With `--max-steps 200000000`, all three sizes agree across both
+compilers and processors. These limits are per transformation.
 
 The same checkout includes the larger CEN EN 16931 UBL schema. Its reference
 probe checks a valid invoice and variants with a missing specification ID, an

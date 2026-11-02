@@ -18,7 +18,11 @@ def main():
     parser.add_argument('--peppol', type=Path, required=True)
     parser.add_argument('--release', action='store_true')
     parser.add_argument('--max-steps', type=int, default=20_000_000)
+    parser.add_argument('--lines', type=int, nargs='+', default=[10, 20, 40],
+                        help='invoice line counts to compare (default: 10 20 40)')
     args = parser.parse_args()
+    if any(count < 1 for count in args.lines):
+        parser.error('--lines values must be positive')
     schxslt, peppol = args.schxslt2.resolve(), args.peppol.resolve()
     print('SchXslt2 revision:', revision(schxslt), flush=True)
     print('Peppol revision:', revision(peppol), flush=True)
@@ -59,7 +63,7 @@ def main():
             path = Path(tmp) / (producer + '.xsl')
             path.write_text(generated)
             saxon_validator = xslt.compile_stylesheet(stylesheet_file=str(path))
-            for count in (10, 20, 40):
+            for count in args.lines:
                 xml = invoice_with_lines(count)
                 rust = invoke(driver, path, xml, {}, invoice.as_uri(), max_steps=args.max_steps, timeout=120)
                 if rust['diagnostics']:
