@@ -167,6 +167,23 @@ The comparison cross-runs both generated validators through both processors,
 checking fired-rule contexts and assertion IDs, tests, locations, and text.
 It covers these two inputs, not every Peppol rule.
 
+The same checkout includes the larger CEN EN 16931 UBL schema. Its reference
+probe checks a valid invoice and variants with a missing specification ID, an
+incorrect monetary total, and an invalid invoice-type code:
+
+```sh
+PYTHONPATH=/tmp/rust-xslt-saxonche python3 tools/workloads/reference_cen.py \
+  --schxslt2 /tmp/xslt-workloads/schxslt2 \
+  --peppol /tmp/xslt-workloads/peppol --release
+```
+
+Both processors compile and execute the schema in the default, model, and
+code-list phases. The probe compares fired-rule contexts and assertion details
+across both processors, checks the expected failure IDs, and runs the public
+example with the code-list phase and multiple inputs. All stages fit within the
+default 20-million-step limit on these inputs. This covers these examples and
+phase selections, not every CEN rule.
+
 The independent [Schematron/schema](https://github.com/Schematron/schema)
 repository contains real schemas for SVRL reports and additional Schematron
 constraints. The following optional reference probe uses the pinned revision,
