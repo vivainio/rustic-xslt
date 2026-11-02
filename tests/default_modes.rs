@@ -1,4 +1,42 @@
 use rust_xslt::{Stylesheet, TransformOptions};
+
+#[test]
+fn dispatch_skips_other_modes_and_keeps_all_mode_next_match() {
+    let unrelated: String = (1..=120)
+        .map(|i| format!(r#"<xsl:template match="n" mode="m{i}">wrong</xsl:template>"#))
+        .collect();
+    let sheet = Stylesheet::compile(&format!(r##"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:apply-templates select="r/n" mode="m0"/></xsl:template><xsl:template match="n" mode="#all" priority="0">X</xsl:template><xsl:template match="n" mode="m0" priority="1">M<xsl:next-match/></xsl:template>{unrelated}</xsl:stylesheet>"##)).unwrap();
+    let input = format!("<r>{}</r>", "<n/>".repeat(200));
+    let options = TransformOptions {
+        limits: rust_xslt::Limits {
+            max_steps: 20_000,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(
+        sheet.transform_with_options(&input, &options).unwrap(),
+        "MX".repeat(200)
+    );
+}
+
+#[test]
+fn mode_dispatch_works_when_the_cache_has_no_space() {
+    let sheet = Stylesheet::compile(r##"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:apply-templates select="r/n" mode="m"/></xsl:template><xsl:template match="n" mode="#all">X</xsl:template></xsl:stylesheet>"##).unwrap();
+    let options = TransformOptions {
+        limits: rust_xslt::Limits {
+            max_temporary_bytes: 0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(
+        sheet
+            .transform_with_options("<r><n/><n/></r>", &options)
+            .unwrap(),
+        "XX"
+    );
+}
 fn source(body: &str) -> String {
     format!(
         r##"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:p="urn:p" xmlns:q="urn:p" default-mode="p:m"><xsl:output method="text"/>{body}</xsl:stylesheet>"##

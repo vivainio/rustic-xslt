@@ -328,6 +328,46 @@ pub(crate) struct FunctionRuntime<'a> {
         >,
     >,
     pub pattern_cache_bytes: std::cell::Cell<usize>,
+    template_modes: std::cell::RefCell<std::collections::HashMap<String, Rc<Vec<usize>>>>,
+}
+
+impl FunctionRuntime<'_> {
+    fn templates_for_mode(
+        &self,
+        mode: &str,
+        budget: &mut Budget,
+    ) -> Result<Rc<Vec<usize>>, Diagnostic> {
+        if let Some(templates) = self.template_modes.borrow().get(mode) {
+            budget.tick()?;
+            return Ok(templates.clone());
+        }
+        budget.charge(self.sheet.templates.len())?;
+        let templates: Vec<_> = self
+            .sheet
+            .templates
+            .iter()
+            .enumerate()
+            .filter_map(|(index, template)| {
+                (template.pattern.is_some()
+                    && template.modes.iter().any(|m| m == mode || m == "#all"))
+                .then_some(index)
+            })
+            .collect();
+        let bytes = templates
+            .capacity()
+            .saturating_mul(std::mem::size_of::<usize>())
+            .saturating_add(mode.len())
+            .saturating_add(128);
+        let templates = Rc::new(templates);
+        let used = self.pattern_cache_bytes.get();
+        if bytes <= self.options.limits.max_temporary_bytes.saturating_sub(used) {
+            self.template_modes
+                .borrow_mut()
+                .insert(mode.to_owned(), templates.clone());
+            self.pattern_cache_bytes.set(used + bytes);
+        }
+        Ok(templates)
+    }
 }
 
 struct Run<'a, 'r> {
@@ -1122,6 +1162,7 @@ fn execute<'a>(
         documents: std::cell::RefCell::new(std::collections::BTreeMap::new()),
         pattern_selections: std::cell::RefCell::new(std::collections::HashMap::new()),
         pattern_cache_bytes: std::cell::Cell::new(0),
+        template_modes: std::cell::RefCell::new(std::collections::HashMap::new()),
         initial_root: if options.initial_template.is_none() {
             match root.item {
                 Item::Node(node) => {
@@ -1819,11 +1860,14 @@ fn run_tasks_with_conditionals<'a>(
                 }
                 let mut best: Option<Rule> = None;
                 let mut ambiguous = false;
-                for (ti, t) in sheet.templates.iter().enumerate() {
+                let candidates = globals
+                    .runtime
+                    .as_ref()
+                    .expect("runtime is initialized")
+                    .templates_for_mode(&mode, budget)?;
+                for &ti in candidates.iter() {
                     budget.tick()?;
-                    if !t.modes.iter().any(|m| m == &mode || m == "#all") {
-                        continue;
-                    }
+                    let t = &sheet.templates[ti];
                     if let Some(branches) = &t.pattern {
                         for (bi, b) in branches.iter().enumerate() {
                             let candidate = Rule {
