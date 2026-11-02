@@ -321,8 +321,9 @@ pub(crate) struct FunctionRuntime<'a> {
     pub initial_root: Option<(usize, u32)>,
     pub initial_accumulators: Option<crate::mode::AccumulatorUse>,
     pub documents: std::cell::RefCell<std::collections::BTreeMap<String, Value<'a>>>,
-    pub pattern_selections:
-        std::cell::RefCell<std::collections::HashMap<(String, XNode<'a>, bool), Vec<XNode<'a>>>>,
+    pub pattern_selections: std::cell::RefCell<
+        std::collections::HashMap<crate::pattern::SelectionKey<'a>, Vec<XNode<'a>>>,
+    >,
     pub pattern_cache_bytes: std::cell::Cell<usize>,
 }
 

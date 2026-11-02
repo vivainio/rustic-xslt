@@ -2837,20 +2837,49 @@ fn root_invariant_predicate(expression: &Expr) -> bool {
 }
 
 // A selection generated for parenthesized descendant patterns can be reused
-// only when every part is a pure function of the candidate's document.
-fn cache_pure_predicate(expression: &Expr) -> bool {
+// when its result depends only on the document and captured boolean variables.
+fn cache_pure_predicate(
+    expression: &Expr,
+    vars: &Variables<'_>,
+    values: &mut Vec<bool>,
+    cost: &mut usize,
+) -> bool {
+    *cost = cost.saturating_add(1);
     match expression {
         Expr::String(_) | Expr::Number(_) | Expr::Context | Expr::Root => true,
-        Expr::Unary(_, inner) | Expr::LookupContext(inner, _) => cache_pure_predicate(inner),
-        Expr::Sequence(items) => items.iter().all(cache_pure_predicate),
+        Expr::Variable(name) => {
+            *cost = cost.saturating_add(name.len());
+            match vars.get(name).map(Vec::as_slice) {
+                Some([Item::Boolean(value)]) => {
+                    if values.len() >= 16_384 {
+                        return false;
+                    }
+                    values.push(*value);
+                    true
+                }
+                _ => false,
+            }
+        }
+        Expr::Unary(_, inner) | Expr::LookupContext(inner, _) => {
+            cache_pure_predicate(inner, vars, values, cost)
+        }
+        Expr::Sequence(items) => items
+            .iter()
+            .all(|item| cache_pure_predicate(item, vars, values, cost)),
         Expr::Path(base, steps) => {
-            cache_pure_predicate(base)
-                && steps
-                    .iter()
-                    .all(|step| step.predicates.iter().all(cache_pure_predicate))
+            *cost = cost.saturating_add(steps.len());
+            cache_pure_predicate(base, vars, values, cost)
+                && steps.iter().all(|step| {
+                    step.predicates
+                        .iter()
+                        .all(|predicate| cache_pure_predicate(predicate, vars, values, cost))
+                })
         }
         Expr::Filter(base, predicates) => {
-            cache_pure_predicate(base) && predicates.iter().all(cache_pure_predicate)
+            cache_pure_predicate(base, vars, values, cost)
+                && predicates
+                    .iter()
+                    .all(|predicate| cache_pure_predicate(predicate, vars, values, cost))
         }
         Expr::Call(name, arguments)
             if matches!(
@@ -2877,7 +2906,9 @@ fn cache_pure_predicate(expression: &Expr) -> bool {
                     | "namespace-uri"
             ) =>
         {
-            arguments.iter().all(cache_pure_predicate)
+            arguments
+                .iter()
+                .all(|argument| cache_pure_predicate(argument, vars, values, cost))
         }
         Expr::Binary(op, left, right)
             if matches!(
@@ -2898,46 +2929,68 @@ fn cache_pure_predicate(expression: &Expr) -> bool {
                     | "ge"
             ) =>
         {
-            cache_pure_predicate(left) && cache_pure_predicate(right)
+            cache_pure_predicate(left, vars, values, cost)
+                && cache_pure_predicate(right, vars, values, cost)
         }
         Expr::If(test, yes, no) => {
-            cache_pure_predicate(test) && cache_pure_predicate(yes) && cache_pure_predicate(no)
+            cache_pure_predicate(test, vars, values, cost)
+                && cache_pure_predicate(yes, vars, values, cost)
+                && cache_pure_predicate(no, vars, values, cost)
         }
         _ => false,
     }
 }
 
-fn cache_pure_nodes(expression: &Expr) -> bool {
+fn cache_pure_nodes(
+    expression: &Expr,
+    vars: &Variables<'_>,
+    values: &mut Vec<bool>,
+    cost: &mut usize,
+) -> bool {
+    *cost = cost.saturating_add(1);
     match expression {
         Expr::Path(base, steps) => {
+            *cost = cost.saturating_add(steps.len());
             matches!(base.as_ref(), Expr::Context | Expr::Root)
-                && steps
-                    .iter()
-                    .all(|step| step.predicates.iter().all(cache_pure_predicate))
+                && steps.iter().all(|step| {
+                    step.predicates
+                        .iter()
+                        .all(|predicate| cache_pure_predicate(predicate, vars, values, cost))
+                })
         }
         Expr::Binary(op, left, right)
             if matches!(op.as_str(), "|" | "union" | "intersect" | "except") =>
         {
-            cache_pure_nodes(left) && cache_pure_nodes(right)
+            cache_pure_nodes(left, vars, values, cost)
+                && cache_pure_nodes(right, vars, values, cost)
         }
         Expr::Filter(base, predicates) => {
-            cache_pure_nodes(base) && predicates.iter().all(cache_pure_predicate)
+            cache_pure_nodes(base, vars, values, cost)
+                && predicates
+                    .iter()
+                    .all(|predicate| cache_pure_predicate(predicate, vars, values, cost))
         }
         _ => false,
     }
 }
 
-pub(crate) fn cacheable_root_selection(expression: &Expr) -> bool {
+pub(crate) fn cacheable_root_selection(
+    expression: &Expr,
+    vars: &Variables<'_>,
+) -> (Option<Vec<bool>>, usize) {
     let Expr::PathMap(base, selection) = expression else {
-        return false;
+        return (None, 1);
     };
     let Expr::Path(root, steps) = base.as_ref() else {
-        return false;
+        return (None, 1);
     };
-    matches!(root.as_ref(), Expr::Call(name, args) if name == "root" && args.is_empty())
+    let mut values = Vec::new();
+    let mut cost = 2;
+    let cacheable = matches!(root.as_ref(), Expr::Call(name, args) if name == "root" && args.is_empty())
         && matches!(steps.as_slice(), [step] if matches!(step.axis, Axis::DescendantOrSelf)
             && matches!(step.test, Test::Node) && step.predicates.is_empty())
-        && cache_pure_nodes(selection)
+        && cache_pure_nodes(selection, vars, &mut values, &mut cost);
+    (cacheable.then_some(values), cost)
 }
 
 fn root_invariant_nodes(expression: &Expr) -> bool {

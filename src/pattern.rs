@@ -6,8 +6,35 @@ use crate::{
     xpath::{self, Axis, Budget, Expr, Focus, Item, Step, Test, Variables, XNode},
 };
 use std::collections::BTreeMap;
+use std::sync::Arc;
+
+/// Clones of a compiled branch keep this identity. The cache retains the Arc,
+/// so a different branch cannot reuse an identity after a temporary is dropped.
+#[derive(Debug, Clone)]
+pub(crate) struct SelectionId(Arc<()>);
+impl PartialEq for SelectionId {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for SelectionId {}
+impl std::hash::Hash for SelectionId {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::hash::Hash::hash(&Arc::as_ptr(&self.0), state);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct SelectionKey<'a> {
+    id: SelectionId,
+    root: XNode<'a>,
+    backwards: bool,
+    variables: Vec<bool>,
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct Branch {
+    selection_id: SelectionId,
     pub steps: Vec<Step>,
     /// `gaps[i]` is true when step `i` follows a `//` (any number of intermediate levels).
     pub gaps: Vec<bool>,
@@ -612,6 +639,7 @@ fn into_branch(p: Parts) -> Branch {
         -0.5
     };
     Branch {
+        selection_id: SelectionId(Arc::new(())),
         steps: p.steps,
         gaps: p.gaps,
         absolute: p.absolute,
@@ -682,6 +710,7 @@ fn matches_item_raw<'a>(
             scope.insert(xpath::CURRENT_ITEM.into(), vec![Item::Node(*node)]);
             selection_contains(
                 branch.selected.as_ref().unwrap(),
+                &branch.selection_id,
                 *node,
                 &scope,
                 budget,
@@ -791,7 +820,14 @@ fn matches_inner<'a>(
     let vars = &current_scope;
     if branch.steps.is_empty() {
         return if let Some(selected) = &branch.selected {
-            selection_contains(selected, node, vars, budget, backwards)
+            selection_contains(
+                selected,
+                &branch.selection_id,
+                node,
+                vars,
+                budget,
+                backwards,
+            )
         } else {
             Ok(node.is_document())
         };
@@ -809,6 +845,7 @@ fn matches_inner<'a>(
 /// Evaluate a selection anchor in the candidate's document and preserve node identity.
 fn selection_contains<'a>(
     selected: &Expr,
+    selection_id: &SelectionId,
     node: XNode<'a>,
     vars: &Variables<'a>,
     budget: &mut Budget,
@@ -819,26 +856,17 @@ fn selection_contains<'a>(
         position: 1,
         size: 1,
     };
-    // Bound the structural key while formatting, without accepting truncated keys.
-    struct Key(String);
-    impl std::fmt::Write for Key {
-        fn write_str(&mut self, value: &str) -> std::fmt::Result {
-            if value.len() > 16_384usize.saturating_sub(self.0.len()) {
-                return Err(std::fmt::Error);
-            }
-            self.0.push_str(value);
-            Ok(())
-        }
-    }
-    let cache_key = if xpath::cacheable_root_selection(selected) && vars.runtime.is_some() {
-        use std::fmt::Write;
-        let mut description = Key(String::new());
-        if write!(&mut description, "{selected:?}").is_ok() {
-            budget.charge(description.0.len())?;
-            Some((description.0, node.root(), backwards))
-        } else {
-            None
-        }
+    let (values, analysis_cost) = xpath::cacheable_root_selection(selected, vars);
+    budget.charge(analysis_cost)?;
+    let cache_key = if let Some(values) = values
+        && vars.runtime.is_some()
+    {
+        Some(SelectionKey {
+            id: selection_id.clone(),
+            root: node.root(),
+            backwards,
+            variables: values,
+        })
     } else {
         None
     };
@@ -861,7 +889,7 @@ fn selection_contains<'a>(
             })
             .collect();
         let bytes = key
-            .0
+            .variables
             .len()
             .saturating_add(nodes.len().saturating_mul(std::mem::size_of::<XNode<'a>>()))
             .saturating_add(128);
@@ -996,7 +1024,14 @@ fn step_matches<'a>(
     if matches!(step.axis, Axis::SelfNode) {
         if index == 0 {
             if let Some(selected) = &branch.selected {
-                return selection_contains(selected, node, vars, budget, backwards);
+                return selection_contains(
+                    selected,
+                    &branch.selection_id,
+                    node,
+                    vars,
+                    budget,
+                    backwards,
+                );
             }
             return Ok(if branch.absolute {
                 node.is_document()
@@ -1023,7 +1058,14 @@ fn step_matches<'a>(
             let mut ancestor = parent;
             while let Some(candidate) = ancestor {
                 budget.tick()?;
-                if selection_contains(selected, candidate, vars, budget, backwards)? {
+                if selection_contains(
+                    selected,
+                    &branch.selection_id,
+                    candidate,
+                    vars,
+                    budget,
+                    backwards,
+                )? {
                     return Ok(true);
                 }
                 if !gap {

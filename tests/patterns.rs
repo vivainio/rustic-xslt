@@ -349,6 +349,47 @@ fn parenthesized_patterns_do_not_rescan_the_document_for_every_candidate() {
 }
 
 #[test]
+fn parenthesized_root_patterns_with_boolean_variables_fit_the_work_budget() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:variable name="enabled" select="false()"/><xsl:template match="/"><xsl:apply-templates select="//*"/></xsl:template><xsl:template match="*"/><xsl:template match="(/doc/a | /doc/b)[$enabled]">X</xsl:template></xsl:stylesheet>"#).unwrap();
+    let document = format!("<doc>{}<a/></doc>", "<n/>".repeat(400));
+    let options = rust_xslt::TransformOptions {
+        limits: rust_xslt::Limits {
+            max_steps: 300_000,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(
+        sheet.transform_with_options(&document, &options).unwrap(),
+        ""
+    );
+}
+
+#[test]
+fn parenthesized_pattern_cache_tracks_boolean_variable_values() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:call-template name="group"><xsl:with-param name="enabled" select="true()"/></xsl:call-template><xsl:call-template name="group"><xsl:with-param name="enabled" select="false()"/></xsl:call-template></xsl:template><xsl:template name="group"><xsl:param name="enabled"/><xsl:for-each-group select="/doc/n" group-starting-with="(/doc/n | /doc/x)[$enabled]"><xsl:text>X</xsl:text></xsl:for-each-group><xsl:text>|</xsl:text></xsl:template></xsl:stylesheet>"#).unwrap();
+    assert_eq!(
+        sheet.transform("<doc><n/><n/><n/></doc>").unwrap(),
+        "XXX|X|"
+    );
+}
+
+#[test]
+fn parenthesized_pattern_cache_keeps_different_branches_separate() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:variable name="enabled" select="true()"/><xsl:template match="/"><xsl:apply-templates select="/doc/*"/></xsl:template><xsl:template match="*">N</xsl:template><xsl:template match="(/doc/a | /doc/c)[$enabled]">A</xsl:template><xsl:template match="(/doc/b | /doc/d)[$enabled]">B</xsl:template></xsl:stylesheet>"#).unwrap();
+    assert_eq!(
+        sheet.transform("<doc><a/><b/><c/><d/></doc>").unwrap(),
+        "ABAB"
+    );
+}
+
+#[test]
+fn parenthesized_pattern_keeps_numeric_variable_predicates_positional() {
+    let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:call-template name="group"><xsl:with-param name="which" select="1"/></xsl:call-template><xsl:call-template name="group"><xsl:with-param name="which" select="2"/></xsl:call-template></xsl:template><xsl:template name="group"><xsl:param name="which"/><xsl:for-each-group select="/doc/n" group-starting-with="(/doc/n | /doc/x)[$which]"><xsl:text>X</xsl:text></xsl:for-each-group><xsl:text>|</xsl:text></xsl:template></xsl:stylesheet>"#).unwrap();
+    assert_eq!(sheet.transform("<doc><n/><n/><n/></doc>").unwrap(), "X|XX|");
+}
+
+#[test]
 fn parenthesized_pattern_cache_keeps_documents_distinct() {
     let sheet = Stylesheet::compile(r#"<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"><xsl:apply-templates select="doc('a')//* | doc('b')//*"/></xsl:template><xsl:template match="*"/><xsl:template match="(pattern | group)[@abstract='true']">X</xsl:template></xsl:stylesheet>"#).unwrap();
     let options = rust_xslt::TransformOptions {

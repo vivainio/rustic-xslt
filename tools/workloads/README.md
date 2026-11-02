@@ -172,6 +172,20 @@ The comparison cross-runs both generated validators through both processors,
 checking fired-rule contexts and assertion IDs, tests, locations, and text.
 It covers these two inputs, not every Peppol rule.
 
+To check a larger input, run:
+
+```sh
+PYTHONPATH=/tmp/rust-xslt-saxonche python3 tools/workloads/reference_peppol_scale.py \
+  --schxslt2 /tmp/xslt-workloads/schxslt2 \
+  --peppol /tmp/xslt-workloads/peppol --release
+```
+
+This creates 10-, 20-, and 40-line invoices by copying an upstream invoice line
+and removing its profile identifier, then compares the resulting fired rules and
+assertion details across Rust and Saxon. All three run within the default
+20-million-step limit on the pinned workload. The generated inputs deliberately
+contain validation failures and do not claim to be balanced business invoices.
+
 The same checkout includes the larger CEN EN 16931 UBL schema. Its reference
 probe checks a valid invoice and variants with a missing specification ID, an
 incorrect monetary total, and an invalid invoice-type code:
