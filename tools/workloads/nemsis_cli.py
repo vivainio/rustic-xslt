@@ -58,6 +58,14 @@ def main():
                     raise AssertionError(f'{name}: preprocessed validator differs from direct validator')
                 baseline[name] = result
                 print('PASS', dataset, label, name, 'failure IDs:', actual_ids, flush=True)
+        process = subprocess.run([str(cli), str(compiler), str(schema), '--iso', '--fail-on-findings', *map(str, inputs)],
+                                 text=True, capture_output=True, timeout=120)
+        reports = [ET.fromstring(chunk) for chunk in re.split(r'(?=<\?xml\s)', process.stdout) if chunk.strip()]
+        if process.returncode != 1 or len(reports) != len(inputs):
+            raise AssertionError(f'{dataset}: findings did not set exit status 1 after all reports')
+        if any(signature(report) != baseline[name] for name, report in zip(names, reports)):
+            raise AssertionError(f'{dataset}: fail-on-findings changed an SVRL report')
+        print('PASS', dataset, 'failed assertions set the findings exit status', flush=True)
 
     fixture = ROOT / 'tools/workloads/schematron'
     with tempfile.TemporaryDirectory(prefix='nemsis-cli-') as tmp:

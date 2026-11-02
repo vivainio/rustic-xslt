@@ -89,6 +89,11 @@ relative includes and fragment identifiers within that tree are supported.
 For each input, validation can also read files under that input's directory and
 its descendants. Each input has its own resource roots. The resolver
 canonicalizes paths, rejects escapes and does not fetch network URLs.
+For pipeline use, `--fail-on-findings` returns status 1 if any input produces a
+`failed-assert` or `successful-report`. It treats every finding as significant,
+including warnings and informational reports, regardless of role or severity.
+All input documents are processed and all SVRL reports are written before this
+status is returned. Without the option, findings do not change the exit status.
 The compiler's XSLT imports and includes are resolved separately within the
 compiler's directory and its descendants.
 Messages from preprocessing and schema compilation are printed to stderr and

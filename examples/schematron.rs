@@ -5,6 +5,7 @@ use std::{
     error::Error,
     fs,
     path::{Path, PathBuf},
+    process::ExitCode,
 };
 
 fn file_uri(path: &Path) -> Result<String, Box<dyn Error>> {
@@ -92,11 +93,11 @@ fn transform_stage(
     Ok(result.principal)
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<ExitCode, Box<dyn Error>> {
     let mut arguments = std::env::args_os().skip(1);
     let transpiler_path = arguments
         .next()
-        .ok_or("usage: schematron TRANSPILER.xsl SCHEMA.sch [--iso] [--iso-preprocess] [--allow-compiler-messages] [--phase NAME] [--max-steps N] [--max-depth N] DOCUMENT.xml [DOCUMENT.xml ...]")?;
+        .ok_or("usage: schematron TRANSPILER.xsl SCHEMA.sch [--iso] [--iso-preprocess] [--allow-compiler-messages] [--fail-on-findings] [--phase NAME] [--max-steps N] [--max-depth N] DOCUMENT.xml [DOCUMENT.xml ...]")?;
     let schema_path = arguments.next().ok_or("missing Schematron schema")?;
     let mut phase = None;
     let mut max_steps = None;
@@ -104,9 +105,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut iso = false;
     let mut iso_preprocess = false;
     let mut allow_compiler_messages = false;
+    let mut fail_on_findings = false;
     let mut documents = Vec::new();
     while let Some(argument) = arguments.next() {
-        if argument == "--allow-compiler-messages" {
+        if argument == "--fail-on-findings" {
+            if fail_on_findings {
+                return Err("--fail-on-findings may be supplied only once".into());
+            }
+            fail_on_findings = true;
+        } else if argument == "--allow-compiler-messages" {
             if allow_compiler_messages {
                 return Err("--allow-compiler-messages may be supplied only once".into());
             }
@@ -239,6 +246,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
     let validator =
         Stylesheet::compile_with_base_uri_and_resolver(&generated, &schema_uri, &*resolver.0)?;
+    let mut findings = false;
     for path in documents {
         let path = Path::new(&path);
         let document_root = path
@@ -293,13 +301,18 @@ fn main() -> Result<(), Box<dyn Error>> {
             .descendants()
             .filter(|n| n.has_tag_name((svrl, "successful-report")))
             .count();
+        findings |= failures > 0 || reports > 0;
         eprintln!(
             "{}: {failures} failed assertions, {reports} successful reports",
             path.display()
         );
         println!("{report}");
     }
-    Ok(())
+    Ok(if fail_on_findings && findings {
+        ExitCode::FAILURE
+    } else {
+        ExitCode::SUCCESS
+    })
 }
 
 #[cfg(test)]

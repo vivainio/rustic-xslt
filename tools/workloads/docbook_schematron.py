@@ -108,6 +108,20 @@ def main():
                 raise AssertionError(f'public example disagrees with Saxon for {label}')
             print('PASS public example:', label, flush=True)
 
+        flagged = subprocess.run(command[:3] + ['--fail-on-findings'] + command[3:],
+                                 text=True, capture_output=True, timeout=120)
+        flagged_reports = [chunk for chunk in re.split(r'(?=<\?xml\s)', flagged.stdout) if chunk.strip()]
+        if flagged.returncode != 1 or len(flagged_reports) != len(external_cases):
+            raise AssertionError('findings did not produce exit status 1 after all reports')
+        for (label, _, _), output in zip(external_cases, flagged_reports):
+            if signature(output) != baseline[label]:
+                raise AssertionError(f'fail-on-findings changed the report for {label}')
+        clean = subprocess.run(command[:3] + ['--fail-on-findings', command[3]],
+                               text=True, capture_output=True, timeout=120)
+        if clean.returncode != 0 or signature(clean.stdout) != baseline['external-single']:
+            raise AssertionError('a report without findings did not exit successfully')
+        print('PASS public example: findings exit status and complete reports', flush=True)
+
         isolated = documents / 'isolated'
         isolated.mkdir()
         isolated_source = isolated / 'source.xml'
