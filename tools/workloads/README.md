@@ -96,6 +96,11 @@ All input documents are processed and all SVRL reports are written before this
 status is returned. Without the option, findings do not change the exit status.
 The compiler's XSLT imports and includes are resolved separately within the
 compiler's directory and its descendants.
+For the recognized NEMSIS ISO skeleton, `--iso-fix-attribute-contexts` applies
+an in-memory compatibility fix for attribute-rule traversal and attribute
+locations. It requires `--iso`, leaves the compiler files untouched, and fails
+if the skeleton does not match the known version. Without the option, the
+example warns when this skeleton is used with attribute-context rules.
 Messages from preprocessing and schema compilation are printed to stderr and
 stop the command by default, since they can indicate a partially compiled
 schema. Use `--allow-compiler-messages` to continue after reviewing them.
@@ -372,6 +377,11 @@ and a schema with an attribute context. To compare SchXslt2 instead, add
 `--schxslt2 /tmp/xslt-workloads/schxslt2`; for 3.0 errors it fires 3,997 rules
 and reports six failures. Two additional failures are attribute rules in
 `header-direct-address.xml` that the ISO validator misses.
+Alternatively, add `--iso-fix-attribute-contexts` to the probe: Rust and Saxon
+then agree with each other on all 137 reports, including both attribute failures
+and their distinct locations. The fixed ISO and SchXslt2 runs have the same
+fired-rule and finding counts for each example. This fix does not address other
+compiler limitations, including the missing pattern in the 2.1 schema.
 
 The same repository's 2.1 schema activates `hasCompatibleR1.1TemplateId` but
 comments out the pattern. Both ISO compiler runs report the missing pattern;

@@ -133,9 +133,34 @@ fn has_attribute_rule_context(schema: &str) -> bool {
     })
 }
 
+fn fix_iso_attribute_contexts(source: &str) -> Result<String, Box<dyn Error>> {
+    let changes = [
+        (
+            "$attributes='true' and parent::node()",
+            "$attributes='true'",
+        ),
+        (
+            "<axsl:template match=\"*\" mode=\"schematron-select-full-path\">",
+            "<axsl:template match=\"*|@*\" mode=\"schematron-select-full-path\">",
+        ),
+        (
+            "<!-- XSLT1 syntax -->\n\t\t<axsl:text>/</axsl:text>",
+            "<!-- XSLT1 syntax -->\n<axsl:apply-templates select=\"parent::*\" mode=\"schematron-get-full-path\"/>\n\t\t<axsl:text>/</axsl:text>",
+        ),
+    ];
+    let mut result = source.to_owned();
+    for (before, after) in changes {
+        if result.matches(before).count() != 1 {
+            return Err("ISO attribute fix does not match this compiler version".into());
+        }
+        result = result.replacen(before, after, 1);
+    }
+    Ok(result)
+}
+
 #[cfg(test)]
 mod attribute_context_tests {
-    use super::has_attribute_rule_context;
+    use super::{fix_iso_attribute_contexts, has_attribute_rule_context};
 
     #[test]
     fn recognizes_attribute_contexts_outside_predicates() {
@@ -152,19 +177,31 @@ mod attribute_context_tests {
             assert!(!has_attribute_rule_context(&schema), "{context}");
         }
     }
+
+    #[test]
+    fn attribute_fix_requires_the_expected_unmodified_skeleton() {
+        let source = "$attributes='true' and parent::node()\n<axsl:template match=\"*\" mode=\"schematron-select-full-path\">\n<!-- XSLT1 syntax -->\n\t\t<axsl:text>/</axsl:text>";
+        let fixed = fix_iso_attribute_contexts(source).unwrap();
+        assert!(!fixed.contains("and parent::node()"));
+        assert!(fixed.contains("match=\"*|@*\""));
+        assert!(fixed.contains("select=\"parent::*\" mode=\"schematron-get-full-path\""));
+        assert!(fix_iso_attribute_contexts("unrecognized compiler").is_err());
+        assert!(fix_iso_attribute_contexts(&format!("{source}{source}")).is_err());
+    }
 }
 
 fn main() -> Result<ExitCode, Box<dyn Error>> {
     let mut arguments = std::env::args_os().skip(1);
     let transpiler_path = arguments
         .next()
-        .ok_or("usage: schematron TRANSPILER.xsl SCHEMA.sch [--iso] [--iso-preprocess] [--allow-compiler-messages] [--fail-on-findings] [--phase NAME] [--max-steps N] [--max-depth N] DOCUMENT.xml [DOCUMENT.xml ...]")?;
+        .ok_or("usage: schematron TRANSPILER.xsl SCHEMA.sch [--iso] [--iso-preprocess] [--iso-fix-attribute-contexts] [--allow-compiler-messages] [--fail-on-findings] [--phase NAME] [--max-steps N] [--max-depth N] DOCUMENT.xml [DOCUMENT.xml ...]")?;
     let schema_path = arguments.next().ok_or("missing Schematron schema")?;
     let mut phase = None;
     let mut max_steps = None;
     let mut max_depth = None;
     let mut iso = false;
     let mut iso_preprocess = false;
+    let mut iso_fix_attributes = false;
     let mut allow_compiler_messages = false;
     let mut fail_on_findings = false;
     let mut documents = Vec::new();
@@ -179,6 +216,11 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
                 return Err("--allow-compiler-messages may be supplied only once".into());
             }
             allow_compiler_messages = true;
+        } else if argument == "--iso-fix-attribute-contexts" {
+            if iso_fix_attributes {
+                return Err("--iso-fix-attribute-contexts may be supplied only once".into());
+            }
+            iso_fix_attributes = true;
         } else if argument == "--iso-preprocess" {
             if iso_preprocess {
                 return Err("--iso-preprocess may be supplied only once".into());
@@ -234,6 +276,9 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
     if iso_preprocess && !iso {
         return Err("--iso-preprocess requires --iso".into());
     }
+    if iso_fix_attributes && !iso {
+        return Err("--iso-fix-attribute-contexts requires --iso".into());
+    }
     let transpiler_path = Path::new(&transpiler_path);
     let schema_path = Path::new(&schema_path);
     let schema_uri = file_uri(schema_path)?;
@@ -249,11 +294,40 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
         .ok_or("transpiler has no parent directory")?
         .to_path_buf();
     let compiler_resolver = local_resolver(compiler_root.clone());
+    let fix_applied = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let compiler_resolver = if iso_fix_attributes {
+        let skeleton = compiler_root.join("iso_schematron_skeleton_for_saxon.xsl");
+        let skeleton_uri = file_uri(&skeleton)?;
+        let patched = fix_iso_attribute_contexts(&(compiler_resolver.0)(&skeleton_uri)?)?;
+        let compiler_source = fs::read_to_string(transpiler_path)?;
+        if !compiler_source.contains("iso_schematron_skeleton_for_saxon.xsl") {
+            return Err(
+                "ISO attribute fix requires a compiler importing the recognized skeleton".into(),
+            );
+        }
+        let applied = fix_applied.clone();
+        ResourceResolver::new(move |uri| {
+            if uri == skeleton_uri {
+                applied.store(true, std::sync::atomic::Ordering::Relaxed);
+                Ok(patched.clone())
+            } else {
+                (compiler_resolver.0)(uri)
+            }
+        })
+    } else {
+        compiler_resolver
+    };
     let transpiler = Stylesheet::compile_with_base_uri_and_resolver(
         &fs::read_to_string(transpiler_path)?,
         &file_uri(transpiler_path)?,
         &*compiler_resolver.0,
     )?;
+    if iso_fix_attributes {
+        if !fix_applied.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err("ISO attribute fix was not used by the compiler".into());
+        }
+        eprintln!("using ISO compiler attribute-context compatibility fix");
+    }
     let mut schema_options = TransformOptions {
         source_uri: Some(schema_uri.clone()),
         resolver: Some(resolver.clone()),
@@ -299,6 +373,7 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
         }
     }
     if iso
+        && !iso_fix_attributes
         && has_attribute_rule_context(&schema)
         && fs::read_to_string(compiler_root.join("iso_schematron_skeleton_for_saxon.xsl"))
             .is_ok_and(|s| s.contains("$attributes='true' and parent::node()"))

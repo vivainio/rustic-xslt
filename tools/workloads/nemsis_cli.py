@@ -40,7 +40,12 @@ def main():
         names = [f'{dataset}DataSet--Base.xml', f'{dataset}DataSet-{failure}_A.xml']
         inputs = [suite / 'xml' / name for name in names]
         baseline = {}
-        for label, extra in [('direct', []), ('preprocessed', ['--iso-preprocess', '--max-depth', '2048', '--max-steps', '100000000'])]:
+        for label, extra in [
+                ('direct', []),
+                ('fixed', ['--iso-fix-attribute-contexts']),
+                ('preprocessed', ['--iso-preprocess', '--max-depth', '2048', '--max-steps', '100000000']),
+                ('preprocessed-fixed', ['--iso-preprocess', '--iso-fix-attribute-contexts',
+                                        '--max-depth', '2048', '--max-steps', '100000000'])]:
             process = subprocess.run([str(cli), str(compiler), str(schema), '--iso', *extra, *map(str, inputs)],
                                      text=True, capture_output=True, check=True, timeout=120)
             reports = [chunk for chunk in re.split(r'(?=<\?xml\s)', process.stdout) if chunk.strip()]
@@ -55,7 +60,7 @@ def main():
                     raise AssertionError(f'{name}: actual failure IDs {actual_ids}, expected {expected_ids}')
                 result = signature(root)
                 if name in baseline and result != baseline[name]:
-                    raise AssertionError(f'{name}: preprocessed validator differs from direct validator')
+                    raise AssertionError(f'{name}: {label} validator differs from direct validator')
                 baseline[name] = result
                 print('PASS', dataset, label, name, 'failure IDs:', actual_ids, flush=True)
         process = subprocess.run([str(cli), str(compiler), str(schema), '--iso', '--fail-on-findings', *map(str, inputs)],
@@ -69,6 +74,20 @@ def main():
 
     fixture = ROOT / 'tools/workloads/schematron'
     with tempfile.TemporaryDirectory(prefix='nemsis-cli-') as tmp:
+        for binding in ('xslt', 'xslt2'):
+            attribute_schema = Path(tmp) / 'attribute.sch'
+            attribute_schema.write_text(f'''<schema xmlns="http://purl.oclc.org/dsdl/schematron" queryBinding="{binding}">
+              <pattern><rule context="r/@id"><assert test=".='good'">bad id</assert></rule></pattern></schema>''')
+            document = Path(tmp) / 'attribute.xml'
+            document.write_text('<r id="bad"/>')
+            process = subprocess.run([str(cli), str(compiler), str(attribute_schema), '--iso',
+                                      '--iso-fix-attribute-contexts', str(document)],
+                                     text=True, capture_output=True, check=True, timeout=120)
+            report = ET.fromstring(process.stdout)
+            failures = report.findall('.//' + SVRL + 'failed-assert')
+            if len(failures) != 1 or not failures[0].get('location', '').endswith('/@id'):
+                raise AssertionError(f'{binding}: attribute rule or location missing')
+            print('PASS ISO attribute context and location:', binding, flush=True)
         schema = Path(tmp) / 'phase.sch'
         schema.write_text((fixture / 'typical.sch').read_text().replace('queryBinding="xslt3"', 'queryBinding="xslt2"'))
         process = subprocess.run([str(cli), str(compiler), str(schema), '--iso', '--phase', 'alternative',

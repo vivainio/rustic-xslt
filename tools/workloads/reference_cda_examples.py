@@ -26,6 +26,8 @@ def main():
                         help='voc.xml required for the 2.1 schema')
     parser.add_argument('--allow-compiler-messages', action='store_true',
                         help='continue after compiler messages; inspect stderr for incomplete rules')
+    parser.add_argument('--iso-fix-attribute-contexts', action='store_true',
+                        help='apply the recognized ISO skeleton attribute compatibility fix')
     parser.add_argument('--release', action='store_true')
     parser.add_argument('--max-steps', type=int, default=200_000_000)
     parser.add_argument('--max-depth', type=int, default=2048)
@@ -36,6 +38,8 @@ def main():
         parser.error('--version 2.1 requires --vocabulary pointing to voc.xml')
     if not args.schxslt2 and not args.nemsis:
         parser.error('one of --nemsis and --schxslt2 is required')
+    if args.iso_fix_attribute_contexts and args.schxslt2:
+        parser.error('--iso-fix-attribute-contexts applies only to the ISO compiler')
     examples = args.examples.resolve()
     print('HL7 examples revision:', revision(examples), flush=True)
     schema = examples / f'ccda-{args.version}.sch'
@@ -62,8 +66,27 @@ def main():
             shutil.copyfile(schema, local_schema)
             shutil.copyfile(args.vocabulary, Path(directory) / 'voc.xml')
             schema = local_schema
+        reference_compiler = compiler
+        if args.iso_fix_attribute_contexts:
+            local_compiler = Path(directory) / 'iso-compiler'
+            shutil.copytree(compiler.parent, local_compiler)
+            skeleton = local_compiler / 'iso_schematron_skeleton_for_saxon.xsl'
+            source = skeleton.read_text()
+            changes = [
+                ("$attributes='true' and parent::node()", "$attributes='true'"),
+                ('<axsl:template match="*" mode="schematron-select-full-path">',
+                 '<axsl:template match="*|@*" mode="schematron-select-full-path">'),
+                ('<!-- XSLT1 syntax -->\n\t\t<axsl:text>/</axsl:text>',
+                 '<!-- XSLT1 syntax -->\n<axsl:apply-templates select="parent::*" mode="schematron-get-full-path"/>\n\t\t<axsl:text>/</axsl:text>'),
+            ]
+            for before, after in changes:
+                if source.count(before) != 1:
+                    raise ValueError('ISO attribute fix does not match this compiler version')
+                source = source.replace(before, after, 1)
+            skeleton.write_text(source)
+            reference_compiler = local_compiler / compiler.name
         xslt = processor.new_xslt30_processor()
-        compiler_xslt = xslt.compile_stylesheet(stylesheet_file=str(compiler))
+        compiler_xslt = xslt.compile_stylesheet(stylesheet_file=str(reference_compiler))
         phase_parameter = '{http://dmaus.name/ns/2023/schxslt}phase' if args.schxslt2 else 'phase'
         compiler_xslt.set_parameter(phase_parameter, processor.make_string_value(args.phase))
         if not args.schxslt2:
@@ -75,6 +98,8 @@ def main():
                    '--max-steps', str(args.max_steps), '--max-depth', str(args.max_depth)]
         if not args.schxslt2:
             command.append('--iso')
+        if args.iso_fix_attribute_contexts:
+            command.append('--iso-fix-attribute-contexts')
         if args.allow_compiler_messages:
             command.append('--allow-compiler-messages')
         rust = subprocess.run([*command, *(str(path) for path in inputs)], cwd=ROOT, text=True,
@@ -83,8 +108,10 @@ def main():
             raise RuntimeError(f'rust-xslt failed: {rust.stderr.strip()}')
         warning = 'this ISO compiler can skip attribute-context rules'
         if args.version == '3.0' and args.phase == 'errors':
-            if (warning in rust.stderr) == bool(args.schxslt2):
+            if (warning in rust.stderr) != (not args.schxslt2 and not args.iso_fix_attribute_contexts):
                 raise AssertionError('the ISO attribute-context warning was missing or applied to SchXslt2')
+        if args.iso_fix_attribute_contexts and 'using ISO compiler attribute-context compatibility fix' not in rust.stderr:
+            raise AssertionError('the ISO compatibility fix was not reported')
         for line in rust.stderr.splitlines():
             if line.startswith('Schematron compiler: '):
                 print('COMPILER MESSAGE:', line, flush=True)
@@ -102,8 +129,21 @@ def main():
             if path.name == 'header-direct-address.xml' and args.version == '3.0' and args.phase == 'errors':
                 telecom_failures = sum(count for (_, test, _, _), count in failures.items()
                                        if test == 'contains($TelecomUseUSRealmHeader, .)')
-                if telecom_failures != (2 if args.schxslt2 else 0):
+                if telecom_failures != (2 if args.schxslt2 or args.iso_fix_attribute_contexts else 0):
                     raise AssertionError(f'{path.name}: unexpected telecom-use findings: {telecom_failures}')
+                if args.iso_fix_attribute_contexts:
+                    locations = [location for (_, test, location, _), count in failures.items()
+                                 if test == 'contains($TelecomUseUSRealmHeader, .)' for _ in range(count)]
+                    if any(not location or 'ClinicalDocument' not in location or not location.endswith('/@use')
+                           for location in locations) or len(set(locations)) != 2:
+                        raise AssertionError(f'{path.name}: invalid attribute locations: {locations}')
+                    xpath = processor.new_xpath_processor()
+                    xpath.set_context(xdm_item=processor.parse_xml(xml_file_name=str(path)))
+                    selected = [xpath.evaluate(location) for location in locations]
+                    if any(result is None or result.size != 1 for result in selected):
+                        raise AssertionError(f'{path.name}: attribute locations do not select one node each')
+                    if {result.item_at(0).string_value for result in selected} != {'DIR', 'PUB'}:
+                        raise AssertionError(f'{path.name}: attribute locations select the wrong values')
             fired_total += sum(fired.values())
             failed_total += sum(failures.values())
             empty += not bool(fired)
