@@ -314,6 +314,10 @@ pub(crate) fn nested_instruction_runs() -> usize {
     TRY_DEPTH.with(|depth| depth.get())
 }
 
+pub(crate) type DescendantGroups<'a> = Rc<Vec<Vec<XNode<'a>>>>;
+type DescendantGroupIndex<'a> =
+    std::collections::HashMap<(XNode<'a>, xpath::Name), DescendantGroups<'a>>;
+
 pub(crate) struct FunctionRuntime<'a> {
     pub sheet: &'a Stylesheet,
     pub options: TransformOptions,
@@ -329,6 +333,7 @@ pub(crate) struct FunctionRuntime<'a> {
     >,
     pub pattern_cache_bytes: std::cell::Cell<usize>,
     template_modes: std::cell::RefCell<std::collections::HashMap<String, Rc<Vec<usize>>>>,
+    pub descendant_groups: std::cell::RefCell<DescendantGroupIndex<'a>>,
 }
 
 impl FunctionRuntime<'_> {
@@ -1163,6 +1168,7 @@ fn execute<'a>(
         pattern_selections: std::cell::RefCell::new(std::collections::HashMap::new()),
         pattern_cache_bytes: std::cell::Cell::new(0),
         template_modes: std::cell::RefCell::new(std::collections::HashMap::new()),
+        descendant_groups: std::cell::RefCell::new(std::collections::HashMap::new()),
         initial_root: if options.initial_template.is_none() {
             match root.item {
                 Item::Node(node) => {

@@ -74,7 +74,9 @@ def main():
         for name, path, expected in inputs:
             rust = subprocess.run([str(driver), str(compiler), str(schema), '--iso', '--phase', 'errors',
                                    '--max-steps', str(args.max_steps), '--max-depth', str(args.max_depth), str(path)],
-                                  cwd=ROOT, text=True, capture_output=True, check=True, timeout=300)
+                                  cwd=ROOT, text=True, capture_output=True, timeout=300)
+            if rust.returncode:
+                raise RuntimeError(f'{name}: rust-xslt failed: {rust.stderr.strip()}')
             actual = signature(rust.stdout)
             reference = signature(validator.transform_to_string(source_file=str(path)))
             failed = {entry[0] for entry in actual[1]}

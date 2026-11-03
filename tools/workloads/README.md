@@ -335,9 +335,9 @@ for the upstream document, a copy with an invalid medication mood code, and
 two small documents that test valid and invalid codes against the upstream
 62 MB `voc.xml`. The full document fires 172 rules; its modified medication
 reports `a-1098-7497`, and the small invalid-code case reports `a-1098-8746`.
-The probe uses a
-200-million-step limit and depth 2048; compilation exceeds the default
-20-million-step limit on this schema. The synthetic documents exercise a
+The probe uses a 200-million-step limit and depth 2048; these cases also pass
+with `--max-steps 30000000`. Compilation exceeds the default 20-million-step
+limit on this schema. The synthetic documents exercise a
 terminology rule and are not complete CDA clinical documents. C-CDA also
 requires separate XML Schema validation, which this probe does not perform.
 

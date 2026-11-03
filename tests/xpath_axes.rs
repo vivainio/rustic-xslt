@@ -7,6 +7,68 @@ fn sheet(expression: &str) -> String {
 }
 const SOURCE: &str =
     "<r><before/><group id='g'><a/><b id='B'><inside/></b><c/></group><after/></r>";
+
+#[test]
+fn descendant_name_predicates_keep_each_parent_and_current_context() {
+    let style = r#"<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="3.0"><xsl:output method="text"/><xsl:template match="/"><xsl:for-each select="/r/g"><xsl:value-of select="string-join(//n[@k=current()/@k][1]/@id, ',')"/><xsl:text>|</xsl:text></xsl:for-each></xsl:template></xsl:stylesheet>"#;
+    let source = "<r><g k='a'><n k='a' id='a1'/><n k='a' id='a2'/><n k='b' id='b1'/></g><g k='b'><n k='a' id='a3'/><n k='b' id='b2'/><n k='b' id='b3'/></g></r>";
+    let compiled = Stylesheet::compile(style).unwrap();
+    assert_eq!(compiled.transform(source).unwrap(), "a1,a3|b1,b2|");
+    let options = rust_xslt::TransformOptions {
+        limits: rust_xslt::Limits {
+            max_temporary_bytes: 0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(
+        compiled.transform_with_options(source, &options).unwrap(),
+        "a1,a3|b1,b2|"
+    );
+}
+
+#[test]
+fn repeated_root_descendant_queries_fit_the_work_budget() {
+    let style = r#"<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="3.0"><xsl:output method="text"/><xsl:template match="/"><xsl:for-each select="/r/g"><xsl:value-of select="count(//n[@ref=current()/@id][1])"/></xsl:for-each></xsl:template></xsl:stylesheet>"#;
+    let source = format!(
+        "<r>{}</r>",
+        (0..200)
+            .map(|i| format!("<g id='{i}'><n ref='{i}'/></g>"))
+            .collect::<String>()
+    );
+    let sheet = Stylesheet::compile(style).unwrap();
+    let options = rust_xslt::TransformOptions {
+        limits: rust_xslt::Limits {
+            max_steps: 650_000,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(
+        sheet.transform_with_options(&source, &options).unwrap(),
+        "1".repeat(200)
+    );
+}
+
+#[test]
+fn descendant_name_cache_keeps_documents_and_namespaces_separate() {
+    let style = r#"<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:p="urn:p" xmlns:q="urn:q" version="3.0"><xsl:output method="text"/><xsl:template match="/"><xsl:for-each select="(doc('a'), doc('b'), doc('a'))"><xsl:value-of select="//p:n/@id"/><xsl:value-of select="//q:n/@id"/><xsl:text>|</xsl:text></xsl:for-each></xsl:template></xsl:stylesheet>"#;
+    let options = rust_xslt::TransformOptions {
+        resolver: Some(rust_xslt::ResourceResolver::new(|uri| match uri {
+            "a" => Ok("<r xmlns:p='urn:p' xmlns:q='urn:q'><p:n id='A'/><q:n id='a'/></r>".into()),
+            "b" => Ok("<r xmlns:p='urn:p' xmlns:q='urn:q'><p:n id='B'/><q:n id='b'/></r>".into()),
+            _ => panic!("unexpected URI: {uri}"),
+        })),
+        ..Default::default()
+    };
+    assert_eq!(
+        Stylesheet::compile(style)
+            .unwrap()
+            .transform_with_options("<r/>", &options)
+            .unwrap(),
+        "Aa|Bb|Aa|"
+    );
+}
 #[test]
 fn reverse_axes_apply_predicates_before_document_order_normalization() {
     for (expression, want) in [

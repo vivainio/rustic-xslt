@@ -5,7 +5,7 @@ use crate::{Diagnostic, Limits, number::Number};
 use num_traits::ToPrimitive;
 use std::collections::BTreeMap;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct Name {
     pub uri: Option<String>,
     pub local: String,
@@ -3106,7 +3106,37 @@ fn eval_path<'a>(
 ) -> Result<Value<'a>, Diagnostic> {
     Ok({
         let mut value = eval(base, focus, vars, budget, depth + 1, backwards)?;
-        for step in steps {
+        let mut start = 0;
+        if matches!(base, Expr::Root)
+            && let [first, second, ..] = steps
+            && matches!(first.axis, Axis::DescendantOrSelf)
+            && matches!(first.test, Test::Node)
+            && first.predicates.is_empty()
+            && matches!(second.axis, Axis::Child)
+            && let Test::Name(name) = &second.test
+            && let [Item::Node(root)] = value.as_slice()
+            && let Some(groups) = descendant_child_groups(*root, name, vars, budget)?
+        {
+            let mut nodes = Vec::new();
+            for group in groups.iter() {
+                budget.charge(group.len().saturating_add(1))?;
+                let selected = filter(
+                    group.iter().copied().map(Item::Node).collect(),
+                    &second.predicates,
+                    vars,
+                    budget,
+                    depth,
+                    backwards,
+                )?;
+                nodes.extend(selected.into_iter().filter_map(|item| match item {
+                    Item::Node(node) => Some(node),
+                    _ => None,
+                }));
+            }
+            value = ordered(nodes);
+            start = 2;
+        }
+        for step in &steps[start..] {
             let mut nodes = vec![];
             for item in value {
                 budget.tick()?;
@@ -3194,6 +3224,71 @@ fn eval_path<'a>(
         }
         value
     })
+}
+
+// Cache only the structural part of /descendant-or-self::node()/child::name.
+// Keep siblings grouped so positional and context-dependent predicates still
+// run separately for each parent, in document order.
+fn descendant_child_groups<'a>(
+    root: XNode<'a>,
+    name: &Name,
+    vars: &Variables<'a>,
+    budget: &mut Budget,
+) -> Result<Option<crate::runtime::DescendantGroups<'a>>, Diagnostic> {
+    let Some(runtime) = &vars.runtime else {
+        return Ok(None);
+    };
+    let key = (root, name.clone());
+    if let Some(groups) = runtime.descendant_groups.borrow().get(&key) {
+        budget.tick()?;
+        return Ok(Some(groups.clone()));
+    }
+    let available = runtime
+        .options
+        .limits
+        .max_temporary_bytes
+        .saturating_sub(runtime.pattern_cache_bytes.get());
+    let mut bytes = name
+        .local
+        .len()
+        .saturating_add(name.uri.as_ref().map_or(0, String::len))
+        .saturating_add(256);
+    if bytes > available {
+        return Ok(None);
+    }
+    let mut groups = Vec::new();
+    for parent in root.descendants() {
+        budget.tick()?;
+        let mut group = Vec::new();
+        for child in parent.children() {
+            budget.tick()?;
+            if child.is_element() && child.name() == (name.uri.as_deref(), name.local.as_str()) {
+                group.push(child);
+            }
+        }
+        if !group.is_empty() {
+            bytes = bytes
+                .saturating_add(
+                    group
+                        .capacity()
+                        .saturating_mul(std::mem::size_of::<XNode<'a>>()),
+                )
+                .saturating_add(std::mem::size_of::<Vec<XNode<'a>>>().saturating_mul(2));
+            if bytes > available {
+                return Ok(None);
+            }
+            groups.push(group);
+        }
+    }
+    let groups = std::rc::Rc::new(groups);
+    runtime
+        .descendant_groups
+        .borrow_mut()
+        .insert(key, groups.clone());
+    runtime
+        .pattern_cache_bytes
+        .set(runtime.pattern_cache_bytes.get().saturating_add(bytes));
+    Ok(Some(groups))
 }
 fn call_evaluated<'a>(
     name: &str,
