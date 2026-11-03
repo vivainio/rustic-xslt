@@ -331,9 +331,11 @@ PYTHONPATH=/tmp/rust-xslt-saxonche python3 tools/workloads/reference_ccda.py \
 
 The Rust-only public example and SaxonC independently compile and run the
 schema's `errors` phase. They agree on fired-rule contexts and assertion details
-for the upstream document and two small documents that test valid and invalid
-codes against the upstream 62 MB `voc.xml`. The upstream example fires 172
-rules; the invalid-code case reports `a-1098-8746`. The probe uses a
+for the upstream document, a copy with an invalid medication mood code, and
+two small documents that test valid and invalid codes against the upstream
+62 MB `voc.xml`. The full document fires 172 rules; its modified medication
+reports `a-1098-7497`, and the small invalid-code case reports `a-1098-8746`.
+The probe uses a
 200-million-step limit and depth 2048; compilation exceeds the default
 20-million-step limit on this schema. The synthetic documents exercise a
 terminology rule and are not complete CDA clinical documents. C-CDA also

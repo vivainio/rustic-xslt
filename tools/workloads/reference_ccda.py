@@ -40,6 +40,20 @@ def main():
         print('Reference:', processor.version, flush=True)
         (tmp / 'voc.xml').symlink_to(vocabulary)
         inputs = [('upstream', sample, set())]
+        # Alter a medication activity in the full upstream clinical document,
+        # preserving all surrounding rules and document structure.
+        source = sample.read_text()
+        marker = '<templateId root="2.16.840.1.113883.10.20.22.4.16" extension="2014-06-09"/>'
+        opening = '<substanceAdministration classCode="SBADM" moodCode="EVN">'
+        marker_at = source.find(marker)
+        opening_at = source.rfind(opening, 0, marker_at)
+        if (marker_at < 0 or opening_at < 0
+                or '</substanceAdministration>' in source[opening_at:marker_at]):
+            raise ValueError('upstream sample no longer contains the expected medication activity')
+        damaged = source[:opening_at] + source[opening_at:].replace(opening, opening.replace('EVN', 'INVALID'), 1)
+        damaged_file = tmp / 'invalid-medication.xml'
+        damaged_file.write_text(damaged)
+        inputs.append(('invalid-medication', damaged_file, {'a-1098-7497'}))
         for value, expected in [('EVN', set()), ('INVALID', {'a-1098-8746'})]:
             path = tmp / (value + '.xml')
             path.write_text(template.format(value))
