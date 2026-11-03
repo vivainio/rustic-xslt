@@ -110,6 +110,11 @@ for a document with no matching contexts, so that warning does not change the
 exit status. For example, the ISO include stage emits a nonterminating message
 when an include fragment is missing; the default behavior prevents that case
 from silently producing a report with no validation rules.
+Use `--fail-on-no-rules` to return status 1 when any input fires no rules. The
+example still processes all inputs and writes every report. This is useful when
+an unmatched document should fail a pipeline; an empty report can otherwise be
+valid for a document outside the schema's contexts. The option can be combined
+with `--fail-on-findings`, in which case either condition sets status 1.
 The probe also checks a default phase,
 variables, diagnostic references, dynamic message text, an upstream root-rule
 fixture, and an upstream fixture containing an XSLT accumulator.

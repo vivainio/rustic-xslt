@@ -120,11 +120,13 @@ def main():
         if len(reports) != len(inputs):
             raise AssertionError(f'expected {len(inputs)} SVRL documents, got {len(reports)}')
         fired_total = failed_total = empty = 0
+        observed = {}
         for path, report in zip(inputs, reports):
             actual = signature(report)
             reference = signature(validator.transform_to_string(source_file=str(path)))
             if actual != reference:
                 raise AssertionError(f'{path.name}: report differs from Saxon')
+            observed[path.name] = actual
             fired, failures, _ = actual
             if path.name == 'header-direct-address.xml' and args.version == '3.0' and args.phase == 'errors':
                 telecom_failures = sum(count for (_, test, _, _), count in failures.items()
@@ -152,6 +154,28 @@ def main():
             raise AssertionError('no rules fired across the corpus')
         print('PASS total:', len(inputs), 'documents,', fired_total, 'rules fired,',
               failed_total, 'failed assertions,', empty, 'documents without fired rules', flush=True)
+        if args.version == '3.0' and args.phase == 'errors':
+            names = ['general-narrative-reference-act.xml', 'medications-med-relative-dose-iv-drug.xml',
+                     'medical-equipment-multiple-implants.xml']
+            cases = [examples / 'input/examples' / name for name in names]
+            if observed[names[0]][0] or not observed[names[1]][0] or not observed[names[2]][1]:
+                raise AssertionError('expected unmatched, clean and finding cases in the pinned corpus')
+            flagged = subprocess.run([*command, '--fail-on-no-rules', *map(str, cases)], cwd=ROOT,
+                                     text=True, capture_output=True, timeout=300)
+            flagged_reports = [part for part in re.split(r'(?=<\?xml\s)', flagged.stdout) if part.strip()]
+            if (flagged.returncode != 1 or len(flagged_reports) != len(cases)
+                    or 'no Schematron rules fired' not in flagged.stderr
+                    or any(signature(report) != observed[name] for name, report in zip(names, flagged_reports))):
+                raise AssertionError('fail-on-no-rules did not preserve all reports and return status 1')
+            clean = subprocess.run([*command, '--fail-on-no-rules', *map(str, cases[1:])], cwd=ROOT,
+                                   text=True, capture_output=True, timeout=300)
+            if clean.returncode != 0:
+                raise AssertionError(f'fail-on-no-rules treated a finding as an unmatched input: {clean.stderr}')
+            combined = subprocess.run([*command, '--fail-on-no-rules', '--fail-on-findings', *map(str, cases[1:])],
+                                      cwd=ROOT, text=True, capture_output=True, timeout=300)
+            if combined.returncode != 1:
+                raise AssertionError('combined findings and no-rules flags did not return status 1')
+            print('PASS no-rules exit status, complete reports, and independent findings policy', flush=True)
 
 
 if __name__ == '__main__':
