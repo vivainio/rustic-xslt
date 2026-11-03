@@ -133,6 +133,18 @@ fn has_attribute_rule_context(schema: &str) -> bool {
     })
 }
 
+fn uses_xpath1_binding(schema: &str) -> bool {
+    let Ok(document) = roxmltree::Document::parse(schema) else {
+        return false;
+    };
+    let root = document.root_element();
+    root.has_tag_name(("http://purl.oclc.org/dsdl/schematron", "schema"))
+        && matches!(
+            root.attribute("queryBinding"),
+            None | Some("xslt" | "xslt1" | "XSLT" | "XSLT1" | "xpath")
+        )
+}
+
 fn fix_iso_attribute_contexts(source: &str) -> Result<String, Box<dyn Error>> {
     let changes = [
         (
@@ -160,7 +172,7 @@ fn fix_iso_attribute_contexts(source: &str) -> Result<String, Box<dyn Error>> {
 
 #[cfg(test)]
 mod attribute_context_tests {
-    use super::{fix_iso_attribute_contexts, has_attribute_rule_context};
+    use super::{fix_iso_attribute_contexts, has_attribute_rule_context, uses_xpath1_binding};
 
     #[test]
     fn recognizes_attribute_contexts_outside_predicates() {
@@ -187,6 +199,19 @@ mod attribute_context_tests {
         assert!(fixed.contains("select=\"parent::*\" mode=\"schematron-get-full-path\""));
         assert!(fix_iso_attribute_contexts("unrecognized compiler").is_err());
         assert!(fix_iso_attribute_contexts(&format!("{source}{source}")).is_err());
+    }
+
+    #[test]
+    fn detects_xpath1_schematron_binding() {
+        assert!(uses_xpath1_binding(
+            r#"<schema xmlns="http://purl.oclc.org/dsdl/schematron"/>"#
+        ));
+        assert!(uses_xpath1_binding(
+            r#"<schema xmlns="http://purl.oclc.org/dsdl/schematron" queryBinding="xslt"/>"#
+        ));
+        assert!(!uses_xpath1_binding(
+            r#"<schema xmlns="http://purl.oclc.org/dsdl/schematron" queryBinding="xslt2"/>"#
+        ));
     }
 }
 
@@ -323,8 +348,9 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
     } else {
         compiler_resolver
     };
+    let transpiler_source = fs::read_to_string(transpiler_path)?;
     let transpiler = Stylesheet::compile_with_base_uri_and_resolver(
-        &fs::read_to_string(transpiler_path)?,
+        &transpiler_source,
         &file_uri(transpiler_path)?,
         &*compiler_resolver.0,
     )?;
@@ -386,6 +412,15 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
     {
         eprintln!(
             "warning: this ISO compiler can skip attribute-context rules; use a different Schematron compiler or review its generated validator"
+        );
+    }
+    if !iso
+        && uses_xpath1_binding(&schema)
+        && transpiler_source.contains("http://dmaus.name/ns/2023/schxslt")
+        && transpiler_source.contains("schxslt:copy-message-content")
+    {
+        eprintln!(
+            "warning: SchXslt2 generates XSLT 3 for an XPath 1.0-bound schema; implicit XPath 1.0 conversions may fail at compile or run time"
         );
     }
     let generated = transform_stage(

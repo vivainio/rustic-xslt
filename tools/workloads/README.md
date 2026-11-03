@@ -388,6 +388,17 @@ and their distinct locations. The fixed ISO and SchXslt2 runs have the same
 fired-rule and finding counts for each example. This fix does not address other
 compiler limitations, including the missing pattern in the 2.1 schema.
 
+The 3.0 `warnings` phase has a separate compiler limitation. The schema uses an
+XPath 1.0 expression that divides by a boolean; SchXslt2 places it in an
+XSLT 3 validator. Saxon rejects that validator with `XPTY0004`, and rust-xslt
+reports the same type error when the expression runs. The public example warns
+when it recognizes SchXslt2 compiling an XPath 1.0-bound schema. For this phase,
+the ISO compiler with `--iso-fix-attribute-contexts` runs all 137 examples and
+agrees with Saxon: 2,580 rules fire, 1,436 assertions fail, and 17 inputs fire
+no rules. The Schematron source has no `queryBinding` attribute, so its binding
+defaults to XPath 1.0. This does not imply that all XPath 1.0-bound schemas fail
+with SchXslt2; the 3.0 `errors` phase runs successfully in the comparison above.
+
 The same repository's 2.1 schema activates `hasCompatibleR1.1TemplateId` but
 comments out the pattern. Both ISO compiler runs report the missing pattern;
 the public example stops by default. The optional `--version 2.1 --vocabulary

@@ -93,7 +93,24 @@ def main():
             compiler_xslt.set_parameter('allow-foreign', processor.make_string_value('true'))
         validator_file = Path(directory) / 'validator.xsl'
         validator_file.write_text(compiler_xslt.transform_to_string(source_file=str(schema)))
-        validator = xslt.compile_stylesheet(stylesheet_file=str(validator_file))
+        try:
+            validator = xslt.compile_stylesheet(stylesheet_file=str(validator_file))
+        except Exception as error:
+            # The pinned 3.0 warnings phase contains an XPath 1.0 boolean
+            # arithmetic idiom that SchXslt2 places in an XSLT 3 expression.
+            if (args.schxslt2 and args.version == '3.0' and args.phase == 'warnings'
+                    and 'XPTY0004' in str(error) and 'xs:boolean' in str(error)):
+                case = examples / 'input/examples/header-direct-address.xml'
+                rust = subprocess.run([str(driver), str(compiler), str(schema), '--phase', args.phase,
+                                       '--max-steps', str(args.max_steps), '--max-depth', str(args.max_depth), str(case)],
+                                      cwd=ROOT, text=True, capture_output=True, timeout=300)
+                if (rust.returncode == 0 or 'XPTY0004' not in rust.stderr
+                        or 'XPath 1.0-bound schema' not in rust.stderr):
+                    raise AssertionError(f'expected a Rust XPath 1.0 compatibility diagnostic: {rust.stderr}')
+                print('LIMITATION: SchXslt2 emits an XPath 1.0 boolean arithmetic expression in XSLT 3; '
+                      'Saxon rejects the validator and Rust reports XPTY0004 when it runs.', flush=True)
+                return 1
+            raise
         command = [str(driver), str(compiler), str(schema), '--phase', args.phase,
                    '--max-steps', str(args.max_steps), '--max-depth', str(args.max_depth)]
         if not args.schxslt2:
@@ -110,6 +127,8 @@ def main():
         if args.version == '3.0' and args.phase == 'errors':
             if (warning in rust.stderr) != (not args.schxslt2 and not args.iso_fix_attribute_contexts):
                 raise AssertionError('the ISO attribute-context warning was missing or applied to SchXslt2')
+            if args.schxslt2 and 'XPath 1.0-bound schema' not in rust.stderr:
+                raise AssertionError('SchXslt2 XPath 1.0 compatibility warning was missing')
         if args.iso_fix_attribute_contexts and 'using ISO compiler attribute-context compatibility fix' not in rust.stderr:
             raise AssertionError('the ISO compatibility fix was not reported')
         for line in rust.stderr.splitlines():
@@ -179,4 +198,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())
