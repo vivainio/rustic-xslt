@@ -219,7 +219,7 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
     let mut arguments = std::env::args_os().skip(1);
     let transpiler_path = arguments
         .next()
-        .ok_or("usage: schematron TRANSPILER.xsl SCHEMA.sch [--iso] [--iso-preprocess] [--iso-fix-attribute-contexts] [--allow-compiler-messages] [--fail-on-findings] [--fail-on-no-rules] [--phase NAME] [--max-steps N] [--max-depth N] DOCUMENT.xml [DOCUMENT.xml ...]")?;
+        .ok_or("usage: schematron TRANSPILER.xsl SCHEMA.sch [--iso] [--iso-preprocess] [--iso-fix-attribute-contexts] [--schxslt-xslt1-message-values] [--allow-compiler-messages] [--fail-on-findings] [--fail-on-no-rules] [--phase NAME] [--max-steps N] [--max-depth N] DOCUMENT.xml [DOCUMENT.xml ...]")?;
     let schema_path = arguments.next().ok_or("missing Schematron schema")?;
     let mut phase = None;
     let mut max_steps = None;
@@ -227,6 +227,7 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
     let mut iso = false;
     let mut iso_preprocess = false;
     let mut iso_fix_attributes = false;
+    let mut schxslt_xpath1_messages = false;
     let mut allow_compiler_messages = false;
     let mut fail_on_findings = false;
     let mut fail_on_no_rules = false;
@@ -247,6 +248,11 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
                 return Err("--allow-compiler-messages may be supplied only once".into());
             }
             allow_compiler_messages = true;
+        } else if argument == "--schxslt-xslt1-message-values" {
+            if schxslt_xpath1_messages {
+                return Err("--schxslt-xslt1-message-values may be supplied only once".into());
+            }
+            schxslt_xpath1_messages = true;
         } else if argument == "--iso-fix-attribute-contexts" {
             if iso_fix_attributes {
                 return Err("--iso-fix-attribute-contexts may be supplied only once".into());
@@ -310,9 +316,18 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
     if iso_fix_attributes && !iso {
         return Err("--iso-fix-attribute-contexts requires --iso".into());
     }
+    if schxslt_xpath1_messages && iso {
+        return Err("--schxslt-xslt1-message-values cannot be used with --iso".into());
+    }
     let transpiler_path = Path::new(&transpiler_path);
     let schema_path = Path::new(&schema_path);
     let schema_uri = file_uri(schema_path)?;
+    let mut schema = fs::read_to_string(schema_path)?;
+    if schxslt_xpath1_messages && !uses_xpath1_binding(&schema) {
+        return Err(
+            "--schxslt-xslt1-message-values requires an XPath 1.0-bound Schematron schema".into(),
+        );
+    }
     let schema_root = schema_path
         .canonicalize()?
         .parent()
@@ -348,7 +363,23 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
     } else {
         compiler_resolver
     };
-    let transpiler_source = fs::read_to_string(transpiler_path)?;
+    let mut transpiler_source = fs::read_to_string(transpiler_path)?;
+    if schxslt_xpath1_messages {
+        let before = "<alias:value-of select=\"{@select}\"/>";
+        if !transpiler_source.contains("http://dmaus.name/ns/2023/schxslt")
+            || transpiler_source.matches(before).count() != 1
+        {
+            return Err(
+                "SchXslt2 message compatibility fix does not match this compiler version".into(),
+            );
+        }
+        transpiler_source = transpiler_source.replacen(
+            before,
+            "<alias:value-of version=\"1.0\" select=\"{@select}\"/>",
+            1,
+        );
+        eprintln!("using SchXslt2 XPath 1.0 compatibility for message value-of expressions only");
+    }
     let transpiler = Stylesheet::compile_with_base_uri_and_resolver(
         &transpiler_source,
         &file_uri(transpiler_path)?,
@@ -384,7 +415,6 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
         };
         schema_options.parameters.insert(name.into(), phase);
     }
-    let mut schema = fs::read_to_string(schema_path)?;
     if iso_preprocess {
         let mut preprocess_options = schema_options.clone();
         preprocess_options.parameters.clear();

@@ -12,7 +12,7 @@ pub(crate) enum Instruction {
     Text(String),
     /// Text with `{expression}` value templates (expand-text).
     TextValue(Vec<Expr>),
-    Value(Expr, Option<Vec<Expr>>),
+    Value(Expr, Option<Vec<Expr>>, Option<bool>),
     ValueBody(Content),
     Apply(Expr, String, Vec<Sort>, Vec<Binding>),
     Copy {
@@ -1249,7 +1249,19 @@ fn body(
                         out.push(text_instruction(n, &text)?);
                     }
                     "value-of" => {
-                        attrs(n, &["select", "separator"])?;
+                        attrs(n, &["select", "separator", "version"])?;
+                        let local_backwards = match unqualified_attribute(n, "version") {
+                            None => None,
+                            Some("1.0") => Some(true),
+                            Some("2.0" | "3.0") => Some(false),
+                            Some(_) => {
+                                return Err(static_error(
+                                    n,
+                                    "XTSE0110",
+                                    "unsupported local version",
+                                ));
+                            }
+                        };
                         if let Some(select) = unqualified_attribute(n, "select") {
                             sequence_select_content(n).map_err(|mut error| {
                                 error.code = "XTSE0870".into();
@@ -1260,8 +1272,15 @@ fn body(
                                 unqualified_attribute(n, "separator")
                                     .map(|s| avt(n, s))
                                     .transpose()?,
+                                local_backwards,
                             ));
                         } else {
+                            if local_backwards.is_some() {
+                                return Err(error(
+                                    n,
+                                    "local version on value-of with content is unsupported",
+                                ));
+                            }
                             out.push(Instruction::ValueBody(content(n, depth + 1)?));
                         }
                     }
@@ -3809,7 +3828,7 @@ fn can_lower_text_function(body: &[Instruction]) -> bool {
                 value: BindingValue::Raw(body),
                 ..
             }) if can_lower_function(body) => {}
-            Instruction::Value(_, None) => results += 1,
+            Instruction::Value(_, None, None) => results += 1,
             Instruction::If(_, body) if can_lower_text_function(body) => results += 1,
             Instruction::Choose(branches)
                 if branches
@@ -3874,7 +3893,7 @@ fn function_expression(
                 Expr::Let(name, Box::new(select), Box::new(tail), unused)
             }
             Instruction::Sequence(expression) => append(expression, tail),
-            Instruction::Value(expression, None) if text_result => {
+            Instruction::Value(expression, None, None) if text_result => {
                 append(Expr::Call("\0xslt-value-of".into(), vec![expression]), tail)
             }
             Instruction::Map(body) => {
@@ -4360,7 +4379,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
         }
         for i in body {
             match i {
-                Instruction::Value(_, Some(es)) => parts(es, &scope, templates)?,
+                Instruction::Value(_, Some(es), _) => parts(es, &scope, templates)?,
                 Instruction::Apply(_, _, keys, _) | Instruction::ForEach(_, keys, _) => {
                     for k in keys {
                         for e in k.expressions() {
@@ -4538,7 +4557,7 @@ fn validate(sheet: &Stylesheet) -> Result<(), Diagnostic> {
                 Instruction::Text(_) | Instruction::NextMatch(_) | Instruction::ApplyImports(_) => {
                 }
                 Instruction::TextValue(items) => parts(items, &scope, templates)?,
-                Instruction::Value(e, _)
+                Instruction::Value(e, _, _)
                 | Instruction::Apply(e, _, _, _)
                 | Instruction::CopyOf(e, _)
                 | Instruction::Sequence(e) => validate_expression(e, &scope, templates.functions)?,

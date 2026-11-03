@@ -243,7 +243,7 @@ fn safe_global_body(body: &[Instruction]) -> Result<(), Diagnostic> {
                     "text value templates are not supported when streaming",
                 ));
             }
-            Instruction::Value(e, sep) => {
+            Instruction::Value(e, sep, _) => {
                 safe_expression(e, true)?;
                 if let Some(es) = sep {
                     for e in es {
@@ -412,7 +412,7 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
         while let Some(body) = bodies.pop() {
             for i in body {
                 match i {
-                    Instruction::Value(_, Some(parts)) => {
+                    Instruction::Value(_, Some(parts), _) => {
                         for e in parts {
                             safe_expression(e, false)?;
                         }
@@ -449,7 +449,7 @@ fn validate(sheet: &Stylesheet, options: &StreamOptions) -> Result<Vec<Name>, Di
                             "text value templates are not supported when streaming",
                         ));
                     }
-                    Instruction::Value(e, _)
+                    Instruction::Value(e, _, _)
                     | Instruction::CopyOf(e, _)
                     | Instruction::Sequence(e) => safe_expression(e, false)?,
                     Instruction::MapEntry { key, body } => {

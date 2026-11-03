@@ -2360,14 +2360,15 @@ fn run_tasks_with_conditionals<'a>(
                             output.text(t)?;
                         }
                     }
-                    Instruction::Value(e, separator) => {
-                        let mut v = xpath::eval(e, &focus, &env, budget, 0, sheet.backwards)?;
-                        if sheet.backwards && separator.is_none() {
+                    Instruction::Value(e, separator, local_backwards) => {
+                        let backwards = local_backwards.unwrap_or(sheet.backwards);
+                        let mut v = xpath::eval(e, &focus, &env, budget, 0, backwards)?;
+                        if backwards && separator.is_none() {
                             v.truncate(1);
                         }
                         let separator = separator
                             .as_ref()
-                            .map(|es| parts(es, &focus, &env, budget, sheet.backwards))
+                            .map(|es| parts(es, &focus, &env, budget, backwards))
                             .transpose()?
                             .unwrap_or_else(|| " ".into());
                         for _ in &v {
@@ -2377,7 +2378,7 @@ fn run_tasks_with_conditionals<'a>(
                             &v,
                             &separator,
                             output.max.saturating_sub(output.value.len()),
-                            sheet.backwards,
+                            backwards,
                         )?;
                         if raw_active(&captures) {
                             captures

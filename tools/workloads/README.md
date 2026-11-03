@@ -398,6 +398,15 @@ agrees with Saxon: 2,580 rules fire, 1,436 assertions fail, and 17 inputs fire
 no rules. The Schematron source has no `queryBinding` attribute, so its binding
 defaults to XPath 1.0. This does not imply that all XPath 1.0-bound schemas fail
 with SchXslt2; the 3.0 `errors` phase runs successfully in the comparison above.
+For this message-expression issue, the public example has a narrow opt-in
+workaround: `--schxslt-xslt1-message-values` changes the recognized SchXslt2
+compiler in memory to emit `xsl:value-of version="1.0"` for Schematron message
+values. The 3.0 warnings phase then runs all 137 examples and agrees with
+Saxon, with the same per-document fired-rule and finding counts as the fixed
+ISO run. The option leaves compiler files untouched and fails for an
+unrecognized compiler or a schema with a non-XPath-1.0 binding. It covers
+message `value-of` expressions only; other XPath 1.0 conversion differences
+may remain, so the example retains its general compatibility warning.
 
 The same repository's 2.1 schema activates `hasCompatibleR1.1TemplateId` but
 comments out the pattern. Both ISO compiler runs report the missing pattern;

@@ -21,6 +21,12 @@ fn functions_take_typed_parameters_and_return_sequences() {
     assert!(run(double, "f:double(1, 2)").is_err());
     assert!(run(double, "f:double(())").is_err());
 }
+
+#[test]
+fn function_value_of_preserves_local_xpath_compatibility() {
+    let declaration = r#"<xsl:function name="f:legacy" as="xs:string"><xsl:value-of version="1.0" select="substring('no-extension', 1 div not(false()))"/></xsl:function>"#;
+    assert_eq!(run(declaration, "f:legacy()").unwrap(), "no-extension");
+}
 #[test]
 fn function_bodies_see_locals_params_and_global_variables() {
     let declarations = r#"<xsl:variable name="base" select="100"/>

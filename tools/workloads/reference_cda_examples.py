@@ -28,6 +28,8 @@ def main():
                         help='continue after compiler messages; inspect stderr for incomplete rules')
     parser.add_argument('--iso-fix-attribute-contexts', action='store_true',
                         help='apply the recognized ISO skeleton attribute compatibility fix')
+    parser.add_argument('--schxslt-xslt1-message-values', action='store_true',
+                        help='use XPath 1.0 compatibility for SchXslt2 message value-of expressions')
     parser.add_argument('--release', action='store_true')
     parser.add_argument('--max-steps', type=int, default=200_000_000)
     parser.add_argument('--max-depth', type=int, default=2048)
@@ -40,6 +42,8 @@ def main():
         parser.error('one of --nemsis and --schxslt2 is required')
     if args.iso_fix_attribute_contexts and args.schxslt2:
         parser.error('--iso-fix-attribute-contexts applies only to the ISO compiler')
+    if args.schxslt_xslt1_message_values and not args.schxslt2:
+        parser.error('--schxslt-xslt1-message-values requires --schxslt2')
     examples = args.examples.resolve()
     print('HL7 examples revision:', revision(examples), flush=True)
     schema = examples / f'ccda-{args.version}.sch'
@@ -85,6 +89,15 @@ def main():
                 source = source.replace(before, after, 1)
             skeleton.write_text(source)
             reference_compiler = local_compiler / compiler.name
+        if args.schxslt_xslt1_message_values:
+            local_compiler = Path(directory) / 'schxslt2-compiler'
+            shutil.copytree(compiler.parent, local_compiler)
+            reference_compiler = local_compiler / compiler.name
+            source = reference_compiler.read_text()
+            before = '<alias:value-of select="{@select}"/>'
+            if source.count(before) != 1:
+                raise ValueError('SchXslt2 message compatibility fix does not match this compiler version')
+            reference_compiler.write_text(source.replace(before, '<alias:value-of version="1.0" select="{@select}"/>', 1))
         xslt = processor.new_xslt30_processor()
         compiler_xslt = xslt.compile_stylesheet(stylesheet_file=str(reference_compiler))
         phase_parameter = '{http://dmaus.name/ns/2023/schxslt}phase' if args.schxslt2 else 'phase'
@@ -98,7 +111,8 @@ def main():
         except Exception as error:
             # The pinned 3.0 warnings phase contains an XPath 1.0 boolean
             # arithmetic idiom that SchXslt2 places in an XSLT 3 expression.
-            if (args.schxslt2 and args.version == '3.0' and args.phase == 'warnings'
+            if (args.schxslt2 and not args.schxslt_xslt1_message_values
+                    and args.version == '3.0' and args.phase == 'warnings'
                     and 'XPTY0004' in str(error) and 'xs:boolean' in str(error)):
                 case = examples / 'input/examples/header-direct-address.xml'
                 rust = subprocess.run([str(driver), str(compiler), str(schema), '--phase', args.phase,
@@ -117,6 +131,8 @@ def main():
             command.append('--iso')
         if args.iso_fix_attribute_contexts:
             command.append('--iso-fix-attribute-contexts')
+        if args.schxslt_xslt1_message_values:
+            command.append('--schxslt-xslt1-message-values')
         if args.allow_compiler_messages:
             command.append('--allow-compiler-messages')
         rust = subprocess.run([*command, *(str(path) for path in inputs)], cwd=ROOT, text=True,
@@ -131,6 +147,8 @@ def main():
                 raise AssertionError('SchXslt2 XPath 1.0 compatibility warning was missing')
         if args.iso_fix_attribute_contexts and 'using ISO compiler attribute-context compatibility fix' not in rust.stderr:
             raise AssertionError('the ISO compatibility fix was not reported')
+        if args.schxslt_xslt1_message_values and 'for message value-of expressions only' not in rust.stderr:
+            raise AssertionError('the SchXslt2 message compatibility fix was not reported')
         for line in rust.stderr.splitlines():
             if line.startswith('Schematron compiler: '):
                 print('COMPILER MESSAGE:', line, flush=True)

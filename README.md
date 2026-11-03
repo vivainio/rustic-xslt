@@ -101,7 +101,10 @@ validation example, the tested subset, and a known message-whitespace limitation
 
 Versions 1.0, 2.0 and 3.0 are accepted; complete version semantics are not yet
 implemented. Version 1.0 currently enables first-item value-of/AVT conversion
-and selected backwards-compatible XPath conversions. Integer and decimal literals/arithmetic now use arbitrary-precision values,
+and selected backwards-compatible XPath conversions. An explicit `version` on
+`xsl:value-of` with a `select` also controls those conversions for that
+instruction; local version scope on other instructions is not yet supported.
+Integer and decimal literals/arithmetic now use arbitrary-precision values,
 with a 10,000-digit implementation limit; exponent literals use IEEE doubles.
 Non-terminating decimal division currently uses bigdecimal’s default precision
 (100 digits). Unicode case conversion uses the Rust standard library’s Unicode tables.

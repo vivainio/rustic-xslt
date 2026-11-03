@@ -127,6 +127,42 @@ fn backwards_value_of_and_newer_sequences() {
         assert_eq!(transform(&s, "<r><n>A</n><n>B</n></r>").unwrap(), expected);
     }
 }
+
+#[test]
+fn value_of_local_version_uses_its_own_xpath_compatibility() {
+    let s = sheet(
+        "3.0",
+        r#"<xsl:template match="/"><xsl:value-of version="1.0" select="r/n"/><xsl:text>|</xsl:text><xsl:value-of select="r/n"/><xsl:text>|</xsl:text><xsl:for-each select="r/n"><xsl:value-of version="1.0" select="substring('no-extension', 1 div not(@extension))"/><xsl:text>;</xsl:text></xsl:for-each></xsl:template>"#,
+    );
+    assert_eq!(
+        transform(&s, "<r><n>A</n><n extension='v'>B</n></r>").unwrap(),
+        "A|A B|no-extension;;"
+    );
+    let modern = sheet(
+        "1.0",
+        r#"<xsl:template match="/"><xsl:value-of version="3.0" select="r/n"/></xsl:template>"#,
+    );
+    assert_eq!(
+        transform(&modern, "<r><n>A</n><n>B</n></r>").unwrap(),
+        "A B"
+    );
+    let explicit_separator = sheet(
+        "3.0",
+        r#"<xsl:template match="/"><xsl:value-of version="1.0" select="r/n" separator="-"/></xsl:template>"#,
+    );
+    assert_eq!(
+        transform(&explicit_separator, "<r><n>A</n><n>B</n></r>").unwrap(),
+        "A-B"
+    );
+    let modern_operand = sheet(
+        "1.0",
+        r#"<xsl:template match="/"><xsl:value-of version="2.0" select="1 div false()"/></xsl:template>"#,
+    );
+    assert_eq!(
+        transform(&modern_operand, "<r/>").unwrap_err().code,
+        "XPTY0004"
+    );
+}
 #[test]
 fn recursion_and_predicates_share_execution_budget() {
     let s = Stylesheet::compile(&sheet("3.0", r#"<xsl:template match="/"><xsl:call-template name="loop"/></xsl:template><xsl:template name="loop"><xsl:call-template name="loop"/></xsl:template>"#)).unwrap();
