@@ -16,7 +16,10 @@ from run import ROOT, revision
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--examples', type=Path, required=True)
-    parser.add_argument('--nemsis', type=Path, required=True)
+    parser.add_argument('--nemsis', type=Path,
+                        help='checkout containing the ISO compiler (required unless --schxslt2 is given)')
+    parser.add_argument('--schxslt2', type=Path,
+                        help='use SchXslt2 instead of the NEMSIS ISO compiler')
     parser.add_argument('--version', choices=('2.1', '3.0', '4.0'), default='3.0')
     parser.add_argument('--phase', choices=('errors', 'warnings'), default='errors')
     parser.add_argument('--vocabulary', type=Path,
@@ -31,11 +34,19 @@ def main():
     args = parser.parse_args()
     if args.version == '2.1' and args.vocabulary is None:
         parser.error('--version 2.1 requires --vocabulary pointing to voc.xml')
-    examples, nemsis = args.examples.resolve(), args.nemsis.resolve()
+    if not args.schxslt2 and not args.nemsis:
+        parser.error('one of --nemsis and --schxslt2 is required')
+    examples = args.examples.resolve()
     print('HL7 examples revision:', revision(examples), flush=True)
-    print('ISO compiler (NEMSIS) revision:', revision(nemsis), flush=True)
     schema = examples / f'ccda-{args.version}.sch'
-    compiler = nemsis / 'Schematron/DevelopmentKit/Schematron/utilities/iso-schematron-xslt2/iso_svrl_for_xslt2.xsl'
+    if args.schxslt2:
+        schxslt2 = args.schxslt2.resolve()
+        print('SchXslt2 revision:', revision(schxslt2), flush=True)
+        compiler = schxslt2 / 'src/main/resources/content/transpile.xsl'
+    else:
+        nemsis = args.nemsis.resolve()
+        print('ISO compiler (NEMSIS) revision:', revision(nemsis), flush=True)
+        compiler = nemsis / 'Schematron/DevelopmentKit/Schematron/utilities/iso-schematron-xslt2/iso_svrl_for_xslt2.xsl'
     inputs = sorted((examples / 'input/examples').glob('*.xml'))
     if len(inputs) != args.expected_count or not inputs:
         raise ValueError(f'expected {args.expected_count} clinical examples, found {len(inputs)}')
@@ -53,19 +64,27 @@ def main():
             schema = local_schema
         xslt = processor.new_xslt30_processor()
         compiler_xslt = xslt.compile_stylesheet(stylesheet_file=str(compiler))
-        compiler_xslt.set_parameter('phase', processor.make_string_value(args.phase))
-        compiler_xslt.set_parameter('allow-foreign', processor.make_string_value('true'))
+        phase_parameter = '{http://dmaus.name/ns/2023/schxslt}phase' if args.schxslt2 else 'phase'
+        compiler_xslt.set_parameter(phase_parameter, processor.make_string_value(args.phase))
+        if not args.schxslt2:
+            compiler_xslt.set_parameter('allow-foreign', processor.make_string_value('true'))
         validator_file = Path(directory) / 'validator.xsl'
         validator_file.write_text(compiler_xslt.transform_to_string(source_file=str(schema)))
         validator = xslt.compile_stylesheet(stylesheet_file=str(validator_file))
-        command = [str(driver), str(compiler), str(schema), '--iso', '--phase', args.phase,
+        command = [str(driver), str(compiler), str(schema), '--phase', args.phase,
                    '--max-steps', str(args.max_steps), '--max-depth', str(args.max_depth)]
+        if not args.schxslt2:
+            command.append('--iso')
         if args.allow_compiler_messages:
             command.append('--allow-compiler-messages')
         rust = subprocess.run([*command, *(str(path) for path in inputs)], cwd=ROOT, text=True,
                               capture_output=True, timeout=600)
         if rust.returncode:
             raise RuntimeError(f'rust-xslt failed: {rust.stderr.strip()}')
+        warning = 'this ISO compiler can skip attribute-context rules'
+        if args.version == '3.0' and args.phase == 'errors':
+            if (warning in rust.stderr) == bool(args.schxslt2):
+                raise AssertionError('the ISO attribute-context warning was missing or applied to SchXslt2')
         for line in rust.stderr.splitlines():
             if line.startswith('Schematron compiler: '):
                 print('COMPILER MESSAGE:', line, flush=True)
@@ -80,6 +99,11 @@ def main():
             if actual != reference:
                 raise AssertionError(f'{path.name}: report differs from Saxon')
             fired, failures, _ = actual
+            if path.name == 'header-direct-address.xml' and args.version == '3.0' and args.phase == 'errors':
+                telecom_failures = sum(count for (_, test, _, _), count in failures.items()
+                                       if test == 'contains($TelecomUseUSRealmHeader, .)')
+                if telecom_failures != (2 if args.schxslt2 else 0):
+                    raise AssertionError(f'{path.name}: unexpected telecom-use findings: {telecom_failures}')
             fired_total += sum(fired.values())
             failed_total += sum(failures.values())
             empty += not bool(fired)

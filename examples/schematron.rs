@@ -95,6 +95,65 @@ fn transform_stage(
     Ok(result.principal)
 }
 
+// The NEMSIS ISO skeleton computes its traversal expression in a global
+// variable whose context is the document node. Its parent::node() guard then
+// removes @* even when the schema has attribute-context rules.
+fn has_attribute_rule_context(schema: &str) -> bool {
+    let Ok(document) = roxmltree::Document::parse(schema) else {
+        return false;
+    };
+    document.descendants().any(|node| {
+        if !node.has_tag_name(("http://purl.oclc.org/dsdl/schematron", "rule")) {
+            return false;
+        }
+        let Some(context) = node.attribute("context") else {
+            return false;
+        };
+        let mut brackets = 0usize;
+        let mut quote = None;
+        for (index, ch) in context.char_indices() {
+            if let Some(delimiter) = quote {
+                if ch == delimiter {
+                    quote = None;
+                }
+                continue;
+            }
+            match ch {
+                '\'' | '"' => quote = Some(ch),
+                '[' => brackets += 1,
+                ']' => brackets = brackets.saturating_sub(1),
+                '@' if brackets == 0 => return true,
+                'a' if brackets == 0 && context[index..].starts_with("attribute::") => {
+                    return true;
+                }
+                _ => {}
+            }
+        }
+        false
+    })
+}
+
+#[cfg(test)]
+mod attribute_context_tests {
+    use super::has_attribute_rule_context;
+
+    #[test]
+    fn recognizes_attribute_contexts_outside_predicates() {
+        for context in ["r/@id", "r | attribute::id", "@id"] {
+            let schema = format!(
+                r#"<schema xmlns="http://purl.oclc.org/dsdl/schematron"><rule context="{context}"/></schema>"#
+            );
+            assert!(has_attribute_rule_context(&schema), "{context}");
+        }
+        for context in ["r[@id]", "r[contains(@id, '@')]", "r[@id='@']"] {
+            let schema = format!(
+                r#"<schema xmlns="http://purl.oclc.org/dsdl/schematron"><rule context="{context}"/></schema>"#
+            );
+            assert!(!has_attribute_rule_context(&schema), "{context}");
+        }
+    }
+}
+
 fn main() -> Result<ExitCode, Box<dyn Error>> {
     let mut arguments = std::env::args_os().skip(1);
     let transpiler_path = arguments
@@ -238,6 +297,15 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
                 !allow_compiler_messages,
             )?;
         }
+    }
+    if iso
+        && has_attribute_rule_context(&schema)
+        && fs::read_to_string(compiler_root.join("iso_schematron_skeleton_for_saxon.xsl"))
+            .is_ok_and(|s| s.contains("$attributes='true' and parent::node()"))
+    {
+        eprintln!(
+            "warning: this ISO compiler can skip attribute-context rules; use a different Schematron compiler or review its generated validator"
+        );
     }
     let generated = transform_stage(
         &transpiler,

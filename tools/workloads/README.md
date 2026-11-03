@@ -364,6 +364,15 @@ reports 1,423 failures. Seventeen inputs fire no rules in each of these runs;
 many inputs are fragments, so a matching report does not mean that every input
 was meaningfully validated.
 
+The pinned NEMSIS ISO skeleton skips attribute-context rules in these schemas:
+its generated traversal does not visit attributes. Both Rust and Saxon exhibit
+this with the unmodified compiler, so agreement between them does not prove
+complete validation. The public example warns when it recognizes this skeleton
+and a schema with an attribute context. To compare SchXslt2 instead, add
+`--schxslt2 /tmp/xslt-workloads/schxslt2`; for 3.0 errors it fires 3,997 rules
+and reports six failures. Two additional failures are attribute rules in
+`header-direct-address.xml` that the ISO validator misses.
+
 The same repository's 2.1 schema activates `hasCompatibleR1.1TemplateId` but
 comments out the pattern. Both ISO compiler runs report the missing pattern;
 the public example stops by default. The optional `--version 2.1 --vocabulary
