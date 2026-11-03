@@ -318,6 +318,27 @@ schema also needs `--max-steps 100000000` for its include stage. The pinned ISO
 abstract-pattern processor does not correctly expand the upstream `svrl.sch`
 schema even with a higher depth limit; the same issue occurs with SaxonC.
 
+HL7's C-CDA 2.1 repository adds another healthcare workload with an unmodified
+schema, a sample document, and an external terminology file. To compare the
+public example with SaxonC using the pinned ISO compiler above:
+
+```sh
+git clone https://github.com/HL7/CDA-ccda-2.1.git /tmp/xslt-workloads/hl7-ccda
+git -C /tmp/xslt-workloads/hl7-ccda checkout 6d3ed96160b45a111895da4df5510c7fad9de01f
+PYTHONPATH=/tmp/rust-xslt-saxonche python3 tools/workloads/reference_ccda.py \
+  --ccda /tmp/xslt-workloads/hl7-ccda --nemsis /tmp/xslt-workloads/nemsis --release
+```
+
+The Rust-only public example and SaxonC independently compile and run the
+schema's `errors` phase. They agree on fired-rule contexts and assertion details
+for the upstream document and two small documents that test valid and invalid
+codes against the upstream 62 MB `voc.xml`. The upstream example fires 172
+rules; the invalid-code case reports `a-1098-8746`. The probe uses a
+200-million-step limit and depth 2048; compilation exceeds the default
+20-million-step limit on this schema. The synthetic documents exercise a
+terminology rule and are not complete CDA clinical documents. C-CDA also
+requires separate XML Schema validation, which this probe does not perform.
+
 Pass `--dataset ems` to run the same comparison on the larger NEMSIS
 patient-care schema and its 198 upstream sample documents and expected reports.
 This requires the checkout to include `Schematron/rules/EMSDataSet.sch` and the

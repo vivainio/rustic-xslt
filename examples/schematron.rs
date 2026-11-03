@@ -81,7 +81,9 @@ fn transform_stage(
     label: &str,
     reject_messages: bool,
 ) -> Result<String, Box<dyn Error>> {
-    let result = sheet.transform_with_documents(source, options)?;
+    let result = sheet
+        .transform_with_documents(source, options)
+        .map_err(|error| format!("{label}: {error}"))?;
     for message in &result.messages {
         eprintln!("{label}: {message}");
     }
