@@ -344,6 +344,34 @@ The probe also checks the `warnings` phase on the upstream document: both
 processors agree on 169 fired rules and 53 failed assertions, and the public
 example's `--fail-on-findings` option returns status 1 for that report.
 
+The separate HL7 CDA Examples repository contains newer C-CDA 3.0 and 4.0
+schemas and 137 clinical examples. To compare the whole corpus against SaxonC:
+
+```sh
+git clone https://github.com/HL7/CDA-Examples.git /tmp/xslt-workloads/hl7-cda-examples
+git -C /tmp/xslt-workloads/hl7-cda-examples checkout 76619b21ccd7f42567f77fa6219bfab473f9dfed
+PYTHONPATH=/tmp/rust-xslt-saxonche python3 tools/workloads/reference_cda_examples.py \
+  --examples /tmp/xslt-workloads/hl7-cda-examples --nemsis /tmp/xslt-workloads/nemsis \
+  --version 3.0 --phase errors --max-steps 30000000 --release
+```
+
+The public example compiles each schema once and validates all 137 files;
+the probe compares each report's fired-rule contexts and finding details with
+SaxonC. For the pinned checkout, the 3.0 errors phase fires 3,675 rules and
+reports four failed assertions; the 4.0 errors phase fires 3,400 rules and
+also reports four failures. The 3.0 warnings phase fires 2,501 rules and
+reports 1,423 failures. Seventeen inputs fire no rules in each of these runs;
+many inputs are fragments, so a matching report does not mean that every input
+was meaningfully validated.
+
+The same repository's 2.1 schema activates `hasCompatibleR1.1TemplateId` but
+comments out the pattern. Both ISO compiler runs report the missing pattern;
+the public example stops by default. The optional `--version 2.1 --vocabulary
+PATH --allow-compiler-messages` diagnostic continues with the missing rule and
+must not be treated as complete validation. With the vocabulary from the
+pinned 2.1 repository above, Rust and Saxon agree on all 137 reports: 806 rules
+fire, eight assertions fail, and 19 inputs fire no rules.
+
 Pass `--dataset ems` to run the same comparison on the larger NEMSIS
 patient-care schema and its 198 upstream sample documents and expected reports.
 This requires the checkout to include `Schematron/rules/EMSDataSet.sch` and the
