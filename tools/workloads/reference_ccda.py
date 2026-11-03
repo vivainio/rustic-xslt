@@ -85,6 +85,25 @@ def main():
                                      f'expected={expected}, Saxon agrees={actual == reference}')
             print('PASS', name, 'fired:', sum(actual[0].values()), 'failed IDs:', sorted(failed), flush=True)
 
+        compiler_xslt.set_parameter('phase', processor.make_string_value('warnings'))
+        warning_file = tmp / 'saxon-warnings.xsl'
+        warning_file.write_text(compiler_xslt.transform_to_string(source_file=str(schema)))
+        warning_validator = xslt.compile_stylesheet(stylesheet_file=str(warning_file))
+        warnings = subprocess.run([str(driver), str(compiler), str(schema), '--iso', '--phase', 'warnings',
+                                   '--max-steps', str(args.max_steps), '--max-depth', str(args.max_depth),
+                                   '--fail-on-findings', str(sample)], cwd=ROOT, text=True,
+                                  capture_output=True, timeout=300)
+        if warnings.returncode != 1:
+            raise RuntimeError(f'warnings: expected findings exit status 1, got {warnings.returncode}: {warnings.stderr}')
+        actual = signature(warnings.stdout)
+        reference = signature(warning_validator.transform_to_string(source_file=str(sample)))
+        failed = {entry[0] for entry in actual[1]}
+        if (actual != reference or sum(actual[0].values()) != 169
+                or sum(actual[1].values()) != 53 or 'a-81-7290' not in failed):
+            raise AssertionError(f'warnings: fired={sum(actual[0].values())}, '
+                                 f'failed={sum(actual[1].values())}, Saxon agrees={actual == reference}')
+        print('PASS warnings phase: 169 rules fired, 53 findings, findings exit status 1', flush=True)
+
 
 if __name__ == '__main__':
     main()

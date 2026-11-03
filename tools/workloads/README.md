@@ -340,6 +340,9 @@ with `--max-steps 30000000`. Compilation exceeds the default 20-million-step
 limit on this schema. The synthetic documents exercise a
 terminology rule and are not complete CDA clinical documents. C-CDA also
 requires separate XML Schema validation, which this probe does not perform.
+The probe also checks the `warnings` phase on the upstream document: both
+processors agree on 169 fired rules and 53 failed assertions, and the public
+example's `--fail-on-findings` option returns status 1 for that report.
 
 Pass `--dataset ems` to run the same comparison on the larger NEMSIS
 patient-care schema and its 198 upstream sample documents and expected reports.
